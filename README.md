@@ -34,8 +34,10 @@ starts instantly and stays light.
 ## ✨ Features
 
 - 🎧 **Your Spotify library** — playlists, Liked Songs, saved albums, followed artists and the personalized home
-  feed (Made For You, Daily Mixes, Discover Weekly, Recently played). Liking, saving, following and playlist edits
-  are written back to your account.
+  feed (Made For You, Daily Mixes, Discover Weekly, Recently played), with your playlist folders. Liking, saving,
+  following and playlist edits are written back to your account.
+- 🖱️ **Drag and drop** — drag songs onto a playlist, Liked Songs or into the queue; drop music files and folders
+  from Explorer to play them.
 - 🚫 **No ads, no Premium** — audio comes from YouTube, matched automatically; pick another video with
   "Wrong match?" if one is off.
 - 📻 **Radio & autoplay** — start a radio from a song, artist, album or playlist; when the queue ends, similar songs

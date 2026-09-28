@@ -1,0 +1,39 @@
+{
+  "revision": "AAAAEtestrevision0000000000000000000000==",
+  "length": 13,
+  "attributes": {},
+  "contents": {
+    "pos": 0,
+    "truncated": false,
+    "items": [
+      {"uri": "spotify:playlist:0TestPlaylist000000001", "attributes": {"timestamp": "1690000000001"}},
+      {"uri": "spotify:start-group:a1b2c3d4e5f60718:Yol+M%C3%BCzikleri", "attributes": {"timestamp": "1690000000002"}},
+      {"uri": "spotify:playlist:0TestPlaylist000000002", "attributes": {"timestamp": "1690000000003"}},
+      {"uri": "spotify:start-group:b2c3d4e5f6071829:Gece+%26+G%C3%BCnd%C3%BCz", "attributes": {"timestamp": "1690000000004"}},
+      {"uri": "spotify:playlist:0TestPlaylist000000003", "attributes": {"timestamp": "1690000000005"}},
+      {"uri": "spotify:end-group:b2c3d4e5f6071829", "attributes": {"timestamp": "1690000000006"}},
+      {"uri": "spotify:playlist:0TestPlaylist000000004", "attributes": {"timestamp": "1690000000007"}},
+      {"uri": "spotify:end-group:a1b2c3d4e5f60718", "attributes": {"timestamp": "1690000000008"}},
+      {"uri": "spotify:start-group:c3d4e5f607182930:Bo%C5%9F+klas%C3%B6r", "attributes": {"timestamp": "1690000000009"}},
+      {"uri": "spotify:end-group:c3d4e5f607182930", "attributes": {"timestamp": "1690000000010"}},
+      {"uri": "spotify:playlist:0TestPlaylist000000005", "attributes": {"timestamp": "1690000000011"}},
+      {"uri": "spotify:end-group:ffffffffffffffff", "attributes": {"timestamp": "1690000000012"}},
+      {"uri": "spotify:playlist:0TestPlaylist000000002", "attributes": {"timestamp": "1690000000013"}}
+    ],
+    "metaItems": [
+      {"revision": "AAAAAQ==", "attributes": {"name": "Test 1"}, "length": 12, "timestamp": "1690000000001", "ownerUsername": "testuser"},
+      {},
+      {"revision": "AAAAAg==", "attributes": {"name": "Test 2"}, "length": 3, "timestamp": "1690000000003", "ownerUsername": "testuser"},
+      {},
+      {"revision": "AAAAAw==", "attributes": {"name": "Test 3"}, "timestamp": "1690000000005", "ownerUsername": "someoneelse"},
+      {},
+      {"revision": "AAAABA==", "attributes": {"name": "Test 4"}, "length": 40, "timestamp": "1690000000007", "ownerUsername": "testuser"},
+      {},
+      {},
+      {},
+      {"revision": "AAAABQ==", "attributes": {"name": "Test 5"}, "length": 7, "timestamp": "1690000000011", "ownerUsername": "testuser"},
+      {},
+      {"revision": "AAAAAg==", "attributes": {"name": "Test 2"}, "length": 3, "timestamp": "1690000000013", "ownerUsername": "testuser"}
+    ]
+  }
+}

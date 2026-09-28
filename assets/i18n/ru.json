@@ -900,5 +900,34 @@
   "Yükleniyor…": "Загрузка…",
   "Oynat / Duraklat": "Воспроизведение / пауза",
   "Bu radyo yayınının biçimi desteklenmiyor": "Формат этого радиопотока не поддерживается",
-  "Radyo yayınına bağlanılamadı": "Не удалось подключиться к радиопотоку"
+  "Radyo yayınına bağlanılamadı": "Не удалось подключиться к радиопотоку",
+  "Adsız klasör": "Папка без названия",
+  "Klasörü kapat": "Свернуть папку",
+  "Kitaplıkta göster": "Показать в медиатеке",
+  "Bu klasör boş": "Эта папка пуста",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "Добавить плейлисты в эту папку можно в Spotify.",
+  "Bırakılan dosyalar": "Перетащенные файлы",
+  "Bırakılan klasörler taranıyor…": "Сканируем перетащенные папки…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "Среди перетащенного нет воспроизводимых аудиофайлов",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "Добавить эту папку в «Локальные файлы»?",
+  "Ekle": "Добавить",
+  "Zaten Beğenilen Şarkılar'da": "Уже в любимых треках",
+  "Yalnızca ilk {} dosya alındı": {
+    "one": "Взят только первый {} файл",
+    "few": "Взяты только первые {} файла",
+    "many": "Взяты только первые {} файлов",
+    "other": "Взяты только первые {} файла"
+  },
+  "{} şarkı Beğenilen Şarkılar'a eklendi": {
+    "one": "{} трек добавлен в любимые",
+    "few": "{} трека добавлены в любимые",
+    "many": "{} треков добавлено в любимые",
+    "other": "{} трека добавлено в любимые"
+  },
+  "{} şarkı sıraya eklendi": {
+    "one": "{} трек добавлен в очередь",
+    "few": "{} трека добавлены в очередь",
+    "many": "{} треков добавлено в очередь",
+    "other": "{} трека добавлено в очередь"
+  }
 }

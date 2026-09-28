@@ -42,6 +42,10 @@ public:
     void replaceUpcoming(std::vector<Track> tracks, PlayContext context);
     void playNext(const Track& track);            // insert right after the current item
     void enqueue(const std::vector<Track>& tracks);
+    // Inserts tracks (unplayable ones dropped) into the play order at `orderIndex`, clamped between the slot after the
+    // current one and the end (drag and drop onto the queue). An empty queue starts playing them; a queue that had run
+    // out continues with the first of them. Returns #inserted.
+    int insertAt(int orderIndex, const std::vector<Track>& tracks);
     void togglePause();
     void play();
     void pause();

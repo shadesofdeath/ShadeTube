@@ -838,5 +838,28 @@
   "Yükleniyor…": "Cargando…",
   "Oynat / Duraklat": "Reproducir / Pausar",
   "Bu radyo yayınının biçimi desteklenmiyor": "No se admite el formato de esta emisión de radio",
-  "Radyo yayınına bağlanılamadı": "No se ha podido conectar con la emisión de radio"
+  "Radyo yayınına bağlanılamadı": "No se ha podido conectar con la emisión de radio",
+  "Adsız klasör": "Carpeta sin nombre",
+  "Klasörü kapat": "Cerrar carpeta",
+  "Kitaplıkta göster": "Mostrar en la biblioteca",
+  "Bu klasör boş": "Esta carpeta está vacía",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "Puedes añadir playlists a esta carpeta en Spotify.",
+  "Bırakılan dosyalar": "Archivos soltados",
+  "Bırakılan klasörler taranıyor…": "Escaneando las carpetas soltadas…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "Nada de lo que soltaste es un archivo de audio reproducible",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "¿Añadir esta carpeta a Archivos locales?",
+  "Ekle": "Añadir",
+  "Zaten Beğenilen Şarkılar'da": "Ya está en Canciones que te gustan",
+  "Yalnızca ilk {} dosya alındı": {
+    "one": "Solo se tomó el primer archivo ({})",
+    "other": "Solo se tomaron los primeros {} archivos"
+  },
+  "{} şarkı Beğenilen Şarkılar'a eklendi": {
+    "one": "{} canción añadida a Canciones que te gustan",
+    "other": "{} canciones añadidas a Canciones que te gustan"
+  },
+  "{} şarkı sıraya eklendi": {
+    "one": "{} canción añadida a la cola",
+    "other": "{} canciones añadidas a la cola"
+  }
 }

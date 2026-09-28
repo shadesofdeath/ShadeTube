@@ -745,5 +745,19 @@
   "Yükleniyor…": "Memuat…",
   "Oynat / Duraklat": "Putar / Jeda",
   "Bu radyo yayınının biçimi desteklenmiyor": "Format siaran radio ini tidak didukung",
-  "Radyo yayınına bağlanılamadı": "Tidak dapat terhubung ke siaran radio"
+  "Radyo yayınına bağlanılamadı": "Tidak dapat terhubung ke siaran radio",
+  "Adsız klasör": "Folder tanpa nama",
+  "Klasörü kapat": "Tutup folder",
+  "Kitaplıkta göster": "Tampilkan di Koleksi",
+  "Bu klasör boş": "Folder ini kosong",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "Kamu bisa menambahkan playlist ke folder ini di Spotify.",
+  "Bırakılan dosyalar": "File yang dilepas",
+  "Bırakılan klasörler taranıyor…": "Memindai folder yang dilepas…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "Tidak ada file audio yang bisa diputar di antara yang kamu lepas",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "Tambahkan folder ini ke File lokal?",
+  "Ekle": "Tambah",
+  "Zaten Beğenilen Şarkılar'da": "Sudah ada di Lagu yang Disukai",
+  "Yalnızca ilk {} dosya alındı": "Hanya {} file pertama yang diambil",
+  "{} şarkı Beğenilen Şarkılar'a eklendi": "{} lagu ditambahkan ke Lagu yang Disukai",
+  "{} şarkı sıraya eklendi": "{} lagu ditambahkan ke antrean"
 }

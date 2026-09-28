@@ -2,6 +2,14 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.5.0 — unreleased
+
+- **Spotify playlist folders**: the sidebar shows your Spotify folders (nested ones too) as groups you can open and
+  close; the Library page shows them as folder cards.
+- **Drag and drop**: drag songs (or a whole selection) from any song list onto a playlist or Liked Songs in the
+  sidebar, or into the queue exactly where you want them. Drop music files or folders from Windows Explorer on the
+  window to play them at once, or on the queue to add them; a dropped folder can be added to Local files.
+
 ## 0.4.0 — 2026-09-28
 
 - **11 UI languages**: Turkish, English, German, Spanish, French, Portuguese (Brazil), Russian, Ukrainian,

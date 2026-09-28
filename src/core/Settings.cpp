@@ -67,6 +67,7 @@ void Settings::load() {
     read(j, "altSource", altSource);
     read(j, "altSourceInstance", altSourceInstance);
     read(j, "localFolders", localFolders);
+    read(j, "expandedFolders", expandedFolders);
     read(j, "updateCheck", updateCheck);
     read(j, "lastUpdateCheck", lastUpdateCheck);
     read(j, "skippedVersion", skippedVersion);
@@ -120,6 +121,7 @@ void Settings::save() const {
         {"altSource", altSource},
         {"altSourceInstance", altSourceInstance},
         {"localFolders", localFolders},
+        {"expandedFolders", expandedFolders},
         {"updateCheck", updateCheck},
         {"lastUpdateCheck", lastUpdateCheck},
         {"skippedVersion", skippedVersion},

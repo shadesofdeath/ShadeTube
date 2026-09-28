@@ -45,6 +45,8 @@ add_executable(ShadeTube WIN32
     DiscordRpc.cpp DiscordRpc.h
     Downloads.cpp Downloads.h
     DownloadsPage.cpp
+    DragDrop.cpp DragDrop.h
+    DroppedFiles.cpp DroppedFiles.h
     HomePage.cpp
     Installer.cpp Installer.h
     ListenStats.cpp ListenStats.h

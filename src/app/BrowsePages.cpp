@@ -574,7 +574,9 @@ private:
 
 class LibraryPage : public ScrollPage {
 public:
-    LibraryPage() {
+    // `route` = the Library route's id: "folder:<id>" shows the playlists of one Spotify library folder.
+    explicit LibraryPage(const std::string& route) {
+        if (route.rfind("folder:", 0) == 0) folder_ = route.substr(7);
         rebuild();
         ctx().library.subscribe(libLife_.ref(), [this] { rebuild(); });
         if (ctx().session)
@@ -584,6 +586,18 @@ public:
 private:
     void rebuild() {
         const float y = scroll_->scrollY();
+        // A folder that is gone (moved / deleted on Spotify, logged out): the whole library instead.
+        const spotify::PlaylistFolder* folder =
+            !folder_.empty() && source::loggedIn() ? ctx().session->library().tree.folder(folder_) : nullptr;
+        if (folder) {
+            buildFolder(*folder);
+            contentReady();
+            if (y > 0) {
+                scroll_->layout();
+                scroll_->scrollTo(y, false);
+            }
+            return;
+        }
         auto* c = resetContent(24.f);
         auto* top = c->add<ui::Box>();
         auto* title = top->add<ui::Label>(tr(L"Kitaplık"), type::displayM);
@@ -616,21 +630,8 @@ private:
         if (tab_ == 0) {
             auto* grid = addCardRow(c, 170, 0);
             if (sp) {
-                const auto& snap = ctx().session->library();
-                for (const auto& p : snap.playlists) {
-                    const bool liked = p.id == spotify::Api::kLikedSongsUri;
-                    // No count from Spotify (e.g. "Your Episodes"): show the owner instead of a misleading "0 şarkı".
-                    const std::wstring sub = p.countKnown      ? i18n::plural(L"{} şarkı", p.totalTracks)
-                                             : !p.ownerName.empty() ? toWide(p.ownerName)
-                                                                    : std::wstring(tr(L"Çalma listesi"));
-                    auto* card = grid->add<MediaCard>(toWide(p.name), sub, p.images, MediaCard::Shape::Square,
-                                                      Placeholder::Playlist);
-                    const Route open = liked ? Route{RouteKind::Liked} : Route{RouteKind::Playlist, p.id};
-                    Route play = open;
-                    play.id += "#play";
-                    card->onOpen = [open] { ctx().router->navigate(open); };
-                    card->onPlay = [play] { ctx().router->navigate(play); };
-                }
+                // Top level of the library: folders sit where their most recent playlist would be.
+                addSpotifyCards(grid, {});
             } else {
                 auto* liked = grid->add<MediaCard>(tr(L"Beğenilen Şarkılar"),
                                                    i18n::plural(L"{} şarkı", lib.liked().size()), std::vector<Image>{},
@@ -679,7 +680,67 @@ private:
         }
     }
 
+    // Spotify playlists and folders directly under `folderId` ("" = the top level), as cards in library order.
+    void addSpotifyCards(ui::Widget* grid, const std::string& folderId) {
+        const auto& snap = ctx().session->library();
+        const auto closed = [](const std::string&) { return false; };
+        for (const auto& row : spotify::treeRows(snap.playlists, snap.tree, closed, folderId)) {
+            if (row.folder) {
+                const auto& f = snap.tree.folders[row.index];
+                auto* card = grid->add<MediaCard>(f.name.empty() ? std::wstring(tr(L"Adsız klasör")) : toWide(f.name),
+                                                  i18n::plural(L"{} çalma listesi", f.playlistCount),
+                                                  std::vector<Image>{}, MediaCard::Shape::Square, Placeholder::Folder);
+                const Route open{RouteKind::Library, "folder:" + f.id};
+                card->onOpen = [open] { ctx().router->navigate(open); };
+                continue;
+            }
+            const auto& p = snap.playlists[row.index];
+            const bool liked = p.id == spotify::Api::kLikedSongsUri;
+            // No count from Spotify (e.g. "Your Episodes"): show the owner instead of a misleading "0 şarkı".
+            const std::wstring sub = p.countKnown      ? i18n::plural(L"{} şarkı", p.totalTracks)
+                                     : !p.ownerName.empty() ? toWide(p.ownerName)
+                                                            : std::wstring(tr(L"Çalma listesi"));
+            auto* card = grid->add<MediaCard>(toWide(p.name), sub, p.images, MediaCard::Shape::Square, Placeholder::Playlist);
+            const Route open = liked ? Route{RouteKind::Liked} : Route{RouteKind::Playlist, p.id};
+            Route play = open;
+            play.id += "#play";
+            card->onOpen = [open] { ctx().router->navigate(open); };
+            card->onPlay = [play] { ctx().router->navigate(play); };
+        }
+    }
+
+    // One Spotify library folder: its playlists and subfolders, with the way back up.
+    void buildFolder(const spotify::PlaylistFolder& f) {
+        auto* c = resetContent(24.f);
+        const auto& tree = ctx().session->library().tree;
+        const auto* parent = f.parentId.empty() ? nullptr : tree.folder(f.parentId);
+        auto* top = c->add<ui::Box>();
+        auto* title = top->add<ui::Label>(f.name.empty() ? std::wstring(tr(L"Adsız klasör")) : toWide(f.name), type::displayM);
+        title->setVAlign(gfx::VAlign::Top);
+        // Up one level: the parent folder, else the whole library.
+        const std::wstring upLabel = parent ? (parent->name.empty() ? std::wstring(tr(L"Adsız klasör")) : toWide(parent->name))
+                                            : std::wstring(tr(L"Kitaplık"));
+        Button* up = top->add<Button>(ButtonKind::Secondary, upLabel, "arrow-back");
+        const Route upRoute = parent ? Route{RouteKind::Library, "folder:" + parent->id} : Route{RouteKind::Library};
+        up->onClick = [upRoute] { ctx().router->navigate(upRoute); };
+        auto* meta = top->add<ui::Label>(toUpperTr(i18n::plural(L"{} çalma listesi", f.playlistCount)), type::monoLabel,
+                                         ui::Tone::Tertiary);
+        top->onPreferredHeight = [](float) { return 84.f; };
+        top->onLayout = [title, up, meta](ui::Box& b) {
+            const float w = b.rect().w;
+            const float uw = up->naturalWidth();
+            meta->setRect({0, 0, w * 0.6f, 16});
+            title->setRect({0, 20, w - uw - 24, 64});
+            up->setRect({w - uw, 32, uw, 40});
+        };
+        auto* grid = addCardRow(c, 170, 0);
+        addSpotifyCards(grid, f.id);
+        if (f.playlistCount == 0)
+            c->add<MessagePanel>("folder", tr(L"Bu klasör boş"), tr(L"Spotify'da bu klasöre çalma listesi ekleyebilirsin."));
+    }
+
     int tab_ = 0;
+    std::string folder_;   // Spotify library folder shown ("" = the whole library)
     Lifetime libLife_;
 };
 
@@ -890,7 +951,7 @@ private:
 } // namespace
 
 std::unique_ptr<Page> makeSearchPage(const std::string& q) { return std::make_unique<SearchPage>(q); }
-std::unique_ptr<Page> makeLibraryPage() { return std::make_unique<LibraryPage>(); }
+std::unique_ptr<Page> makeLibraryPage(const std::string& id) { return std::make_unique<LibraryPage>(id); }
 std::unique_ptr<Page> makeArtistPage(const std::string& id) { return std::make_unique<ArtistView>(id); }
 
 } // namespace st::app

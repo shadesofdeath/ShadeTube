@@ -1,6 +1,7 @@
 #include "app/Components.h"
 
 #include "app/Blacklist.h"
+#include "app/DragDrop.h"
 #include "app/Router.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -46,6 +47,7 @@ void drawLightPlaceholder(Canvas& c, Placeholder ph, const Rect& r, float radius
         c.line(P(64, 168), P(120, 168), ink, w2);
         c.icon("play", {o.x + 166 * s, o.y + 146 * s, 44 * s, 44 * s}, ink);   // the SVG's small play triangle
         break;
+    case Placeholder::Folder: break;   // drawn by drawArtwork (no SVG)
     }
 }
 } // namespace
@@ -58,6 +60,12 @@ void drawArtwork(Canvas& c, const std::vector<catalog::Image>& images, const Rec
     if (bmp) {
         if (circle) c.imageCircle(bmp, r);
         else c.image(bmp, r, radius);
+        return;
+    }
+    if (ph == Placeholder::Folder && !circle) {   // no placeholder SVG: the folder glyph on the placeholder surface
+        c.fillRounded(r, radius, gfx::isLightTheme() ? colors().bgSunken : colors().bgOverlay);
+        const float g = std::round(std::min(r.w, r.h) * 0.3f);
+        c.icon("folder", r.center(g, g), colors().fgTertiary);
         return;
     }
     // Placeholder (placeholders/*.svg are full-bleed artwork in their own colors).
@@ -234,6 +242,10 @@ void SectionHeader::paint(Canvas& c) {
 // and the artist banner.
 TrackTable::TrackTable(Options opts) : opts_(opts), blockedBadge_(toUpperTr(tr(L"Engelli")), type::monoBadge) {
     focusable = true;
+}
+
+TrackTable::~TrackTable() {
+    if (dragging_) dragdrop::cancel();   // the page went away mid-drag
 }
 
 void TrackTable::setTracks(std::vector<catalog::Track> tracks) {
@@ -502,6 +514,17 @@ bool TrackTable::artistHit(int i, gfx::Point p) {
 }
 
 void TrackTable::onMouseMove(const ui::MouseEvent& e) {
+    // A pressed row that travels past the threshold becomes a drag of its songs.
+    if (pressRow_ >= 0 && pressed() && !dragging_ &&
+        std::hypot(e.windowPos.x - pressPos_.x, e.windowPos.y - pressPos_.y) > dragdrop::kThreshold) {
+        auto tracks = dragTracks();
+        if (!tracks.empty()) {
+            dragging_ = true;
+            collapseOnUp_ = -1;
+            dragdrop::begin(std::move(tracks), e.windowPos);
+        }
+    }
+    if (dragging_) dragdrop::move(e.windowPos);
     const int i = rowAt(e.pos.y);
     const bool hh = heartHit(i, e.pos), ha = artistHit(i, e.pos);
     if (i != hover_ || hh != hoverHeart_ || ha != hoverArtist_) {
@@ -571,6 +594,7 @@ bool TrackTable::onMouseDown(const ui::MouseEvent& e) {
         else if (onPlay && t.playable) onPlay(i);
         return true;
     }
+    collapseOnUp_ = -1;
     if (e.ctrl) {
         if (selected_.contains(ti)) selected_.erase(ti);
         else selected_.insert(ti);
@@ -578,16 +602,43 @@ bool TrackTable::onMouseDown(const ui::MouseEvent& e) {
     } else if (e.shift && anchor_ >= 0) {
         selected_.clear();
         for (int k = std::min(anchor_, i); k <= std::max(anchor_, i); ++k) selected_.insert(view_[k]);
+    } else if (selected_.contains(ti) && selected_.size() > 1) {
+        collapseOnUp_ = ti;   // keep the selection: this press may drag all of it
+        anchor_ = i;
     } else {
         selected_ = {ti};
         anchor_ = i;
     }
     pressRow_ = i;
+    pressPos_ = e.windowPos;
     invalidate();
     return true;
 }
 
-void TrackTable::onMouseUp(const ui::MouseEvent&) { pressRow_ = -1; }
+void TrackTable::onMouseUp(const ui::MouseEvent& e) {
+    if (dragging_) {
+        dragging_ = false;
+        dragdrop::finish(e.windowPos);
+    } else if (collapseOnUp_ >= 0) {
+        selected_ = {collapseOnUp_};
+        invalidate();
+    }
+    collapseOnUp_ = -1;
+    pressRow_ = -1;
+}
+
+std::vector<catalog::Track> TrackTable::dragTracks() const {
+    std::vector<catalog::Track> out;
+    if (pressRow_ < 0 || pressRow_ >= static_cast<int>(view_.size())) return out;
+    const int pressed = view_[pressRow_];
+    if (!selected_.contains(pressed)) {   // a ctrl-click just took it out of the selection: drag it alone
+        if (!tracks_[pressed].id.empty()) out.push_back(tracks_[pressed]);
+        return out;
+    }
+    for (int k : view_)   // display order
+        if (selected_.contains(k) && !tracks_[k].id.empty()) out.push_back(tracks_[k]);
+    return out;
+}
 
 // Keyboard cursor = anchor_ (display index). The Window draws the focus ring around it and scrolls it into view
 // after every arrow key; before the first move (Tab into the table) the cursor is row 0.
@@ -597,6 +648,12 @@ Rect TrackTable::focusRect() const {
 }
 
 bool TrackTable::onKeyDown(const ui::KeyEvent& e) {
+    if (dragging_ && e.vk == VK_ESCAPE) {
+        dragging_ = false;
+        pressRow_ = -1;
+        dragdrop::cancel();
+        return true;
+    }
     if (view_.empty()) return false;
     const int n = static_cast<int>(view_.size());
     int cur = std::min(anchor_, n - 1);   // the view may have shrunk (filter) since the anchor was set

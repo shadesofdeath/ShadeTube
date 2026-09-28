@@ -33,8 +33,10 @@ kalır.
 ## ✨ Özellikler
 
 - 🎧 **Spotify kitaplığın** — çalma listeleri, Beğenilen Şarkılar, kayıtlı albümler, takip ettiğin sanatçılar ve
-  kişisel ana sayfa (Daily Mix'ler, Haftalık Keşif, Yakınlarda Çalınanlar). Beğenme, kaydetme, takip ve liste
-  düzenleme doğrudan hesabına yazılır.
+  kişisel ana sayfa (Daily Mix'ler, Haftalık Keşif, Yakınlarda Çalınanlar), liste klasörlerinle birlikte. Beğenme,
+  kaydetme, takip ve liste düzenleme doğrudan hesabına yazılır.
+- 🖱️ **Sürükle bırak** — şarkıları bir listeye, Beğenilen Şarkılar'a ya da sıraya sürükle; Explorer'dan müzik
+  dosyası ve klasör bırak, hemen çalsın.
 - 🚫 **Reklam ve Premium yok** — ses YouTube'dan, otomatik eşleşmeyle gelir; yanlışsa "Yanlış eşleşme?" ile başka
   bir video seçersin.
 - 📻 **Radyo ve sonsuz çalma** — şarkıdan, sanatçıdan, albümden ya da listeden radyo başlat; sıra bitince benzer

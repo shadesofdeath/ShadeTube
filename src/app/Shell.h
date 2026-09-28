@@ -2,6 +2,7 @@
 // Application chrome: title bar, sidebar, player bar, queue panel, page host and the root layout.
 #include "app/AppContext.h"
 #include "app/Components.h"
+#include "app/DragDrop.h"
 #include "app/Router.h"
 #include "ui/Controls.h"
 #include "ui/Layout.h"
@@ -45,19 +46,34 @@ private:
     bool nowPlaying_ = false;
 };
 
-class Sidebar : public ui::Widget {
+class SidebarRow;   // a playlist or folder row (Shell.cpp)
+
+class Sidebar : public ui::Widget, public DropTarget {
 public:
     Sidebar();
-    void refresh();          // playlists / counts changed
+    void refresh();          // playlists / counts / folders changed
     void syncActive();       // router changed
     void layout() override;
     void paint(Canvas& c) override;
 
+    // Drag and drop: songs onto Liked Songs or a playlist the user can add to. A closed folder opens while they rest
+    // on it; the list scrolls near its edges.
+    bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
+    void dragLeave() override;
+    void drop(const DragPayload& payload, gfx::Point windowPos) override;
+
 private:
+    void setFolderOpen(const std::string& folderId, bool open);   // Settings::expandedFolders, then refresh()
+    SidebarRow* rowAt(gfx::Point windowPos) const;
+
     ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *stats_, *settings_, *newPlaylist_;
     ui::ScrollView* list_;
     ui::Column* listCol_;
-    std::vector<std::pair<ui::Button*, Route>> items_;
+    std::vector<std::pair<SidebarRow*, Route>> items_;   // folders: {Library, "folder:<id>"}
+    SidebarRow* dropRow_ = nullptr;                      // highlighted drop target
+    SidebarRow* restingFolder_ = nullptr;                // closed folder under a drag, since restingSince_
+    double restingSince_ = 0, lastScrollTick_ = 0;
+    Lifetime life_;
 };
 
 class PlayerBar : public ui::Widget {
@@ -88,7 +104,7 @@ public:
     LPCWSTR cursor() const override { return infoHover_ ? IDC_HAND : IDC_ARROW; }
 };
 
-class QueuePanel : public ui::Widget {
+class QueuePanel : public ui::Widget, public DropTarget {
 public:
     QueuePanel();
     void sync();
@@ -101,8 +117,13 @@ public:
     void onMouseUp(const ui::MouseEvent& e) override;
     void onMouseLeave() override { hover_ = -1; invalidate(); }
     LPCWSTR cursor() const override { return hover_ >= 0 ? IDC_HAND : IDC_ARROW; }
+    // Drag and drop: songs (or files from Explorer) go into the queue where they are dropped.
+    bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
+    void dragLeave() override;
+    void drop(const DragPayload& payload, gfx::Point windowPos) override;
 
 private:
+    int dropIndexAt(gfx::Point windowPos) const;   // order index the dropped songs go in front of
     int rowAt(gfx::Point p) const;       // order index or -1
     Rect rowRect(int orderIndex) const;
     float listTop() const;
@@ -114,6 +135,8 @@ private:
     int dragFrom_ = -1, dragTo_ = -1;
     float dragStartY_ = 0;
     bool dragging_ = false;
+    int dropAt_ = -1;                    // songs dragged in from elsewhere: order index of the insertion line
+    double lastScrollTick_ = 0;
 };
 
 // Hosts the current page with the enter transition (opacity + 16 px rise, 360 ms decelerate).

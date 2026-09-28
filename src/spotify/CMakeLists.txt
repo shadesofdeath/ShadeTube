@@ -2,6 +2,7 @@ add_library(st_spotify STATIC
     Totp.cpp Totp.h
     Auth.cpp Auth.h
     HashRegistry.cpp HashRegistry.h
+    PlaylistTree.cpp PlaylistTree.h
     SpotifyApi.cpp SpotifyApi.h
     Session.cpp Session.h
 )
