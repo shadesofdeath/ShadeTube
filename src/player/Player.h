@@ -53,6 +53,9 @@ public:
     void move(int fromOrderIndex, int toOrderIndex);
     void clearQueue();                            // keeps the current track
     void setVolume(float v);
+    // Pushes Ayarlar > SES to the engine (equalizer, output device). Crossfade and loudness normalisation are read
+    // from Settings for every track as it is loaded / preloaded.
+    void applyAudioSettings();
     void setShuffle(bool on);
     void setRepeat(RepeatMode mode);
     void cycleRepeat();
@@ -142,7 +145,8 @@ private:
         uint64_t tag = 0;
         int orderIndex = -1;
         std::string trackId;   // the item prepared (the gapless handoff re-checks its slot)
-        youtube::Resolved resolved;
+        youtube::Resolved resolved;   // empty for a local file
+        audio::StreamSource source;   // what the engine preloaded (localPath set for a local file)
     };
 
     void loadCurrent(int64_t startMs, bool autoplay);
@@ -167,6 +171,8 @@ private:
     void rebuildOrder(int keepItemIndex);
     void notify();
     audio::StreamSource sourceFor(const youtube::Resolved& r, uint64_t tag, int64_t durationHint) const;
+    audio::StreamSource localSource(const std::wstring& path, uint64_t tag, int64_t durationHint) const;
+    int crossfadeInto(int orderIndex) const;   // crossfade length (ms) from the current item into that slot, 0 = gapless
 
     youtube::MatchService& matcher_;
     std::unique_ptr<audio::AudioEngine> engine_;
@@ -186,6 +192,7 @@ private:
     youtube::StreamInfo stream_;
     std::optional<Prepared> prepared_;  // next track resolved (and handed to engine.preload)
     uint64_t prefetchTag_ = 0;          // prefetch resolve in flight
+    std::string preloadFailed_;         // the track whose preload the engine rejected (not preloaded again)
     int retries_ = 0;
     int64_t pendingSeekMs_ = -1;
     bool allowWebm_ = false;

@@ -26,6 +26,7 @@ struct Settings {
     RepeatMode repeat = RepeatMode::Off;
     AudioQuality quality = AudioQuality::High;
     bool normalizeVolume = true;
+    int loudnessTarget = -14;            // LUFS the normalisation aims at: -19 quiet, -14 normal, -11 loud
     bool preloadNext = true;
     // Equalizer (audio engine DSP): 10 peaking bands 31 Hz .. 16 kHz in dB, a preamp, and the preset they came from
     // ("custom" once edited). eqGains is empty or exactly 10 values.
@@ -35,6 +36,7 @@ struct Settings {
     float eqPreampDb = 0;
     int crossfadeSec = 0;                // 0 = gapless handoff, 1..12 = crossfade between tracks
     std::string outputDeviceId;          // WASAPI endpoint id; "" = follow the Windows default device
+    std::string outputDeviceName;        // its friendly name when it was picked (shown without enumerating devices)
 
     // Appearance
     AccentMode accentMode = AccentMode::Dynamic;

@@ -22,6 +22,8 @@ struct StreamData {
     std::optional<bool> isAudioLanguageDefault;
     std::optional<int> audioSampleRate;
     std::optional<int> audioChannels;
+    /// Integrated loudness relative to YouTube's reference level (dB; positive = louder).
+    std::optional<double> loudnessDb;
     std::optional<std::string> videoQualityLabel;
     std::optional<int> videoWidth;
     std::optional<int> videoHeight;

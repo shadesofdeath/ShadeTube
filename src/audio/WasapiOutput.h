@@ -1,15 +1,19 @@
 #pragma once
-// WASAPI shared-mode, event-driven render client on the default endpoint (internal to st_audio).
+// WASAPI shared-mode, event-driven render client (internal to st_audio) on the default endpoint, or on a preferred one
+// (setPreferredDevice) while it is present: an unplugged preferred device falls back to the default and is taken again
+// when it comes back.
 //
 // The client is initialised with the DECODER's float format and
 // AUTOCONVERTPCM | SRC_DEFAULT_QUALITY, so Windows resamples / remixes to the mix format.
-// Buffer: ~40 ms. Default-device changes and endpoint removal are reported through an
-// IMMNotificationClient that sets a flag and signals the engine's wake event; the engine then
-// reopens on its own thread (never from the notification callback).
+// Buffer: ~40 ms. Default-device changes (while following the default), endpoint removal and the return of the
+// preferred device are reported through an IMMNotificationClient that sets a flag and signals the engine's wake
+// event; the engine then reopens on its own thread (never from the notification callback).
 //
 // Threading: every method must be called on the engine thread (which has COM initialised as MTA),
 // except that the notification callback runs on a system thread and only touches atomics.
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include <audioclient.h>
 #include <mmdeviceapi.h>
@@ -28,6 +32,9 @@ public:
 
     HRESULT open(uint32_t sampleRate, uint32_t channels);
     void close();
+    // "" = the Windows default device. Takes effect at the next open().
+    void setPreferredDevice(std::wstring id);
+    const std::wstring& preferredDevice() const { return preferred_; }
     bool isOpen() const { return client_ != nullptr; }
     bool running() const { return running_; }
 
@@ -42,10 +49,18 @@ public:
     HRESULT getBuffer(uint32_t frames, float*& data);
     HRESULT releaseBuffer(uint32_t frames);
 
-    // True once after the default render device changed or our device went away.
+    // True once after the default render device changed (while following it), our device went away or the preferred
+    // device came back.
     bool takeDeviceChanged();
 
     static bool isDeviceLost(HRESULT hr);
+
+    // Active render endpoints with their friendly names; `defaultId` receives the default console device's id.
+    // Any thread: initialises COM (MTA) for the call when needed.
+    struct Endpoint {
+        std::wstring id, name;
+    };
+    static std::vector<Endpoint> endpoints(std::wstring& defaultId);
 
 private:
     void* wakeEvent_;
@@ -56,6 +71,7 @@ private:
     Microsoft::WRL::ComPtr<IAudioRenderClient> render_;
     uint32_t sampleRate_ = 0, channels_ = 0, bufferFrames_ = 0;
     bool running_ = false;
+    std::wstring preferred_;
 };
 
 } // namespace st::audio

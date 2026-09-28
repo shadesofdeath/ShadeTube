@@ -21,6 +21,13 @@
 // what is audible now. Gapless transitions (onEnded(finished, next)) and the natural end
 // (onEnded(tag, 0)) are fired when they become audible, not when they are decoded.
 //
+// Crossfade: when the preloaded track asks for one (StreamSource::crossfadeMs) and the current track has that much
+// left, the preloaded track becomes `cur` and the old one keeps playing as `fading`, mixed under it with equal-power
+// curves until it ends; positions and the transition event follow the incoming track from the first mixed block. A
+// pause / seek / open / stop during the mix captures both into the tail and drops the outgoing track.
+//
+// DSP order per block: crossfade mix -> equalizer -> spectrum -> volume / fades / loudness gain -> soft limiter.
+//
 // Live tracks: (re)starting waits for a jitter margin (kLivePrebufferMs, more after a stall) instead of 0.25 s;
 // pause / play tell the track (it keeps only the newest audio while paused and flushes what went stale), seek is
 // ignored, and stream titles are fired (onTitle) once the audio they start with is audible.
@@ -47,6 +54,7 @@
 #include <deque>
 #include <format>
 #include <mutex>
+#include <numbers>
 #include <thread>
 #include <vector>
 
@@ -72,13 +80,24 @@ float perceptualGain(float linear) {
     return v * v * v;
 }
 
-float dbToGain(float db) { return db == 0.f ? 1.f : std::pow(10.f, db / 20.f); }
+float dbToGain(float db) { return db == 0.f ? 1.f : std::pow(10.f, std::clamp(db, -30.f, 15.f) / 20.f); }
+
+// Soft limiter: transparent up to about -1 dBFS, then a tanh knee that approaches full scale, instead of hard clipping
+// the peaks an equalizer boost or a normalisation gain push over.
+inline float softClip(float x) {
+    constexpr float kKnee = 0.89f, kRoom = 1.f - kKnee;
+    const float a = std::fabs(x);
+    if (a <= kKnee) return x;
+    const float y = kKnee + kRoom * std::tanh((a - kKnee) / kRoom);
+    return x < 0 ? -y : y;
+}
 
 struct Command {
-    enum class Type { Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek } type;
+    enum class Type { Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek, SetDevice } type;
     StreamSource source;
     int64_t ms = 0;
     bool autoplay = true;
+    std::wstring device;   // SetDevice
 };
 
 // A contiguous block of frames written to the device.
@@ -130,6 +149,9 @@ struct AudioEngine::Impl {
     std::atomic<int64_t> posMs{0};
     std::atomic<int64_t> durMs{0};
     std::atomic<int64_t> memBytes{0};
+    std::mutex eqMutex;
+    EqSettings eqPending;                // guarded by eqMutex; eqVersion bumps on every change
+    std::atomic<uint32_t> eqVersion{0};
     mutable std::mutex bufferMutex;
     std::shared_ptr<ProgressiveBuffer> audibleBuffer;
     std::shared_ptr<LiveStream> audibleLive;
@@ -147,7 +169,19 @@ struct AudioEngine::Impl {
     bool endPending = false;          // natural end reached in the writer; fire when audible
     uint64_t pendingFinishedTag = 0;  // natural transition waiting for the next track's first run
     uint32_t serial = 0;
-    float fade = 0.f, vol = 0.f, trackGain = 1.f;
+    float fade = 0.f, vol = 0.f;
+    int64_t curEndFrame = -1;         // track frame after the last one read from cur (-1: none since open / seek)
+
+    Equalizer eq;
+    uint32_t eqApplied = 0, eqRate = 0, eqChannels = 0;
+
+    // Crossfade (see the header comment).
+    std::unique_ptr<Track> fading;    // the outgoing track, mixed under cur
+    bool xfading = false;             // a mix is running (fading, or the incoming track still rising after it ended)
+    float fadingGain = 1.f;           // loudness gain of the outgoing track
+    float xfadeIn = 1.f;              // current curve value of the incoming track
+    int64_t xfadeTotal = 0, xfadeDone = 0;   // frames
+    std::vector<float> mixBuf;
 
     std::vector<float> tail;  // faded-out audio of the previous state (see header comment)
     size_t tailDone = 0;
@@ -193,6 +227,7 @@ struct AudioEngine::Impl {
         out->close();
         retire(cur);
         retire(next);
+        retire(fading);
         retired.clear();  // ~Track joins (quick: everything is cancelled)
         out.reset();
         {
@@ -253,6 +288,7 @@ struct AudioEngine::Impl {
                 break;
             case Command::Type::Stop: cmdStop(); break;
             case Command::Type::Seek: cmdSeek(c.ms); break;
+            case Command::Type::SetDevice: cmdSetDevice(c.device); break;
             }
         }
     }
@@ -263,6 +299,7 @@ struct AudioEngine::Impl {
 
     void cmdOpen(const StreamSource& s, int64_t startMs, bool autoplay) {
         captureTail();
+        endCrossfade();
         ++serial;
         std::unique_ptr<Track> track;
         // Promote the preloaded track if the caller opens the same item (e.g. "next" pressed early).
@@ -280,7 +317,7 @@ struct AudioEngine::Impl {
         if (cur->live() && !autoplay) cur->setLivePaused(true);
         endPending = false;
         clearTransitions();
-        trackGain = dbToGain(s.gainDb);
+        curEndFrame = -1;
         beginRebuffer(Rebuffer::Open);
         publishTrack(s.tag, std::max<int64_t>(0, startMs), cur->durationMs(), cur.get());
     }
@@ -302,12 +339,14 @@ struct AudioEngine::Impl {
     void cmdPause() {
         if (phase != Phase::Active || !wantPlay) return;
         captureTail();
+        endCrossfade();
         wantPlay = false;
         if (cur && cur->live()) cur->setLivePaused(true);
     }
 
     void cmdStop() {
         captureTail();
+        endCrossfade();
         ++serial;
         retire(cur);
         retire(next);
@@ -324,12 +363,27 @@ struct AudioEngine::Impl {
         const int64_t dur = cur->durationMs();
         ms = std::max<int64_t>(0, dur > 0 ? std::min(ms, dur) : ms);
         captureTail();
+        endCrossfade();
         ++serial;
         cur->seek(ms);
+        curEndFrame = -1;
         phase = Phase::Active;
         endPending = false;
         beginRebuffer(Rebuffer::Seek);
         posMs.store(ms);
+    }
+
+    void cmdSetDevice(const std::wstring& id) {
+        if (id == out->preferredDevice()) return;
+        out->setPreferredDevice(id);
+        deviceLost = false;
+        deviceErrorReported = false;
+        if (!out->isOpen()) return;   // opened on the new device when something plays
+        ST_LOG_INFO("audio", "output device changed: reopening");
+        finalizeOutput();
+        tail.clear();
+        out->close();
+        fade = 0.f;
     }
 
     void publishTrack(uint64_t t, int64_t pos, int64_t dur, const Track* track) {
@@ -384,6 +438,7 @@ struct AudioEngine::Impl {
             const ErrorKind kind = cur->errorKind();
             const std::string message = cur->errorMessage();
             const uint64_t t = cur->tag();
+            endCrossfade();
             retire(cur);  // frees its memory; the tag stays published
             phase = Phase::Failed;
             rebuffer = Rebuffer::None;
@@ -425,6 +480,8 @@ struct AudioEngine::Impl {
     // Current track reached its end while feeding: continue with the preloaded one if possible.
     bool advance() {
         const uint64_t finished = cur->tag();
+        endCrossfade();   // the incoming track of a mix ended already (shorter than the fade)
+        curEndFrame = -1;
         if (next && next->failed()) retire(next);
         if (!next) {
             phase = Phase::Ended;
@@ -433,7 +490,6 @@ struct AudioEngine::Impl {
         }
         retire(cur);
         cur = std::move(next);
-        trackGain = dbToGain(cur->source().gainDb);
         pendingFinishedTag = finished;
         if (cur->formatReady() && formatMatches(*cur)) return true;  // gapless, same format
         beginRebuffer(Rebuffer::Seek);  // not decoded yet, or needs a device reopen
@@ -474,7 +530,7 @@ struct AudioEngine::Impl {
 
     void handleDeviceChange() {
         if (!out->takeDeviceChanged() || !out->isOpen()) return;
-        ST_LOG_INFO("audio", "default audio device changed: reopening");
+        ST_LOG_INFO("audio", "audio device changed: reopening");
         finalizeOutput();
         tail.clear();
         out->close();  // reopened lazily by maybeStartOrStop() on the new default device
@@ -552,8 +608,15 @@ struct AudioEngine::Impl {
         const size_t got = cur->read(tail.data(), n, pos, ch, out->sampleRate());
         tail.resize(got * ch);
         if (got == 0) return;
+        float gain = gainOf(*cur);
+        if (xfading) {   // the outgoing track of a running mix fades out with it
+            mixCrossfade(tail.data(), got, ch, out->sampleRate());
+            gain = 1.f;
+        }
+        syncEq();
+        eq.process(tail.data(), got);
         for (size_t i = 0; i < got; ++i) {
-            const float g = fade * trackGain * (1.f - static_cast<float>(i + 1) / static_cast<float>(got));
+            const float g = fade * gain * (1.f - static_cast<float>(i + 1) / static_cast<float>(got));
             for (uint32_t c = 0; c < ch; ++c) tail[i * ch + c] *= g;
         }
         tailDone = 0;
@@ -589,21 +652,106 @@ struct AudioEngine::Impl {
             }
             for (uint32_t c = 0; c < ch; ++c) {
                 float& s = p[f * ch + c];
-                s = std::clamp(s * g, -1.f, 1.f);
+                s = softClip(s * g);
             }
         }
         const float g = vol * gain;  // steady state
         if (g == 1.f) {
-            for (size_t i = f * ch; i < frames * ch; ++i) p[i] = std::clamp(p[i], -1.f, 1.f);
+            for (size_t i = f * ch; i < frames * ch; ++i) p[i] = softClip(p[i]);
         } else {
-            for (size_t i = f * ch; i < frames * ch; ++i) p[i] = std::clamp(p[i] * g, -1.f, 1.f);
+            for (size_t i = f * ch; i < frames * ch; ++i) p[i] = softClip(p[i] * g);
         }
+    }
+
+    float gainOf(const Track& t) const { return dbToGain(t.gainDb()); }
+
+    // Picks up equalizer changes and output format changes (engine thread, before processing a block).
+    void syncEq() {
+        if (!out->isOpen()) return;
+        const uint32_t v = eqVersion.load(std::memory_order_acquire);
+        if (v == eqApplied && out->sampleRate() == eqRate && out->channels() == eqChannels) return;
+        EqSettings s;
+        {
+            std::lock_guard lock(eqMutex);
+            s = eqPending;
+        }
+        eq.configure(s, out->sampleRate(), out->channels());
+        eqApplied = v;
+        eqRate = out->sampleRate();
+        eqChannels = out->channels();
+    }
+
+    // Starts a crossfade into the preloaded track once the current one is within its fade length of the end.
+    void maybeStartCrossfade(uint32_t rate) {
+        if (xfading || !next || !cur || cur->live() || next->live() || next->failed()) return;
+        const int ms = next->source().crossfadeMs;
+        if (ms <= 0 || !next->formatReady() || !formatMatches(*next)) return;
+        const int64_t dur = cur->durationMs();
+        if (dur <= 0 || curEndFrame < 0) return;
+        const int64_t remaining = dur * rate / 1000 - curEndFrame;
+        const int64_t length = int64_t(ms) * rate / 1000;
+        if (remaining > length || remaining < rate / 5) return;   // not yet, or too late to be worth it: gapless
+        // The incoming track must be decoded ahead, or the mix would stall right away.
+        if (next->available() < std::min<size_t>(next->capacity() / 2, rate / 4) && !next->decoderEnded()) return;
+        fading = std::move(cur);
+        fadingGain = gainOf(*fading);
+        cur = std::move(next);
+        xfading = true;
+        xfadeTotal = remaining;
+        xfadeDone = 0;
+        xfadeIn = 0.f;
+        pendingFinishedTag = fading->tag();
+        curEndFrame = -1;
+        ST_LOG_DEBUG("audio", "crossfade {} -> {} over {} ms", fading->tag(), cur->tag(), remaining * 1000 / rate);
+    }
+
+    // Mixes the outgoing track under `p` (frames of the incoming one) with equal-power curves, both loudness gains
+    // included. When the outgoing track runs out (or stalls) early, the incoming one rises to full level in 50 ms.
+    void mixCrossfade(float* p, size_t frames, uint32_t ch, uint32_t rate) {
+        size_t have = 0;
+        if (fading) {
+            mixBuf.resize(frames * ch);
+            int64_t unused = 0;
+            have = fading->read(mixBuf.data(), frames, unused, ch, rate);
+        }
+        const float gainIn = gainOf(*cur);
+        const float ramp = 1.f / (0.05f * static_cast<float>(rate));
+        constexpr double kHalfPi = std::numbers::pi / 2;
+        const double total = static_cast<double>(std::max<int64_t>(1, xfadeTotal));
+        for (size_t i = 0; i < frames; ++i) {
+            float gOut = 0.f;
+            if (i < have) {
+                const double t = std::min(1.0, static_cast<double>(xfadeDone + static_cast<int64_t>(i)) / total);
+                xfadeIn = static_cast<float>(std::sin(t * kHalfPi));
+                gOut = static_cast<float>(std::cos(t * kHalfPi)) * fadingGain;
+            } else {
+                xfadeIn = std::min(1.f, xfadeIn + ramp);
+            }
+            const float gIn = xfadeIn * gainIn;
+            float* s = p + i * ch;
+            if (i < have) {
+                const float* o = mixBuf.data() + i * ch;
+                for (uint32_t c = 0; c < ch; ++c) s[c] = s[c] * gIn + o[c] * gOut;
+            } else {
+                for (uint32_t c = 0; c < ch; ++c) s[c] *= gIn;
+            }
+        }
+        xfadeDone += static_cast<int64_t>(frames);
+        if (fading && (have < frames || xfadeDone >= xfadeTotal)) retire(fading);
+        if (!fading && xfadeIn >= 1.f) xfading = false;
+    }
+
+    void endCrossfade() {
+        retire(fading);
+        xfading = false;
+        xfadeIn = 1.f;
     }
 
     void render(float* dst, uint32_t n) {
         const uint32_t ch = out->channels(), rate = out->sampleRate();
         const float volTarget = perceptualGain(volume.load(std::memory_order_relaxed));
         uint32_t done = 0;
+        syncEq();
 
         if (!tail.empty()) {
             const size_t tailFrames = tail.size() / ch;
@@ -622,13 +770,21 @@ struct AudioEngine::Impl {
         }
 
         while (done < n && feedingNow()) {
+            maybeStartCrossfade(rate);
             Track& t = *cur;
             float* p = dst + size_t(done) * ch;
             int64_t pos = 0;
             const size_t got = t.read(p, n - done, pos, ch, rate);
             if (got > 0) {
+                curEndFrame = pos + static_cast<int64_t>(got);
+                float gain = gainOf(t);
+                if (xfading) {
+                    mixCrossfade(p, got, ch, rate);
+                    gain = 1.f;
+                }
+                eq.process(p, got);
                 spectrum.push(p, got, ch);
-                applyGain(p, got, ch, rate, volTarget, true, trackGain);
+                applyGain(p, got, ch, rate, volTarget, true, gain);
                 addRun(written + done, got, t.tag(), pos, rate, serial, pendingFinishedTag);
                 pendingFinishedTag = 0;
                 done += static_cast<uint32_t>(got);
@@ -722,6 +878,28 @@ void AudioEngine::setVolume(float linear) {
     SetEvent(impl_->wake);  // not strictly needed while playing; keeps paused state consistent
 }
 float AudioEngine::volume() const { return impl_->volume.load(); }
+
+void AudioEngine::setEqualizer(const EqSettings& eq) {
+    {
+        std::lock_guard lock(impl_->eqMutex);
+        impl_->eqPending = eq;
+    }
+    impl_->eqVersion.fetch_add(1, std::memory_order_release);
+    SetEvent(impl_->wake);
+}
+
+void AudioEngine::setOutputDevice(const std::wstring& id) {
+    Command c{Command::Type::SetDevice, {}};
+    c.device = id;
+    impl_->post(std::move(c));
+}
+
+std::vector<OutputDevice> AudioEngine::outputDevices() {
+    std::wstring defaultId;
+    std::vector<OutputDevice> devices;
+    for (auto& e : WasapiOutput::endpoints(defaultId)) devices.push_back({e.id, e.name, e.id == defaultId});
+    return devices;
+}
 
 State AudioEngine::state() const { return impl_->state.load(std::memory_order_relaxed); }
 uint64_t AudioEngine::currentTag() const { return impl_->tag.load(std::memory_order_relaxed); }

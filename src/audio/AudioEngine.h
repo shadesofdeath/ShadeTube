@@ -2,8 +2,9 @@
 // Low-latency, low-memory audio playback engine.
 //
 //   network (range requests) -> in-memory progressive buffer -> IMFByteStream -> Media Foundation
-//   Source Reader (AAC/MP4, Opus/WebM when the OS has the decoder) -> float PCM -> volume ramp /
-//   normalisation gain -> WASAPI shared-mode event-driven render (AUTOCONVERTPCM handles resampling)
+//   Source Reader (AAC/MP4, Opus/WebM when the OS has the decoder) -> float PCM -> [crossfade mix] -> equalizer ->
+//   volume ramp / normalisation gain -> soft limiter -> WASAPI shared-mode event-driven render (AUTOCONVERTPCM
+//   handles resampling) on the Windows default device or the one picked in the settings
 //
 // Threading: the engine owns one decode/render thread. All public methods are thread-safe and
 // non-blocking (commands are queued to the engine thread). Events are raised ON THE ENGINE THREAD;
@@ -17,11 +18,18 @@
 // duration and ignore seek(); a bounded rolling buffer (at most 60 s / 4 MB of compressed audio) starts playing
 // after ~2 s, reconnects with backoff when the connection drops and reports ICY / ID3 titles (onTitle). Pausing
 // keeps only the newest few seconds (a long pause disconnects), so resuming plays live again. See LiveStream.h.
+//
+// Crossfade: a preloaded track whose StreamSource::crossfadeMs > 0 starts that long before the current one ends and the
+// two are mixed with equal-power curves (the caller decides per transition: e.g. none within an album). It needs the
+// next track decoded in time and the same output format; otherwise the handoff stays gapless.
+#include "audio/Equalizer.h"
+
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace st::audio {
 
@@ -32,6 +40,8 @@ struct StreamSource {
     std::wstring localPath;       // play an already downloaded file instead of the URL
     int64_t durationMsHint = 0;   // shown before the container header is parsed
     float gainDb = 0;             // loudness normalisation gain to apply (0 = none)
+    bool replayGain = false;      // local file: gainDb is added to the file's ReplayGain track gain; no tag = no gain
+    int crossfadeMs = 0;          // as a preloaded next track: crossfade into it over this long (0 = gapless)
     uint64_t tag = 0;             // opaque caller id, echoed back in events
     bool live = false;            // endless internet-radio stream (url = station / playlist / HLS URL)
     bool allowLocalNetwork = false;   // live: may reach this machine / its network (a test server); else public only
@@ -57,6 +67,13 @@ struct EngineEvents {
     // Live streams: the station's title (ICY StreamTitle / ID3 / Ogg comments, UTF-8, "" = cleared) changed. Fired
     // when the audio it belongs to becomes audible, not when it is received.
     std::function<void(const std::string& title, uint64_t tag)> onTitle;
+};
+
+// An active render endpoint (AudioEngine::outputDevices()).
+struct OutputDevice {
+    std::wstring id;              // WASAPI endpoint id (StreamSource-independent; persisted by the caller)
+    std::wstring name;            // friendly name ("Hoparlör (Realtek(R) Audio)")
+    bool isDefault = false;       // the Windows default (console) render device
 };
 
 // What the engine knows about the live stream being played (all empty / 0 while nothing live plays).
@@ -96,6 +113,14 @@ public:
 
     void setVolume(float linear); // 0..1; engine applies a perceptual curve and a 30 ms ramp (no clicks)
     float volume() const;
+
+    // Equalizer for everything played (applied within ~10 ms, no restart).
+    void setEqualizer(const EqSettings& eq);
+    // Render device: a WASAPI endpoint id, or "" to follow the Windows default. A device that is missing (unplugged)
+    // falls back to the default and is taken again when it comes back.
+    void setOutputDevice(const std::wstring& id);
+    // The active render devices. Blocking (COM enumeration, a few ms); any thread.
+    static std::vector<OutputDevice> outputDevices();
 
     // Snapshot values (cheap, lock-free) for the UI's 60 fps player bar.
     State state() const;

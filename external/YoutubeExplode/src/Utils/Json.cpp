@@ -4,6 +4,8 @@
 
 #include <YoutubeExplode/Exceptions.hpp>
 
+#include <cstdlib>
+
 namespace YoutubeExplode::detail {
 
 const Json* dig(const Json* node, std::initializer_list<JsonPathItem> path) {
@@ -49,6 +51,21 @@ std::optional<int> jsonInt(const Json* node) {
     if (!v)
         return std::nullopt;
     return static_cast<int>(*v);
+}
+
+std::optional<double> jsonDouble(const Json* node) {
+    if (!node)
+        return std::nullopt;
+    if (node->is_number())
+        return node->get<double>();
+    if (node->is_string()) {
+        const auto& s = node->get_ref<const std::string&>();
+        char* end = nullptr;
+        const double v = std::strtod(s.c_str(), &end);
+        if (!s.empty() && end == s.c_str() + s.size())
+            return v;
+    }
+    return std::nullopt;
 }
 
 std::optional<bool> jsonBool(const Json* node) {

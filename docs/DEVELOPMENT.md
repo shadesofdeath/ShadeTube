@@ -144,14 +144,37 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 3. Otherwise `youtube::MatchService::resolve(track)`: the persistent `spotifyId → videoId` cache
    (`cache\matches.json`, manual picks pinned), else `YoutubeExplode::Music::TrackMatcher::find({title, artists,
    duration, album})`; then the manifest → best audio stream (AAC/MP4 preferred; Opus/WebM when the OS decodes it
-   and quality is High; Normal = ≤ 128 kbps AAC). Stream URLs are cached until they expire (about 5 h). If YouTube
-   fails and a backup source is set, the stream comes from Piped / Invidious (3.9).
+   and quality is High; Normal = ≤ 128 kbps AAC; DRC "stable volume" variants only when nothing else exists). Stream
+   URLs are cached until they expire (about 5 h). If YouTube fails and a backup source is set, the stream comes from
+   Piped / Invidious (3.9).
 4. `AudioEngine::open()`: `ProgressiveBuffer` (ranged download) → `MfByteStream` → MF Source Reader → float PCM →
-   volume ramp / loudness gain → WASAPI shared, event-driven.
-5. The next queue item is resolved at Low priority and preloaded 25 s before the end (`Settings.preloadNext`) for
-   a gapless handoff. The queue is saved to `session.json` and restored at startup.
+   [crossfade mix] → equalizer → volume ramp / loudness gain → soft limiter → WASAPI shared, event-driven, on the
+   Windows default device or the one picked in *Ayarlar › SES*.
+5. The next queue item is resolved at Low priority and preloaded 25 s before the end (`Settings.preloadNext`, implied
+   by a crossfade) for a gapless handoff; downloads and local files are preloaded straight from disk. The queue is
+   saved to `session.json` and restored at startup.
 6. *Wrong match?* lists `MatchService::candidates()`; choosing one pins it in the cache. SponsorBlock
    (`app/SponsorBlock`, k-anonymity hash-prefix lookups) skips non-music segments of the matched video.
+
+**Sound settings** (*Ayarlar › SES*, `app/AudioSettings.cpp`; applied by `Player::applyAudioSettings()` or per track):
+
+- **Loudness normalisation** (`Settings.normalizeVolume`, target `loudnessTarget` -19 / -14 / -11 LUFS): YouTube
+  reports each stream's `loudnessDb` against its -14 LUFS reference (YoutubeExplode parses it per format, with
+  `playerConfig.audioConfig` as the fallback), so a stream gets `target + 14 - loudnessDb` dB. Local files and
+  downloads use their ReplayGain track gain (`audio/ReplayGain`: ID3v2 TXXX, FLAC Vorbis comments, MP4 freeform atoms,
+  read by the decode thread before the decoder opens) plus `target + 18`; no tag = no gain. Gains are capped to
+  -20 .. +8 dB; the engine's soft limiter (tanh knee above ~-1 dBFS) replaces hard clipping.
+- **Equalizer** (`audio/Equalizer`): 10 peaking biquads (31 Hz .. 16 kHz, Q 1.41, double precision) plus a preamp and
+  an automatic headroom cut equal to the largest boost of the combined response. The engine picks up changes through
+  a versioned snapshot (`setEqualizer`) at the next block; coefficients follow the output format. Presets live in
+  `eqPresets()` (ids in `Settings.eqPreset`, names in the settings page).
+- **Crossfade** (`Settings.crossfadeSec`, 0-12): `Player::crossfadeInto()` puts the length on the preloaded track's
+  `StreamSource::crossfadeMs` (0 inside an album playing in order, for podcast episodes and repeat-one). The engine
+  starts the mix when the current track has that much left and the next one is decoded in the same output format,
+  moves the old track to `fading` and mixes it under the new one with equal-power curves; the transition event and
+  positions follow the new track from the first mixed block. Pause / seek / open / stop during a mix fade both out.
+- **Output device** (`Settings.outputDeviceId` / `outputDeviceName`): `WasapiOutput` opens that endpoint while it is
+  active, else the default, and its notifier reopens on the preferred device when it comes back.
 
 ### 3.5 Spotify integration
 
@@ -340,7 +363,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
-| `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs | offline; `[<audio dir>]`; needs an audio device |
+| `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album) | offline; `[<audio dir>]`; needs an audio device |
+| `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), output-device enumeration | offline |
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
@@ -359,7 +383,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--login` | open the Spotify WebView2 login window at startup |
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:appearance`, `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:appearance`, `settings:audio`, `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |

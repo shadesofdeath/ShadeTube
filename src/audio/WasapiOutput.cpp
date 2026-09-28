@@ -2,6 +2,7 @@
 
 #include "core/Log.h"
 
+#include <functiondiscoverykeys_devpkey.h>
 #include <ksmedia.h>
 #include <windows.h>
 
@@ -18,9 +19,13 @@ class DeviceNotifier final : public IMMNotificationClient {
 public:
     explicit DeviceNotifier(HANDLE wake) : wake_(wake) {}
 
-    void setDevice(std::wstring id) {
+    // The device in use, the preferred one ("" = none) and whether the default is being followed (no preference, or
+    // the preferred device is missing).
+    void setDevice(std::wstring id, std::wstring preferred, bool followDefault) {
         std::lock_guard lock(mutex_);
         deviceId_ = std::move(id);
+        preferred_ = std::move(preferred);
+        followDefault_ = followDefault;
     }
     bool take() { return changed_.exchange(false); }
 
@@ -42,18 +47,22 @@ public:
     }
 
     STDMETHODIMP OnDefaultDeviceChanged(EDataFlow flow, ERole role, LPCWSTR) override {
-        if (flow == eRender && role == eConsole) signal();
+        if (flow == eRender && role == eConsole && followingDefault()) signal();
         return S_OK;
     }
     STDMETHODIMP OnDeviceStateChanged(LPCWSTR id, DWORD state) override {
         if (state != DEVICE_STATE_ACTIVE && isOurs(id)) signal();
+        if (state == DEVICE_STATE_ACTIVE && preferredReturned(id)) signal();
         return S_OK;
     }
     STDMETHODIMP OnDeviceRemoved(LPCWSTR id) override {
         if (isOurs(id)) signal();
         return S_OK;
     }
-    STDMETHODIMP OnDeviceAdded(LPCWSTR) override { return S_OK; }
+    STDMETHODIMP OnDeviceAdded(LPCWSTR id) override {
+        if (preferredReturned(id)) signal();
+        return S_OK;
+    }
     STDMETHODIMP OnPropertyValueChanged(LPCWSTR, const PROPERTYKEY) override { return S_OK; }
 
 private:
@@ -61,6 +70,15 @@ private:
     bool isOurs(LPCWSTR id) {
         std::lock_guard lock(mutex_);
         return id && !deviceId_.empty() && deviceId_ == id;
+    }
+    bool followingDefault() {
+        std::lock_guard lock(mutex_);
+        return followDefault_;
+    }
+    // The preferred device (re)appeared while the default one plays instead.
+    bool preferredReturned(LPCWSTR id) {
+        std::lock_guard lock(mutex_);
+        return id && !preferred_.empty() && followDefault_ && preferred_ == id;
     }
     void signal() {
         changed_.store(true);
@@ -71,7 +89,8 @@ private:
     std::atomic<bool> changed_{false};
     HANDLE wake_;
     std::mutex mutex_;
-    std::wstring deviceId_;
+    std::wstring deviceId_, preferred_;
+    bool followDefault_ = true;
 };
 
 WasapiOutput::WasapiOutput(void* wakeEvent) : wakeEvent_(wakeEvent) {
@@ -99,15 +118,29 @@ bool WasapiOutput::isDeviceLost(HRESULT hr) {
            hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
 }
 
+void WasapiOutput::setPreferredDevice(std::wstring id) { preferred_ = std::move(id); }
+
 HRESULT WasapiOutput::open(uint32_t sampleRate, uint32_t channels) {
     close();
     if (!enumerator_) return E_NOINTERFACE;
     ComPtr<IMMDevice> device;
-    HRESULT hr = enumerator_->GetDefaultAudioEndpoint(eRender, eConsole, &device);
-    if (FAILED(hr)) return hr;
+    HRESULT hr = E_FAIL;
+    if (!preferred_.empty()) {
+        DWORD state = 0;
+        if (FAILED(enumerator_->GetDevice(preferred_.c_str(), &device)) || FAILED(device->GetState(&state)) ||
+            state != DEVICE_STATE_ACTIVE) {
+            device.Reset();
+            ST_LOG_INFO("audio", "the chosen output device is not available: using the default device");
+        }
+    }
+    const bool followDefault = !device;
+    if (!device) {
+        hr = enumerator_->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+        if (FAILED(hr)) return hr;
+    }
     LPWSTR id = nullptr;
     if (SUCCEEDED(device->GetId(&id)) && id) {
-        if (notifier_) notifier_->setDevice(id);
+        if (notifier_) notifier_->setDevice(id, preferred_, followDefault);
         CoTaskMemFree(id);
     }
     hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(client_.GetAddressOf()));
@@ -156,7 +189,7 @@ void WasapiOutput::close() {
     render_.Reset();
     client_.Reset();
     sampleRate_ = channels_ = bufferFrames_ = 0;
-    if (notifier_) notifier_->setDevice({});
+    if (notifier_) notifier_->setDevice({}, preferred_, true);
 }
 
 HRESULT WasapiOutput::start() {
@@ -191,5 +224,47 @@ HRESULT WasapiOutput::getBuffer(uint32_t frames, float*& data) {
 HRESULT WasapiOutput::releaseBuffer(uint32_t frames) { return render_ ? render_->ReleaseBuffer(frames, 0) : E_UNEXPECTED; }
 
 bool WasapiOutput::takeDeviceChanged() { return notifier_ && notifier_->take(); }
+
+std::vector<WasapiOutput::Endpoint> WasapiOutput::endpoints(std::wstring& defaultId) {
+    std::vector<Endpoint> out;
+    defaultId.clear();
+    const HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    {
+        ComPtr<IMMDeviceEnumerator> enumerator;
+        ComPtr<IMMDeviceCollection> devices;
+        if (SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator))) &&
+            SUCCEEDED(enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &devices))) {
+            ComPtr<IMMDevice> def;
+            LPWSTR id = nullptr;
+            if (SUCCEEDED(enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &def)) && SUCCEEDED(def->GetId(&id)) && id) {
+                defaultId = id;
+                CoTaskMemFree(id);
+            }
+            UINT count = 0;
+            devices->GetCount(&count);
+            for (UINT i = 0; i < count; ++i) {
+                ComPtr<IMMDevice> device;
+                ComPtr<IPropertyStore> props;
+                if (FAILED(devices->Item(i, &device))) continue;
+                Endpoint e;
+                id = nullptr;
+                if (FAILED(device->GetId(&id)) || !id) continue;
+                e.id = id;
+                CoTaskMemFree(id);
+                if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props))) {
+                    PROPVARIANT name;
+                    PropVariantInit(&name);
+                    if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &name)) && name.vt == VT_LPWSTR && name.pwszVal)
+                        e.name = name.pwszVal;
+                    PropVariantClear(&name);
+                }
+                if (e.name.empty()) e.name = e.id;
+                out.push_back(std::move(e));
+            }
+        }
+    }
+    if (SUCCEEDED(co)) CoUninitialize();
+    return out;
+}
 
 } // namespace st::audio

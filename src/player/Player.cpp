@@ -35,6 +35,7 @@ Player::Player(youtube::MatchService& matcher) : matcher_(matcher) {
     allowWebm_ = audio::AudioEngine::supportsWebm();
     const auto& s = Settings::get();
     engine_->setVolume(s.volume);
+    applyAudioSettings();
     shuffle_ = s.shuffle;
     repeat_ = s.repeat;
     ST_LOG_INFO("player", "webm/opus decode supported: {}", allowWebm_);
@@ -337,6 +338,16 @@ void Player::setVolume(float v) {
 
 // --- transport ----------------------------------------------------------------------------------------
 
+void Player::applyAudioSettings() {
+    const auto& s = Settings::get();
+    audio::EqSettings eq;
+    eq.enabled = s.eqEnabled;
+    eq.preampDb = s.eqPreampDb;
+    for (size_t i = 0; i < eq.gainsDb.size() && i < s.eqGains.size(); ++i) eq.gainsDb[i] = s.eqGains[i];
+    engine_->setEqualizer(eq);
+    engine_->setOutputDevice(toWide(s.outputDeviceId));
+}
+
 void Player::togglePause() {
     if (status_ == Status::Playing || status_ == Status::Buffering) pause();
     else play();
@@ -467,6 +478,9 @@ void Player::useMatch(const youtube::Match& match) {
 
 // --- loading --------------------------------------------------------------------------------------------
 
+// Loudness normalisation (Settings::normalizeVolume) brings every track to Settings::loudnessTarget: YouTube reports a
+// stream's loudness against its -14 LUFS reference, local files carry ReplayGain (a gain to -18 LUFS). Boosts are
+// capped; the engine's soft limiter catches the peaks of what is boosted.
 audio::StreamSource Player::sourceFor(const youtube::Resolved& r, uint64_t tag, int64_t durationHint) const {
     audio::StreamSource s;
     s.url = r.stream.url;
@@ -474,7 +488,38 @@ audio::StreamSource Player::sourceFor(const youtube::Resolved& r, uint64_t tag, 
     s.mimeType = r.stream.mimeType;
     s.durationMsHint = durationHint;
     s.tag = tag;
+    const auto& st = Settings::get();
+    if (st.normalizeVolume && r.stream.loudnessDb)
+        s.gainDb = static_cast<float>(std::clamp(st.loudnessTarget + 14 - *r.stream.loudnessDb, -20.0, 8.0));
     return s;
+}
+
+audio::StreamSource Player::localSource(const std::wstring& path, uint64_t tag, int64_t durationHint) const {
+    audio::StreamSource s;
+    s.localPath = path;
+    s.mimeType = localMimeType(path);
+    s.durationMsHint = durationHint;
+    s.tag = tag;
+    const auto& st = Settings::get();
+    if (st.normalizeVolume) {
+        s.replayGain = true;
+        s.gainDb = static_cast<float>(st.loudnessTarget + 18);
+    }
+    return s;
+}
+
+int Player::crossfadeInto(int orderIndex) const {
+    const int sec = Settings::get().crossfadeSec;
+    const Track* a = current();
+    if (sec <= 0 || !a || orderIndex < 0 || orderIndex >= static_cast<int>(order_.size()) || orderIndex == pos_) return 0;
+    const Track& b = items_[order_[orderIndex]];
+    // An album playing in order stays gapless (live records, DJ mixes and concept albums flow into the next track).
+    if (!a->album.id.empty() && a->album.id == b.album.id &&
+        (a->trackNumber <= 0 || b.trackNumber <= 0 || b.trackNumber == a->trackNumber + 1))
+        return 0;
+    // Spoken word never fades into music or the next episode.
+    if (a->id.starts_with("podcast:") || b.id.starts_with("podcast:")) return 0;
+    return sec * 1000;
 }
 
 void Player::loadCurrent(int64_t startMs, bool autoplay) {
@@ -482,15 +527,17 @@ void Player::loadCurrent(int64_t startMs, bool autoplay) {
     if (!t) return;
     retries_ = 0;
     endedAtEnd_ = false;
+    preloadFailed_.clear();
     clearLiveTitle();
     // Gapless handoff already prepared for exactly this slot?
     if (prepared_ && prepared_->orderIndex == pos_ && startMs == 0) {
         currentTag_ = prepared_->tag;
-        currentLocal_ = false;
+        currentLocal_ = !prepared_->source.localPath.empty();
         live_ = false;
-        match_ = prepared_->resolved.match;
+        if (currentLocal_) match_.reset();
+        else match_ = prepared_->resolved.match;
         stream_ = prepared_->resolved.stream;
-        engine_->open(sourceFor(prepared_->resolved, currentTag_, t->durationMs), 0, autoplay);
+        engine_->open(prepared_->source, 0, autoplay);
         prepared_.reset();
         status_ = Status::Buffering;
         if (onTrackChanged) onTrackChanged(*t);
@@ -562,12 +609,7 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
         match_.reset();
         stream_ = {};
         status_ = Status::Buffering;
-        audio::StreamSource s;
-        s.localPath = localPath;
-        s.mimeType = localMimeType(localPath);
-        s.durationMsHint = track.durationMs;
-        s.tag = tag;
-        engine_->open(s, startMs, autoplay);
+        engine_->open(localSource(localPath, tag, track.durationMs), startMs, autoplay);
         notify();
         return;
     }
@@ -611,15 +653,25 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
 
 void Player::maybePrefetch() {
     // Nothing is preloaded for or after a live item: a station never ends, and opening one early would stream it.
-    if (!Settings::get().preloadNext || status_ != Status::Playing || prepared_ || prefetchTag_ || live_) return;
+    // A crossfade needs the next track ready, so it implies preloading.
+    const bool preload = Settings::get().preloadNext || Settings::get().crossfadeSec > 0;
+    if (!preload || status_ != Status::Playing || prepared_ || prefetchTag_ || live_) return;
     const int64_t dur = durationMs(), posMs = positionMs();
     if (dur <= 0 || dur - posMs > kPrefetchWindowMs) return;
     const int nextPos = upcomingSlot();   // blocked items are passed over, like advance()
     if (nextPos < 0) return;
     const Track track = items_[order_[nextPos]];
-    // Downloaded tracks open instantly from disk; skip network prefetch for them.
-    if (localFileFor && !localFileFor(track.id).empty()) return;
     if (liveStreamFor && liveStreamFor(track)) return;
+    if (track.id == preloadFailed_) return;
+    // Downloads and local files: nothing to resolve, the engine prepares them straight from disk (gapless / crossfade).
+    if (const std::wstring path = localFileFor ? localFileFor(track.id) : std::wstring{}; !path.empty()) {
+        Prepared p{++tagCounter_, nextPos, track.id, {}};
+        p.source = localSource(path, p.tag, track.durationMs);
+        p.source.crossfadeMs = crossfadeInto(nextPos);
+        prepared_ = std::move(p);
+        engine_->preload(prepared_->source);
+        return;
+    }
     const uint64_t tag = ++tagCounter_;
     prefetchTag_ = tag;
     if (prefetchCts_) prefetchCts_->cancel();
@@ -641,8 +693,11 @@ void Player::maybePrefetch() {
             if (currentTag_ != forTag || pos_ != forPos) return;
             // The queue may have changed meanwhile: keep it only if the same track still plays next.
             if (upcomingSlot() != nextPos || items_[order_[nextPos]].id != track.id) return;
-            prepared_ = Prepared{tag, nextPos, track.id, *r};
-            engine_->preload(sourceFor(*r, tag, track.durationMs));
+            Prepared p{tag, nextPos, track.id, *r};
+            p.source = sourceFor(*r, tag, track.durationMs);
+            p.source.crossfadeMs = crossfadeInto(nextPos);
+            prepared_ = std::move(p);
+            engine_->preload(prepared_->source);
             ST_LOG_DEBUG("player", "preloaded next: {}", track.name);
         });
 }
@@ -688,11 +743,12 @@ void Player::onEngineEnded(uint64_t finished, uint64_t next) {
         }
         pos_ = slot;
         currentTag_ = next;
-        match_ = prepared_->resolved.match;
+        currentLocal_ = !prepared_->source.localPath.empty();
+        if (currentLocal_) match_.reset();
+        else match_ = prepared_->resolved.match;
         stream_ = prepared_->resolved.stream;
         prepared_.reset();
         status_ = Status::Playing;
-        currentLocal_ = false;
         live_ = false;
         clearLiveTitle();
         if (const Track* t = current(); t && onTrackChanged) onTrackChanged(*t);
@@ -704,7 +760,8 @@ void Player::onEngineEnded(uint64_t finished, uint64_t next) {
 }
 
 void Player::onEngineError(audio::ErrorKind kind, const std::string& message, uint64_t tag) {
-    if (prepared_ && tag == prepared_->tag) {   // preload failed: resolve normally later
+    if (prepared_ && tag == prepared_->tag) {   // preload failed: resolve / open normally when it becomes current
+        preloadFailed_ = prepared_->trackId;
         prepared_.reset();
         return;
     }

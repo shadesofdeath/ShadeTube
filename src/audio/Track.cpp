@@ -4,12 +4,14 @@
 #include "audio/LiveDecoder.h"
 #include "audio/LiveStream.h"
 #include "audio/ProgressiveBuffer.h"
+#include "audio/ReplayGain.h"
 #include "core/Log.h"
 
 #include <windows.h>
 #include <mferror.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <format>
 
@@ -65,6 +67,12 @@ bool Track::finished() const {
 }
 
 int64_t Track::durationMs() const { return durationMs_.load(std::memory_order_relaxed); }
+
+float Track::gainDb() const {
+    if (!source_.replayGain) return source_.gainDb;
+    const float rg = replayGainDb_.load(std::memory_order_acquire);
+    return std::isnan(rg) ? 0.f : rg + source_.gainDb;
+}
 
 ErrorKind Track::errorKind() const {
     std::lock_guard lock(mutex_);
@@ -195,6 +203,12 @@ void Track::decodeLoop(Decoder& decoder) {
     if (buffer_->waitForLength() < 0) {
         if (buffer_->failed()) setError(ErrorKind::Network, buffer_->errorMessage());
         return;
+    }
+    if (source_.replayGain && !source_.localPath.empty()) {
+        if (const auto rg = replaygain::readTrackGainDb(source_.localPath)) {
+            replayGainDb_.store(*rg, std::memory_order_release);
+            ST_LOG_DEBUG("audio", "track {} ReplayGain {:+.2f} dB", source_.tag, *rg);
+        }
     }
     if (!openDecoder(decoder)) return;
     if (decoder.durationHns() > 0) durationMs_.store(decoder.durationHns() / 10'000);

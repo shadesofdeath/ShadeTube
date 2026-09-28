@@ -9,6 +9,8 @@ add_library(st_audio STATIC
     Track.cpp Track.h                           # buffer + decode thread + PCM ring
     WasapiOutput.cpp WasapiOutput.h             # WASAPI shared, event-driven render client
     Spectrum.cpp Spectrum.h                     # Hann + radix-2 FFT -> log bands
+    Equalizer.cpp Equalizer.h                   # 10-band peaking biquads + presets (also drawn by Ayarlar > SES)
+    ReplayGain.cpp ReplayGain.h                 # ReplayGain track gain from ID3 / FLAC / MP4 tags (local files)
     Downloader.cpp Downloader.h                 # offline download + MF PCM->MP3 transcode + ID3
     LiveStream.cpp LiveStream.h                 # live radio: playlists, ICY / HLS, rolling buffer, reconnects
     LiveParsers.cpp LiveParsers.h               # MPEG / ADTS / Ogg framing, ICY, playlists, HLS, TS, fMP4

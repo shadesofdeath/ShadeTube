@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <format>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -256,6 +257,9 @@ StreamInfo MatchService::youtubeStream(const std::string& videoId, bool allowWeb
     auto audioOnly = manifest.getAudioOnlyStreams();
     // Drop non-default dubbed tracks: only keep default-language (or unknown) audio.
     std::erase_if(audioOnly, [](const auto& s) { return s->isAudioLanguageDefault().value_or(true) == false; });
+    // "Stable volume" (DRC) variants squash the dynamics: music plays the original whenever there is one.
+    if (std::any_of(audioOnly.begin(), audioOnly.end(), [](const auto& s) { return !s->isDrc(); }))
+        std::erase_if(audioOnly, [](const auto& s) { return s->isDrc(); });
     auto consider = [&](const auto& s) {
         const bool webm = s->container().name() == "webm";
         if (webm && !allowWebm) return;
@@ -279,11 +283,13 @@ StreamInfo MatchService::youtubeStream(const std::string& videoId, bool allowWeb
     info.codec = best->audioCodec();
     info.bitrateKbps = static_cast<int>(best->bitrate().bitsPerSecond() / 1000);
     info.itag = best->itag();
+    info.loudnessDb = best->loudnessDb();
     info.expires = urlExpiry(info.url);
     info.source = "youtube";
     info.fetched = std::chrono::system_clock::now();
-    ST_LOG_INFO("youtube", "stream {} served by youtube: {} {} {} kbps, itag {}", videoId, info.mimeType, info.codec,
-                info.bitrateKbps, info.itag);
+    ST_LOG_INFO("youtube", "stream {} served by youtube: {} {} {} kbps, itag {}, loudness {}", videoId, info.mimeType,
+                info.codec, info.bitrateKbps, info.itag,
+                info.loudnessDb ? std::format("{:+.1f} dB", *info.loudnessDb) : std::string("unknown"));
     return info;
 }
 

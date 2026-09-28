@@ -211,7 +211,8 @@ private:
         }
 
         // Equalizer, crossfade, output device.
-        section(c, tr(L"SES"));
+        auto* audio = section(c, tr(L"SES"));
+        if (focus_ == "audio") focusLabel_ = audio;
         buildAudioRows(c, rebuilder());
 
         section(c, tr(L"KARA LİSTE"));

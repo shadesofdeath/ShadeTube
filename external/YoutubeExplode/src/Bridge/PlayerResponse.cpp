@@ -210,6 +210,7 @@ StreamData parseStreamData(const Json& format) {
     d.isAudioLanguageDefault = jsonBool(dig(format, {"audioTrack", "audioIsDefault"}));
     d.audioSampleRate = jsonInt(dig(format, {"audioSampleRate"}));
     d.audioChannels = jsonInt(dig(format, {"audioChannels"}));
+    d.loudnessDb = jsonDouble(dig(format, {"loudnessDb"}));
     d.isDrc = jsonBool(dig(format, {"isDrc"})).value_or(false);
 
     d.videoQualityLabel = jsonString(dig(format, {"qualityLabel"}));
@@ -238,6 +239,11 @@ std::vector<StreamData> PlayerResponse::streams() const {
             for (const auto& format : *array)
                 result.push_back(parseStreamData(format));
     }
+    // Older / other clients only report the loudness once, for the whole video.
+    if (auto loudness = jsonDouble(dig(content_, {"playerConfig", "audioConfig", "loudnessDb"})))
+        for (auto& d : result)
+            if (!d.loudnessDb)
+                d.loudnessDb = loudness;
     return result;
 }
 

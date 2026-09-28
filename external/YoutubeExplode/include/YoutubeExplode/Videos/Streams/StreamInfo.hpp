@@ -44,6 +44,11 @@ public:
     virtual std::optional<int> audioSampleRate() const = 0;
     /// Number of audio channels, e.g. 2.
     virtual std::optional<int> audioChannels() const = 0;
+    /// Integrated loudness relative to YouTube's reference level in dB (positive = louder than the reference;
+    /// YouTube's own player turns it down by this much). Absent when the response doesn't carry it.
+    virtual std::optional<double> loudnessDb() const = 0;
+    /// Whether this is a DRC ("stable volume") variant with compressed dynamics.
+    virtual bool isDrc() const = 0;
 };
 
 /// Metadata associated with a media stream that contains video.
@@ -71,6 +76,8 @@ struct StreamInfoData {
     std::optional<bool> isAudioLanguageDefault;
     std::optional<int> audioSampleRate;
     std::optional<int> audioChannels;
+    std::optional<double> loudnessDb;
+    bool isDrc = false;
 
     std::string videoCodec;
     VideoQuality videoQuality;
@@ -94,6 +101,8 @@ public:
     std::optional<bool> isAudioLanguageDefault() const override { return d_.isAudioLanguageDefault; }
     std::optional<int> audioSampleRate() const override { return d_.audioSampleRate; }
     std::optional<int> audioChannels() const override { return d_.audioChannels; }
+    std::optional<double> loudnessDb() const override { return d_.loudnessDb; }
+    bool isDrc() const override { return d_.isDrc; }
     std::string toString() const override;
 
 private:
@@ -137,6 +146,8 @@ public:
     std::optional<bool> isAudioLanguageDefault() const override { return d_.isAudioLanguageDefault; }
     std::optional<int> audioSampleRate() const override { return d_.audioSampleRate; }
     std::optional<int> audioChannels() const override { return d_.audioChannels; }
+    std::optional<double> loudnessDb() const override { return d_.loudnessDb; }
+    bool isDrc() const override { return d_.isDrc; }
     const std::string& videoCodec() const override { return d_.videoCodec; }
     const VideoQuality& videoQuality() const override { return d_.videoQuality; }
     const Common::Resolution& videoResolution() const override { return d_.videoResolution; }

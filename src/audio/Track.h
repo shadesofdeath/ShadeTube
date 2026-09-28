@@ -22,6 +22,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -71,6 +72,9 @@ public:
 
     bool failed() const { return failed_.load(std::memory_order_acquire); }
     ErrorKind errorKind() const;
+    // Loudness gain to apply, in dB: StreamSource::gainDb, or for a StreamSource::replayGain file its ReplayGain track
+    // gain plus gainDb (0 when the file has none). The tags are read before the decoder opens: final once formatReady().
+    float gainDb() const;
     std::string errorMessage() const;
 
     // ---- live tracks
@@ -118,6 +122,7 @@ private:
     std::atomic<uint32_t> sampleRate_{0}, channels_{0};
     std::atomic<bool> formatReady_{false};
     std::atomic<int64_t> durationMs_{0};
+    std::atomic<float> replayGainDb_{std::numeric_limits<float>::quiet_NaN()};
     std::atomic<bool> failed_{false};
     std::atomic<bool> inDecoder_{false};      // decode thread is inside a blocking MF call
     std::atomic<bool> wakeRequested_{false};

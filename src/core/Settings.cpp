@@ -43,6 +43,8 @@ void Settings::load() {
     quality = static_cast<AudioQuality>(std::clamp(qualityI, 0, 1));
     accentMode = static_cast<AccentMode>(std::clamp(accentI, 0, 1));
     read(j, "normalizeVolume", normalizeVolume);
+    read(j, "loudnessTarget", loudnessTarget);
+    loudnessTarget = std::clamp(loudnessTarget, -23, -8);
     read(j, "preloadNext", preloadNext);
     read(j, "fixedAccent", fixedAccent);
     // Theme: "theme" string; older files only have the bool "lightTheme" (migrated, then no longer written).
@@ -78,6 +80,7 @@ void Settings::load() {
     read(j, "crossfadeSec", crossfadeSec);
     crossfadeSec = std::clamp(crossfadeSec, 0, 12);
     read(j, "outputDeviceId", outputDeviceId);
+    read(j, "outputDeviceName", outputDeviceName);
     read(j, "startWithWindows", startWithWindows);
     read(j, "startInTray", startInTray);
     read(j, "shortcuts", shortcuts);
@@ -103,6 +106,7 @@ void Settings::save() const {
         {"repeat", static_cast<int>(repeat)},
         {"quality", static_cast<int>(quality)},
         {"normalizeVolume", normalizeVolume},
+        {"loudnessTarget", loudnessTarget},
         {"preloadNext", preloadNext},
         {"accentMode", static_cast<int>(accentMode)},
         {"fixedAccent", fixedAccent},
@@ -129,6 +133,7 @@ void Settings::save() const {
         {"eqPreampDb", eqPreampDb},
         {"crossfadeSec", crossfadeSec},
         {"outputDeviceId", outputDeviceId},
+        {"outputDeviceName", outputDeviceName},
         {"startWithWindows", startWithWindows},
         {"startInTray", startInTray},
         {"shortcuts", shortcuts},

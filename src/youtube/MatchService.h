@@ -51,6 +51,7 @@ struct StreamInfo {
     std::string codec;         // "mp4a.40.2" | "opus"
     int bitrateKbps = 0;
     int itag = 0;
+    std::optional<double> loudnessDb;   // YouTube's loudness of the stream vs. its -14 LUFS reference (dB); none = unknown
     std::chrono::system_clock::time_point expires{};
     std::string source;        // "youtube" | "piped <host>" | "invidious <host>"
     std::chrono::system_clock::time_point fetched{};

@@ -300,6 +300,8 @@ private:
             info.isAudioLanguageDefault = data.isAudioLanguageDefault;
             info.audioSampleRate = data.audioSampleRate;
             info.audioChannels = data.audioChannels;
+            info.loudnessDb = data.loudnessDb;
+            info.isDrc = data.isDrc;
 
             if (data.videoCodec && !data.videoCodec->empty()) {
                 const int framerate = data.videoFramerate.value_or(24);

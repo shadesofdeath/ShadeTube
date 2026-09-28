@@ -30,6 +30,8 @@ std::optional<std::string> jsonString(const Json* node);
 /// Accepts numbers and numeric strings (YouTube uses both).
 std::optional<long long> jsonInt64(const Json* node);
 std::optional<int> jsonInt(const Json* node);
+/// Accepts numbers and numeric strings.
+std::optional<double> jsonDouble(const Json* node);
 std::optional<bool> jsonBool(const Json* node);
 
 /// Extracts text from YouTube's text containers: {"simpleText": ...}, {"runs": [{"text": ...}]}

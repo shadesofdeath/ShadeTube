@@ -11,8 +11,9 @@
 //      network): auto-advance / next / previous / header play pass over skipped (blocked) items while an explicit pick
 //      still plays one, onQueueLow fires as the queue runs low / out, extend() continues a queue that had ended,
 //      replaceUpcoming() keeps the current track, firstPlayable(), a missing local file steps on after 1.5 s and a
-//      queue whose only playable track fails stops instead of looping, the session saves a window around a current
-//      track past the 500th.
+//      queue whose only playable track fails stops instead of looping, crossfade (Settings::crossfadeSec) hands over
+//      that long before the end while an album playing in order stays gapless, the session saves a window around a
+//      current track past the 500th.
 //   playback_test [<audio dir>]
 // Runs in a temporary profile (SHADETUBE_DATA_DIR) and needs an audio output device for part 4.
 #include "app/Blacklist.h"
@@ -427,6 +428,42 @@ void testPlayer(const fs::path& tmp) {
         CHECK(started.size() == 1);
         CHECK(error == L"Çalınabilir şarkı bulunamadı");
         player.setRepeat(st::RepeatMode::Off);
+
+        // Crossfade: the next track takes over 2 s before the end (5 s WAVs, preloaded from disk); two consecutive
+        // tracks of one album stay gapless.
+        {
+            for (const char* id : {"f", "g"}) {
+                files[id] = tmp / (std::string(id) + ".wav");
+                writeWav(files[id], 5000);
+            }
+            auto T5 = [&](const std::string& id) {
+                Track t = T(id);
+                t.durationMs = 5000;
+                return t;
+            };
+            std::vector<std::pair<std::string, DWORD>> changes;
+            player.onTrackChanged = [&](const Track& t) { changes.push_back({t.id, GetTickCount()}); };
+            auto handoffMs = [&](std::vector<Track> tracks) -> long {
+                changes.clear();
+                player.playContext(std::move(tracks), 0, {"xfade", L"Test"});
+                if (!pumpUntil([&] { return changes.size() >= 2; }, 15000)) return -1;
+                return static_cast<long>(changes[1].second - changes[0].second);
+            };
+            st::Settings::get().crossfadeSec = 2;
+            const long fade = handoffMs({T5("f"), T5("g")});
+            std::printf("        crossfade: g audible %ld ms after f started\n", fade);
+            CHECK(fade > 2000 && fade < 4500);
+            Track a = T5("f"), b = T5("g");
+            a.album.id = b.album.id = "album-1";
+            a.trackNumber = 1;
+            b.trackNumber = 2;
+            const long album = handoffMs({a, b});
+            std::printf("        same album: g audible %ld ms after f started\n", album);
+            CHECK(album > 4700);
+            st::Settings::get().crossfadeSec = 0;
+            player.onTrackChanged = [&](const Track& t) { started.push_back(t.id); };
+            player.pause();
+        }
 
         // Session: a window of the play order around a current track past the 500th.
         std::vector<Track> big;
