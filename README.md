@@ -44,6 +44,8 @@ starts instantly and stays light.
 - ⬇️ **Real MP3 downloads** — 320 kbps MP3 (or the original m4a) with tags and cover art, sorted into
   Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline.
 - 📁 **Local files** — add your own folders: MP3, FLAC, M4A/ALAC, AAC, WAV and WMA with tags and covers.
+- 🎙️ **Podcasts** — search Apple's podcast directory or add any RSS feed; subscribe, get new episodes, continue
+  where you left off, read the show notes and download episodes for offline listening.
 - 🎤 **Synced lyrics** from LRCLIB — click a line to jump there.
 - 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
@@ -106,8 +108,9 @@ The portable copy: delete `ShadeTube.exe` and `%LOCALAPPDATA%\ShadeTube`.
 
 ShadeTube has no servers and collects nothing. It talks directly to Spotify (your library), YouTube (audio), LRCLIB
 (lyrics), SponsorBlock (segments, queried by hash prefix so the video is not revealed), MusicBrainz / Cover Art
-Archive / ListenBrainz (open catalog) and GitHub (update checks). Last.fm, ListenBrainz scrobbling, Discord and
-Piped / Invidious are used only if you turn them on.
+Archive / ListenBrainz (open catalog) and GitHub (update checks). Podcasts use Apple's podcast directory (search
+and charts) and each show's own feed and audio host, only when you open them. Last.fm, ListenBrainz scrobbling,
+Discord and Piped / Invidious are used only if you turn them on.
 
 ## 🛠 Build from source
 

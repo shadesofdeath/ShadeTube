@@ -43,6 +43,8 @@ kalır.
 - ⬇️ **Gerçek MP3 indirme** — etiketli ve kapaklı 320 kbps MP3 (ya da orijinal m4a), Sanatçı/Albüm klasörlerine;
   videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar.
 - 📁 **Yerel dosyalar** — kendi klasörlerin: MP3, FLAC, M4A/ALAC, AAC, WAV ve WMA, etiket ve kapaklarıyla.
+- 🎙️ **Podcastler** — Apple Podcasts dizininde ara ya da herhangi bir RSS beslemesini ekle; abone ol, yeni bölümleri
+  gör, kaldığın yerden devam et, bölüm notlarını oku ve bölümleri çevrimdışı dinlemek için indir.
 - 🎤 **Senkron şarkı sözleri** (LRCLIB) — bir satıra tıkla, oraya atla.
 - 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
@@ -104,8 +106,9 @@ Taşınabilir kullanımda: `ShadeTube.exe`'yi ve `%LOCALAPPDATA%\ShadeTube` klas
 
 ShadeTube'un sunucusu yoktur ve hiçbir veri toplamaz. Doğrudan şunlarla konuşur: Spotify (kitaplığın), YouTube
 (ses), LRCLIB (sözler), SponsorBlock (bölümler; video açık edilmeden, hash önekiyle sorulur), MusicBrainz / Cover
-Art Archive / ListenBrainz (açık katalog) ve GitHub (güncelleme denetimi). Last.fm, ListenBrainz scrobble,
-Discord ve Piped / Invidious yalnızca sen açarsan kullanılır.
+Art Archive / ListenBrainz (açık katalog) ve GitHub (güncelleme denetimi). Podcastler, Apple'ın podcast dizinini
+(arama ve listeler) ve her programın kendi besleme ve ses sunucusunu yalnızca sen açınca kullanır. Last.fm,
+ListenBrainz scrobble, Discord ve Piped / Invidious yalnızca sen açarsan kullanılır.
 
 ## 🛠 Kaynaktan derleme
 

@@ -9,6 +9,7 @@
 #include "app/Pages.h"
 #include "app/SettingsWidgets.h"
 #include "app/Source.h"
+#include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Utf.h"
@@ -596,9 +597,9 @@ void initListenStats() {
             store().adopt(r ? std::move(*r) : ListenStats::Snapshot{});
         });
     // A new track: store the previous play, start the next (or continue it: re-resolve / "Yanlış eşleşme?").
-    // A radio station is not recorded: hours of a station would count as one very long "song".
+    // A radio station is not recorded: hours of a station would count as one very long "song". Nor is a podcast episode.
     c.trackChangedHooks.push_back([](const catalog::Track& t) {
-        if (radio::isStationId(t.id)) {
+        if (radio::isStationId(t.id) || catalog::isPodcastId(t.id)) {
             store().stop(steadyMs());
             return;
         }

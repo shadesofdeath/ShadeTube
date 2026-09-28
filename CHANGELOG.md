@@ -2,6 +2,13 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.5.0 — unreleased
+
+- **Podcasts**: a new Podcasts page. Search Apple's podcast directory, browse the popular shows of your country or
+  add any show by its RSS address (self-hosted ones too). Subscribe and see new episodes (with a count in the
+  sidebar), pick up where you left off, mark episodes as played and read the show notes in Now Playing. Episodes
+  download as published (no re-encoding) for offline listening, and subscriptions refresh in the background.
+
 ## 0.4.0 — 2026-09-28
 
 - **11 UI languages**: Turkish, English, German, Spanish, French, Portuguese (Brazil), Russian, Ukrainian,

@@ -29,6 +29,7 @@ struct LaunchOptions {
     bool login = false;            // --login: open the Spotify WebView2 login window immediately (dev check)
     std::string previewPlay;       // --play "Artist - Title": resolve + play through the real pipeline
     std::string download;          // --download "Artist - Title": queue a real download (dev check)
+    std::string playEpisode;       // --play-episode <feed URL>[#n][@sec]: podcast episode n (0 = newest), seek to sec
     int screenshotAfterMs = 0;     // --screenshot <ms> <file.png>: capture the window and exit
     std::wstring screenshotPath;
     std::string route;             // --route search|library|settings|nowplaying

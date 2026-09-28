@@ -5,9 +5,11 @@
 #include "app/NowPlaying.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/PodcastUi.h"
 #include "app/Router.h"
 #include "app/Shell.h"
 #include "app/Smtc.h"
+#include "catalog/TrackKind.h"
 #include "core/CrashHandler.h"
 #include "core/Http.h"
 #include "core/I18n.h"
@@ -440,6 +442,8 @@ void App::showShell() {
     else if (options_.route == "local") start = {RouteKind::LocalFiles};
     else if (options_.route == "radio") start = {RouteKind::Radio};
     else if (options_.route.rfind("radio:", 0) == 0) start = {RouteKind::Radio, options_.route.substr(6)};
+    else if (options_.route == "podcasts") start = {RouteKind::Podcasts};
+    else if (options_.route.rfind("podcasts:", 0) == 0) start = {RouteKind::Podcasts, options_.route.substr(9)};
     else if (options_.route == "settings") start = {RouteKind::Settings};
     else if (options_.route.rfind("settings:", 0) == 0) start = {RouteKind::Settings, options_.route.substr(9)};
     startRoute_ = start;
@@ -454,6 +458,7 @@ void App::showShell() {
         t.id = "preview:" + options_.previewPlay;
         player_->playContext({t}, 0, {"preview", tr(L"Önizleme")});
     }
+    if (player_ && !options_.playEpisode.empty()) devPlayEpisode(options_.playEpisode);
     if (options_.route == "nowplaying") Dispatcher::post([this] { ctx().toggleNowPlaying(true); });
     // A jump-list task started this instance (no ShadeTube was running): carry it out on the restored queue. (The mini
     // player command opens it from the constructor, like --mini.)
@@ -523,13 +528,15 @@ void App::wirePlayer() {
         // A radio station is no song: it stays out of the play history (the Radyo page keeps its own recently played)
         // and is never scrobbled (hours of a station would count as one play of "the station by its country").
         const bool station = radio::isStationId(t.id);
-        if (!station) ctx().library.recordPlay(t);
+        // A podcast episode is no song either: not in the play history, never scrobbled.
+        const bool episode = catalog::isPodcastId(t.id);
+        if (!station && !episode) ctx().library.recordPlay(t);
         if (shell_) {
             if (auto* np = shell_->nowPlayingView(); np && np->visible()) np->onTrackChanged();
         }
         player_->saveSession();
         if (scrobbler_) {
-            if (station) scrobbler_->onStopped();
+            if (station || episode) scrobbler_->onStopped();
             else scrobbler_->onTrackStarted(scrobbleTrackFrom(t));
         }
         syncDiscord();
@@ -633,7 +640,8 @@ void App::syncAccent(const catalog::Track& t) {
 }
 
 void App::showMatchPicker(const catalog::Track& track) {
-    if (radio::isStationId(track.id)) return;   // a radio station streams from the station: nothing matched on YouTube
+    // A radio station streams from the station, a podcast episode from its feed: nothing matched on YouTube.
+    if (radio::isStationId(track.id) || catalog::isPodcastId(track.id)) return;
     auto* d = ui::Dialog::open(window_.get(), tr(L"Yanlış eşleşme mi?"),
                                i18n::format(tr(L"\"{}\" için YouTube'da bulunan adaylar. Seçtiğin video bu şarkı için "
                                                L"kalıcı olarak kullanılır."),

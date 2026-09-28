@@ -1,7 +1,9 @@
 #include "app/NowPlaying.h"
 
 #include "app/InternetRadio.h"
+#include "app/PodcastUi.h"
 #include "app/Shell.h"
+#include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
 #include "gfx/Device.h"
@@ -71,7 +73,7 @@ void NowPlayingView::onTrackChanged() {
     } else {
         title_.setText(toWide(t->name));
         std::wstring sub = toWide(t->artistLine());
-        if (!t->album.name.empty()) sub += L" · " + toWide(t->album.name);
+        if (!t->album.name.empty() && !catalog::isPodcastId(t->id)) sub += L" · " + toWide(t->album.name);   // an episode: the show once
         subtitle_.setText(sub);
     }
     if (t->id != trackId_ && visible()) {
@@ -92,6 +94,10 @@ void NowPlayingView::fetchLyrics() {
     manualUntil_ = 0;
     const auto* t = ctx().player->current();
     if (t && radio::isStationId(t->id)) {   // live radio: the heard titles take the lyrics' place (paintLive)
+        state_ = LyricsState::None;
+        return;
+    }
+    if (t && catalog::isPodcastId(t->id)) {   // a podcast episode: its show notes take the lyrics' place
         state_ = LyricsState::None;
         return;
     }
@@ -390,6 +396,11 @@ void NowPlayingView::paint(Canvas& c) {
                 c.text(toWide(radio::codecBadge(*s)), type::monoMeta, {artRect_.x + bw + 12, y, w - bw - 12, 16}, col.fgTertiary,
                        gfx::TextAlign::Leading, gfx::VAlign::Center);
             matchRect_ = {};
+        } else if (catalog::isPodcastId(t->id)) {
+            // An episode plays from its feed: its length, no match to question.
+            meta_.setText(ui::formatDuration(p->durationMs()));
+            c.text(meta_, {artRect_.x, y, w, 16}, col.fgTertiary, gfx::VAlign::Center);
+            matchRect_ = {};
         } else {
             // Like Spotube, no stream / source wording (bitrate, YouTube / Piped / Invidious): the duration and how
             // sure the match is, next to "Yanlış eşleşme?".
@@ -411,6 +422,7 @@ void NowPlayingView::paint(Canvas& c) {
         }
     }
     if (t && radio::isStationId(t->id)) paintLive(c, lyricsRect_);
+    else if (t && catalog::isPodcastId(t->id)) paintEpisodeNotes(c, lyricsRect_, *t);
     else paintLyrics(c, lyricsRect_);
     c.popTransform();
     paintChildren(c);

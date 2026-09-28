@@ -39,6 +39,7 @@ static st::app::LaunchOptions parseArgs() {
         else if (a == L"--login") o.login = true;
         else if (a == L"--play" && i + 1 < argc) o.previewPlay = st::toUtf8(argv[++i]);
         else if (a == L"--download" && i + 1 < argc) o.download = st::toUtf8(argv[++i]);
+        else if (a == L"--play-episode" && i + 1 < argc) o.playEpisode = st::toUtf8(argv[++i]);
         else if (a == L"--route" && i + 1 < argc) o.route = st::toUtf8(argv[++i]);
         else if (a == L"--mini") o.mini = true;
         else if (a == L"--command" && i + 1 < argc) o.command = st::app::winshell::parseCommand(argv[++i]);

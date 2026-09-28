@@ -54,7 +54,7 @@ public:
     void paint(Canvas& c) override;
 
 private:
-    ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *stats_, *settings_, *newPlaylist_;
+    ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *podcasts_, *stats_, *settings_, *newPlaylist_;
     ui::ScrollView* list_;
     ui::Column* listCol_;
     std::vector<std::pair<ui::Button*, Route>> items_;
