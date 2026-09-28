@@ -68,7 +68,7 @@ kalır.
 - 🛟 **Yedek ses kaynağı** — YouTube çalışmazsa Piped ya da Invidious (varsayılan olarak kapalı).
 - 🌍 **11 dil** — Türkçe, English, Deutsch, Español, Français, Português (BR), Русский, Українська,
   Bahasa Indonesia, 日本語, 한국어.
-- ⚡ **Hafif ve kendini güncelleyen** — kurmadan çalışan yaklaşık 6 MB'lık tek bir exe; istersen tek tıkla kurulur
+- ⚡ **Hafif ve kendini güncelleyen** — kurmadan çalışan yaklaşık 8 MB'lık tek bir exe; istersen tek tıkla kurulur
   (yönetici izni gerekmez), yeni sürümler uygulama içinden güncellenir.
 - 🔒 **Gizlilik** — telemetri yok, bizim bir sunucumuz yok. Spotify oturumun Windows DPAPI ile şifreli saklanır.
 

@@ -337,6 +337,12 @@ answers `206` with the expected container. Backup-source stream URLs are cached 
   (`links::videoSong`: "Artist - Title (Official Video)" -> artist / title) whose video is pinned in `MatchService`,
   so it never re-matches. Spotify links need a session (logged out: the connect screen); links of those services to
   anything else (podcasts, users, YouTube playlists, `spotify.link` short links) only toast; other text is searched.
+- **Windows shell** (`app/WinShell`): the process gets the AppUserModelID before any window exists (the Start menu
+  shortcut carries the same id, so the media flyout names the app), `HKCU\Software\Classes\AppUserModelId\<AUMID>`
+  names its notifications, the taskbar button has Previous / Play-Pause / Next thumbnail buttons (glyphs rendered from
+  `assets/icons` for the Windows light / dark mode) and the jump list has the same tasks plus the mini player. A task
+  runs `ShadeTube.exe --command <name>`, which a running instance receives as the registered `ShadeTube.Command`
+  message. Sandbox profiles leave the machine-wide parts alone unless `SHADETUBE_AUMID` names a test id.
 - **Taskbar progress** (`app/WinShell`, `ThumbBar::setProgress`): the playing song's position on the taskbar button:
   normal while playing, paused (yellow) with a position, indeterminate while the first audio is on its way, error (red)
   for 4 s after a playback error, none for idle, radio stations and when `Settings.taskbarProgress` is off.
@@ -423,10 +429,12 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 ### 3.14 User data
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
-`scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `blacklist.json`, `listening.json`,
-`listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `spotify-hashes.json`,
-`sync.json`, `update-leftovers.txt`, `cache\` (images, `matches.json`, lyrics, `mb`, `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`),
-`logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
+`scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
+`listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
+`radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `spotify-hashes.json`,
+`update-leftovers.txt`, `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
+`local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
+go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
 ### 3.15 Drag and drop
 
@@ -503,6 +511,29 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
 - **Routes** `Route{RouteKind::Podcasts, id}`: `""` (home), `search:<text>`, `feed:<url>`, `apple:<directory id>`,
   `new` (new episodes of the subscriptions), `downloads`.
 
+### 3.18 Internet radio
+
+`app/InternetRadio` (standalone: radio-browser.info client, station model, `radio.json` store; `radio_test`) and
+`app/RadioPage.cpp` (the Radyo pages, the station widgets and the wiring); the audio side is `audio/LiveStream`,
+`audio/LiveParsers`, `audio/LiveDecoder` and `audio/HttpStream` (`liveaudio_test`).
+
+- **Directory**: radio-browser.info as its API docs ask: the server list from `all.api.radio-browser.info`
+  (`json/servers`, else a DNS lookup, else a built-in list) shuffled once, a failing server skipped for a few minutes,
+  a descriptive User-Agent and one `json/url/<uuid>` click per started station. Requests run on workers with
+  deadlines, cancellation, capped bodies and a 10-minute cache. Routes `Route{RouteKind::Radio, id}`: `""`,
+  `tag:<tag>`, `country:<CC>`, `top`, `votes`, `favorites`, `recent`, `genres`, `search:<name>`.
+- **Stations** play as `catalog::Track`s with the id `radio:<stationuuid>` through `Player::liveStreamFor`: no
+  duration, no seeking, no prefetch or crossfade. Only codecs the engine plays are listed (MP3, AAC / HE-AAC, Ogg
+  Opus, HLS). `radio.json` keeps favorites, recently played and the stations of the playing list, so a restored queue
+  still resolves.
+- **Live streams** (`audio/LiveStream`, one thread per stream): playlists (`.pls` / `.m3u` / `.asx`, nested,
+  redirects), ICY bodies with the interleaved metadata stripped (StreamTitle kept) or HLS (master and media playlists,
+  MPEG-TS / packed audio / fMP4 segments, AES-128) are split into compressed frames in a bounded queue (60 s / 4 MB;
+  full = TCP back-pressure). The engine starts after ~2 s of margin, reconnects with backoff (0.5 .. 8 s) and reports
+  titles when the audio they start with becomes audible. Paused, only the newest 4 s are kept and the connection
+  closes after a minute; resuming plays live again. Every request goes to public hosts only (tests may allow the local
+  network).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -566,6 +597,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
+| `radio_test` | radio-browser.info parsing (fixtures), codec filter, station -> track mapping, genre labels, `radio.json` store | offline; `live` (discovery, lists, failover; never counts a click) |
+| `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the Run value (in a test key) | offline |
 

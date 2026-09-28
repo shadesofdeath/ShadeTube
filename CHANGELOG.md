@@ -2,20 +2,43 @@
 
 All notable changes to ShadeTube, newest first.
 
-## 0.5.0 — unreleased
+## 0.5.0 — 2026-09-29
 
+- **Sound settings** (Settings › Sound): a 10-band equalizer with presets, a preamp and a response graph you drag
+  (mouse, wheel or keyboard); crossfade between songs (up to 12 s; an album playing in order stays gapless); and a
+  choice of output device: an unplugged one falls back to the Windows default and is used again when it comes back.
+- **Volume normalization that works**: every song plays at the same level (quiet, normal or loud), using the
+  loudness YouTube measures for each stream and the ReplayGain tags of local files. MP3 downloads keep their level
+  through a ReplayGain tag. A look-ahead limiter replaces hard clipping, so boosts never distort the peaks.
+- **Internet radio**: a new Radio page with thousands of live stations from radio-browser.info by genre, country,
+  popularity or name, favorites and recently played. MP3, AAC / HE-AAC, Ogg Opus and HLS streams play with the song
+  on air shown everywhere, reconnect by themselves and pick up live after a pause.
+- **Podcasts**: a new Podcasts page. Search Apple's podcast directory, browse the popular shows of your country or
+  add any show by its RSS address (self-hosted ones too). Subscribe and see new episodes (with a count in the
+  sidebar), pick up where you left off, mark episodes as played and read the show notes in Now Playing. Episodes
+  download as published (no re-encoding) for offline listening, and subscriptions refresh in the background.
+- **Full-screen lyrics**: a karaoke view over the whole window with large lines that fill as they're sung (word by
+  word when the lyrics have word timing), a click-to-seek on every line and controls that fade away. Open it from the
+  lyrics header in Now Playing.
+- **Lyrics timing**: shift a song's lyrics earlier or later in 0.25 s steps (Now Playing, the full-screen view, or −
+  / + there); the correction is remembered per song. Music videos no longer throw lyrics off: the intro and other
+  parts SponsorBlock skips are taken out of the lyrics' clock.
+- **More lyrics**: when LRCLIB has none (or only unsynced ones) and you're connected, Spotify's lyrics are used. Local
+  files and downloads use a `.lrc` next to them or the lyrics in their tags first. The lyrics header names the source.
+- **Lyrics in downloads**: MP3 downloads get the lyrics in their tags (synced and plain), and synced lyrics are saved
+  as a `.lrc` next to the file (Settings › Downloads).
 - **Offline sync**: make Liked Songs, a playlist or an album available offline (the download button in its header, or
   its context menu) and ShadeTube downloads it in the background and keeps it up to date as songs are added. Synced
   collections show their progress in Downloads, with sync now, pause and retry. Settings add a storage limit, waiting
   on metered connections and an option to delete songs that left every synced list; your own downloads are never
   touched.
-- **Open pasted links**: paste a Spotify (open.spotify.com or spotify:), YouTube / YouTube Music or MusicBrainz link
-  into Search, or press Ctrl+V anywhere outside a text field. Albums, playlists and artists open; a Spotify track
-  plays in its album; a YouTube video plays as a song pinned to exactly that video.
-- **Taskbar progress**: the playing song's position shows on the taskbar button (green while playing, yellow when
-  paused, red after an error). Settings › Window can turn it off.
-- **winget and Scoop**: install with `scoop bucket add shadetube https://github.com/shadesofdeath/ShadeTube` and
-  `scoop install shadetube/shadetube` (winget once the package is accepted).
+- **Spotify listening history import**: bring years of listening into Stats from Spotify's data download (the
+  extended streaming history or the account data, the ZIP itself or its JSON files). Duplicates are skipped, so
+  importing again or importing both files adds nothing; imported plays can be removed on their own.
+- **Year in review**: a year picker on the Stats page with the minutes you listened, your top songs, artists and
+  albums, your top month and busiest weekday, your longest listening streak, new artists and the first song of the
+  year.
+- **Listening hours**: a heatmap of when you listen (hour × weekday, local time) for every period.
 - **Command palette** (Ctrl+K): one search box for commands, pages, settings sections, your playlists, albums and
   artists, and songs from the catalog. Enter opens or plays, Shift+Enter plays a collection or adds a song to the
   queue; recent picks come first.
@@ -31,27 +54,16 @@ All notable changes to ShadeTube, newest first.
 - **Drag and drop**: drag songs (or a whole selection) from any song list onto a playlist or Liked Songs in the
   sidebar, or into the queue exactly where you want them. Drop music files or folders from Windows Explorer on the
   window to play them at once, or on the queue to add them; a dropped folder can be added to Local files.
-- **Full-screen lyrics**: a karaoke view over the whole window with large lines that fill as they're sung (word by
-  word when the lyrics have word timing), a click-to-seek on every line and controls that fade away. Open it from the
-  lyrics header in Now Playing.
-- **Lyrics timing**: shift a song's lyrics earlier or later in 0.25 s steps (Now Playing, the full-screen view, or −
-  / + there); the correction is remembered per song. Music videos no longer throw lyrics off: the intro and other
-  parts SponsorBlock skips are taken out of the lyrics' clock.
-- **More lyrics**: when LRCLIB has none (or only unsynced ones) and you're connected, Spotify's lyrics are used. Local
-  files and downloads use a `.lrc` next to them or the lyrics in their tags first. The lyrics header names the source.
-- **Lyrics in downloads**: MP3 downloads get the lyrics in their tags (synced and plain), and synced lyrics are saved
-  as a `.lrc` next to the file (Settings › Downloads).
-- **Podcasts**: a new Podcasts page. Search Apple's podcast directory, browse the popular shows of your country or
-  add any show by its RSS address (self-hosted ones too). Subscribe and see new episodes (with a count in the
-  sidebar), pick up where you left off, mark episodes as played and read the show notes in Now Playing. Episodes
-  download as published (no re-encoding) for offline listening, and subscriptions refresh in the background.
-- **Spotify listening history import**: bring years of listening into Stats from Spotify's data download (the
-  extended streaming history or the account data, the ZIP itself or its JSON files). Duplicates are skipped, so
-  importing again or importing both files adds nothing; imported plays can be removed on their own.
-- **Year in review**: a year picker on the Stats page with the minutes you listened, your top songs, artists and
-  albums, your top month and busiest weekday, your longest listening streak, new artists and the first song of the
-  year.
-- **Listening hours**: a heatmap of when you listen (hour × weekday, local time) for every period.
+- **Open pasted links**: paste a Spotify (open.spotify.com or spotify:), YouTube / YouTube Music or MusicBrainz link
+  into Search, or press Ctrl+V anywhere outside a text field. Albums, playlists and artists open; a Spotify track
+  plays in its album; a YouTube video plays as a song pinned to exactly that video.
+- **Taskbar and jump list**: previous / play-pause / next buttons on the taskbar thumbnail, the playing song's
+  progress on the taskbar button (green, yellow when paused, red after an error; Settings › Window can turn it off),
+  jump list tasks, and the app's own name and icon in the Windows media flyout.
+- **winget and Scoop**: install with `scoop bucket add shadetube https://github.com/shadesofdeath/ShadeTube` and
+  `scoop install shadetube/shadetube` (winget once the package is accepted).
+- Downloads and local files are prepared ahead from disk too, for gapless playback. YouTube's "stable volume"
+  streams (squashed dynamics) are only used when there is nothing else.
 
 ## 0.4.0 — 2026-09-28
 

@@ -70,7 +70,7 @@ starts instantly and stays light.
 - 🛟 **Backup audio source** — Piped or Invidious when YouTube itself fails (off by default).
 - 🌍 **11 languages** — Türkçe, English, Deutsch, Español, Français, Português (BR), Русский, Українська,
   Bahasa Indonesia, 日本語, 한국어.
-- ⚡ **Light and self-updating** — a single ~6 MB exe that runs without installing; one click installs it for your
+- ⚡ **Light and self-updating** — a single ~8 MB exe that runs without installing; one click installs it for your
   user (no admin), and new versions update in place.
 - 🔒 **Private** — no telemetry, no accounts of ours. Your Spotify session is stored encrypted with Windows DPAPI.
 
