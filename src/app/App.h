@@ -46,6 +46,10 @@ struct LaunchOptions {
     DWORD restartAfterPid = 0;     // --restart-after <pid>: App::restart() — wait for the old instance to exit
     // --command <name> (jump-list task) when no ShadeTube was running: carried out once the app is up.
     winshell::Command command = winshell::Command::None;
+    // --autostart: Windows started us at sign-in (the Run value of "Windows ile başlat"). With Settings::startInTray the
+    // main window stays hidden (tray icon only); a second autostart launch while one runs just exits.
+    bool autostart = false;
+    std::optional<std::wstring> palette;   // --palette [query]: open the command palette at startup (dev check)
 };
 
 // Windows' app mode (HKCU\...\Themes\Personalize AppsUseLightTheme; missing = light, the Windows default).
@@ -119,6 +123,8 @@ private:
     bool startupTrimmed_ = false;
     bool wasLoggedIn_ = false;
     double startedAt_ = 0;
+    bool startHidden_ = false;           // --autostart into the tray: the main window was never shown yet
+    bool everShown_ = false;             // the main window has been shown once (Window::show applies maximized)
 };
 
 } // namespace st::app

@@ -48,7 +48,9 @@ kalır.
 - 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
 - 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, görev çubuğu düğmeleri ve ilerlemesi,
-  her zaman üstte mini oynatıcı, sistem tepsisi, koyu / açık / sistem teması, tam klavye desteği.
+  her zaman üstte mini oynatıcı, sistem tepsisi, koyu / açık / sistem teması, Windows ile başlatma (istersen tepside).
+- ⌨️ **Klavyeyle her şey** — her şeye ulaşan komut paleti (Ctrl+K), tam klavye desteği, değiştirilebilir kısayollar
+  ve uygulama arka plandayken de çalışan isteğe bağlı genel kısayollar.
 - 🔗 **Scrobble ve durum** — Last.fm, ListenBrainz ve Discord'da "dinliyor" (isteğe bağlı).
 - 📋 **Bağlantı yapıştır** — Ara'ya (ya da her yerde Ctrl+V ile) yapıştırdığın Spotify, YouTube veya MusicBrainz
   bağlantısı albümü, listeyi ya da sanatçıyı açar; şarkıyı veya videoyu çalar.

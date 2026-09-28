@@ -1,5 +1,7 @@
 #include "app/App.h"
 
+#include "app/CommandPalette.h"
+#include "app/Commands.h"
 #include "app/InternetRadio.h"
 #include "app/LinkOpener.h"
 #include "app/LoginWindow.h"
@@ -174,6 +176,30 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     if (commandMsg_) ChangeWindowMessageFilterEx(window_->hwnd(), commandMsg_, MSGFLT_ALLOW, nullptr);
     thumbBar_ = std::make_unique<winshell::ThumbBar>(window_->hwnd());
     thumbBar_->onCommand = [this](winshell::Command cmd) { runCommand(cmd); };
+    // Keyboard shortcut actions only App can carry out (its windows); the rest are app/Commands' own.
+    commands::setHandler("now-playing", [this] {
+        if (!shell_ || !ctx().toggleNowPlaying) return false;
+        ctx().toggleNowPlaying(!shell_->nowPlaying());
+        return true;
+    });
+    commands::setHandler("mini-player", [this] {
+        if (mini_) closeMini();
+        else openMini();
+        return true;
+    });
+    commands::setHandler("show-window", [this] {
+        // Global hotkey: the main window in front -> away (tray when it works, else minimized); otherwise bring the
+        // app back (the mini player while it is open).
+        const HWND h = window_->hwnd();
+        if (!mini_ && IsWindowVisible(h) && !IsIconic(h) && GetForegroundWindow() == h) {
+            if (tray_ && tray_->added()) hideMainToTray();
+            else window_->minimize();
+        } else {
+            activate();
+        }
+        return true;
+    });
+    commands::initGlobalHotkeys(window_->hwnd());
 
     window_->onKey = [this](const ui::KeyEvent& e) { return handleKey(e); };
     window_->onNavButton = [](ui::MouseButton b) {
@@ -219,6 +245,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
                 });
             return;
         }
+        if (msg == WM_HOTKEY && commands::handleHotkey(wp)) return;   // a global shortcut (Ayarlar › KLAVYE)
         if (msg == WM_HOTKEY && ctx().player) {
             switch (static_cast<int>(wp)) {
             case kHotkeyPlay: ctx().player->togglePause(); break;
@@ -311,7 +338,16 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     c.library.load();
     c.downloads.load();
     showShell();
-    window_->show();
+    // Started by Windows at sign-in with "Tepside başlat": no window, only the tray icon (it is added as soon as the
+    // taskbar exists; see housekeeping() for the fallback). Dev captures always show the window.
+    startHidden_ = options_.autostart && Settings::get().startInTray && options_.screenshotAfterMs <= 0 && !options_.mini &&
+                   options_.command != winshell::Command::Mini;
+    if (startHidden_) {
+        ST_LOG_INFO("app", "autostart: starting hidden in the tray");
+    } else {
+        window_->show();
+        everShown_ = true;
+    }
     syncTray();
     syncThumbBar();
     // Toast routing for when the main window is not on screen (see toast()): the mini player's compact toast, else a
@@ -357,6 +393,8 @@ void App::wireSession() {
 
 App::~App() {
     smtc_.reset();   // while its window still exists; drops any queued button callbacks
+    commands::shutdownGlobalHotkeys();
+    commands::clearHandlers();   // they capture this
     persist();       // also stores the mini player position while it is still on screen
     auto& c = ctx();
     c.openMiniPlayer = nullptr;
@@ -421,6 +459,7 @@ void App::showShell() {
     });
     if (player_) wirePlayer();
     initFeatures();
+    commands::initSystemFeatures();   // key bindings cleanup + the "Windows ile başlat" Run value
     wireSession();
     // Restore a saved sp_dc (starts a background token + library fetch). With no session and not in preview,
     // greet the user with the connect screen; they can still choose "Spotify olmadan keşfet".
@@ -457,6 +496,7 @@ void App::showShell() {
         player_->playContext({t}, 0, {"preview", tr(L"Önizleme")});
     }
     if (options_.route == "nowplaying") Dispatcher::post([this] { ctx().toggleNowPlaying(true); });
+    if (options_.palette) Dispatcher::post([q = *options_.palette] { openCommandPalette(q); });
     // A jump-list task started this instance (no ShadeTube was running): carry it out on the restored queue. (The mini
     // player command opens it from the constructor, like --mini.)
     if (options_.command != winshell::Command::None && options_.command != winshell::Command::Mini)
@@ -678,62 +718,27 @@ void App::showMatchPicker(const catalog::Track& track) {
 bool App::handleKey(const ui::KeyEvent& e) {
     auto* p = ctx().player;
     if (!p || !shell_) return false;
-    // Don't steal keys from text input.
-    if (auto* f = window_->focusedWidget(); f && dynamic_cast<ui::TextBox*>(f)) return false;
-    switch (e.vk) {
-    case VK_SPACE: p->togglePause(); return true;
-    case VK_RIGHT:
-        if (e.ctrl) p->next();
-        else if (e.alt) ctx().router->forward();
-        else p->seek(p->positionMs() + 5000);
-        return true;
-    case VK_LEFT:
-        if (e.ctrl) p->previous();
-        else if (e.alt) ctx().router->back();
-        else p->seek(p->positionMs() - 5000);
-        return true;
-    case VK_UP:
-        if (e.ctrl) p->setVolume(std::min(1.f, p->volume() + 0.05f));
-        return e.ctrl;
-    case VK_DOWN:
-        if (e.ctrl) p->setVolume(std::max(0.f, p->volume() - 0.05f));
-        return e.ctrl;
-    case 'F':
-    case 'L':
-        if (e.ctrl && e.vk == 'F') {
-            ctx().router->navigate({RouteKind::Search});
-            return true;
-        }
-        if (e.ctrl && e.vk == 'L') {
-            if (auto* t = p->current()) {
-                // A station: the like is the radio favorite (like the player bar's heart).
-                if (!radio::isStationId(t->id)) ctx().library.toggleLiked(*t);
-                else if (const auto* s = radio::store().find(radio::uuidOf(t->id))) radio::store().toggleFavorite(*s);
+    // Text input keeps its keys: only the actions meant for it (the command palette) run while a field has focus.
+    const auto* f = window_->focusedWidget();
+    const bool inText = f && dynamic_cast<const ui::TextBox*>(f);
+    if (!inText) {
+        switch (e.vk) {
+        case VK_ESCAPE:
+            if (shell_->nowPlaying()) {
+                shell_->setNowPlaying(false);
+                return true;
             }
-            return true;
+            return false;
+        case VK_BROWSER_BACK: ctx().router->back(); return true;
+        case VK_BROWSER_FORWARD: ctx().router->forward(); return true;
+        case 'V':   // a Spotify / YouTube / MusicBrainz link on the clipboard (app/LinkOpener)
+            if (e.ctrl && !e.alt && !e.shift && openClipboardLink()) return true;
+            break;
+        default: break;
         }
-        return false;
-    case 'S':
-        if (e.ctrl) p->setShuffle(!p->shuffle());
-        return e.ctrl;
-    case 'R':
-        if (e.ctrl) p->cycleRepeat();
-        return e.ctrl;
-    case VK_ESCAPE:
-        if (shell_->nowPlaying()) {
-            shell_->setNowPlaying(false);
-            return true;
-        }
-        return false;
-    case VK_F11:
-        ctx().toggleNowPlaying(!shell_->nowPlaying());
-        return true;
-    case 'V':   // a Spotify / YouTube / MusicBrainz link on the clipboard (app/LinkOpener)
-        return e.ctrl && !e.alt && !e.shift && openClipboardLink();
-    case VK_BROWSER_BACK: ctx().router->back(); return true;
-    case VK_BROWSER_FORWARD: ctx().router->forward(); return true;
-    default: return false;
     }
+    // Everything else is a bindable action (app/Shortcuts, Ayarlar › KLAVYE).
+    return commands::dispatchKey(e, commands::Scope::Main, inText);
 }
 
 void App::housekeeping() {
@@ -760,6 +765,14 @@ void App::housekeeping() {
     // Dev: --open-link, once a saved Spotify session has finished connecting (its login re-applies the start route).
     if (!options_.openLink.empty() && session_ && session_->state() != spotify::SessionState::Connecting)
         openLink(links::parse(std::wstring_view(std::exchange(options_.openLink, {}))));
+
+    // Started hidden in the tray but the icon never made it (no taskbar after 30 s): show the window minimized, so the
+    // app can be reached from the taskbar.
+    if (startHidden_ && !everShown_ && !mini_ && tray_ && !tray_->added() && ui::frame::realNow() > startedAt_ + 30000) {
+        window_->show(SW_SHOWMINNOACTIVE);
+        everShown_ = true;
+        ST_LOG_WARN("app", "autostart: no tray icon, main window shown minimized");
+    }
     // Scrobbling: the listened-time rule tolerates the 2 s cadence.
     if (scrobbler_ && player_ && player_->current())
         scrobbler_->onProgress(player_->positionMs(), player_->status() == player::Status::Playing, player_->durationMs());
@@ -824,6 +837,13 @@ void App::closeMini() {
 
 void App::showMain() {
     const HWND h = window_->hwnd();
+    if (!everShown_) {   // hidden since an autostart into the tray: the first show applies the saved placement
+        everShown_ = true;
+        window_->show();
+        SetForegroundWindow(h);
+        window_->invalidate();
+        return;
+    }
     if (IsIconic(h)) ShowWindow(h, SW_RESTORE);
     else if (!IsWindowVisible(h)) ShowWindow(h, SW_SHOW);   // keeps the maximized state
     SetForegroundWindow(h);

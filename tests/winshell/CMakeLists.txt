@@ -16,6 +16,7 @@ set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/winshell_test.rc PROPERT
 add_executable(winshell_test winshell_test.cpp
     ${CMAKE_SOURCE_DIR}/src/app/WinShell.cpp
     ${CMAKE_SOURCE_DIR}/src/app/Installer.cpp
+    ${CMAKE_SOURCE_DIR}/src/app/Autostart.cpp
     ${CMAKE_SOURCE_DIR}/src/app/Updater.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/winshell_test.rc)
 target_link_libraries(winshell_test PRIVATE st_core)

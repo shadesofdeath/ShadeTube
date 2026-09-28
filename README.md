@@ -49,7 +49,9 @@ starts instantly and stays light.
 - 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
 - 🪟 **Made for Windows** — media keys and lock-screen controls, taskbar buttons and progress, always-on-top mini
-  player, system tray, dark / light / system theme, full keyboard navigation.
+  player, system tray, dark / light / system theme, start with Windows (optionally in the tray).
+- ⌨️ **Keyboard first** — a command palette (Ctrl+K) for everything, full keyboard navigation, shortcuts you can
+  change and optional global hotkeys that work in the background.
 - 🔗 **Scrobbling & presence** — Last.fm, ListenBrainz and Discord "Listening to" (optional).
 - 📋 **Paste a link** — a Spotify, YouTube or MusicBrainz link in Search (or Ctrl+V anywhere) opens the album,
   playlist or artist, or plays the song or video.
