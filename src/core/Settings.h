@@ -73,6 +73,7 @@ struct Settings {
 
     WindowPlacementData window;
     int miniX = -1, miniY = -1;
+    bool taskbarProgress = true;         // the playing song's position on the taskbar button
 
     static Settings& get();
     void load();

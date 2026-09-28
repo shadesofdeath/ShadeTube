@@ -2,6 +2,16 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.5.0 — unreleased
+
+- **Open pasted links**: paste a Spotify (open.spotify.com or spotify:), YouTube / YouTube Music or MusicBrainz link
+  into Search, or press Ctrl+V anywhere outside a text field. Albums, playlists and artists open; a Spotify track
+  plays in its album; a YouTube video plays as a song pinned to exactly that video.
+- **Taskbar progress**: the playing song's position shows on the taskbar button (green while playing, yellow when
+  paused, red after an error). Settings › Window can turn it off.
+- **winget and Scoop**: install with `scoop bucket add shadetube https://github.com/shadesofdeath/ShadeTube` and
+  `scoop install shadetube/shadetube` (winget once the package is accepted).
+
 ## 0.4.0 — 2026-09-28
 
 - **11 UI languages**: Turkish, English, German, Spanish, French, Portuguese (Brazil), Russian, Ukrainian,

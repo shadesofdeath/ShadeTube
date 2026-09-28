@@ -93,6 +93,7 @@ void Settings::load() {
     }
     read(j, "miniX", miniX);
     read(j, "miniY", miniY);
+    read(j, "taskbarProgress", taskbarProgress);
     volume = std::clamp(volume, 0.0f, 1.0f);
 }
 
@@ -139,6 +140,7 @@ void Settings::save() const {
                     {"maximized", window.maximized}}},
         {"miniX", miniX},
         {"miniY", miniY},
+        {"taskbarProgress", taskbarProgress},
     };
     // Write-then-rename so a crash never leaves a truncated settings file.
     const auto path = paths::settingsFile();

@@ -1,5 +1,6 @@
 ﻿// Search, Library and Artist pages. Each reads Spotify when logged in and MusicBrainz otherwise (see Source.h).
 #include "app/Blacklist.h"
+#include "app/LinkOpener.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Source.h"
@@ -253,6 +254,80 @@ private:
     ui::Anim hover_;
 };
 
+// The row under the search box while its text is a link (app/Links): what the link is and what opening it does.
+// Enter in the box or a click opens it; a Spotify link while logged out offers the connect screen instead; an
+// unsupported link only explains itself.
+class LinkHint : public ui::Widget {
+public:
+    static constexpr float kH = 72, kMaxW = 640;
+    explicit LinkHint(links::Link link) : link_(std::move(link)) {
+        const bool unsupported = link_.kind == links::Kind::Unsupported;
+        const bool connect = linkNeedsSpotify(link_);
+        title_ = gfx::Text(unsupported ? tr(L"Bu bağlantı açılamıyor")
+                           : connect   ? tr(L"Spotify'a bağlan")
+                                       : linkAction(link_),
+                           type::body);
+        sub_ = gfx::Text(unsupported ? tr(L"Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.")
+                         : connect   ? i18n::format(tr(L"{} · Açmak için Spotify hesabınla bağlan"), {linkLabel(link_)})
+                                     : linkLabel(link_),
+                         type::secondary);
+        key_ = gfx::Text(L"ENTER", type::monoMeta);
+        focusable = !unsupported;
+    }
+    float preferredHeight(float) override { return kH; }
+    void paint(Canvas& c) override {
+        const Rect r = box();
+        const auto& col = colors();
+        const bool active = focusable;
+        c.fillRounded(r, 2, col.bgRaised);
+        if (active) c.fillRounded(r, 2, col.overlayHover.mulAlpha(hover_));
+        c.strokeRounded(r, 2, col.hairDefault);
+        const Rect icon{r.x + 20, r.cy() - 12, 24, 24};
+        c.icon(linkIcon(link_), icon, active ? accent().base : col.fgTertiary);
+        const float x = icon.right() + 16;
+        const float right = r.right() - (active ? 20 + 16 + 12 + key_.measure().w + 12 : 20);
+        c.text(title_, {x, r.y + 16, right - x, 20}, active ? col.fgPrimary : col.fgSecondary, gfx::VAlign::Center);
+        c.text(sub_, {x, r.y + 38, right - x, 18}, col.fgSecondary, gfx::VAlign::Center);
+        if (active) {
+            const Rect arrow{r.right() - 20 - 16, r.cy() - 8, 16, 16};
+            c.icon("arrow-up-right", arrow, Color::lerp(col.fgTertiary, col.fgPrimary, hover_));
+            const float kw = key_.measure().w;
+            c.text(key_, {arrow.x - 12 - kw, r.y, kw, r.h}, col.fgTertiary, gfx::VAlign::Center);
+        }
+    }
+    bool onMouseDown(const ui::MouseEvent& e) override { return focusable && e.button == ui::MouseButton::Left; }
+    void onMouseUp(const ui::MouseEvent& e) override {
+        if (focusable && box().contains(e.pos)) open();
+    }
+    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    LPCWSTR cursor() const override { return focusable ? IDC_HAND : IDC_ARROW; }
+    bool activatable() const override { return focusable; }
+    bool onActivate() override {
+        open();
+        return true;
+    }
+    Rect focusRect() const override { return box(); }
+    // Opens the link, or the Spotify connect screen when the link needs a session.
+    static void activate(const links::Link& link) {
+        if (linkNeedsSpotify(link) && ctx().showConnect) ctx().showConnect(true);
+        else openLink(link);
+    }
+
+private:
+    Rect box() const {
+        const Rect r = rect();
+        return {r.x, r.y, std::min(r.w, kMaxW), r.h};
+    }
+    void open() {
+        const links::Link link = link_;   // opening navigates (this row dies)
+        activate(link);
+    }
+    links::Link link_;
+    gfx::Text title_, sub_, key_;
+    ui::Anim hover_;
+};
+
 // ===================================================================================================
 // Search
 
@@ -280,15 +355,28 @@ public:
     explicit SearchPage(std::string initial) {
         box_ = add<ui::TextBox>(ui::TextBox::Look::Search, tr(L"Ne dinlemek istersin?  Sanatçı, albüm, şarkı"));
         adopt(release(scroll_));   // Tab order: the search box first, then "Son aramalar" / the results below it
-        box_->onChange = [this](const std::wstring& s) { scheduleSearch(s); };
+        box_->onChange = [this](const std::wstring& s) {
+            // A pasted / typed link: offer to open it instead of searching for a URL.
+            if (auto link = links::parse(std::wstring_view(s))) return showLink(std::move(link));
+            if (linkShown_ && s.size() < 2) {   // too short to search: back to the browse view
+                linkShown_ = false;
+                if (!s.empty()) showBrowse();
+            }
+            scheduleSearch(s);
+        };
         box_->onSubmit = [this](const std::wstring& s) {
             pending_.clear();
+            if (auto link = links::parse(std::wstring_view(s))) {
+                LinkHint::activate(link);   // may navigate away (this page dies)
+                return;
+            }
             RecentSearches::get().record(s);   // Enter = a real search (typing alone never records)
             runSearch(s);
         };
         box_->setText(toWide(initial));
         showBrowse();
-        if (!initial.empty()) runSearch(toWide(initial));
+        if (auto link = links::parse(std::string_view(initial))) showLink(std::move(link));
+        else if (!initial.empty()) runSearch(toWide(initial));
     }
 
     void onShown() override { box_->focus(); }
@@ -313,6 +401,17 @@ public:
     }
 
 private:
+    void showLink(links::Link link) {
+        pending_.clear();
+        query_.clear();
+        life_.renew();
+        linkShown_ = true;
+        auto* c = resetContent(20.f);
+        c->setPadding(gfx::metrics::pageX, 20, 48);
+        c->add<LinkHint>(std::move(link));
+        contentReady();
+    }
+
     void scheduleSearch(const std::wstring& q) {
         if (q.empty()) {
             pending_.clear();
@@ -330,6 +429,7 @@ private:
     // Empty query: "Son aramalar" (when there are any) above the genre tiles. `focusChip` >= 0: a chip was removed
     // from the keyboard -> keep the focus ring on the chip now at that index (else on the search box).
     void showBrowse(int focusChip = -1) {
+        linkShown_ = false;
         auto* c = resetContent(20.f);
         c->setPadding(gfx::metrics::pageX, 20, 48);
         std::vector<RecentChip*> chips;
@@ -483,6 +583,7 @@ private:
     void runSearch(const std::wstring& q) {
         if (q.empty()) return;
         query_ = q;
+        linkShown_ = false;
         life_.renew();
         auto* c = resetContent(20.f);
         c->setPadding(gfx::metrics::pageX, 20, 48);
@@ -567,6 +668,7 @@ private:
     double pendingAt_ = 0;
     SearchResults results_;
     int tab_ = 0;
+    bool linkShown_ = false;   // the content is the LinkHint row
 };
 
 // ===================================================================================================

@@ -29,6 +29,7 @@ struct LaunchOptions {
     bool login = false;            // --login: open the Spotify WebView2 login window immediately (dev check)
     std::string previewPlay;       // --play "Artist - Title": resolve + play through the real pipeline
     std::string download;          // --download "Artist - Title": queue a real download (dev check)
+    std::wstring openLink;         // --open-link <url>: open a pasted link after startup (app/LinkOpener, dev check)
     int screenshotAfterMs = 0;     // --screenshot <ms> <file.png>: capture the window and exit
     std::wstring screenshotPath;
     std::string route;             // --route search|library|settings|nowplaying
@@ -88,7 +89,7 @@ private:
     void saveMainPlacement();
     void trimMemory();           // nobody sees the main window: hand back rebuildable GPU / working-set memory
     void syncTray();             // tooltip = "ShadeTube" + current track
-    void syncThumbBar();         // player state -> taskbar thumbnail buttons
+    void syncThumbBar();         // player state -> taskbar thumbnail buttons + progress
     void runCommand(winshell::Command c);   // thumbnail button / jump-list task / --command
     void postCommand(winshell::Command c);  // runCommand() outside the current window message
     void applyTheme();           // live theme switch: palette, accent, every window, tray menus
@@ -108,6 +109,7 @@ private:
     std::unique_ptr<MiniPlayer> mini_;   // only while the mini player is open
     std::unique_ptr<Tray> tray_;         // notification-area icon, for the whole app lifetime
     std::unique_ptr<winshell::ThumbBar> thumbBar_;   // Önceki / Oynat / Sonraki under the taskbar thumbnail
+    double playErrorAt_ = -1;            // when the player last went to Status::Error (red taskbar progress)
     UINT activateMsg_ = 0;               // kActivateMessage
     UINT commandMsg_ = 0;                // winshell::kCommandMessage (a jump-list task of a second launch)
     Shell* shell_ = nullptr;

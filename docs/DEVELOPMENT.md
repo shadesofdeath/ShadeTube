@@ -58,9 +58,12 @@ ShadeTube/
 │   i18n/         <code>.json translations (en de es fr pt ru uk id ja ko); _keys.json is a local dump
 │   icons/16|20|24, logo/, placeholders/, animations/ (SVG frames), textures/, tokens/ (dark/light), app.ico
 ├─ docs/                         DEVELOPMENT.md, screenshots/
+├─ packaging/winget/             winget-pkgs manifest of the current release (tools/update_manifests.py)
+├─ bucket/shadetube.json         Scoop manifest: the repository doubles as a Scoop bucket
 ├─ external/YoutubeExplode/      C++ YoutubeExplode (dependency; change it upstream)
 ├─ tools/
 │   package.ps1                  Release build -> dist\ShadeTube-<ver>-win64.zip + .sha256
+│   update_manifests.py          winget + Scoop manifests for the packaged release (see 6)
 │   i18n_check.py                translation checker (see 3.13)
 │   import_design.py             regenerates assets/ from the design package
 ├─ src/
@@ -80,9 +83,11 @@ ShadeTube/
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Stats, Settings (+ About/AltSource/Playback), ConnectScreen, MiniPlayer
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, ListenStats, Radio, Blacklist,
-│                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater
+│                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Links +
+│                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, downloads,
-                                 localfiles, musicbrainz, playback, scrobble, smtc, sponsorblock, spotify, stats, updater
+                                 links, localfiles, musicbrainz, playback, scrobble, smtc, sponsorblock, spotify, stats,
+                                 updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -234,6 +239,21 @@ answers `206` with the expected container. Backup-source stream URLs are cached 
   longer than 30 s and min(50 %, 4 min) really listened. Credentials DPAPI-encrypted in `scrobble.dat`.
 - **Discord Rich Presence** (`app/DiscordRpc`): local IPC pipe, own thread, silent without Discord; off by default.
 - **Single instance**: a second launch posts `ShadeTube.Activate`; the running app restores itself (or its mini player).
+- **Pasted links** (`app/Links` parser, standalone; `app/LinkOpener`): the search box and Ctrl+V outside a text field
+  recognize `open.spotify.com` URLs / `spotify:` URIs (track, album, playlist, artist; `intl-xx`, `embed`, legacy user
+  playlists), YouTube / YouTube Music videos (`watch?v=`, `youtu.be`, `shorts`, `embed`, `live`) and `musicbrainz.org`
+  release groups, releases, artists and recordings. While the text is a link the search page shows a hint row instead
+  of searching; Enter or a click opens it. Albums, playlists and artists navigate; a Spotify track (`Api::track`: the
+  spclient `metadata/4` JSON, base62 id -> hex gid) or a MusicBrainz recording (`mb::recording`) plays in its album
+  from that song and shows the album; a YouTube video becomes a `yt:<videoId>` track titled from the video
+  (`links::videoSong`: "Artist - Title (Official Video)" -> artist / title) whose video is pinned in `MatchService`,
+  so it never re-matches. Spotify links need a session (logged out: the connect screen); links of those services to
+  anything else (podcasts, users, YouTube playlists, `spotify.link` short links) only toast; other text is searched.
+- **Taskbar progress** (`app/WinShell`, `ThumbBar::setProgress`): the playing song's position on the taskbar button:
+  normal while playing, paused (yellow) with a position, indeterminate while the first audio is on its way, error (red)
+  for 4 s after a playback error, none for idle, radio stations and when `Settings.taskbarProgress` is off.
+  `winshell::progressFor()` is the pure mapping (tested); `App::syncThumbBar()` feeds it on every player change and
+  from the 1 s tick, unchanged values cost no taskbar call, and it is re-applied when the taskbar button is recreated.
 
 ### 3.11 Installer and updater
 
@@ -346,6 +366,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `stats_test` | stream rule, recording, aggregation, persistence, timing | offline |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
+| `links_test` | pasted Spotify / YouTube / MusicBrainz links, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
+| `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -359,7 +381,8 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--login` | open the Spotify WebView2 login window at startup |
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:appearance`, `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
+| `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:appearance`, `settings:window`, `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |
@@ -396,6 +419,15 @@ install or update), `--uninstall [--quiet]` (Windows' *Installed apps*).
 4. Optionally run `tests\updater\run_e2e.ps1` against the new package.
 5. Create a GitHub release tagged **`vX.Y.Z`** (not a draft or pre-release: the updater reads `releases/latest`),
    upload the zip (and the `.sha256`), and paste the `sha256: <hex>` line into the release notes.
+6. Package managers: `python tools\update_manifests.py` (after packaging; `--zip <file>` hashes another copy) writes
+   the winget manifest to `packaging/winget/shadesofdeath.ShadeTube/<version>/` (older version folders are removed)
+   and `bucket/shadetube.json` for Scoop, both pointing at the release asset of step 5, and validates them. Commit
+   them. **Scoop** users get the update from the repository itself (it is a bucket:
+   `scoop bucket add shadetube https://github.com/shadesofdeath/ShadeTube`). **winget** needs a pull request to
+   `microsoft/winget-pkgs` with the folder's four files under `manifests/s/shadesofdeath/ShadeTube/<version>/`, e.g.
+   `wingetcreate submit packaging\winget\shadesofdeath.ShadeTube\<version>` (the first submission is reviewed by
+   the winget team; `winget validate --manifest <folder>` checks it locally). Portable installs (winget, Scoop) can
+   still use the in-app updater, but the package manager then keeps showing the old version until its own update.
 
 The in-app updater rejects a release whose tag differs from the exe's `ProductVersion`, and a download whose SHA-256
 differs from GitHub's asset digest or from the `sha256:` line in the notes.

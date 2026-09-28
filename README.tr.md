@@ -46,9 +46,11 @@ kalır.
 - 🎤 **Senkron şarkı sözleri** (LRCLIB) — bir satıra tıkla, oraya atla.
 - 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
-- 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, her zaman üstte mini oynatıcı, sistem
-  tepsisi, koyu / açık / sistem teması, tam klavye desteği.
+- 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, görev çubuğu düğmeleri ve ilerlemesi,
+  her zaman üstte mini oynatıcı, sistem tepsisi, koyu / açık / sistem teması, tam klavye desteği.
 - 🔗 **Scrobble ve durum** — Last.fm, ListenBrainz ve Discord'da "dinliyor" (isteğe bağlı).
+- 📋 **Bağlantı yapıştır** — Ara'ya (ya da her yerde Ctrl+V ile) yapıştırdığın Spotify, YouTube veya MusicBrainz
+  bağlantısı albümü, listeyi ya da sanatçıyı açar; şarkıyı veya videoyu çalar.
 - 🛟 **Yedek ses kaynağı** — YouTube çalışmazsa Piped ya da Invidious (varsayılan olarak kapalı).
 - 🌍 **11 dil** — Türkçe, English, Deutsch, Español, Français, Português (BR), Русский, Українська,
   Bahasa Indonesia, 日本語, 한국어.
@@ -75,6 +77,14 @@ kalır.
    uyarısı verebilir: **Ek bilgi → Yine de çalıştır**.
 3. **Spotify ile bağlan**'a tıklayıp hesabınla giriş yap (e-posta, Google ya da Apple) ya da
    **Spotify olmadan keşfet** ile açık MusicBrainz kataloğunu gez.
+
+**Ya da bir paket yöneticisiyle:**
+
+```powershell
+scoop bucket add shadetube https://github.com/shadesofdeath/ShadeTube
+scoop install shadetube/shadetube
+winget install shadesofdeath.ShadeTube   # paket winget'e kabul edildikten sonra
+```
 
 İsteğe bağlı: **Ayarlar → Hakkında → Bilgisayara kur**, ShadeTube'u Başlat menüsüne ve Windows'un yüklü
 uygulamalarına ekler (kullanıcı bazında, yönetici izni gerekmez). Güncellemeler günde bir kez denetlenir ve tek
