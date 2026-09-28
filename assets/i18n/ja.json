@@ -959,7 +959,6 @@
   "Şarkı sözleri Ayarlar'da kapalı": "歌詞は設定でオフになっています",
   "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "歌詞は MP3 のタグに書き込まれます。同期歌詞は同じ名前の .lrc ファイルとしてファイルの横にも保存されます。",
   "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "LRCLIBの同期歌詞を表示します。Spotify に接続中は、見つからない歌詞を Spotify から取得します。音楽ファイルの横の .lrc ファイルとタグ内の歌詞が優先されます。「再生中」画面と全画面の歌詞に表示されます。",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "LRCLIBの同期歌詞を「再生中」画面に表示します。",
   "\"{}\" eklendi": "「{}」を追加しました",
   "\"{}\" indirildi": "「{}」をダウンロードしました",
   "\"{}\" indirilemedi": "「{}」をダウンロードできませんでした",

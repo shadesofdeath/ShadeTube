@@ -1073,7 +1073,6 @@
   "Şarkı sözleri Ayarlar'da kapalı": "La letra está desactivada en Configuración",
   "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "La letra se guarda en las etiquetas del MP3; la letra sincronizada también se guarda junto al archivo como un .lrc con el mismo nombre.",
   "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Letras sincronizadas de LRCLIB; con Spotify conectado, las que falten vienen de Spotify. Primero se leen los archivos .lrc junto a tus archivos de música y la letra de sus etiquetas. Se muestran en la vista Reproduciendo y en la letra a pantalla completa.",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "Letras sincronizadas de LRCLIB. Se muestran en la vista Reproduciendo.",
   "\"{}\" eklendi": "Se añadió «{}»",
   "\"{}\" indirildi": "«{}» descargado",
   "\"{}\" indirilemedi": "No se pudo descargar «{}»",

@@ -959,7 +959,6 @@
   "Şarkı sözleri Ayarlar'da kapalı": "Lirik dimatikan di Setelan",
   "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "Lirik ditulis ke tag MP3; lirik tersinkron juga disimpan di samping file sebagai file .lrc dengan nama yang sama.",
   "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Lirik tersinkron dari LRCLIB; saat terhubung ke Spotify, yang tidak ada di sana diambil dari Spotify. File .lrc di samping file musik dan lirik di tag-nya dibaca lebih dulu. Ditampilkan di layar Sedang Diputar dan tampilan lirik layar penuh.",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "Lirik tersinkron dari LRCLIB. Ditampilkan di layar Sedang Diputar.",
   "\"{}\" eklendi": "\"{}\" ditambahkan",
   "\"{}\" indirildi": "\"{}\" diunduh",
   "\"{}\" indirilemedi": "Tidak bisa mengunduh \"{}\"",

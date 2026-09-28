@@ -959,7 +959,6 @@
   "Şarkı sözleri Ayarlar'da kapalı": "설정에서 가사가 꺼져 있어요",
   "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "가사가 MP3 태그에 기록돼요. 싱크 가사는 같은 이름의 .lrc 파일로 파일 옆에도 저장돼요.",
   "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "LRCLIB의 실시간 싱크 가사를 보여줘요. Spotify에 연결되어 있으면 없는 가사를 Spotify에서 가져와요. 음악 파일 옆의 .lrc 파일과 태그 속 가사를 먼저 읽어요. 지금 재생 중 화면과 전체 화면 가사에 표시돼요.",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "LRCLIB의 실시간 싱크 가사를 지금 재생 중 화면에 표시해요.",
   "\"{}\" eklendi": "'{}' 추가됨",
   "\"{}\" indirildi": "'{}' 다운로드됨",
   "\"{}\" indirilemedi": "'{}'을(를) 다운로드하지 못했습니다",

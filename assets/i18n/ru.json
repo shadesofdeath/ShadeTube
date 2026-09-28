@@ -1149,7 +1149,6 @@
   "Şarkı sözleri Ayarlar'da kapalı": "Тексты песен отключены в настройках",
   "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "Текст записывается в теги MP3; синхронизированный текст также сохраняется рядом с файлом в .lrc с тем же именем.",
   "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Синхронизированные тексты из LRCLIB; при подключённом Spotify недостающие берутся из Spotify. Сначала читаются файлы .lrc рядом с музыкальными файлами и тексты в их тегах. Показываются на экране «Сейчас играет» и в полноэкранном режиме.",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "Синхронизированные тексты из LRCLIB. Показываются на экране «Сейчас играет».",
   "\"{}\" eklendi": "«{}» добавлен",
   "\"{}\" indirildi": "«{}» скачан",
   "\"{}\" indirilemedi": "Не удалось скачать «{}»",

@@ -1073,7 +1073,6 @@
   "Şarkı sözleri Ayarlar'da kapalı": "Lyrics are turned off in Settings",
   "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "Lyrics are written into the MP3's tags; synced lyrics are also saved next to the file as an .lrc file with the same name.",
   "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Synced lyrics from LRCLIB; while you're connected to Spotify, the ones LRCLIB lacks come from Spotify. .lrc files next to your music files and lyrics in their tags are read first. Shown on the Now Playing screen and in the full-screen lyrics view.",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "Synced lyrics from LRCLIB, shown on the Now Playing screen.",
   "\"{}\" eklendi": "\"{}\" added",
   "\"{}\" indirildi": "\"{}\" downloaded",
   "\"{}\" indirilemedi": "Couldn't download \"{}\"",

@@ -1073,7 +1073,6 @@
   "Şarkı sözleri Ayarlar'da kapalı": "Songtexte sind in den Einstellungen ausgeschaltet",
   "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "Songtexte werden in die Tags der MP3-Datei geschrieben; synchronisierte Songtexte werden zusätzlich als gleichnamige .lrc-Datei neben der Datei gespeichert.",
   "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Synchronisierte Songtexte über LRCLIB; bist du mit Spotify verbunden, kommen fehlende von Spotify. .lrc-Dateien neben deinen Musikdateien und Songtexte in ihren Tags werden zuerst gelesen. Werden in der Ansicht „Läuft gerade“ und im Songtext-Vollbild angezeigt.",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "Synchronisierte Songtexte über LRCLIB. Werden in der Ansicht „Läuft gerade“ angezeigt.",
   "\"{}\" eklendi": "„{}“ hinzugefügt",
   "\"{}\" indirildi": "„{}“ heruntergeladen",
   "\"{}\" indirilemedi": "„{}“ konnte nicht heruntergeladen werden",
