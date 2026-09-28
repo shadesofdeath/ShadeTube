@@ -1035,5 +1035,28 @@
   "Uygulama": "App",
   "Komut, sayfa, çalma listesi ya da şarkı ara…": "Search commands, pages, playlists or songs…",
   "Katalogda aranıyor…": "Searching the catalog…",
-  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ select · Enter open · Shift+Enter play or add to queue · Esc close"
+  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ select · Enter open · Shift+Enter play or add to queue · Esc close",
+  "Adsız klasör": "Untitled folder",
+  "Klasörü kapat": "Close folder",
+  "Kitaplıkta göster": "Show in Your Library",
+  "Bu klasör boş": "This folder is empty",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "You can add playlists to this folder in Spotify.",
+  "Bırakılan dosyalar": "Dropped files",
+  "Bırakılan klasörler taranıyor…": "Scanning the dropped folders…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "Nothing you dropped is a playable audio file",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "Add this folder to Local files?",
+  "Ekle": "Add",
+  "Zaten Beğenilen Şarkılar'da": "Already in Liked Songs",
+  "Yalnızca ilk {} dosya alındı": {
+    "one": "Only the first {} file was taken",
+    "other": "Only the first {} files were taken"
+  },
+  "{} şarkı Beğenilen Şarkılar'a eklendi": {
+    "one": "{} song added to Liked Songs",
+    "other": "{} songs added to Liked Songs"
+  },
+  "{} şarkı sıraya eklendi": {
+    "one": "{} song added to the queue",
+    "other": "{} songs added to the queue"
+  }
 }

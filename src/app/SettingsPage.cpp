@@ -27,7 +27,7 @@ namespace st::app {
 std::unique_ptr<Page> makeHomePage();
 std::unique_ptr<Page> makeCollectionPage(RouteKind kind, const std::string& id);
 std::unique_ptr<Page> makeSearchPage(const std::string& q);
-std::unique_ptr<Page> makeLibraryPage();
+std::unique_ptr<Page> makeLibraryPage(const std::string& id);
 std::unique_ptr<Page> makeArtistPage(const std::string& id);
 std::unique_ptr<Page> makeDownloadsPage();
 std::unique_ptr<Page> makeStatsPage();
@@ -589,7 +589,7 @@ std::unique_ptr<Page> createPage(const Route& route) {
     switch (route.kind) {
     case RouteKind::Home: return makeHomePage();
     case RouteKind::Search: return makeSearchPage(route.id);
-    case RouteKind::Library: return makeLibraryPage();
+    case RouteKind::Library: return makeLibraryPage(route.id);
     case RouteKind::Liked: return makeCollectionPage(RouteKind::Liked, route.id);
     case RouteKind::Playlist: return makeCollectionPage(RouteKind::Playlist, route.id);
     case RouteKind::Album: return makeCollectionPage(RouteKind::Album, route.id);

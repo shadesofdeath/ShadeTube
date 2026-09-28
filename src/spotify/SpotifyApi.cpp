@@ -581,7 +581,7 @@ json libraryVariables(const char* filter, int offset = 0, bool flatten = false) 
 const json& libraryItems(const json& data) { return at(at(at(data, "me"), "libraryV3"), "items"); }
 } // namespace
 
-std::vector<Playlist> Api::libraryPlaylists(const CT& ct) {
+std::vector<Playlist> Api::libraryPlaylists(const CT& ct, PlaylistTree* outTree) {
     const std::string me = username();
     std::vector<Playlist> out;
     std::unordered_set<std::string> seen;
@@ -630,26 +630,35 @@ std::vector<Playlist> Api::libraryPlaylists(const CT& ct) {
         if (offset >= libTotal) break;
     }
 
-    // Track counts: the rootlist decorated with `length` lists every playlist the user has with its size.
+    // Track counts: the rootlist decorated with `length` lists every playlist the user has with its size. It also
+    // brackets folders with spotify:start-group / end-group items (the folder tree).
     try {
         const json root = rootlist(ct);
         const json& items = at(at(root, "contents"), "items");
         const json& metas = at(at(root, "contents"), "metaItems");
         std::unordered_map<std::string, int> lengths;
-        if (items.is_array() && metas.is_array() && metas.size() == items.size()) {
-            for (size_t i = 0; i < items.size(); ++i) {
-                const std::string uri = str(items[i], "uri");
-                if (uri.rfind("spotify:playlist:", 0) == 0 && metas[i].is_object())
-                    lengths[uri] = integer(metas[i], "length");   // proto3 JSON omits a zero length
-            }
+        if (items.is_array() && metas.is_array()) {
+            // metaItems runs parallel to items; should the folder markers ever come without one, pair the metas with
+            // the other items only.
+            std::vector<size_t> rows;
+            for (size_t i = 0; i < items.size(); ++i)
+                if (metas.size() == items.size() || str(items[i], "uri").rfind("spotify:playlist:", 0) == 0) rows.push_back(i);
+            if (rows.size() == metas.size())
+                for (size_t k = 0; k < rows.size(); ++k) {
+                    const std::string uri = str(items[rows[k]], "uri");
+                    if (uri.rfind("spotify:playlist:", 0) == 0 && metas[k].is_object())
+                        lengths[uri] = integer(metas[k], "length");   // proto3 JSON omits a zero length
+                }
         }
+        if (outTree) *outTree = parsePlaylistTree(root);
         for (auto& p : out)
             if (auto it = lengths.find(p.id); it != lengths.end()) {
                 p.totalTracks = it->second;
                 p.countKnown = true;
             }
-        ST_LOG_INFO("spotify", "playlists: {} listed (libraryV3 totalCount {}); rootlist: {} items, {} with a length",
-                    out.size(), libTotal, items.is_array() ? items.size() : 0, lengths.size());
+        ST_LOG_INFO("spotify", "playlists: {} listed (libraryV3 totalCount {}); rootlist: {} items, {} with a length, {} folders",
+                    out.size(), libTotal, items.is_array() ? items.size() : 0, lengths.size(),
+                    outTree ? outTree->folders.size() : 0);
     } catch (const std::exception& e) {
         ST_LOG_WARN("spotify", "rootlist (playlist counts) failed: {}", e.what());
     }

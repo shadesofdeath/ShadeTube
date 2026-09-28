@@ -18,7 +18,7 @@ using gfx::Color;
 using gfx::Rect;
 using ui::Canvas;
 
-enum class Placeholder { Album, Artist, Playlist };
+enum class Placeholder { Album, Artist, Playlist, Folder };   // Folder: a Spotify library folder
 
 // Draws the best-fitting image (or the design placeholder while loading / when missing).
 void drawArtwork(Canvas& c, const std::vector<catalog::Image>& images, const Rect& r, float radius,
@@ -84,8 +84,11 @@ private:
 
 // ---------------------------------------------------------------------------------------------------
 // Virtualized track table (spec: Track row). Rows are painted from the model: no per-row widgets.
+// Rows can be dragged (app/DragDrop): the pressed row, or the whole selection when the pressed row is part of it, onto
+// the sidebar's playlists / Liked Songs or the queue panel. Escape cancels the drag.
 class TrackTable : public ui::Widget {
 public:
+    ~TrackTable() override;
     struct Options {
         bool showArt = true;
         bool showAlbum = true;
@@ -145,6 +148,7 @@ private:
     bool heartHit(int i, gfx::Point p) const;
     bool artistHit(int i, gfx::Point p);
     void headerClick(float x);
+    std::vector<catalog::Track> dragTracks() const;   // what a drag from pressRow_ carries
 
     Options opts_;
     std::vector<catalog::Track> tracks_;
@@ -157,6 +161,10 @@ private:
     int hover_ = -1;
     bool hoverHeart_ = false, hoverArtist_ = false;
     int pressRow_ = -1;
+    gfx::Point pressPos_{};          // window DIPs of the press (drag threshold)
+    bool dragging_ = false;          // rows are being dragged (app/DragDrop)
+    int collapseOnUp_ = -1;          // tracks_ index: a plain click on a selected row selects only it on release
+                                     // (a press there may start dragging the whole selection instead)
     int loadingRows_ = 0;
     std::string playlistId_;
     std::unordered_map<int, RowText> texts_;

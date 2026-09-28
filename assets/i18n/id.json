@@ -930,5 +930,19 @@
   "Uygulama": "Aplikasi",
   "Komut, sayfa, çalma listesi ya da şarkı ara…": "Cari perintah, halaman, playlist, atau lagu…",
   "Katalogda aranıyor…": "Mencari di katalog…",
-  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ pilih · Enter buka · Shift+Enter putar atau antrekan · Esc tutup"
+  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ pilih · Enter buka · Shift+Enter putar atau antrekan · Esc tutup",
+  "Adsız klasör": "Folder tanpa nama",
+  "Klasörü kapat": "Tutup folder",
+  "Kitaplıkta göster": "Tampilkan di Koleksi",
+  "Bu klasör boş": "Folder ini kosong",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "Kamu bisa menambahkan playlist ke folder ini di Spotify.",
+  "Bırakılan dosyalar": "File yang dilepas",
+  "Bırakılan klasörler taranıyor…": "Memindai folder yang dilepas…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "Tidak ada file audio yang bisa diputar di antara yang kamu lepas",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "Tambahkan folder ini ke File lokal?",
+  "Ekle": "Tambah",
+  "Zaten Beğenilen Şarkılar'da": "Sudah ada di Lagu yang Disukai",
+  "Yalnızca ilk {} dosya alındı": "Hanya {} file pertama yang diambil",
+  "{} şarkı Beğenilen Şarkılar'a eklendi": "{} lagu ditambahkan ke Lagu yang Disukai",
+  "{} şarkı sıraya eklendi": "{} lagu ditambahkan ke antrean"
 }

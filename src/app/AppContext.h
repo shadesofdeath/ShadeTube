@@ -49,6 +49,9 @@ public:
     bool canLike(const std::string& trackId) const;
     void setLiked(const catalog::Track& t, bool liked);
     void toggleLiked(const catalog::Track& t) { setLiked(t, !isLiked(t.id)); }
+    // Likes several songs at once (drag and drop onto Liked Songs): one write, no toast. Songs that can't be liked
+    // or are liked already are passed over. Returns how many were newly liked.
+    int likeAll(const std::vector<catalog::Track>& tracks);
 
     // Saved albums / followed artists (newest first)
     const std::vector<catalog::Album>& albums() const { return albums_; }
@@ -150,6 +153,7 @@ void initUpdater();            // app/AboutSettings.cpp  (update check)
 void initInternetRadio();      // app/RadioPage.cpp      (radio-browser.info stations)
 void initWinShell();           // app/WinShell.cpp       (taskbar buttons, app identity for the media flyout)
 void initDownloadSync();       // app/DownloadSync.cpp   (collections kept offline)
+void initDragDrop();           // app/DragDrop.cpp       (files dropped from Explorer, resolver for dropped files)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -158,6 +162,7 @@ inline void initFeatures() {
     initInternetRadio();
     initWinShell();
     initDownloadSync();
+    initDragDrop();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the
@@ -168,6 +173,9 @@ void startRadio(const std::string& seedUri, const std::wstring& seedName);
 // Shared helpers used by many pages.
 void showTrackMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos, const std::string& playlistId = {});
 void showAddToPlaylistMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos);
+// Adds songs to the playlist `id` and reports with a toast: an editable Spotify playlist (logged in; only its Spotify
+// songs, the others are noted) or a local playlist. Used by the menu above and by drag and drop.
+void addToPlaylistWithToast(const std::string& id, const std::vector<catalog::Track>& tracks);
 void showDownloadFolderMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos);
 
 // Sleep timer.

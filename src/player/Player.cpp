@@ -261,6 +261,36 @@ void Player::enqueue(const std::vector<Track>& tracks) {
     notify();
 }
 
+int Player::insertAt(int orderIndex, const std::vector<Track>& tracks) {
+    if (items_.empty()) {
+        const int n = static_cast<int>(std::count_if(tracks.begin(), tracks.end(),
+                                                     [](const Track& t) { return t.playable && !t.name.empty(); }));
+        if (n > 0) playContext(tracks, 0, {"queue", tr(L"Sıra")});
+        return n;
+    }
+    const int at = std::clamp(orderIndex, pos_ + 1, static_cast<int>(order_.size()));
+    int added = 0;
+    for (const auto& t : tracks) {
+        if (!t.playable || t.name.empty()) continue;
+        items_.push_back(t);
+        order_.insert(order_.begin() + at + added, static_cast<int>(items_.size()) - 1);
+        ++added;
+    }
+    if (added == 0) return 0;
+    // What plays next may have changed: prepare again (the prefetch tick does).
+    if (prepared_ && prepared_->orderIndex >= at) dropPrepared();
+    // The queue had already run out: go on with the first new track (as extend()).
+    if (endedAtEnd_ && status_ == Status::Idle) {
+        if (const int next = playableFrom(pos_ + 1, 1); next >= 0) {
+            pos_ = next;
+            loadCurrent(0, true);
+            return added;
+        }
+    }
+    notify();
+    return added;
+}
+
 void Player::jumpTo(int orderIndex) {
     if (orderIndex < 0 || orderIndex >= static_cast<int>(order_.size())) return;
     failStreak_ = 0;

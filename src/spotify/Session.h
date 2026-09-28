@@ -19,7 +19,8 @@ enum class SessionState { LoggedOut, Connecting, LoggedIn };
 // Library pages read it directly (no per-navigation refetch). "Liked Songs" is the pseudo-playlist that
 // libraryV3 returns first among the playlists.
 struct LibrarySnapshot {
-    std::vector<catalog::Playlist> playlists;
+    std::vector<catalog::Playlist> playlists;   // flat, in libraryV3 order (folders flattened away)
+    PlaylistTree tree;                          // the user's folders and which playlists they hold (rootlist)
     std::vector<catalog::Album> albums;
     std::vector<catalog::Artist> artists;
     std::unordered_set<std::string> likedIds;   // Liked Songs track ids (for heart state)

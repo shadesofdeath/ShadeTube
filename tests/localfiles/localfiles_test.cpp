@@ -8,12 +8,15 @@
 //      files disappear, nested folders don't duplicate, the file cap, cancellation (before and while reading), cover
 //      pruning, an unreachable folder keeps its tracks while a deleted one loses them, walk rules (junctions, hidden
 //      and "." folders, unstorable names), file-name parsing, long paths, disc order, folder add / remove rules;
+//   3b. files dropped from Explorer (app/DroppedFiles): collecting files + folders, the cap, order, the remembered
+//      list, and the drop rules for sidebar rows and the queue;
 //   4. formats: each file decoded through the engine's own path (ProgressiveBuffer -> MF byte stream -> Source
 //      Reader) with the per-extension mime Player::localMimeType passes and with the old "audio/mp4" fallback (MF
 //      sniffs the content); then ~1 s of real playback
 //      of a local MP3 (+ FLAC / M4A / WAV / WMA) through the AudioEngine at volume 0.
 //   localfiles_test [parent-folder] [--keep]   works in <parent>\ShadeTube-localfiles-test (default: %TEMP%), which it
 //                                              deletes and recreates; any other folder is never touched
+#include "app/DroppedFiles.h"
 #include "app/LocalLibrary.h"
 #include "audio/AudioEngine.h"
 #include "audio/Decoder.h"
@@ -630,6 +633,83 @@ int wmain(int argc, wchar_t** argv) {
                 if (e.album == "\u0130ki Disk") order.push_back(fs::path(e.path).filename().wstring());
             CHECK((order == std::vector<std::wstring>{L"c.m4a", L"b.flac", L"a.mp3"}));
         }
+    }
+
+    // ---- 3b. dropped files -----------------------------------------------------------------------------------
+    std::printf("\n[dropped from Explorer]\n");
+    {
+        namespace dropped = st::app::dropped;
+        const fs::path drop = work / L"dropped";
+        fs::create_directories(drop / L"Albüm" / L"CD1", ec);
+        writeWav(drop / L"Albüm" / L"CD1" / L"02 - İkinci.wav", 0.3, 330);
+        writeWav(drop / L"Albüm" / L"CD1" / L"01 - Birinci.wav", 0.3, 330);
+        writeWav(drop / L"Tek - Şarkı.wav", 0.3, 440);
+        std::ofstream(drop / L"notlar.txt") << "not audio";
+        CHECK(dropped::droppable((drop / L"Tek - Şarkı.wav").wstring()));
+        CHECK(dropped::droppable((drop / L"Albüm").wstring()));
+        CHECK(!dropped::droppable((drop / L"notlar.txt").wstring()));
+        CHECK(dropped::droppable((drop / L"yok.wav").wstring()));   // by its extension: the disk isn't asked
+        const fs::path dropCovers = work / L"dropped-covers";
+        // A loose file, a folder, the same file again inside the folder list, something that isn't audio, a ghost.
+        const auto r = dropped::collect({(drop / L"notlar.txt").wstring(), (drop / L"Albüm").wstring(),
+                                         (drop / L"Tek - Şarkı.wav").wstring(), (drop / L"Tek - Şarkı.wav").wstring(),
+                                         (drop / L"gone.wav").wstring()},
+                                        dropCovers);
+        for (const auto& e : r.entries)
+            std::printf("  %s | %s | disc %d track %d\n", e.title.c_str(), toUtf8(fs::path(e.path).filename().wstring()).c_str(),
+                        e.discNumber, e.trackNumber);
+        CHECK(r.entries.size() == 3);
+        CHECK(r.folders.size() == 1);
+        CHECK(r.skipped == 2);   // notlar.txt + gone.wav
+        CHECK(!r.capped);
+        if (r.entries.size() == 3) {
+            // Untagged: "Tek - Şarkı" has an artist (sorts first); the album files by track number from their names.
+            CHECK(r.entries[0].title == "Şarkı" && !r.entries[0].artists.empty() && r.entries[0].artists[0] == "Tek");
+            CHECK(fs::path(r.entries[1].path).filename() == L"01 - Birinci.wav");
+            CHECK(fs::path(r.entries[2].path).filename() == L"02 - İkinci.wav");
+            CHECK(local::toTrack(r.entries[0]).id == local::trackIdFor(r.entries[0].path));
+        }
+        const auto few = dropped::collect({(drop / L"Albüm").wstring(), (drop / L"Tek - Şarkı.wav").wstring()}, {}, 2);
+        CHECK(few.entries.size() == 2 && few.capped);
+        CHECK(dropped::collect({(drop / L"notlar.txt").wstring()}, {}).entries.empty());
+
+        // Remembered list: a file dropped again moves to the end; the newest `cap` are kept.
+        auto entry = [](const wchar_t* path) {
+            local::Entry e;
+            e.path = path;
+            return e;
+        };
+        std::vector<local::Entry> list;
+        dropped::mergeRemembered(list, {entry(L"C:\\a.mp3"), entry(L"C:\\b.mp3"), entry(L"C:\\c.mp3")}, 3);
+        dropped::mergeRemembered(list, {entry(L"C:\\A.MP3"), entry(L"C:\\d.mp3"), entry(L"C:\\d.mp3")}, 3);
+        std::wstring order;
+        for (const auto& e : list) order += fs::path(e.path).stem().wstring();
+        std::printf("  remembered: %s\n", toUtf8(order).c_str());
+        CHECK(order == L"cAd");   // b fell off the end, a moved behind c (with its new spelling), d once
+
+        // Drop rules.
+        auto tr = [](const char* id) {
+            st::catalog::Track t;
+            t.id = id;
+            t.name = id;
+            return t;
+        };
+        const std::vector<st::catalog::Track> mixed{tr("spotify:track:1"), tr("local:ab"), tr("radio:x"), tr(""),
+                                                    tr("11111111-1111-1111-1111-111111111111")};
+        const auto onlySpotify = [](const std::string& id) { return id.rfind("spotify:track:", 0) == 0; };
+        using DR = dropped::DropRow;
+        CHECK(dropped::droppableOn(DR::SpotifyPlaylist, mixed, onlySpotify).size() == 1);
+        CHECK(dropped::droppableOn(DR::Liked, mixed, onlySpotify).size() == 1);
+        CHECK(dropped::droppableOn(DR::Liked, mixed, [](const std::string&) { return true; }).size() == 3);
+        CHECK(dropped::droppableOn(DR::LocalPlaylist, mixed, onlySpotify).size() == 3);   // never stations / no id
+        CHECK(dropped::droppableOn(DR::Liked, mixed, nullptr).empty());
+        // Queue: current slot 2 of 6; rows of 52 below the list top.
+        CHECK(dropped::queueDropIndex(-40, 52, 2, 6) == 3);    // above the list: right after the current track
+        CHECK(dropped::queueDropIndex(20, 52, 2, 6) == 3);
+        CHECK(dropped::queueDropIndex(30, 52, 2, 6) == 4);     // past the first row's middle
+        CHECK(dropped::queueDropIndex(1000, 52, 2, 6) == 6);   // below everything: the end
+        CHECK(dropped::queueDropIndex(10, 52, -1, 0) == 0);    // empty queue
+        CHECK(dropped::queueDropIndex(10, 0, 2, 6) == 6);
     }
 
     // ---- 4. formats ---------------------------------------------------------------------------------------

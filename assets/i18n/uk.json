@@ -1105,5 +1105,34 @@
   "Uygulama": "Застосунок",
   "Komut, sayfa, çalma listesi ya da şarkı ara…": "Пошук команд, розділів, плейлистів і треків…",
   "Katalogda aranıyor…": "Пошук у каталозі…",
-  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ вибір · Enter відкрити · Shift+Enter грати або в чергу · Esc закрити"
+  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ вибір · Enter відкрити · Shift+Enter грати або в чергу · Esc закрити",
+  "Adsız klasör": "Папка без назви",
+  "Klasörü kapat": "Згорнути папку",
+  "Kitaplıkta göster": "Показати в бібліотеці",
+  "Bu klasör boş": "Ця папка порожня",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "Додати плейлисти до цієї папки можна у Spotify.",
+  "Bırakılan dosyalar": "Перетягнуті файли",
+  "Bırakılan klasörler taranıyor…": "Скануємо перетягнуті папки…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "Серед перетягнутого немає аудіофайлів, які можна відтворити",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "Додати цю папку до «Локальних файлів»?",
+  "Ekle": "Додати",
+  "Zaten Beğenilen Şarkılar'da": "Уже в улюблених треках",
+  "Yalnızca ilk {} dosya alındı": {
+    "one": "Узято лише перший {} файл",
+    "few": "Узято лише перші {} файли",
+    "many": "Узято лише перші {} файлів",
+    "other": "Узято лише перші {} файлу"
+  },
+  "{} şarkı Beğenilen Şarkılar'a eklendi": {
+    "one": "{} трек додано до улюблених",
+    "few": "{} треки додано до улюблених",
+    "many": "{} треків додано до улюблених",
+    "other": "{} треку додано до улюблених"
+  },
+  "{} şarkı sıraya eklendi": {
+    "one": "{} трек додано в чергу",
+    "few": "{} треки додано в чергу",
+    "many": "{} треків додано в чергу",
+    "other": "{} треку додано в чергу"
+  }
 }

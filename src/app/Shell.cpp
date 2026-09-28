@@ -3,16 +3,19 @@
 #include "app/Blacklist.h"
 #include "app/ConnectScreen.h"
 #include "app/DownloadSync.h"
+#include "app/DroppedFiles.h"
 #include "app/InternetRadio.h"
 #include "app/NowPlaying.h"
 #include "app/Source.h"
 #include "core/I18n.h"
+#include "core/Settings.h"
 #include "core/Utf.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
 #include "ui/Popups.h"
 #include "ui/Window.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace st::app {
@@ -94,6 +97,150 @@ void TitleBar::paint(Canvas& c) {
 // ===================================================================================================
 // Sidebar
 
+// A row of the sidebar's playlist list, painted like ButtonKind::SidebarItem: a playlist (name, mono track count, the
+// playing indicator) or a Spotify folder (chevron + folder glyph + name; a click opens / closes it). Rows inside
+// folders are indented by their depth. While songs are dragged over a row that takes them it shows the drop highlight.
+class SidebarRow : public ui::Widget {
+public:
+    SidebarRow(std::wstring label, int depth, bool folder)
+        : label_(std::move(label), type::secondary), trailing_({}, type::monoLabel), depth_(depth), folder_(folder) {
+        focusable = true;
+    }
+
+    std::function<void()> onClick;
+    std::function<void(const ui::MouseEvent&)> onContext;
+    std::function<void(bool open)> onOpen;   // folders: Right opens, Left closes
+
+    bool folder() const { return folder_; }
+    bool expanded() const { return expanded_; }
+    void setExpanded(bool on) { expanded_ = on; }
+    void setTrailing(std::wstring t) { trailing_.setText(std::move(t)); }
+    void setIcon(std::string icon) {
+        if (icon_ == icon) return;
+        icon_ = std::move(icon);
+        invalidate();
+    }
+    void setActive(bool on) {
+        if (active_ == on) return;
+        active_ = on;
+        activeA_.to(on ? 1.f : 0.f, ui::motion::normal);
+        invalidate();
+    }
+    void setDropHot(bool on) {
+        if (dropHot_ == on) return;
+        dropHot_ = on;
+        invalidate();
+    }
+
+    void paint(Canvas& c) override {
+        const auto& col = colors();
+        const auto& acc = accent();
+        const Rect r = pill();
+        const float h = hover_, a = activeA_;
+        if (dropHot_) {
+            c.fillPill(r, acc.tint12);
+            c.strokePill(r, acc.base);
+        } else {
+            c.fillPill(r, col.overlaySelected.mulAlpha(a));
+            c.fillPill(r, col.overlayHover.mulAlpha(h * (1 - a)));
+        }
+        const Color fg = Color::lerp(Color::lerp(col.fgSecondary, col.fgPrimary, h), col.fgPrimary, a);
+        float right = r.right() - 12;
+        if (!trailing_.empty()) {
+            const float tw = std::ceil(trailing_.measure().w);
+            c.text(trailing_, {right - tw, r.y, tw + 1, r.h}, col.fgTertiary, gfx::VAlign::Center);
+            right -= tw + 10;
+        }
+        float x = r.x + 12;
+        if (folder_) {
+            c.icon(expanded_ ? "chevron-down" : "chevron-right", {x - 2, r.cy() - 7, 14, 14}, col.fgTertiary);
+            x += 16;
+            c.icon("folder", {x, r.cy() - 7, 14, 14}, fg);
+            x += 20;
+        } else if (!icon_.empty()) {   // the playing indicator
+            c.icon(icon_, {x, r.cy() - 7, 14, 14}, acc.base);
+            x += 20;
+        }
+        label_.setStyle(type::secondary.withWeight(active_ ? 600.f : 400.f));
+        c.text(label_, {x, r.y, right - x, r.h}, fg, gfx::VAlign::Center);
+    }
+
+    bool onMouseDown(const ui::MouseEvent& e) override {
+        if (e.button == ui::MouseButton::Right) {
+            if (onContext) {
+                const auto context = onContext;
+                context(e);
+            }
+            return false;
+        }
+        return e.button == ui::MouseButton::Left;
+    }
+    void onMouseUp(const ui::MouseEvent& e) override {
+        if (hovered() && rect().contains(e.pos) && onClick) {
+            const auto click = onClick;   // may rebuild the list: the row is deleted after the event
+            click();
+        }
+    }
+    void onMouseEnter() override {
+        hover_.to(1, ui::motion::fast);
+        invalidate();
+    }
+    void onMouseLeave() override {
+        hover_.to(0, ui::motion::fast);
+        invalidate();
+    }
+    LPCWSTR cursor() const override { return IDC_HAND; }
+
+    // Keyboard: Enter / Space = click; a folder opens with Right and closes with Left; the menu key / Shift+F10 opens
+    // the context menu under the row.
+    bool activatable() const override { return true; }
+    bool onActivate() override {
+        if (!onClick) return false;
+        const auto click = onClick;
+        click();
+        return true;
+    }
+    bool onKeyDown(const ui::KeyEvent& e) override {
+        if ((e.vk == VK_APPS || (e.vk == VK_F10 && e.shift)) && onContext) {
+            ui::MouseEvent me;
+            const Rect wr = toWindow(rect());
+            me.windowPos = {wr.x + 8, wr.bottom()};
+            me.pos = {rect().x + 8, rect().bottom()};
+            me.button = ui::MouseButton::Right;
+            const auto context = onContext;
+            context(me);
+            return true;
+        }
+        if (folder_ && onOpen && !e.ctrl && !e.alt && (e.vk == VK_RIGHT || e.vk == VK_LEFT)) {
+            const bool open = e.vk == VK_RIGHT;
+            if (open == expanded_) return false;
+            const auto toggle = onOpen;
+            toggle(open);
+            return true;
+        }
+        return false;
+    }
+    Rect focusRect() const override { return pill(); }
+    ui::FocusShape focusShape() const override { return ui::FocusShape::Pill; }
+
+private:
+    // The row minus its indent (16 DIPs per folder level).
+    Rect pill() const {
+        const Rect r = rect();
+        const float indent = std::min(16.f * static_cast<float>(depth_), r.w * 0.5f);
+        return {r.x + indent, r.y, r.w - indent, r.h};
+    }
+
+    gfx::Text label_, trailing_;
+    std::string icon_;
+    int depth_;
+    bool folder_;
+    bool expanded_ = false;
+    bool active_ = false;
+    bool dropHot_ = false;
+    ui::Anim hover_, activeA_;
+};
+
 Sidebar::Sidebar() {
     // Page names ("Ara" = the Search page).
     home_ = add<Button>(ButtonKind::Nav, tr(L"Ana Sayfa"), "home");
@@ -126,11 +273,12 @@ Sidebar::Sidebar() {
 void Sidebar::refresh() {
     listCol_->clearChildren();
     items_.clear();
+    dropRow_ = restingFolder_ = nullptr;
     // Plain track count with the UI language's digit grouping ("18", "1.234").
     auto countStr = [](int n) { return i18n::number(std::max(0, n)); };
     // count < 0: unknown (Spotify gave none) -> no trailing count rather than a misleading "0".
-    auto addItem = [&](std::wstring name, int count, Route route) {
-        auto* b = listCol_->add<Button>(ButtonKind::SidebarItem, std::move(name));
+    auto addItem = [&](std::wstring name, int count, Route route, int depth = 0) {
+        auto* b = listCol_->add<SidebarRow>(std::move(name), depth, false);
         b->setTrailing(count < 0 ? std::wstring() : countStr(count));
         b->setRect({0, 0, 0, metrics::playlistItemH});
         b->onClick = [route] { ctx().router->navigate(route); };
@@ -138,11 +286,35 @@ void Sidebar::refresh() {
         return b;
     };
     if (source::loggedIn()) {
-        // Logged in: the sidebar lists the user's Spotify playlists (Liked Songs is the pseudo-playlist first).
-        for (const auto& p : ctx().session->library().playlists) {
+        // Logged in: the user's Spotify playlists (Liked Songs is the pseudo-playlist first), in their folders.
+        const auto& lib = ctx().session->library();
+        const auto& open = Settings::get().expandedFolders;
+        const auto expanded = [&open](const std::string& id) { return std::find(open.begin(), open.end(), id) != open.end(); };
+        for (const auto& row : spotify::treeRows(lib.playlists, lib.tree, expanded)) {
+            if (row.folder) {
+                const auto& f = lib.tree.folders[row.index];
+                const std::wstring name = f.name.empty() ? std::wstring(tr(L"Adsız klasör")) : toWide(f.name);
+                auto* b = listCol_->add<SidebarRow>(name, row.depth, true);
+                b->setRect({0, 0, 0, metrics::playlistItemH});
+                const bool isOpen = expanded(f.id);
+                b->setExpanded(isOpen);
+                const std::string id = f.id;
+                b->onClick = [this, id, isOpen] { setFolderOpen(id, !isOpen); };
+                b->onOpen = [this, id](bool on) { setFolderOpen(id, on); };
+                const Route inLibrary{RouteKind::Library, "folder:" + id};
+                b->onContext = [this, id, isOpen, inLibrary](const ui::MouseEvent& e) {
+                    ui::Menu::open(ctx().window, e.windowPos,
+                                   {{isOpen ? tr(L"Klasörü kapat") : tr(L"Klasörü aç"), isOpen ? "chevron-up" : "chevron-down",
+                                     L"", [this, id, isOpen] { setFolderOpen(id, !isOpen); }},
+                                    {tr(L"Kitaplıkta göster"), "library", L"", [inLibrary] { ctx().router->navigate(inLibrary); }}});
+                };
+                items_.emplace_back(b, inLibrary);
+                continue;
+            }
+            const auto& p = lib.playlists[row.index];
             const bool liked = p.id == spotify::Api::kLikedSongsUri;
             const Route route = liked ? Route{RouteKind::Liked} : Route{RouteKind::Playlist, p.id};
-            auto* b = addItem(toWide(p.name), p.countKnown ? p.totalTracks : -1, route);
+            auto* b = addItem(toWide(p.name), p.countKnown ? p.totalTracks : -1, route, row.depth);
             const std::string id = p.id;
             const std::wstring name = toWide(p.name);
             const bool editable = !liked && p.editable, owned = p.owned;
@@ -200,6 +372,20 @@ void Sidebar::refresh() {
     requestLayout();
 }
 
+void Sidebar::setFolderOpen(const std::string& folderId, bool open) {
+    auto& s = Settings::get();
+    auto& list = s.expandedFolders;
+    const auto it = std::find(list.begin(), list.end(), folderId);
+    if ((it != list.end()) == open) return;
+    if (open) list.push_back(folderId);
+    else list.erase(it);
+    s.markDirty();
+    // Rebuilt after the event: the row that asked is one of the rows refresh() replaces.
+    Dispatcher::post([this, ref = life_.ref()] {
+        if (!ref.expired()) refresh();
+    });
+}
+
 void Sidebar::syncActive() {
     if (!ctx().router) return;
     Route cur = ctx().router->current();
@@ -221,6 +407,71 @@ void Sidebar::syncActive() {
                               (route.kind == RouteKind::Liked && p->context().uri == "liked"));
         b->setIcon(playing ? "equalizer" : "");
     }
+}
+
+SidebarRow* Sidebar::rowAt(gfx::Point windowPos) const {
+    if (!list_->toWindow(list_->rect()).contains(windowPos)) return nullptr;
+    for (const auto& [row, _] : items_)
+        if (row->toWindow(row->rect()).contains(windowPos)) return row;
+    return nullptr;
+}
+
+bool Sidebar::dragOver(const DragPayload& payload, gfx::Point windowPos) {
+    const double now = ui::frame::realNow();
+    // Near the list's top / bottom edge: scroll it, faster the closer the pointer is to the edge.
+    const Rect lr = list_->toWindow(list_->rect());
+    const float edge = 28;
+    if (lr.contains(windowPos) && lastScrollTick_ > 0) {
+        const float dt = static_cast<float>(std::min(now - lastScrollTick_, 100.0)) / 1000.f;
+        float v = 0;
+        if (windowPos.y < lr.y + edge) v = -(1 - (windowPos.y - lr.y) / edge);
+        else if (windowPos.y > lr.bottom() - edge) v = 1 - (lr.bottom() - windowPos.y) / edge;
+        if (v != 0) list_->scrollTo(std::clamp(list_->scrollY() + v * 900.f * dt, 0.f, list_->maxScroll()), false);
+    }
+    lastScrollTick_ = now;
+
+    SidebarRow* row = payload.fromExplorer() ? nullptr : rowAt(windowPos);
+    // A closed folder opens when the songs rest on it for a moment (their playlist may be inside).
+    if (row && row->folder() && !row->expanded()) {
+        if (row != restingFolder_) {
+            restingFolder_ = row;
+            restingSince_ = now;
+        } else if (now - restingSince_ > 700) {
+            restingFolder_ = nullptr;
+            for (const auto& [b, route] : items_)
+                if (b == row) setFolderOpen(route.id.substr(std::string("folder:").size()), true);
+        }
+    } else {
+        restingFolder_ = nullptr;
+    }
+    SidebarRow* hot = nullptr;
+    if (row && !row->folder())
+        for (const auto& [b, route] : items_)
+            if (b == row && !dragdrop::tracksForRow(route, payload.tracks).empty()) hot = row;
+    if (hot != dropRow_) {
+        if (dropRow_) dropRow_->setDropHot(false);
+        dropRow_ = hot;
+        if (dropRow_) dropRow_->setDropHot(true);
+    }
+    return hot != nullptr;
+}
+
+void Sidebar::dragLeave() {
+    if (dropRow_) dropRow_->setDropHot(false);
+    dropRow_ = restingFolder_ = nullptr;
+    lastScrollTick_ = 0;
+}
+
+void Sidebar::drop(const DragPayload& payload, gfx::Point windowPos) {
+    SidebarRow* row = rowAt(windowPos);
+    dragLeave();
+    if (!row || payload.fromExplorer()) return;
+    for (const auto& [b, route] : items_)
+        if (b == row) {
+            const Route target = route;   // dropOnRow may refresh the list (new counts): copy it first
+            dragdrop::dropOnRow(target, payload.tracks);
+            return;
+        }
 }
 
 void Sidebar::layout() {
@@ -607,6 +858,53 @@ void QueuePanel::onMouseUp(const ui::MouseEvent& e) {
     invalidate();
 }
 
+int QueuePanel::dropIndexAt(gfx::Point windowPos) const {
+    auto* p = ctx().player;
+    if (!p || p->currentOrderIndex() < 0) return 0;
+    const gfx::Point pp = fromWindow(windowPos);
+    return dropped::queueDropIndex(pp.y - rect().y - listTop() + scroll_.value(), 52.f, p->currentOrderIndex(),
+                                   static_cast<int>(p->order().size()));
+}
+
+bool QueuePanel::dragOver(const DragPayload& payload, gfx::Point windowPos) {
+    auto* p = ctx().player;
+    if (!p || !visible() || (!payload.fromExplorer() && payload.tracks.empty())) return false;
+    // Near the list's top / bottom edge: scroll it, faster the closer the pointer is to the edge.
+    const double now = ui::frame::realNow();
+    if (lastScrollTick_ > 0 && p->currentOrderIndex() >= 0) {
+        const gfx::Point pp = fromWindow(windowPos);
+        const float y = pp.y - rect().y, top = listTop(), bottom = rect().h, edge = 32;
+        const float dt = static_cast<float>(std::min(now - lastScrollTick_, 100.0)) / 1000.f;
+        float v = 0;
+        if (y >= top && y < top + edge) v = -(1 - (y - top) / edge);
+        else if (y > bottom - edge && y <= bottom) v = 1 - (bottom - y) / edge;
+        if (v != 0) {
+            const int upcoming = static_cast<int>(p->order().size()) - p->currentOrderIndex() - 1;
+            const float maxS = std::max(0.f, upcoming * 52.f - (rect().h - listTop()) + 16);
+            scroll_.snap(std::clamp(scroll_.value() + v * 700.f * dt, 0.f, maxS));
+        }
+    }
+    lastScrollTick_ = now;
+    const int at = dropIndexAt(windowPos);
+    if (at != dropAt_) {
+        dropAt_ = at;
+        invalidate();
+    }
+    return true;
+}
+
+void QueuePanel::dragLeave() {
+    dropAt_ = -1;
+    lastScrollTick_ = 0;
+    invalidate();
+}
+
+void QueuePanel::drop(const DragPayload& payload, gfx::Point windowPos) {
+    const int at = dropIndexAt(windowPos);
+    dragLeave();
+    dragdrop::dropOnQueue(at, payload);
+}
+
 void QueuePanel::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
@@ -625,6 +923,7 @@ void QueuePanel::paint(Canvas& c) {
     if (!p || p->currentOrderIndex() < 0) {
         c.text(tr(L"Sıra boş. Bir şarkı çal, burada görünsün."), type::secondary, {padX, 80, r.w - padX * 2, 20},
                col.fgTertiary);
+        if (dropAt_ >= 0) c.strokeRounded({8, 8, r.w - 16, r.h - 16}, 2, acc.base, 2);   // songs dragged in play here
         c.popTransform();
         c.popClip();
         paintChildren(c);
@@ -693,6 +992,10 @@ void QueuePanel::paint(Canvas& c) {
     if (dragging_ && dragTo_ >= 0) {
         const Rect tr = rowRect(dragTo_);
         c.fillRect({padX, dragTo_ > dragFrom_ ? tr.bottom() - 1 : tr.y - 1, r.w - padX * 2, 2}, acc.base);
+    }
+    if (dropAt_ >= 0) {   // songs dragged in from a list / files from Explorer go in front of this slot
+        const float y = listTop() + static_cast<float>(dropAt_ - p->currentOrderIndex() - 1) * 52.f - scroll_.value();
+        c.fillRect({padX, y - 1, r.w - padX * 2, 2}, acc.base);
     }
     c.popClip();
     c.popTransform();

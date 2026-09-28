@@ -264,6 +264,34 @@ void Library::setLiked(const Track& t, bool liked) {
     touch();
 }
 
+int Library::likeAll(const std::vector<Track>& tracks) {
+    std::vector<const Track*> fresh;
+    std::unordered_set<std::string> seen;
+    for (const auto& t : tracks)
+        if (canLike(t.id) && !isLiked(t.id) && seen.insert(t.id).second) fresh.push_back(&t);
+    if (fresh.empty()) return 0;
+    if (source::loggedIn()) {
+        std::vector<std::string> ids;
+        for (const Track* t : fresh) {
+            ctx().session->markLiked(t->id, true);
+            ids.push_back(t->id);
+        }
+        auto* api = &ctx().session->api();
+        background(Priority::Low, [api, ids] { api->setTracksSaved(ids, true); });
+        notify();
+        return static_cast<int>(fresh.size());
+    }
+    // Newest first: the first of the dropped songs ends up on top.
+    for (auto it = fresh.rbegin(); it != fresh.rend(); ++it) {
+        Track copy = **it;
+        copy.addedAt = nowUnix();
+        liked_.insert(liked_.begin(), std::move(copy));
+        likedIds_.insert((*it)->id);
+    }
+    touch();
+    return static_cast<int>(fresh.size());
+}
+
 bool Library::isSavedAlbum(const std::string& id) const {
     if (source::loggedIn()) return ctx().session->isSavedAlbum(id);
     return std::any_of(albums_.begin(), albums_.end(), [&](const Album& a) { return a.id == id; });
@@ -711,23 +739,7 @@ void showAddToPlaylistMenu(const std::vector<Track>& tracks, gfx::Point windowPo
         if (!editable.empty()) items.push_back(ui::MenuItem::sep());
         for (size_t i = 0; i < editable.size() && i < maxRows; ++i) {
             const std::string id = editable[i].id;
-            const std::wstring name = toWide(editable[i].name);
-            const size_t skipped = tracks.size() - uris.size();   // local files / MusicBrainz rows never go to Spotify
-            items.push_back({name, "playlist", L"", [uris, id, name, skipped] {
-                                 auto* ss = spotifySession();
-                                 if (!ss) return;
-                                 if (uris.empty()) {
-                                     toast(tr(L"Yalnızca Spotify şarkıları eklenebilir"), true);
-                                     return;
-                                 }
-                                 ss->addToPlaylist(id, uris, [name, skipped](bool ok) {
-                                     std::wstring msg = i18n::format(ok ? tr(L"\"{}\" listesine eklendi")
-                                                                        : tr(L"\"{}\" listesine eklenemedi"),
-                                                                     {name});
-                                     if (ok && skipped > 0) msg += L" " + skippedNote(skipped);
-                                     toast(msg, !ok);
-                                 });
-                             }});
+            items.push_back({toWide(editable[i].name), "playlist", L"", [tracks, id] { addToPlaylistWithToast(id, tracks); }});
         }
         ui::Menu::open(ctx().window, windowPos, std::move(items));
         return;
@@ -735,13 +747,34 @@ void showAddToPlaylistMenu(const std::vector<Track>& tracks, gfx::Point windowPo
     if (!ctx().library.playlists().empty()) items.push_back(ui::MenuItem::sep());
     for (const auto& p : ctx().library.playlists()) {
         const std::string id = p.id;
-        const std::wstring name = toWide(p.name);
-        items.push_back({name, "playlist", L"", [tracks, id, name] {
-                             const int n = ctx().library.addToPlaylist(id, tracks);
-                             toast(n > 0 ? i18n::format(tr(L"\"{}\" listesine eklendi"), {name}) : tr(L"Zaten listede"));
-                         }});
+        items.push_back({toWide(p.name), "playlist", L"", [tracks, id] { addToPlaylistWithToast(id, tracks); }});
     }
     ui::Menu::open(ctx().window, windowPos, std::move(items));
+}
+
+void addToPlaylistWithToast(const std::string& id, const std::vector<Track>& tracks) {
+    if (auto* ss = spotifySession()) {
+        const Playlist* p = ss->findPlaylist(id);
+        if (!p) return;
+        const std::wstring name = toWide(p->name);
+        const auto uris = spotifyTrackUris(tracks);
+        if (uris.empty()) {
+            toast(tr(L"Yalnızca Spotify şarkıları eklenebilir"), true);
+            return;
+        }
+        const size_t skipped = tracks.size() - uris.size();   // local files / MusicBrainz rows never go to Spotify
+        ss->addToPlaylist(id, uris, [name, skipped](bool ok) {
+            std::wstring msg = i18n::format(ok ? tr(L"\"{}\" listesine eklendi") : tr(L"\"{}\" listesine eklenemedi"), {name});
+            if (ok && skipped > 0) msg += L" " + skippedNote(skipped);
+            toast(msg, !ok);
+        });
+        return;
+    }
+    const Playlist* p = ctx().library.playlist(id);
+    if (!p) return;
+    const std::wstring name = toWide(p->name);
+    const int n = ctx().library.addToPlaylist(id, tracks);
+    toast(n > 0 ? i18n::format(tr(L"\"{}\" listesine eklendi"), {name}) : tr(L"Zaten listede"));
 }
 
 // ---- Sleep timer ----------------------------------------------------------------------------------

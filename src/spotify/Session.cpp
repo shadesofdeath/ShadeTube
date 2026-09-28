@@ -156,7 +156,7 @@ void Session::reloadLibrary() {
                     ST_LOG_WARN("spotify", "library fetch failed: {}", e.what());
                 }
             };
-            tryFetch([&] { s.playlists = api_.libraryPlaylists(); });
+            tryFetch([&] { s.playlists = api_.libraryPlaylists({}, &s.tree); });
             tryFetch([&] { s.albums = api_.libraryAlbums(); });
             tryFetch([&] { s.artists = api_.libraryArtists(); });
             // Liked Songs ids for heart state (paged; capped so a huge library can't stall login).
@@ -189,13 +189,19 @@ void Session::reloadLibrary() {
 void Session::reloadPlaylists() {
     if (!api_.hasCredentials()) return;
     async(
-        Priority::Low, life_.ref(), [this] { return api_.libraryPlaylists(); },
-        [this](Result<std::vector<catalog::Playlist>> r) {
+        Priority::Low, life_.ref(),
+        [this] {
+            std::pair<std::vector<catalog::Playlist>, PlaylistTree> out;
+            out.first = api_.libraryPlaylists({}, &out.second);
+            return out;
+        },
+        [this](Result<std::pair<std::vector<catalog::Playlist>, PlaylistTree>> r) {
             if (!r) {
                 ST_LOG_WARN("spotify", "playlists reload failed: {}", r.errorMessage());
                 return;
             }
-            library_.playlists = std::move(*r);
+            library_.playlists = std::move(r->first);
+            library_.tree = std::move(r->second);
             notify();
         });
 }

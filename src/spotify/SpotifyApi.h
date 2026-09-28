@@ -4,6 +4,7 @@
 // st::catalog models so the rest of the app doesn't care that the data came from Spotify.
 // Blocking + thread-safe: call from worker threads (st::async). Throws st::spotify::ApiError on failure.
 #include "catalog/Models.h"
+#include "spotify/PlaylistTree.h"
 
 #include <YoutubeExplode/Common/Cancellation.hpp>
 #include <nlohmann/json.hpp>
@@ -44,8 +45,10 @@ public:
 
     // The user's library (newest first). Playlists include the "Liked Songs" pseudo-playlist first. Each playlist
     // carries its owner and whether the user may edit it (currentUserCapabilities.canEditItems); track counts
-    // come from the rootlist (libraryV3 has none) — `countKnown` is false when that lookup failed.
-    std::vector<Playlist> libraryPlaylists(const CT& ct = {});
+    // come from the rootlist (libraryV3 has none) — `countKnown` is false when that lookup failed. Folders are
+    // flattened away (their playlists are listed in libraryV3's order); `outTree`, when non-null, receives the folder
+    // tree from the same rootlist read (empty when it failed or the user has no folders).
+    std::vector<Playlist> libraryPlaylists(const CT& ct = {}, PlaylistTree* outTree = nullptr);
     std::vector<Album> libraryAlbums(const CT& ct = {});
     std::vector<Artist> libraryArtists(const CT& ct = {});
 

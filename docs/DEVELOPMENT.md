@@ -197,7 +197,12 @@ web player uses. Audio never comes from Spotify. Flow (`src/spotify/`, `app/Logi
    web-player token is rate-limited on `api.spotify.com/v1`, so that API is not used. Home shelves are requested
    with the UI language's `Accept-Language`.
 4. **Session** caches the library snapshot (playlists incl. Liked Songs, saved albums, followed artists) for the
-   sidebar, Home and Library.
+   sidebar, Home and Library. **Folders** (`spotify/PlaylistTree`): the rootlist brackets them with
+   `spotify:start-group:<id>:<form-encoded name>` / `spotify:end-group:<id>` items (nested to any depth);
+   `parsePlaylistTree()` turns that into folders + playlist → folder, kept next to the flat list in the snapshot.
+   libraryV3 keeps giving the order: `treeRows()` lists a level with each folder where its first (most recent)
+   playlist would be and empty folders last. The sidebar shows them as collapsible rows (open ones in
+   `Settings.expandedFolders`); the Library page as folder cards opening `{Library, "folder:<id>"}`.
 5. **Source seam** (`app/Source`): pages read Spotify when logged in and MusicBrainz otherwise; detail lookups route
    by id (`spotify:*` URI → Spotify, MBID → MusicBrainz), so mixed histories keep working.
 
@@ -390,9 +395,29 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `blacklist.json`, `listening.json`,
-`local-library.json`, `recent-searches.json`, `palette-recent.json`, `spotify-hashes.json`, `sync.json`,
-`update-leftovers.txt`, `cache\` (images, `matches.json`, lyrics, `mb`), `logs\shadetube.log` and `crashes\`. Downloads
-go to `Music\ShadeTube` by default.
+`local-library.json`, `dropped-files.json`, `recent-searches.json`, `palette-recent.json`, `spotify-hashes.json`,
+`sync.json`, `update-leftovers.txt`, `cache\` (images, `matches.json`, lyrics, `mb`, `local-covers`, `dropped-covers`),
+`logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default.
+
+### 3.15 Drag and drop
+
+`app/DragDrop` (UI thread):
+
+- **Inside the app**: a `TrackTable` row pressed and moved past 6 DIPs becomes a drag of that row, or of the whole
+  selection when the row is part of it (a plain click on a selected row narrows the selection on release instead).
+  A non-hit-testable overlay ghost (count + first title) follows the pointer; the widget under it is asked through
+  `DropTarget` (`dragOver` / `dragLeave` / `drop`, window DIPs). Targets: the **sidebar** (Liked Songs →
+  `Library::likeAll`; an editable Spotify playlist or a local playlist → `addToPlaylistWithToast`; a closed folder
+  opens after 700 ms under the pointer; the list scrolls near its edges) and the **queue panel** (an insertion line;
+  `Player::insertAt`). Escape, the source table going away or a release the table never saw cancel it.
+- **From Explorer**: an OLE `IDropTarget` on the main window (`OleInitialize` + `RegisterDragDrop`, revoked on
+  `WM_DESTROY`) takes `CF_HDROP` lists with at least one audio file or folder. Dropped on the queue panel they are
+  queued at that point, anywhere else they play at once (context "Bırakılan dosyalar"). `app/DroppedFiles::collect()`
+  reads them on a worker: folders through `local::scan` (same walk rules, tags and covers), loose files through
+  `local::readFile`, at most 2 000 per drop, sorted like the library. Their ids are the local library's
+  (`local:<hash>`); `dropped-files.json` (the local index format, newest 5 000) and a player resolver asked before
+  the local library's keep them playable after a restart (restored queue, history). A single dropped folder the
+  library doesn't cover yet gets an "add to Yerel dosyalar" toast action.
 
 ## 4. Coding conventions
 
@@ -439,13 +464,13 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 
 | Program | Covers | Modes |
 |---|---|---|
-| `spotify_test` | TOTP / base32 vectors, home parser fixture; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `playlist-edit` (**writes**: create → add → rename → remove → delete a temporary playlist) |
+| `spotify_test` | TOTP / base32 vectors, home parser and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `playlist-edit` (**writes**: create → add → rename → remove → delete a temporary playlist) |
 | `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing, cold vs warm cache | `--offline`, `--keep-cache` |
 | `altsource_test` | Piped / Invidious parsing, stream choice, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, memory) | network; `[videoA] [videoB]` |
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
-| `localfiles_test` | scanner, tags, covers, index, incremental rescan, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
+| `localfiles_test` | scanner, tags, covers, index, incremental rescan, files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
 | `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album) | offline; `[<audio dir>]`; needs an audio device |
 | `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), output-device enumeration | offline |
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
@@ -471,7 +496,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |
@@ -498,6 +523,8 @@ apps*).
 | `SHADETUBE_SPDC` | `sp_dc` cookie for the live `spotify_test` modes (never printed) |
 | `SHADETUBE_DISCORD_APPID` | Discord application id for `scrobble_test`'s live presence |
 | `SHADETUBE_RUN_KEY` | HKCU key used instead of `…\CurrentVersion\Run` for *Start with Windows* (its `StartupApproved` stand-in is a subkey); without it a sandbox profile never touches the real value |
+| `SHADETUBE_DRAG_DEMO` | `x,y[,queue][,drop]`: 2.5 s after startup drags the first Liked Songs to window DIPs x,y and holds (for `--screenshot`) or drops them a second later; `queue` opens the queue panel first |
+| `SHADETUBE_DRAG_DEMO_FILES` | `path\|path`: with `SHADETUBE_DRAG_DEMO`, drags these files / folders as if from Explorer |
 
 ## 6. Release process
 

@@ -1035,5 +1035,28 @@
   "Uygulama": "App",
   "Komut, sayfa, çalma listesi ya da şarkı ara…": "Rechercher des commandes, pages, playlists ou titres…",
   "Katalogda aranıyor…": "Recherche dans le catalogue…",
-  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ choisir · Entrée ouvrir · Maj+Entrée lire ou ajouter à la file · Échap fermer"
+  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ choisir · Entrée ouvrir · Maj+Entrée lire ou ajouter à la file · Échap fermer",
+  "Adsız klasör": "Dossier sans nom",
+  "Klasörü kapat": "Fermer le dossier",
+  "Kitaplıkta göster": "Afficher dans la bibliothèque",
+  "Bu klasör boş": "Ce dossier est vide",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "Tu peux ajouter des playlists à ce dossier dans Spotify.",
+  "Bırakılan dosyalar": "Fichiers déposés",
+  "Bırakılan klasörler taranıyor…": "Analyse des dossiers déposés…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "Aucun fichier audio lisible parmi les éléments déposés",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "Ajouter ce dossier aux Fichiers locaux ?",
+  "Ekle": "Ajouter",
+  "Zaten Beğenilen Şarkılar'da": "Déjà dans les Titres likés",
+  "Yalnızca ilk {} dosya alındı": {
+    "one": "Seul le premier fichier a été pris ({})",
+    "other": "Seuls les {} premiers fichiers ont été pris"
+  },
+  "{} şarkı Beğenilen Şarkılar'a eklendi": {
+    "one": "{} titre ajouté aux Titres likés",
+    "other": "{} titres ajoutés aux Titres likés"
+  },
+  "{} şarkı sıraya eklendi": {
+    "one": "{} titre ajouté à la file d'attente",
+    "other": "{} titres ajoutés à la file d'attente"
+  }
 }

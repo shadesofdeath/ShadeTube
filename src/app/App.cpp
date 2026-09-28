@@ -476,6 +476,7 @@ void App::showShell() {
     else if (options_.route.rfind("playlist:", 0) == 0) start = {RouteKind::Playlist, options_.route.substr(9)};
     else if (options_.route == "liked") start = {RouteKind::Liked};
     else if (options_.route == "library") start = {RouteKind::Library};
+    else if (options_.route.rfind("library:", 0) == 0) start = {RouteKind::Library, options_.route.substr(8)};
     else if (options_.route == "downloads") start = {RouteKind::Downloads};
     else if (options_.route == "stats") start = {RouteKind::Stats};
     else if (options_.route == "local") start = {RouteKind::LocalFiles};

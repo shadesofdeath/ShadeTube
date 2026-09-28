@@ -1,7 +1,7 @@
 // spotify_test: offline verification of the TOTP core (base32 + RFC 6238 vectors) plus an optional live run
 // against Spotify using an sp_dc cookie supplied via the environment.
 //
-//   spotify_test                   offline checks (TOTP + base32 vectors, home parser fixture), then the full
+//   spotify_test                   offline checks (TOTP + base32 vectors, home parser and rootlist folder fixtures), then the full
 //                                  live run when a sp_dc is available (SHADETUBE_SPDC or the app's saved cookie)
 //   spotify_test offline           offline checks only (no network besides the nuance gist)
 //   spotify_test home [dump.json]  offline checks + ONLY token + the personalized home feed (use this while
@@ -197,6 +197,85 @@ static void testHomeFixture() {
     CHECK(Api::parseHome(nlohmann::json::parse(R"({"home":{"sectionContainer":{"sections":{"items":[1,"x",{}]}}}})")).empty());
 #else
     std::printf("  skipped (SPOTIFY_FIXTURE_DIR not defined)\n");
+#endif
+}
+
+// Library folders: the rootlist's start-group / end-group brackets and the sidebar order built from them.
+static void testPlaylistTree() {
+    std::printf("playlist folders (fixture):\n");
+    CHECK(decodeGroupName("Chill+%26+Focus") == "Chill & Focus");
+    CHECK(decodeGroupName("a%2") == "a%2");            // broken escapes kept as is
+    CHECK(decodeGroupName("100%zz+") == "100%zz ");
+    CHECK(decodeGroupName("%C3%BC") == "\xC3\xBC");    // UTF-8 bytes pass through
+    CHECK(parsePlaylistTree(nlohmann::json()).empty());
+    CHECK(parsePlaylistTree(nlohmann::json::parse(R"({"contents":{"items":[1,"x",{"uri":5},{}]}})")).empty());
+#ifdef SPOTIFY_FIXTURE_DIR
+    std::ifstream f(SPOTIFY_FIXTURE_DIR "/rootlist.json", std::ios::binary);
+    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+    CHECK(!j.is_discarded());
+    if (j.is_discarded()) return;
+    const PlaylistTree tree = parsePlaylistTree(j);
+    const std::string road = "a1b2c3d4e5f60718", night = "b2c3d4e5f6071829", empty = "c3d4e5f607182930";
+    CHECK(tree.folders.size() == 3);
+    if (tree.folders.size() != 3) return;
+    CHECK(tree.folders[0].id == road && tree.folders[0].name == "Yol M\xC3\xBCzikleri" && tree.folders[0].parentId.empty());
+    CHECK(tree.folders[1].id == night && tree.folders[1].name == "Gece & G\xC3\xBCnd\xC3\xBCz" && tree.folders[1].parentId == road);
+    CHECK(tree.folders[2].id == empty && tree.folders[2].name == "Bo\xC5\x9F klas\xC3\xB6r" && tree.folders[2].parentId.empty());
+    CHECK(tree.folders[0].playlistCount == 3);   // 2, 3 (nested) and 4
+    CHECK(tree.folders[1].playlistCount == 1);
+    CHECK(tree.folders[2].playlistCount == 0);
+    const auto pl = [](int n) { return "spotify:playlist:0TestPlaylist00000000" + std::to_string(n); };
+    CHECK(!tree.folderOf.contains(pl(1)));
+    CHECK(tree.folderOf.at(pl(2)) == road);       // listed again at the top level: the first place wins
+    CHECK(tree.folderOf.at(pl(3)) == night);
+    CHECK(tree.folderOf.at(pl(4)) == road);
+    CHECK(!tree.folderOf.contains(pl(5)));        // after a stray end marker: still top level
+    CHECK(tree.folder(night) && !tree.folder("nope"));
+
+    // libraryV3 order (recents): Liked Songs, 4, 1, 5, 3, 2.
+    std::vector<Playlist> lib;
+    for (const std::string& id : {std::string(Api::kLikedSongsUri), pl(4), pl(1), pl(5), pl(3), pl(2)}) {
+        Playlist p;
+        p.id = id;
+        lib.push_back(p);
+    }
+    auto describe = [&](const std::vector<TreeRow>& rows) {
+        std::string s;
+        for (const auto& r : rows) {
+            if (!s.empty()) s += ' ';
+            s += std::string(static_cast<size_t>(r.depth), '>');
+            s += r.folder ? "[" + tree.folders[r.index].id.substr(0, 2) + "]" : lib[r.index].id.substr(lib[r.index].id.size() - 1);
+        }
+        return s;
+    };
+    const auto none = [](const std::string&) { return false; };
+    const auto all = [](const std::string&) { return true; };
+    // The road folder takes playlist 4's place (its most recent playlist); the empty folder goes last.
+    const std::string collapsed = describe(treeRows(lib, tree, none));
+    std::printf("  collapsed: %s\n", collapsed.c_str());
+    CHECK(collapsed == "s [a1] 1 5 [c3]");
+    const std::string expanded = describe(treeRows(lib, tree, all));
+    std::printf("  expanded:  %s\n", expanded.c_str());
+    CHECK(expanded == "s [a1] >4 >[b2] >>3 >2 1 5 [c3]");
+    const std::string oneLevel = describe(treeRows(lib, tree, [&](const std::string& id) { return id == road; }));
+    CHECK(oneLevel == "s [a1] >4 >[b2] >2 1 5 [c3]");
+    CHECK(describe(treeRows(lib, tree, all, road)) == "4 [b2] >3 2");   // a folder's own view
+    CHECK(treeRows(lib, tree, all, "unknown").empty());
+    CHECK(treeRows(lib, PlaylistTree{}, all).size() == lib.size());        // no folders: the flat order
+    // Unbalanced input: a group left open ends with the list; a duplicate group id keeps its items in the parent.
+    const auto odd = parsePlaylistTree(nlohmann::json::parse(R"({"contents":{"items":[
+        {"uri":"spotify:start-group:11:A"},{"uri":"spotify:playlist:p1"},
+        {"uri":"spotify:start-group:11:A+again"},{"uri":"spotify:playlist:p2"},{"uri":"spotify:end-group:11"},
+        {"uri":"spotify:start-group:22"},{"uri":"spotify:playlist:p3"}]}})"));
+    CHECK(odd.folders.size() == 2);
+    if (odd.folders.size() == 2) {
+        CHECK(odd.folders[1].name.empty() && odd.folders[1].parentId == "11");
+        CHECK(odd.folderOf.at("spotify:playlist:p2") == "11");
+        CHECK(odd.folderOf.at("spotify:playlist:p3") == "22");
+        CHECK(odd.folders[0].playlistCount == 3);
+    }
+#else
+    std::printf("  fixture skipped (SPOTIFY_FIXTURE_DIR not defined)\n");
 #endif
 }
 
@@ -858,6 +937,7 @@ int main(int argc, char** argv) {
     testBase32();
     testTotp();
     testHomeFixture();
+    testPlaylistTree();
     testHashExtractor();
     testHashRegistryOffline();
     if (argc > 1 && std::strcmp(argv[1], "offline") == 0) std::printf("live: skipped (offline)\n");

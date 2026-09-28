@@ -930,5 +930,19 @@
   "Uygulama": "앱",
   "Komut, sayfa, çalma listesi ya da şarkı ara…": "명령, 페이지, 플레이리스트, 곡 검색…",
   "Katalogda aranıyor…": "카탈로그 검색 중…",
-  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ 선택 · Enter 열기 · Shift+Enter 재생 또는 대기열 추가 · Esc 닫기"
+  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ 선택 · Enter 열기 · Shift+Enter 재생 또는 대기열 추가 · Esc 닫기",
+  "Adsız klasör": "이름 없는 폴더",
+  "Klasörü kapat": "폴더 닫기",
+  "Kitaplıkta göster": "라이브러리에서 보기",
+  "Bu klasör boş": "이 폴더는 비어 있어요",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "Spotify에서 이 폴더에 플레이리스트를 추가할 수 있어요.",
+  "Bırakılan dosyalar": "끌어다 놓은 파일",
+  "Bırakılan klasörler taranıyor…": "끌어다 놓은 폴더를 스캔하는 중…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "끌어다 놓은 항목 중에 재생할 수 있는 오디오 파일이 없어요",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "이 폴더를 로컬 파일에 추가할까요?",
+  "Ekle": "추가",
+  "Zaten Beğenilen Şarkılar'da": "이미 좋아요 표시한 곡에 있어요",
+  "Yalnızca ilk {} dosya alındı": "처음 {}개 파일만 가져왔어요",
+  "{} şarkı Beğenilen Şarkılar'a eklendi": "{}곡을 좋아요 표시한 곡에 추가했어요",
+  "{} şarkı sıraya eklendi": "{}곡을 대기열에 추가했어요"
 }

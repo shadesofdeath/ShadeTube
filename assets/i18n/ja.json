@@ -930,5 +930,19 @@
   "Uygulama": "アプリ",
   "Komut, sayfa, çalma listesi ya da şarkı ara…": "コマンド、ページ、プレイリスト、曲を検索…",
   "Katalogda aranıyor…": "カタログを検索中…",
-  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ 選択 · Enter 開く · Shift+Enter 再生 / キューに追加 · Esc 閉じる"
+  "↑↓ seç · Enter aç · Shift+Enter çal ya da sıraya ekle · Esc kapat": "↑↓ 選択 · Enter 開く · Shift+Enter 再生 / キューに追加 · Esc 閉じる",
+  "Adsız klasör": "名前のないフォルダー",
+  "Klasörü kapat": "フォルダーを閉じる",
+  "Kitaplıkta göster": "ライブラリで表示",
+  "Bu klasör boş": "このフォルダーは空です",
+  "Spotify'da bu klasöre çalma listesi ekleyebilirsin.": "このフォルダーへのプレイリストの追加は Spotify で行えます。",
+  "Bırakılan dosyalar": "ドロップしたファイル",
+  "Bırakılan klasörler taranıyor…": "ドロップしたフォルダーをスキャン中…",
+  "Bırakılanlarda çalınabilecek bir ses dosyası yok": "ドロップしたものに再生できる音声ファイルがありません",
+  "Bu klasör Yerel dosyalar'a eklensin mi?": "このフォルダーをローカルファイルに追加しますか？",
+  "Ekle": "追加",
+  "Zaten Beğenilen Şarkılar'da": "すでにお気に入りの曲にあります",
+  "Yalnızca ilk {} dosya alındı": "最初の{}ファイルだけを取り込みました",
+  "{} şarkı Beğenilen Şarkılar'a eklendi": "{}曲をお気に入りの曲に追加しました",
+  "{} şarkı sıraya eklendi": "{}曲をキューに追加しました"
 }
