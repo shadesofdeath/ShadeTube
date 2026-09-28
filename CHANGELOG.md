@@ -45,6 +45,13 @@ All notable changes to ShadeTube, newest first.
   add any show by its RSS address (self-hosted ones too). Subscribe and see new episodes (with a count in the
   sidebar), pick up where you left off, mark episodes as played and read the show notes in Now Playing. Episodes
   download as published (no re-encoding) for offline listening, and subscriptions refresh in the background.
+- **Spotify listening history import**: bring years of listening into Stats from Spotify's data download (the
+  extended streaming history or the account data, the ZIP itself or its JSON files). Duplicates are skipped, so
+  importing again or importing both files adds nothing; imported plays can be removed on their own.
+- **Year in review**: a year picker on the Stats page with the minutes you listened, your top songs, artists and
+  albums, your top month and busiest weekday, your longest listening streak, new artists and the first song of the
+  year.
+- **Listening hours**: a heatmap of when you listen (hour × weekday, local time) for every period.
 
 ## 0.4.0 — 2026-09-28
 

@@ -56,7 +56,9 @@ starts instantly and stays light.
 - 🎤 **Synced lyrics** from LRCLIB, Spotify (when connected) or your own `.lrc` files — click a line to jump there,
   nudge the timing if it's off, or open the full-screen karaoke view that fills each line as it's sung. Downloads
   get the lyrics in their tags and a `.lrc` next to them.
-- 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time.
+- 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time,
+  a year in review, a heatmap of your listening hours, and your Spotify history imported from Spotify's data
+  download.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
 - 🪟 **Made for Windows** — media keys and lock-screen controls, taskbar buttons and progress, always-on-top mini
   player, system tray, dark / light / system theme, start with Windows (optionally in the tray).

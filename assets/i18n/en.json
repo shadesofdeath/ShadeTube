@@ -1155,5 +1155,69 @@
   "İndirileni sil": "Delete download",
   "İndiriliyor… %{}": "Downloading… {}%",
   "İndirmeyi iptal et": "Cancel download",
-  "Podcast bölümlerinde şarkı sözü gösterilmez": "Lyrics aren't shown for podcast episodes"
+  "Podcast bölümlerinde şarkı sözü gösterilmez": "Lyrics aren't shown for podcast episodes",
+  "Az": "Less",
+  "Çok": "More",
+  "Bir içe aktarma zaten sürüyor": "An import is already running",
+  "Bu bilgisayarda çaldıkların ve Spotify'dan içe aktarılan {} dinleme · 30 saniyeyi geçen her çalma bir dinleme sayılır": {
+    "one": "What you've played on this computer and {} play imported from Spotify · anything played past 30 seconds counts as a play",
+    "other": "What you've played on this computer and {} plays imported from Spotify · anything played past 30 seconds counts as a play"
+  },
+  "Dinledikçe her yılın özeti burada birikir. Spotify geçmişini içe aktararak eski yılları da görebilirsin.": "As you listen, each year's summary builds up here. Import your Spotify history to see earlier years too.",
+  "Dinleme saatleri": "Listening hours",
+  "Dinleme yok": "No listening",
+  "Dinlemeler birleştiriliyor…": "Merging plays…",
+  "Dosyaları seç": "Choose files",
+  "En hareketli gün": "Busiest day",
+  "En uzun seri": "Longest streak",
+  "En yoğun: {}": "Busiest: {}",
+  "En çok dinlediğin ay": "Top month",
+  "Geçmiş içe aktarılamadı": "Couldn't import the history",
+  "Henüz yıl özeti yok": "No year in review yet",
+  "Seçilen dosyalarda Spotify dinleme geçmişi bulunamadı": "No Spotify listening history found in the selected files",
+  "Sonraki yıl": "Next year",
+  "Önceki yıl": "Previous year",
+  "Spotify geçmişi (ZIP, JSON)": "Spotify history (ZIP, JSON)",
+  "Spotify geçmişi içe aktarılıyor…": "Importing your Spotify history…",
+  "Spotify geçmişini getir": "Bring in your Spotify history",
+  "Spotify geçmişini içe aktar": "Import Spotify history",
+  "Spotify geçmişini seç": "Choose your Spotify history",
+  "Spotify'da verilerini iste": "Request your data on Spotify",
+  "Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların kalır.": {
+    "one": "{} play imported from Spotify will be removed from your stats. What you've played on this computer stays.",
+    "other": "{} plays imported from Spotify will be removed from your stats. What you've played on this computer stays."
+  },
+  "Spotify'dan verilerini indir (Hesap › Gizlilik › Verilerini indir: \"Uzun süreli yayın geçmişi\") ve gelen ZIP dosyasını seç. Yıllar öncesine kadar dinlediklerin istatistiklere eklenir; dosyalar yalnızca bu bilgisayarda okunur.": "Download your data from Spotify (Account › Privacy › Download your data: \"Extended streaming history\") and choose the ZIP file you get. Years of listening are added to your stats; the files are only read on this computer.",
+  "Tüm dosyalar": "All files",
+  "Tüm geçmişi temizle": "Clear all history",
+  "Yeni dinleme yok: bu geçmiş zaten içe aktarılmış": "Nothing new: this history was already imported",
+  "Yeni sanatçılar": "New artists",
+  "Yıl özeti": "Year in review",
+  "Yılın ilk şarkısı": "First song of the year",
+  "{} dinleme içe aktarıldı": {
+    "one": "{} play imported",
+    "other": "{} plays imported"
+  },
+  "{} dinleme zaten vardı": {
+    "one": "{} play was already there",
+    "other": "{} plays were already there"
+  },
+  "{} farklı sanatçı": {
+    "one": "{} artist",
+    "other": "{} artists"
+  },
+  "{} farklı şarkı": {
+    "one": "{} song",
+    "other": "{} songs"
+  },
+  "{} gün": {
+    "one": "{} day",
+    "other": "{} days"
+  },
+  "{} · Yıl özeti": "{} · Year in review",
+  "İlk kez bu yıl dinlediklerin": "Heard for the first time that year",
+  "İçe aktar": "Import",
+  "İçe aktarılan geçmiş kaldırıldı": "Imported history removed",
+  "İçe aktarılan geçmiş kaldırılsın mı?": "Remove the imported history?",
+  "İçe aktarılan geçmişi kaldır": "Remove imported history"
 }

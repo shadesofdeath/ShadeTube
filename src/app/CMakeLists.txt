@@ -51,6 +51,7 @@ add_executable(ShadeTube WIN32
     DownloadSync.cpp DownloadSync.h
     DragDrop.cpp DragDrop.h
     DroppedFiles.cpp DroppedFiles.h
+    HistoryImport.cpp HistoryImport.h
     HomePage.cpp
     Installer.cpp Installer.h
     ListenStats.cpp ListenStats.h

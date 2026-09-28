@@ -1155,5 +1155,69 @@
   "İndirileni sil": "Download löschen",
   "İndiriliyor… %{}": "Wird heruntergeladen… {} %",
   "İndirmeyi iptal et": "Download abbrechen",
-  "Podcast bölümlerinde şarkı sözü gösterilmez": "Für Podcastfolgen werden keine Songtexte angezeigt"
+  "Podcast bölümlerinde şarkı sözü gösterilmez": "Für Podcastfolgen werden keine Songtexte angezeigt",
+  "Az": "Weniger",
+  "Çok": "Mehr",
+  "Bir içe aktarma zaten sürüyor": "Ein Import läuft bereits",
+  "Bu bilgisayarda çaldıkların ve Spotify'dan içe aktarılan {} dinleme · 30 saniyeyi geçen her çalma bir dinleme sayılır": {
+    "one": "Was du auf diesem PC gehört hast und {} aus Spotify importierte Wiedergabe · Jede Wiedergabe über 30 Sekunden zählt",
+    "other": "Was du auf diesem PC gehört hast und {} aus Spotify importierte Wiedergaben · Jede Wiedergabe über 30 Sekunden zählt"
+  },
+  "Dinledikçe her yılın özeti burada birikir. Spotify geçmişini içe aktararak eski yılları da görebilirsin.": "Beim Hören entsteht hier für jedes Jahr ein Rückblick. Importiere deinen Spotify-Verlauf, um auch frühere Jahre zu sehen.",
+  "Dinleme saatleri": "Hörzeiten",
+  "Dinleme yok": "Nichts gehört",
+  "Dinlemeler birleştiriliyor…": "Wiedergaben werden zusammengeführt…",
+  "Dosyaları seç": "Dateien auswählen",
+  "En hareketli gün": "Aktivster Tag",
+  "En uzun seri": "Längste Serie",
+  "En yoğun: {}": "Am meisten: {}",
+  "En çok dinlediğin ay": "Stärkster Monat",
+  "Geçmiş içe aktarılamadı": "Verlauf konnte nicht importiert werden",
+  "Henüz yıl özeti yok": "Noch kein Jahresrückblick",
+  "Seçilen dosyalarda Spotify dinleme geçmişi bulunamadı": "In den ausgewählten Dateien wurde kein Spotify-Hörverlauf gefunden",
+  "Sonraki yıl": "Nächstes Jahr",
+  "Önceki yıl": "Vorheriges Jahr",
+  "Spotify geçmişi (ZIP, JSON)": "Spotify-Verlauf (ZIP, JSON)",
+  "Spotify geçmişi içe aktarılıyor…": "Spotify-Verlauf wird importiert…",
+  "Spotify geçmişini getir": "Hol dir deinen Spotify-Verlauf",
+  "Spotify geçmişini içe aktar": "Spotify-Verlauf importieren",
+  "Spotify geçmişini seç": "Spotify-Verlauf auswählen",
+  "Spotify'da verilerini iste": "Deine Daten bei Spotify anfordern",
+  "Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların kalır.": {
+    "one": "{} aus Spotify importierte Wiedergabe wird aus deinen Statistiken entfernt. Was du auf diesem PC gehört hast, bleibt.",
+    "other": "{} aus Spotify importierte Wiedergaben werden aus deinen Statistiken entfernt. Was du auf diesem PC gehört hast, bleibt."
+  },
+  "Spotify'dan verilerini indir (Hesap › Gizlilik › Verilerini indir: \"Uzun süreli yayın geçmişi\") ve gelen ZIP dosyasını seç. Yıllar öncesine kadar dinlediklerin istatistiklere eklenir; dosyalar yalnızca bu bilgisayarda okunur.": "Lade deine Daten bei Spotify herunter (Konto › Datenschutz › Deine Daten herunterladen: „Erweiterter Streamingverlauf“) und wähle die ZIP-Datei aus, die du bekommst. Jahre deines Hörens landen in deinen Statistiken; die Dateien werden nur auf diesem PC gelesen.",
+  "Tüm dosyalar": "Alle Dateien",
+  "Tüm geçmişi temizle": "Gesamten Verlauf löschen",
+  "Yeni dinleme yok: bu geçmiş zaten içe aktarılmış": "Nichts Neues: Dieser Verlauf wurde bereits importiert",
+  "Yeni sanatçılar": "Neue Künstler",
+  "Yıl özeti": "Jahresrückblick",
+  "Yılın ilk şarkısı": "Erster Song des Jahres",
+  "{} dinleme içe aktarıldı": {
+    "one": "{} Wiedergabe importiert",
+    "other": "{} Wiedergaben importiert"
+  },
+  "{} dinleme zaten vardı": {
+    "one": "{} Wiedergabe war schon vorhanden",
+    "other": "{} Wiedergaben waren schon vorhanden"
+  },
+  "{} farklı sanatçı": {
+    "one": "{} Künstler",
+    "other": "{} Künstler"
+  },
+  "{} farklı şarkı": {
+    "one": "{} Song",
+    "other": "{} Songs"
+  },
+  "{} gün": {
+    "one": "{} Tag",
+    "other": "{} Tage"
+  },
+  "{} · Yıl özeti": "{} · Jahresrückblick",
+  "İlk kez bu yıl dinlediklerin": "In diesem Jahr zum ersten Mal gehört",
+  "İçe aktar": "Importieren",
+  "İçe aktarılan geçmiş kaldırıldı": "Importierter Verlauf entfernt",
+  "İçe aktarılan geçmiş kaldırılsın mı?": "Importierten Verlauf entfernen?",
+  "İçe aktarılan geçmişi kaldır": "Importierten Verlauf entfernen"
 }

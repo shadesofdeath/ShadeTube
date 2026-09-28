@@ -55,7 +55,8 @@ kalır.
 - 🎤 **Senkron şarkı sözleri** — LRCLIB'den, Spotify'a bağlıyken Spotify'dan ya da kendi `.lrc` dosyalarından; bir
   satıra tıkla, oraya atla, zamanlama kaymışsa düzelt ya da sözleri söylendikçe dolduran tam ekran karaoke
   görünümünü aç. İndirilenlerin etiketine sözler yazılır, yanlarına `.lrc` kaydedilir.
-- 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri.
+- 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri,
+  yıl özeti, dinleme saatlerin (ısı haritası) ve Spotify'ın veri indirmesinden içe aktarılan geçmişin.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
 - 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, görev çubuğu düğmeleri ve ilerlemesi,
   her zaman üstte mini oynatıcı, sistem tepsisi, koyu / açık / sistem teması, Windows ile başlatma (istersen tepside).

@@ -1155,5 +1155,69 @@
   "İndirileni sil": "Supprimer le téléchargement",
   "İndiriliyor… %{}": "Téléchargement… {} %",
   "İndirmeyi iptal et": "Annuler le téléchargement",
-  "Podcast bölümlerinde şarkı sözü gösterilmez": "Pas de paroles pour les épisodes de podcast"
+  "Podcast bölümlerinde şarkı sözü gösterilmez": "Pas de paroles pour les épisodes de podcast",
+  "Az": "Moins",
+  "Çok": "Plus",
+  "Bir içe aktarma zaten sürüyor": "Une importation est déjà en cours",
+  "Bu bilgisayarda çaldıkların ve Spotify'dan içe aktarılan {} dinleme · 30 saniyeyi geçen her çalma bir dinleme sayılır": {
+    "one": "Ce que tu as écouté sur cet ordinateur et {} écoute importée de Spotify · chaque lecture de plus de 30 secondes compte comme une écoute",
+    "other": "Ce que tu as écouté sur cet ordinateur et {} écoutes importées de Spotify · chaque lecture de plus de 30 secondes compte comme une écoute"
+  },
+  "Dinledikçe her yılın özeti burada birikir. Spotify geçmişini içe aktararak eski yılları da görebilirsin.": "Au fil de tes écoutes, le bilan de chaque année se construit ici. Importe ton historique Spotify pour voir aussi les années passées.",
+  "Dinleme saatleri": "Heures d'écoute",
+  "Dinleme yok": "Aucune écoute",
+  "Dinlemeler birleştiriliyor…": "Fusion des écoutes…",
+  "Dosyaları seç": "Choisir les fichiers",
+  "En hareketli gün": "Jour le plus actif",
+  "En uzun seri": "Plus longue série",
+  "En yoğun: {}": "Pic : {}",
+  "En çok dinlediğin ay": "Mois le plus écouté",
+  "Geçmiş içe aktarılamadı": "Impossible d'importer l'historique",
+  "Henüz yıl özeti yok": "Pas encore de bilan annuel",
+  "Seçilen dosyalarda Spotify dinleme geçmişi bulunamadı": "Aucun historique d'écoute Spotify trouvé dans les fichiers sélectionnés",
+  "Sonraki yıl": "Année suivante",
+  "Önceki yıl": "Année précédente",
+  "Spotify geçmişi (ZIP, JSON)": "Historique Spotify (ZIP, JSON)",
+  "Spotify geçmişi içe aktarılıyor…": "Importation de ton historique Spotify…",
+  "Spotify geçmişini getir": "Récupère ton historique Spotify",
+  "Spotify geçmişini içe aktar": "Importer l'historique Spotify",
+  "Spotify geçmişini seç": "Choisis ton historique Spotify",
+  "Spotify'da verilerini iste": "Demander tes données à Spotify",
+  "Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların kalır.": {
+    "one": "{} écoute importée de Spotify sera retirée de tes statistiques. Ce que tu as écouté sur cet ordinateur reste.",
+    "other": "{} écoutes importées de Spotify seront retirées de tes statistiques. Ce que tu as écouté sur cet ordinateur reste."
+  },
+  "Spotify'dan verilerini indir (Hesap › Gizlilik › Verilerini indir: \"Uzun süreli yayın geçmişi\") ve gelen ZIP dosyasını seç. Yıllar öncesine kadar dinlediklerin istatistiklere eklenir; dosyalar yalnızca bu bilgisayarda okunur.": "Télécharge tes données Spotify (Compte › Confidentialité › Télécharger tes données : « Historique de streaming étendu ») et choisis le fichier ZIP reçu. Des années d'écoute s'ajoutent à tes statistiques ; les fichiers ne sont lus que sur cet ordinateur.",
+  "Tüm dosyalar": "Tous les fichiers",
+  "Tüm geçmişi temizle": "Effacer tout l'historique",
+  "Yeni dinleme yok: bu geçmiş zaten içe aktarılmış": "Rien de nouveau : cet historique a déjà été importé",
+  "Yeni sanatçılar": "Nouveaux artistes",
+  "Yıl özeti": "Bilan de l'année",
+  "Yılın ilk şarkısı": "Premier titre de l'année",
+  "{} dinleme içe aktarıldı": {
+    "one": "{} écoute importée",
+    "other": "{} écoutes importées"
+  },
+  "{} dinleme zaten vardı": {
+    "one": "{} écoute était déjà là",
+    "other": "{} écoutes étaient déjà là"
+  },
+  "{} farklı sanatçı": {
+    "one": "{} artiste",
+    "other": "{} artistes"
+  },
+  "{} farklı şarkı": {
+    "one": "{} titre",
+    "other": "{} titres"
+  },
+  "{} gün": {
+    "one": "{} jour",
+    "other": "{} jours"
+  },
+  "{} · Yıl özeti": "{} · Bilan de l'année",
+  "İlk kez bu yıl dinlediklerin": "Écoutés pour la première fois cette année-là",
+  "İçe aktar": "Importer",
+  "İçe aktarılan geçmiş kaldırıldı": "Historique importé retiré",
+  "İçe aktarılan geçmiş kaldırılsın mı?": "Retirer l'historique importé ?",
+  "İçe aktarılan geçmişi kaldır": "Retirer l'historique importé"
 }

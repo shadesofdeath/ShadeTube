@@ -289,7 +289,27 @@ error and backoff, plus per-track download attempts.
 - **Listening stats** (`app/ListenStats`, `listening.json`): a play accumulates real playback time from position
   deltas, never more than the wall clock (pauses and seeks do not count). A play is a *stream* at ≥ 30 s, or ≥ 50 %
   for tracks shorter than 60 s. Aggregates for 7 days / 30 days / all time; the same song from two sources is merged.
-  Writes go to a flushed `.tmp` with the previous file kept as `.old`.
+  Writes go to a flushed `.tmp` with the previous file kept as `.old`. The newest 100 000 plays of this PC are kept.
+  Radio stations and podcast episodes (`podcast:` ids) are not recorded.
+- **Year summary and heatmap**: `summarizeYear()` (minutes, streams, top 5s, months, weekdays, longest streak, artists
+  new that year, the first stream) and `heatmap()` (listening per local hour × weekday, a play split across the hours
+  it spans) work on the local wall clock: `LocalClock` converts through Windows' *dynamic* time zone, so every year
+  uses the DST rules in force then (offsets cached per day). Aggregation runs on the UI thread: summary + year +
+  heatmap take about 7 ms for 300 000 plays in Release (`stats_test` prints the timings).
+- **Spotify history import** (`app/HistoryImport`, Stats › *İçe aktar*): reads the extended streaming history
+  (`Streaming_History_Audio_*.json`, older `endsong_*.json`) and the account-data history
+  (`StreamingHistory_music_*.json`, older `StreamingHistory<n>.json`), as JSON files or straight from Spotify's ZIP
+  (stored / deflate via the Updater's inflate; no ZIP64). Podcast, audiobook and video rows are skipped; songs without a
+  URI get an `import:<hash>` id. `ListenStats::buildImport()` (worker) dedupes the rows against everything known: the
+  same song whose interval overlaps a known play by ≥ 50 % of the shorter one, or that ended within 60 s of it with
+  the same length (the account data has minute precision), is the same play, so re-importing or importing both
+  formats adds nothing and plays heard in ShadeTube are not doubled. Imported plays live in
+  `listening-imported.json` (flat, delta-coded, about 12 bytes a play; at most 2 million), written only by an import,
+  *İçe aktarılanları kaldır* or a clear; the regular 30 s saves never touch it. Plays stored while an import runs are
+  carried over. In memory both histories share one index and one time-ordered play list (imported plays flagged).
+- **Artwork for names without covers** (imported songs, plain-text credits): the top entries on screen are looked up
+  once through the catalog search (Spotify while logged in, else MusicBrainz, one request at a time) and remembered in
+  `cache\stats-artwork.json` (misses for 30 days).
 
 ### 3.9 Backup audio source (Piped / Invidious)
 
@@ -404,8 +424,8 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `blacklist.json`, `listening.json`,
-`local-library.json`, `dropped-files.json`, `podcasts.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `spotify-hashes.json`,
-`sync.json`, `update-leftovers.txt`, `cache\` (images, `matches.json`, lyrics, `mb`, `local-covers`, `dropped-covers`, `podcasts`),
+`listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `spotify-hashes.json`,
+`sync.json`, `update-leftovers.txt`, `cache\` (images, `matches.json`, lyrics, `mb`, `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`),
 `logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
 ### 3.15 Drag and drop
@@ -541,7 +561,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads) |
-| `stats_test` | stream rule, recording, aggregation, persistence, timing | offline |
+| `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), timings with 300 000 imported plays | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
@@ -592,6 +612,9 @@ apps*).
 | `SHADETUBE_RUN_KEY` | HKCU key used instead of `…\CurrentVersion\Run` for *Start with Windows* (its `StartupApproved` stand-in is a subkey); without it a sandbox profile never touches the real value |
 | `SHADETUBE_DRAG_DEMO` | `x,y[,queue][,drop]`: 2.5 s after startup drags the first Liked Songs to window DIPs x,y and holds (for `--screenshot`) or drops them a second later; `queue` opens the queue panel first |
 | `SHADETUBE_DRAG_DEMO_FILES` | `path\|path`: with `SHADETUBE_DRAG_DEMO`, drags these files / folders as if from Explorer |
+| `SHADETUBE_IMPORT_HISTORY` | `<file>[;<file>…]`: import these Spotify history files (JSON / ZIP) once the stats are loaded |
+| `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
+| `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
 
 ## 6. Release process
 
