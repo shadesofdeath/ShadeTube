@@ -838,5 +838,57 @@
   "Yükleniyor…": "Wird geladen…",
   "Oynat / Duraklat": "Abspielen / Pause",
   "Bu radyo yayınının biçimi desteklenmiyor": "Das Format dieses Radiostreams wird nicht unterstützt",
-  "Radyo yayınına bağlanılamadı": "Verbindung zum Radiostream fehlgeschlagen"
+  "Radyo yayınına bağlanılamadı": "Verbindung zum Radiostream fehlgeschlagen",
+  "\"{}\" artık güncel tutulmayacak. Senkronla indirilen şarkılar bu bilgisayarda kalsın mı? Kalanlar İndirilenler'de senin indirdiklerin gibi durur.": "„{}“ wird nicht mehr aktuell gehalten. Sollen die synchronisierten Songs auf diesem PC bleiben? Behaltene Songs bleiben unter Downloads wie deine eigenen Downloads.",
+  "\"{}\" artık senkronize edilmiyor": "„{}“ wird nicht mehr synchronisiert",
+  "\"{}\" artık senkronize edilmiyor; {} silindi": "„{}“ wird nicht mehr synchronisiert; {} gelöscht",
+  "\"{}\" eklendi; senkron duraklatıldığı için şimdilik indirilmiyor": "„{}“ hinzugefügt; die Synchronisierung ist pausiert, daher wird vorerst nichts geladen",
+  "\"{}\" çevrimdışı kullanılabilir olacak": "„{}“ wird offline verfügbar",
+  "Depolama sınırına ulaşıldı ({} / {}). Yeni şarkılar indirilmiyor.": "Speicherlimit erreicht ({} / {}). Neue Songs werden nicht geladen.",
+  "Hataları yeniden dene": "Fehlgeschlagene erneut versuchen",
+  "Kapalıyken kotalı (ölçülü) bir bağlantıdayken senkron indirmeleri bekler; kendi başlattığın indirmeler etkilenmez.": "Wenn aus, warten Sync-Downloads, solange du eine getaktete Verbindung nutzt; Downloads, die du selbst startest, sind nicht betroffen.",
+  "Liste alınamadı; yeniden denenecek": "Liste konnte nicht geladen werden; wird erneut versucht",
+  "Liste alınıyor…": "Liste wird geladen…",
+  "Liste bulunamadı; silinmiş ya da gizli olabilir": "Liste nicht gefunden; sie wurde vielleicht gelöscht oder ist privat",
+  "Listeden çıkan şarkıları sil": "Aus Listen entfernte Songs löschen",
+  "Senkron bekliyor": "Wartet auf Synchronisierung",
+  "Senkron depolama sınırına ulaştı; yeni şarkılar indirilmiyor": "Die Synchronisierung hat ihr Speicherlimit erreicht; neue Songs werden nicht geladen",
+  "Senkron duraklatıldı.": "Die Synchronisierung ist pausiert.",
+  "Senkron için depolama sınırı": "Speicherlimit für die Synchronisierung",
+  "Senkronize edilen listelerin hiçbirinde kalmayan bir şarkının dosyası silinir. Kendi indirdiklerin ve klasörlerine eklediklerin hiç silinmez.": "Die Datei eines Songs, der in keiner synchronisierten Liste mehr ist, wird gelöscht. Selbst geladene Songs und Songs in deinen Ordnern werden nie gelöscht.",
+  "Senkronize edilen şarkılar şu an {} yer kaplıyor. Sınıra ulaşınca yeni şarkı indirilmez.": "Synchronisierte Songs belegen gerade {}. Ist das Limit erreicht, werden keine neuen Songs geladen.",
+  "Senkronize edilenler": "Synchronisiert",
+  "Senkronu kapat": "Synchronisierung beenden",
+  "Spotify istekleri sınırladı; birazdan yeniden denenecek": "Spotify begrenzt die Anfragen; gleich wird es erneut versucht",
+  "Spotify'a bağlanınca senkronize edilir": "Wird synchronisiert, sobald du mit Spotify verbunden bist",
+  "Sürdür": "Fortsetzen",
+  "Sınırsız": "Unbegrenzt",
+  "güncelleniyor…": "wird aktualisiert…",
+  "{} / {} şarkı": {
+    "one": "{} / {} Song",
+    "other": "{} / {} Songs"
+  },
+  "{} hata": {
+    "one": "{} Fehler",
+    "other": "{} Fehler"
+  },
+  "{} indirilecek": {
+    "one": "{} ausstehend",
+    "other": "{} ausstehend"
+  },
+  "Çevrimdışı kullanılabilir yap": "Offline verfügbar machen",
+  "Çevrimdışı kullanılabilir yaptığın Beğenilen Şarkılar, çalma listeleri ve albümler arka planda indirilir ve güncel tutulur. Bir listenin başlığındaki indirme düğmesiyle ekle.": "Lieblingssongs, Playlists und Alben, die du offline verfügbar machst, werden im Hintergrund geladen und aktuell gehalten. Füge sie mit der Download-Schaltfläche im Kopfbereich hinzu.",
+  "Çevrimdışı kullanılabilir · senkronize ediliyor…": "Offline verfügbar · wird synchronisiert…",
+  "Çevrimdışı kullanılabilir · {} / {} şarkı": {
+    "one": "Offline verfügbar · {} / {} Song",
+    "other": "Offline verfügbar · {} / {} Songs"
+  },
+  "Çevrimdışı senkron": "Offline-Synchronisierung",
+  "Çevrimdışı senkron kapatılsın mı?": "Offline-Synchronisierung beenden?",
+  "Çevrimdışı senkronu kapat": "Offline-Synchronisierung beenden",
+  "Ölçülü bağlantıda da senkronize et": "Auch bei getakteten Verbindungen synchronisieren",
+  "Ölçülü bir bağlantıdasın; senkron indirmeleri bekliyor.": "Du nutzt eine getaktete Verbindung; Sync-Downloads warten.",
+  "Şarkıları sakla": "Songs behalten",
+  "Şarkıları sil": "Songs löschen",
+  "Şimdi senkronize et": "Jetzt synchronisieren"
 }

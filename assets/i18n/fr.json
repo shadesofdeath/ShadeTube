@@ -838,5 +838,57 @@
   "Yükleniyor…": "Chargement…",
   "Oynat / Duraklat": "Lecture / Pause",
   "Bu radyo yayınının biçimi desteklenmiyor": "Le format de ce flux radio n'est pas pris en charge",
-  "Radyo yayınına bağlanılamadı": "Impossible de se connecter au flux radio"
+  "Radyo yayınına bağlanılamadı": "Impossible de se connecter au flux radio",
+  "\"{}\" artık güncel tutulmayacak. Senkronla indirilen şarkılar bu bilgisayarda kalsın mı? Kalanlar İndirilenler'de senin indirdiklerin gibi durur.": "« {} » ne sera plus tenu à jour. Garder sur ce PC les titres téléchargés par la synchronisation ? Ceux que tu gardes restent dans Téléchargements comme tes propres téléchargements.",
+  "\"{}\" artık senkronize edilmiyor": "« {} » n'est plus synchronisé",
+  "\"{}\" artık senkronize edilmiyor; {} silindi": "« {} » n'est plus synchronisé ; {} supprimé(s)",
+  "\"{}\" eklendi; senkron duraklatıldığı için şimdilik indirilmiyor": "« {} » ajouté ; la synchronisation est en pause, rien n'est téléchargé pour l'instant",
+  "\"{}\" çevrimdışı kullanılabilir olacak": "« {} » sera disponible hors connexion",
+  "Depolama sınırına ulaşıldı ({} / {}). Yeni şarkılar indirilmiyor.": "Limite de stockage atteinte ({} / {}). Les nouveaux titres ne sont pas téléchargés.",
+  "Hataları yeniden dene": "Réessayer les échecs",
+  "Kapalıyken kotalı (ölçülü) bir bağlantıdayken senkron indirmeleri bekler; kendi başlattığın indirmeler etkilenmez.": "Désactivé, les téléchargements de synchronisation attendent tant que tu es sur une connexion limitée ; ceux que tu lances toi-même ne sont pas concernés.",
+  "Liste alınamadı; yeniden denenecek": "Impossible de récupérer la liste ; nouvel essai plus tard",
+  "Liste alınıyor…": "Récupération de la liste…",
+  "Liste bulunamadı; silinmiş ya da gizli olabilir": "Liste introuvable ; elle a peut-être été supprimée ou rendue privée",
+  "Listeden çıkan şarkıları sil": "Supprimer les titres retirés des listes",
+  "Senkron bekliyor": "En attente de synchronisation",
+  "Senkron depolama sınırına ulaştı; yeni şarkılar indirilmiyor": "La synchronisation a atteint sa limite de stockage ; les nouveaux titres ne sont pas téléchargés",
+  "Senkron duraklatıldı.": "La synchronisation est en pause.",
+  "Senkron için depolama sınırı": "Limite de stockage de la synchronisation",
+  "Senkronize edilen listelerin hiçbirinde kalmayan bir şarkının dosyası silinir. Kendi indirdiklerin ve klasörlerine eklediklerin hiç silinmez.": "Le fichier d'un titre qui n'est plus dans aucune liste synchronisée est supprimé. Les titres que tu as téléchargés toi-même ou ajoutés à tes dossiers ne sont jamais supprimés.",
+  "Senkronize edilen şarkılar şu an {} yer kaplıyor. Sınıra ulaşınca yeni şarkı indirilmez.": "Les titres synchronisés occupent actuellement {}. Une fois la limite atteinte, aucun nouveau titre n'est téléchargé.",
+  "Senkronize edilenler": "Synchronisés",
+  "Senkronu kapat": "Arrêter la synchronisation",
+  "Spotify istekleri sınırladı; birazdan yeniden denenecek": "Spotify limite les requêtes ; nouvel essai sous peu",
+  "Spotify'a bağlanınca senkronize edilir": "Synchronisé dès que tu te connectes à Spotify",
+  "Sürdür": "Reprendre",
+  "Sınırsız": "Illimité",
+  "güncelleniyor…": "mise à jour…",
+  "{} / {} şarkı": {
+    "one": "{} / {} titre",
+    "other": "{} / {} titres"
+  },
+  "{} hata": {
+    "one": "{} erreur",
+    "other": "{} erreurs"
+  },
+  "{} indirilecek": {
+    "one": "{} à télécharger",
+    "other": "{} à télécharger"
+  },
+  "Çevrimdışı kullanılabilir yap": "Rendre disponible hors connexion",
+  "Çevrimdışı kullanılabilir yaptığın Beğenilen Şarkılar, çalma listeleri ve albümler arka planda indirilir ve güncel tutulur. Bir listenin başlığındaki indirme düğmesiyle ekle.": "Les titres likés, playlists et albums que tu rends disponibles hors connexion sont téléchargés en arrière-plan et tenus à jour. Ajoute-les avec le bouton de téléchargement de leur en-tête.",
+  "Çevrimdışı kullanılabilir · senkronize ediliyor…": "Disponible hors connexion · synchronisation…",
+  "Çevrimdışı kullanılabilir · {} / {} şarkı": {
+    "one": "Disponible hors connexion · {} / {} titre",
+    "other": "Disponible hors connexion · {} / {} titres"
+  },
+  "Çevrimdışı senkron": "Synchronisation hors connexion",
+  "Çevrimdışı senkron kapatılsın mı?": "Arrêter la synchronisation hors connexion ?",
+  "Çevrimdışı senkronu kapat": "Arrêter la synchronisation hors connexion",
+  "Ölçülü bağlantıda da senkronize et": "Synchroniser aussi sur une connexion limitée",
+  "Ölçülü bir bağlantıdasın; senkron indirmeleri bekliyor.": "Tu es sur une connexion limitée ; les téléchargements de synchronisation attendent.",
+  "Şarkıları sakla": "Garder les titres",
+  "Şarkıları sil": "Supprimer les titres",
+  "Şimdi senkronize et": "Synchroniser maintenant"
 }

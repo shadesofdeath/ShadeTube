@@ -1,6 +1,7 @@
 // Album / Liked Songs / playlist detail page (spec: Playlist detail + Track row + sticky header). Reads Spotify
 // when logged in (albums, playlists and Liked Songs, with progressive paging) and MusicBrainz / the local
 // library otherwise (see Source.h).
+#include "app/DownloadSync.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Radio.h"
@@ -48,6 +49,7 @@ public:
         shuffle_ = add<Button>(ButtonKind::Secondary, tr(L"Karıştır"), "shuffle");
         save_ = add<Button>(ButtonKind::IconOutline, L"", "heart");
         add_ = add<Button>(ButtonKind::IconOutline, L"", "plus");
+        offline_ = add<sync::SyncButton>();   // "Çevrimdışı kullanılabilir" (download sync)
         more_ = add<Button>(ButtonKind::IconOutline, L"", "more");
         sort_ = add<Button>(ButtonKind::Ghost, tr(L"Özel sıra"));
         filter_ = add<Button>(ButtonKind::Icon, L"", "search");
@@ -91,7 +93,7 @@ public:
         const float sw = shuffle_->naturalWidth();
         shuffle_->setRect({56 + 16, y + 8, sw, 40});
         float x = 56 + 16 + sw + 14;
-        for (auto* b : {save_, add_, more_}) {
+        for (auto* b : {save_, static_cast<Button*>(offline_), add_, more_}) {
             if (!b->visible()) continue;
             b->setRect({x, y + 8, 40, 40});
             x += 40 + 14;
@@ -181,6 +183,7 @@ public:
 
     ui::PlayButton* play_;
     Button *shuffle_, *save_, *add_, *more_, *sort_, *filter_;
+    sync::SyncButton* offline_;
     ui::TextBox* filterBox_;
 
 private:
@@ -495,6 +498,17 @@ private:
         auto* c = resetContent(28.f);
         header_ = c->add<DetailHeader>(kind_);
         header_->setMeta(m);
+        // Download sync: Liked Songs by the active source (Spotify's in Spotify mode), else the album / playlist id.
+        sync::Target offline = kind_ == Kind::Liked ? sync::likedTarget() : sync::Target{};
+        if (kind_ != Kind::Liked) {
+            offline.kind = kind_ == Kind::Album ? sync::Kind::Album : sync::Kind::Playlist;
+            offline.id = id_;
+            offline.name = toUtf8(m.title);
+            offline.images = m.images;
+        } else {
+            offline.id = spotifyMode_ ? sync::kSpotifyLikedId : sync::kLocalLikedId;
+        }
+        header_->offline_->setTarget(std::move(offline));
         TrackTable::Options opts;
         opts.showAlbum = kind_ != Kind::Album;
         opts.showAdded = kind_ != Kind::Album;

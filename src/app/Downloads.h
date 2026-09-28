@@ -28,6 +28,8 @@ struct DownloadItem {
     int64_t addedAt = 0;
     int cutSegments = 0;         // SponsorBlock segments removed from the file (0 = none / not trimmed)
     int64_t cutMs = 0;           // audio removed by those cuts, ms
+    bool synced = false;         // queued by the download sync (app/DownloadSync), not by the user; a manual download
+                                 // or a folder add makes it the user's own (sync never deletes those)
 };
 
 struct Collection {
@@ -46,6 +48,13 @@ public:
     // collection once finished.
     void enqueue(const catalog::Track& t, const std::string& collectionId = {});
     void enqueue(const std::vector<catalog::Track>& tracks, const std::string& collectionId = {});
+    // Download sync (app/DownloadSync): queues `tracks` after everything else, marked as sync downloads (failed ones are
+    // queued again; anything else already known is left as it is). One change notification for the whole batch.
+    void enqueueSynced(const std::vector<catalog::Track>& tracks);
+    // Makes sync downloads the user's own: sync cleanup never touches them again.
+    void keepAsManual(const std::vector<std::string>& trackIds);
+    // Sync downloads wait in the queue while this returns false (sync paused, metered connection). Empty = allowed.
+    std::function<bool()> syncAllowed;
     void cancel(const std::string& trackId);          // remove from queue / stop the active one
     void remove(const std::string& trackId);          // delete the file + the record (+ from collections)
 

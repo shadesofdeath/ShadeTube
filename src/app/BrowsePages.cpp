@@ -1,5 +1,6 @@
 ﻿// Search, Library and Artist pages. Each reads Spotify when logged in and MusicBrainz otherwise (see Source.h).
 #include "app/Blacklist.h"
+#include "app/DownloadSync.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Source.h"
@@ -79,7 +80,25 @@ MediaCard* addAlbumCard(ui::Grid* grid, const Album& a, bool showArtist = true) 
     const std::string id = a.id;
     card->onOpen = [id] { ctx().router->navigate({RouteKind::Album, id}); };
     card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
+    card->onContext = [id, offline = sync::Target{sync::Kind::Album, a.id, a.name, a.images}](gfx::Point wp) {
+        ui::Menu::open(ctx().window, wp,
+                       {{tr(L"Aç"), "arrow-up-right", L"", [id] { ctx().router->navigate({RouteKind::Album, id}); }},
+                        {tr(L"Çal"), "play", L"", [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); }},
+                        sync::menuItem(offline)});
+    };
     return card;
+}
+
+// Open / play / keep offline, for playlist cards (Liked Songs included).
+void setPlaylistCardMenu(MediaCard* card, Route open, sync::Target offline) {
+    card->onContext = [open, offline](gfx::Point wp) {
+        Route play = open;
+        play.id += "#play";
+        ui::Menu::open(ctx().window, wp,
+                       {{tr(L"Aç"), "arrow-up-right", L"", [open] { ctx().router->navigate(open); }},
+                        {tr(L"Çal"), "play", L"", [play] { ctx().router->navigate(play); }},
+                        sync::menuItem(offline)});
+    };
 }
 
 MediaCard* addArtistCard(ui::Grid* grid, const Artist& a) {
@@ -630,6 +649,7 @@ private:
                     play.id += "#play";
                     card->onOpen = [open] { ctx().router->navigate(open); };
                     card->onPlay = [play] { ctx().router->navigate(play); };
+                    setPlaylistCardMenu(card, open, {liked ? sync::Kind::Liked : sync::Kind::Playlist, p.id, p.name, p.images});
                 }
             } else {
                 auto* liked = grid->add<MediaCard>(tr(L"Beğenilen Şarkılar"),
@@ -637,12 +657,14 @@ private:
                                                    MediaCard::Shape::Square, Placeholder::Playlist);
                 liked->onOpen = [] { ctx().router->navigate({RouteKind::Liked}); };
                 liked->onPlay = [] { ctx().router->navigate({RouteKind::Liked, "#play"}); };
+                setPlaylistCardMenu(liked, {RouteKind::Liked}, sync::likedTarget());
                 for (const auto& p : lib.playlists()) {
                     auto* card = grid->add<MediaCard>(toWide(p.name), i18n::plural(L"{} şarkı", p.totalTracks),
                                                       p.images, MediaCard::Shape::Square, Placeholder::Playlist);
                     const std::string id = p.id;
                     card->onOpen = [id] { ctx().router->navigate({RouteKind::Playlist, id}); };
                     card->onPlay = [id] { ctx().router->navigate({RouteKind::Playlist, id + "#play"}); };
+                    setPlaylistCardMenu(card, {RouteKind::Playlist, id}, {sync::Kind::Playlist, id, p.name, p.images});
                 }
             }
         } else if (tab_ == 1) {

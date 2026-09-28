@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
+#include <unordered_map>
 
 namespace st::app {
 
@@ -130,6 +131,7 @@ int64_t DownloadManager::totalBytes() const {
 void DownloadManager::enqueue(const Track& t, const std::string& collectionId) {
     if (t.id.empty() || radio::isStationId(t.id)) return;   // a live radio station has nothing to download
     if (auto* it = find(t.id)) {
+        it->synced = false;   // the user asked for it: their own download from now on
         if (it->state == DlState::Failed) {
             it->state = DlState::Queued;   // retry
             it->error.clear();
@@ -148,6 +150,46 @@ void DownloadManager::enqueue(const Track& t, const std::string& collectionId) {
 
 void DownloadManager::enqueue(const std::vector<Track>& tracks, const std::string& collectionId) {
     for (const auto& t : tracks) enqueue(t, collectionId);
+}
+
+void DownloadManager::enqueueSynced(const std::vector<Track>& tracks) {
+    // Index once: a synced Liked Songs list can queue thousands of tracks.
+    std::unordered_map<std::string, size_t> index;
+    index.reserve(items_.size() + tracks.size());
+    for (size_t i = 0; i < items_.size(); ++i) index.emplace(items_[i].track.id, i);
+    bool changed = false;
+    for (const auto& t : tracks) {
+        if (t.id.empty() || radio::isStationId(t.id)) continue;
+        if (const auto found = index.find(t.id); found != index.end()) {
+            auto* it = &items_[found->second];
+            if (it->state != DlState::Failed) continue;   // queued, downloading or done: nothing to do
+            it->state = DlState::Queued;                  // retry (keeps its origin)
+            it->error.clear();
+            it->progress = 0;
+        } else {
+            DownloadItem d;
+            d.track = t;
+            d.state = DlState::Queued;
+            d.addedAt = nowUnix();
+            d.synced = true;
+            items_.push_back(std::move(d));   // after the user's own downloads (startNext takes the first queued)
+            index.emplace(t.id, items_.size() - 1);
+        }
+        changed = true;
+    }
+    if (!changed) return;
+    touch();
+    startNext();
+}
+
+void DownloadManager::keepAsManual(const std::vector<std::string>& ids) {
+    bool changed = false;
+    for (const auto& id : ids)
+        if (auto* it = find(id); it && it->synced) {
+            it->synced = false;
+            changed = true;
+        }
+    if (changed) touch();
 }
 
 void DownloadManager::cancel(const std::string& id) {
@@ -173,8 +215,9 @@ void DownloadManager::remove(const std::string& id) {
 void DownloadManager::startNext() {
     if (!activeId_.empty()) return;   // one at a time
     DownloadItem* job = nullptr;
+    const bool syncOk = !syncAllowed || syncAllowed();   // sync downloads wait while sync is paused / on a metered net
     for (auto& it : items_)
-        if (it.state == DlState::Queued) {
+        if (it.state == DlState::Queued && (syncOk || !it.synced)) {
             job = &it;
             break;
         }
@@ -330,6 +373,10 @@ void DownloadManager::deleteCollection(const std::string& id) {
 }
 
 void DownloadManager::addToCollection(const std::string& id, const std::string& trackId) {
+    if (auto* it = find(trackId); it && it->synced) {
+        it->synced = false;   // in one of the user's folders: their own download now (sync cleanup leaves it alone)
+        dirty_ = true;
+    }
     for (auto& c : collections_)
         if (c.id == id && std::find(c.trackIds.begin(), c.trackIds.end(), trackId) == c.trackIds.end()) {
             c.trackIds.push_back(trackId);
@@ -378,6 +425,7 @@ void DownloadManager::load() {
         d.error = e.value("e", "");
         d.cutSegments = std::max(0, e.value("cs", 0));   // absent in older files: not trimmed
         d.cutMs = std::max<int64_t>(0, e.value("cm", int64_t{0}));
+        d.synced = e.value("sy", false);   // absent in older files: the user's own download
         // A "done" record whose file vanished becomes a fresh (re-queueable) failure.
         if (d.state == DlState::Done && (d.filePath.empty() || !std::filesystem::exists(toWide(d.filePath)))) continue;
         if (d.state == DlState::Done) d.progress = 1.f;
@@ -412,6 +460,7 @@ void DownloadManager::saveIfDirty() {
             e["cs"] = d.cutSegments;
             e["cm"] = d.cutMs;
         }
+        if (d.synced) e["sy"] = true;
         items.push_back(std::move(e));
     }
     json cols = json::array();

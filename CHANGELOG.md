@@ -2,6 +2,14 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.5.0 — unreleased
+
+- **Offline sync**: make Liked Songs, a playlist or an album available offline (the download button in its header, or
+  its context menu) and ShadeTube downloads it in the background and keeps it up to date as songs are added. Synced
+  collections show their progress in Downloads, with sync now, pause and retry. Settings add a storage limit, waiting
+  on metered connections and an option to delete songs that left every synced list; your own downloads are never
+  touched.
+
 ## 0.4.0 — 2026-09-28
 
 - **11 UI languages**: Turkish, English, German, Spanish, French, Portuguese (Brazil), Russian, Ukrainian,
