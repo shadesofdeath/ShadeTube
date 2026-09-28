@@ -341,7 +341,7 @@ void testReplayGain() {
     CHECK(!fromMp4(m4None.data(), m4None.size()));
 
     // Files on disk (the engine's entry point).
-    const fs::path dir = fs::temp_directory_path() / L"shadetube_audiodsp_test";
+    const fs::path dir = fs::temp_directory_path() / (L"shadetube_audiodsp_test_" + std::to_wstring(GetCurrentProcessId()));
     std::error_code ec;
     fs::create_directories(dir, ec);
     auto write = [&](const wchar_t* name, const Bytes& b) {

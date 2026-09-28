@@ -485,7 +485,8 @@ void testPlayer(const fs::path& tmp) {
 } // namespace
 
 int wmain(int argc, wchar_t** argv) {
-    const fs::path tmp = fs::temp_directory_path() / L"shadetube_playback_test";
+    // Per process: parallel runs (several checkouts) must not delete each other's files.
+    const fs::path tmp = fs::temp_directory_path() / (L"shadetube_playback_test_" + std::to_wstring(GetCurrentProcessId()));
     std::error_code ec;
     fs::remove_all(tmp, ec);
     fs::create_directories(tmp);
