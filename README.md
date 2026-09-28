@@ -42,6 +42,10 @@ starts instantly and stays light.
   "Wrong match?" if one is off.
 - 📻 **Radio & autoplay** — start a radio from a song, artist, album or playlist; when the queue ends, similar songs
   keep playing.
+- 📡 **Internet radio** — thousands of live stations from radio-browser.info by genre, country or name, with
+  favorites and the song that's on air.
+- 🎚️ **Sound** — a 10-band equalizer with presets, crossfade between songs (albums stay gapless), volume
+  normalization so every song plays at the same level, and a choice of output device.
 - ⛔ **Blocklist** — block songs or artists and they are never picked automatically.
 - ⬇️ **Real MP3 downloads** — 320 kbps MP3 (or the original m4a) with tags and cover art, sorted into
   Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline, and
@@ -126,8 +130,9 @@ The portable copy: delete `ShadeTube.exe` and `%LOCALAPPDATA%\ShadeTube`.
 ShadeTube has no servers and collects nothing. It talks directly to Spotify (your library, and lyrics LRCLIB
 lacks), YouTube (audio), LRCLIB (lyrics), SponsorBlock (segments, queried by hash prefix so the video is not
 revealed), MusicBrainz / Cover Art Archive / ListenBrainz (open catalog) and GitHub (update checks). Podcasts use
-Apple's podcast directory (search and charts) and each show's own feed and audio host, only when you open them.
-Last.fm, ListenBrainz scrobbling, Discord and Piped / Invidious are used only if you turn them on.
+Apple's podcast directory (search and charts) and each show's own feed and audio host, only when you open them;
+internet radio uses radio-browser.info and the stations themselves. Last.fm, ListenBrainz scrobbling, Discord and
+Piped / Invidious are used only if you turn them on.
 
 ## 🛠 Build from source
 
