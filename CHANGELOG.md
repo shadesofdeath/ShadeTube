@@ -2,6 +2,16 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.5.0 — unreleased
+
+- **Spotify listening history import**: bring years of listening into Stats from Spotify's data download (the
+  extended streaming history or the account data, the ZIP itself or its JSON files). Duplicates are skipped, so
+  importing again or importing both files adds nothing; imported plays can be removed on their own.
+- **Year in review**: a year picker on the Stats page with the minutes you listened, your top songs, artists and
+  albums, your top month and busiest weekday, your longest listening streak, new artists and the first song of the
+  year.
+- **Listening hours**: a heatmap of when you listen (hour × weekday, local time) for every period.
+
 ## 0.4.0 — 2026-09-28
 
 - **11 UI languages**: Turkish, English, German, Spanish, French, Portuguese (Brazil), Russian, Ukrainian,

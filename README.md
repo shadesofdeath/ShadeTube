@@ -45,7 +45,9 @@ starts instantly and stays light.
   Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline.
 - 📁 **Local files** — add your own folders: MP3, FLAC, M4A/ALAC, AAC, WAV and WMA with tags and covers.
 - 🎤 **Synced lyrics** from LRCLIB — click a line to jump there.
-- 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time.
+- 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time,
+  a year in review, a heatmap of your listening hours, and your Spotify history imported from Spotify's data
+  download.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
 - 🪟 **Made for Windows** — media keys and lock-screen controls, always-on-top mini player, system tray, dark /
   light / system theme, full keyboard navigation.

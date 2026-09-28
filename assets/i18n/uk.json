@@ -900,5 +900,83 @@
   "Yükleniyor…": "Завантаження…",
   "Oynat / Duraklat": "Відтворення / пауза",
   "Bu radyo yayınının biçimi desteklenmiyor": "Формат цього радіопотоку не підтримується",
-  "Radyo yayınına bağlanılamadı": "Не вдалося підключитися до радіопотоку"
+  "Radyo yayınına bağlanılamadı": "Не вдалося підключитися до радіопотоку",
+  "Az": "Менше",
+  "Çok": "Більше",
+  "Bir içe aktarma zaten sürüyor": "Імпорт уже триває",
+  "Bu bilgisayarda çaldıkların ve Spotify'dan içe aktarılan {} dinleme · 30 saniyeyi geçen her çalma bir dinleme sayılır": {
+    "one": "Прослухане на цьому комп’ютері та {} прослуховування, імпортоване зі Spotify · кожне відтворення довше за 30 секунд зараховується як прослуховування",
+    "few": "Прослухане на цьому комп’ютері та {} прослуховування, імпортовані зі Spotify · кожне відтворення довше за 30 секунд зараховується як прослуховування",
+    "many": "Прослухане на цьому комп’ютері та {} прослуховувань, імпортованих зі Spotify · кожне відтворення довше за 30 секунд зараховується як прослуховування",
+    "other": "Прослухане на цьому комп’ютері та {} прослуховувань, імпортованих зі Spotify · кожне відтворення довше за 30 секунд зараховується як прослуховування"
+  },
+  "Dinledikçe her yılın özeti burada birikir. Spotify geçmişini içe aktararak eski yılları da görebilirsin.": "Під час прослуховування тут з’являються підсумки кожного року. Імпортуйте історію Spotify, щоб побачити й попередні роки.",
+  "Dinleme saatleri": "Години прослуховування",
+  "Dinleme yok": "Немає прослуховувань",
+  "Dinlemeler birleştiriliyor…": "Об’єднання прослуховувань…",
+  "Dosyaları seç": "Вибрати файли",
+  "En hareketli gün": "Найактивніший день",
+  "En uzun seri": "Найдовша серія",
+  "En yoğun: {}": "Пік: {}",
+  "En çok dinlediğin ay": "Наймузичніший місяць",
+  "Geçmiş içe aktarılamadı": "Не вдалося імпортувати історію",
+  "Henüz yıl özeti yok": "Підсумків року поки немає",
+  "Seçilen dosyalarda Spotify dinleme geçmişi bulunamadı": "У вибраних файлах немає історії прослуховувань Spotify",
+  "Sonraki yıl": "Наступний рік",
+  "Önceki yıl": "Попередній рік",
+  "Spotify geçmişi (ZIP, JSON)": "Історія Spotify (ZIP, JSON)",
+  "Spotify geçmişi içe aktarılıyor…": "Імпорт історії Spotify…",
+  "Spotify geçmişini getir": "Перенесіть історію Spotify",
+  "Spotify geçmişini içe aktar": "Імпортувати історію Spotify",
+  "Spotify geçmişini seç": "Виберіть історію Spotify",
+  "Spotify'da verilerini iste": "Запитати дані в Spotify",
+  "Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların kalır.": {
+    "one": "{} прослуховування, імпортоване зі Spotify, буде видалено зі статистики. Прослухане на цьому комп’ютері залишиться.",
+    "few": "{} прослуховування, імпортовані зі Spotify, буде видалено зі статистики. Прослухане на цьому комп’ютері залишиться.",
+    "many": "{} прослуховувань, імпортованих зі Spotify, буде видалено зі статистики. Прослухане на цьому комп’ютері залишиться.",
+    "other": "{} прослуховувань, імпортованих зі Spotify, буде видалено зі статистики. Прослухане на цьому комп’ютері залишиться."
+  },
+  "Spotify'dan verilerini indir (Hesap › Gizlilik › Verilerini indir: \"Uzun süreli yayın geçmişi\") ve gelen ZIP dosyasını seç. Yıllar öncesine kadar dinlediklerin istatistiklere eklenir; dosyalar yalnızca bu bilgisayarda okunur.": "Завантажте свої дані в Spotify (Обліковий запис › Конфіденційність › Завантажити дані: «Розширена історія прослуховувань») і виберіть отриманий ZIP-файл. Роки прослуховувань додадуться до статистики; файли читаються лише на цьому комп’ютері.",
+  "Tüm dosyalar": "Усі файли",
+  "Tüm geçmişi temizle": "Очистити всю історію",
+  "Yeni dinleme yok: bu geçmiş zaten içe aktarılmış": "Нічого нового: цю історію вже імпортовано",
+  "Yeni sanatçılar": "Нові виконавці",
+  "Yıl özeti": "Підсумки року",
+  "Yılın ilk şarkısı": "Перша пісня року",
+  "{} dinleme içe aktarıldı": {
+    "one": "Імпортовано {} прослуховування",
+    "few": "Імпортовано {} прослуховування",
+    "many": "Імпортовано {} прослуховувань",
+    "other": "Імпортовано {} прослуховувань"
+  },
+  "{} dinleme zaten vardı": {
+    "one": "{} прослуховування вже було",
+    "few": "{} прослуховування вже були",
+    "many": "{} прослуховувань уже було",
+    "other": "{} прослуховувань уже було"
+  },
+  "{} farklı sanatçı": {
+    "one": "{} виконавець",
+    "few": "{} виконавці",
+    "many": "{} виконавців",
+    "other": "{} виконавців"
+  },
+  "{} farklı şarkı": {
+    "one": "{} пісня",
+    "few": "{} пісні",
+    "many": "{} пісень",
+    "other": "{} пісень"
+  },
+  "{} gün": {
+    "one": "{} день",
+    "few": "{} дні",
+    "many": "{} днів",
+    "other": "{} днів"
+  },
+  "{} · Yıl özeti": "{} · Підсумки року",
+  "İlk kez bu yıl dinlediklerin": "Уперше почуті цього року",
+  "İçe aktar": "Імпорт",
+  "İçe aktarılan geçmiş kaldırıldı": "Імпортовану історію видалено",
+  "İçe aktarılan geçmiş kaldırılsın mı?": "Видалити імпортовану історію?",
+  "İçe aktarılan geçmişi kaldır": "Видалити імпортовану історію"
 }

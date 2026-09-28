@@ -44,7 +44,8 @@ kalır.
   videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar.
 - 📁 **Yerel dosyalar** — kendi klasörlerin: MP3, FLAC, M4A/ALAC, AAC, WAV ve WMA, etiket ve kapaklarıyla.
 - 🎤 **Senkron şarkı sözleri** (LRCLIB) — bir satıra tıkla, oraya atla.
-- 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri.
+- 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri,
+  yıl özeti, dinleme saatlerin (ısı haritası) ve Spotify'ın veri indirmesinden içe aktarılan geçmişin.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
 - 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, her zaman üstte mini oynatıcı, sistem
   tepsisi, koyu / açık / sistem teması, tam klavye desteği.
