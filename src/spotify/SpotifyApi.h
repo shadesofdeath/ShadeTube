@@ -11,6 +11,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace st::spotify {
@@ -99,6 +100,13 @@ public:
     // playlistTracks(). "" when Spotify has no radio for the seed. Throws ApiError.
     std::string radioPlaylist(const std::string& seedUri, const CT& ct = {});
 
+    // One track (spotify:track: URI or base62 id) from the web player's metadata service (spclient metadata/4, JSON):
+    // name, artists, album (URI, name, cover) and duration, e.g. for a pasted track link. Throws ApiError (404 when
+    // Spotify doesn't know the id).
+    Track track(const std::string& uri, const CT& ct = {});
+    // The metadata service's track JSON -> Track (split out for tests). Empty id when the JSON has no usable gid.
+    static Track parseTrackMetadata(const nlohmann::json& j);
+
     static constexpr const char* kLikedSongsUri = "spotify:collection:tracks";
 
 private:
@@ -126,5 +134,9 @@ private:
     std::string spDc_;
     std::string username_;
 };
+
+// Spotify ids: the 22-character base62 id <-> the 32-hex-digit "gid" the metadata service uses. "" on invalid input.
+std::string gidFromId(std::string_view base62);
+std::string idFromGid(std::string_view hex);
 
 } // namespace st::spotify

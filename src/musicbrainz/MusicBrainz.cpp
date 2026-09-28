@@ -267,6 +267,20 @@ Album album(const std::string& releaseGroupId, const CT& ct) {
     return a;
 }
 
+std::string releaseGroupOfRelease(const std::string& releaseId, const CT& ct) {
+    const json release = mbGet("release/" + releaseId + "?inc=release-groups", net::ttl::lookup, ct);
+    return detail::str(detail::get(release, "release-group"), "id");
+}
+
+Track recording(const std::string& recordingId, const CT& ct) {
+    const json rec =
+        mbGet("recording/" + recordingId + "?inc=artist-credits+releases+release-groups", net::ttl::lookup, ct);
+    // A lookup is one search hit without the score: the same parser picks the album.
+    auto hits = detail::parseRecordingHits(json{{"recordings", json::array({rec})}});
+    if (hits.empty()) throw ApiError(404, "MusicBrainz: recording " + recordingId + " not found");
+    return std::move(hits.front().track);
+}
+
 // ---- ListenBrainz --------------------------------------------------------------------------------------------
 std::vector<Track> topTracksForArtist(const std::string& artistId, int limit, const CT& ct) {
     initTokenFromEnv();

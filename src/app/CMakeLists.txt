@@ -49,6 +49,8 @@ add_executable(ShadeTube WIN32
     HomePage.cpp
     Installer.cpp Installer.h
     ListenStats.cpp ListenStats.h
+    LinkOpener.cpp LinkOpener.h
+    Links.cpp Links.h
     LocalFilesPage.cpp
     LocalLibrary.cpp LocalLibrary.h
     LoginWindow.cpp LoginWindow.h

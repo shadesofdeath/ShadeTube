@@ -40,6 +40,11 @@ std::vector<Album> artistReleaseGroups(const std::string& artistId, const CT& ct
 // Release group + tracklist of its most representative official release (prefers the earliest official
 // release in the user's region "XW"/"TR"/any, CD/Digital over vinyl, fewest bonus tracks).
 Album album(const std::string& releaseGroupId, const CT& ct = {});
+// The release group of one release (a pasted musicbrainz.org/release/ link). "" when MusicBrainz names none.
+std::string releaseGroupOfRelease(const std::string& releaseId, const CT& ct = {});
+// One recording as a Track: title, artist credit, length and its best (official, album first) release group as the
+// album. Throws ApiError (404 for an unknown MBID).
+Track recording(const std::string& recordingId, const CT& ct = {});
 
 // --- ListenBrainz ----------------------------------------------------------------------------------------
 std::vector<Track> topTracksForArtist(const std::string& artistId, int limit = 10, const CT& ct = {});

@@ -544,6 +544,58 @@ bool ThumbBar::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
     return false;
 }
 
+Progress progressFor(const ProgressInput& in) {
+    Progress p;
+    if (!in.enabled || !in.hasTrack || in.live) return p;
+    auto withValue = [&](TBPFLAG flag) {
+        p.flag = flag;
+        p.total = 1000;
+        if (in.durationMs > 0)
+            p.completed = static_cast<ULONGLONG>(std::clamp<int64_t>(in.positionMs * 1000 / in.durationMs, 0, 1000));
+        return p;
+    };
+    switch (in.status) {
+    case PlayStatus::Idle: break;
+    case PlayStatus::Resolving:
+    case PlayStatus::Buffering:
+        // The first audio is on its way: a pulse. A stall later in the song keeps showing where it is.
+        if (in.positionMs <= 0 || in.durationMs <= 0) p.flag = TBPF_INDETERMINATE;
+        else withValue(TBPF_NORMAL);
+        break;
+    case PlayStatus::Playing:
+        if (in.durationMs > 0) withValue(TBPF_NORMAL);
+        break;
+    case PlayStatus::Paused:
+        if (in.durationMs > 0 && in.positionMs > 0) withValue(TBPF_PAUSED);
+        break;
+    case PlayStatus::Error:
+        if (in.recentError) {
+            withValue(TBPF_ERROR);
+            if (in.durationMs <= 0 || p.completed == 0) p.completed = 1000;   // a full red bar says it best
+        }
+        break;
+    }
+    return p;
+}
+
+void ThumbBar::setProgress(const Progress& p) {
+    if (p == progress_) return;
+    const bool flagChanged = p.flag != progress_.flag;
+    progress_ = p;
+    if (!taskbar_) return;
+    if (flagChanged) applyProgress();
+    else if (p.flag == TBPF_NORMAL || p.flag == TBPF_PAUSED || p.flag == TBPF_ERROR)
+        taskbar_->SetProgressValue(hwnd_, p.completed, p.total);
+}
+
+void ThumbBar::applyProgress() {
+    if (!taskbar_) return;
+    // SetProgressValue switches a NOPROGRESS / INDETERMINATE button to NORMAL: set the value first, then the state.
+    if (progress_.flag == TBPF_NORMAL || progress_.flag == TBPF_PAUSED || progress_.flag == TBPF_ERROR)
+        taskbar_->SetProgressValue(hwnd_, progress_.completed, progress_.total);
+    taskbar_->SetProgressState(hwnd_, progress_.flag);
+}
+
 void ThumbBar::setState(const State& s) {
     if (s == state_) return;
     state_ = s;
@@ -585,11 +637,14 @@ void ThumbBar::add() {
     }
     if (FAILED(hr)) {
         ST_LOG_WARN(kTag, "thumbnail toolbar not added ({})", hex(hr));
+        taskbar_ = std::move(taskbar);   // the progress still works without the buttons
+        applyProgress();
         return;
     }
     taskbar_ = std::move(taskbar);
     added_ = true;
     updateFailureLogged_ = false;
+    applyProgress();
     ST_LOG_INFO(kTag, "thumbnail toolbar {}: {} buttons, {} px {} icons (playing {}, track {})", how, b.size(), iconPx_,
                 iconLight_ ? "dark-on-light" : "light-on-dark", state_.playing, state_.hasTrack);
 }

@@ -116,7 +116,7 @@ private:
 
 class SettingsPage : public ScrollPage {
 public:
-    // `focus`: a section to open scrolled to ("appearance" = GÖRÜNÜM, "downloads" = İNDİRME), e.g. the start route
+    // `focus`: a section to open scrolled to ("appearance" = GÖRÜNÜM, "downloads" = İNDİRME, "window" = PENCERE), e.g. the start route
     // "settings:appearance".
     explicit SettingsPage(std::string focus = {}) : focus_(std::move(focus)) {
         build();
@@ -262,7 +262,8 @@ private:
                    });
         }
 
-        section(c, tr(L"PENCERE"));
+        auto* windowSection = section(c, tr(L"PENCERE"));
+        if (focus_ == "window") focusLabel_ = windowSection;
         {
             toggle(c, tr(L"Kapatınca sistem tepsisine küçült"),
                    tr(L"Pencereyi kapattığında ShadeTube bildirim alanında çalmaya devam eder. Tamamen çıkmak için "
@@ -275,6 +276,9 @@ private:
             open->onClick = [] {
                 if (ctx().openMiniPlayer) ctx().openMiniPlayer();
             };
+            toggle(c, tr(L"Görev çubuğunda ilerlemeyi göster"),
+                   tr(L"Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı."),
+                   s.taskbarProgress, [](bool v) { Settings::get().taskbarProgress = v; });
             buildStartupRows(c, rebuilder());
         }
 

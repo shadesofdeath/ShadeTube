@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <map>
@@ -1129,6 +1130,119 @@ std::string Api::radioPlaylist(const std::string& seedUri, const CT& ct) {
         if (uri.rfind("spotify:playlist:", 0) == 0) return uri;
     }
     return {};
+}
+
+// ---- Track metadata (spclient metadata/4) ------------------------------------------------------------------
+// The web player has no Pathfinder query for a lone track in its main bundle; the metadata service answers with the
+// track message as JSON: {gid, name, artist:[{gid,name}], album:{gid, name, artist, cover_group:{image:[{file_id,
+// size, width, height}]}}, duration, number, explicit, ...}. Field names are accepted in snake_case and camelCase.
+
+namespace {
+constexpr std::string_view kBase62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+const json& field(const json& j, const char* snake, const char* camel) {
+    const json& v = at(j, snake);
+    return v.is_null() ? at(j, camel) : v;
+}
+
+std::string uriFromGid(const json& j, const char* kind) {
+    const std::string id = idFromGid(str(j, "gid"));
+    return id.empty() ? std::string{} : std::string("spotify:") + kind + ":" + id;
+}
+} // namespace
+
+std::string gidFromId(std::string_view base62) {
+    if (base62.size() != 22) return {};
+    uint8_t n[16] = {};
+    for (char c : base62) {
+        const size_t digit = kBase62.find(c);
+        if (digit == std::string_view::npos) return {};
+        unsigned carry = static_cast<unsigned>(digit);
+        for (int i = 15; i >= 0; --i) {
+            const unsigned v = n[i] * 62u + carry;
+            n[i] = static_cast<uint8_t>(v & 0xFF);
+            carry = v >> 8;
+        }
+        if (carry) return {};   // more than 128 bits
+    }
+    static constexpr char hex[] = "0123456789abcdef";
+    std::string out;
+    for (uint8_t b : n) {
+        out.push_back(hex[b >> 4]);
+        out.push_back(hex[b & 15]);
+    }
+    return out;
+}
+
+std::string idFromGid(std::string_view hexGid) {
+    if (hexGid.size() != 32) return {};
+    uint8_t n[16] = {};
+    for (size_t i = 0; i < 32; ++i) {
+        const char c = hexGid[i];
+        const int v = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+        if (v < 0) return {};
+        n[i / 2] = static_cast<uint8_t>(n[i / 2] << 4 | v);
+    }
+    std::string out(22, '0');
+    for (int pos = 21; pos >= 0; --pos) {
+        unsigned rem = 0;
+        for (auto& b : n) {
+            const unsigned cur = rem << 8 | b;
+            b = static_cast<uint8_t>(cur / 62);
+            rem = cur % 62;
+        }
+        out[static_cast<size_t>(pos)] = kBase62[rem];
+    }
+    return out;
+}
+
+Track Api::parseTrackMetadata(const json& j) {
+    Track t;
+    t.id = uriFromGid(j, "track");
+    if (t.id.empty()) return t;
+    t.name = str(j, "name");
+    t.durationMs = integer(j, "duration");
+    t.trackNumber = integer(j, "number");
+    if (at(j, "explicit").is_boolean()) t.explicitContent = at(j, "explicit").get<bool>();
+    auto artists = [](const json& arr) {
+        std::vector<ArtistRef> out;
+        if (arr.is_array())
+            for (const auto& a : arr)
+                if (!str(a, "name").empty()) out.push_back({uriFromGid(a, "artist"), str(a, "name")});
+        return out;
+    };
+    t.artists = artists(at(j, "artist"));
+    const json& al = at(j, "album");
+    if (al.is_object()) {
+        t.album.id = uriFromGid(al, "album");
+        t.album.name = str(al, "name");
+        const json& images = at(field(al, "cover_group", "coverGroup"), "image");
+        if (images.is_array())
+            for (const auto& im : images) {
+                std::string hexId = str(im, "file_id");
+                if (hexId.empty()) hexId = str(im, "fileId");
+                if (hexId.empty()) continue;
+                for (char& c : hexId) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                Image img;
+                img.url = "https://i.scdn.co/image/" + hexId;
+                img.width = integer(im, "width");
+                img.height = integer(im, "height");
+                t.album.images.push_back(std::move(img));
+            }
+        if (t.artists.empty()) t.artists = artists(at(al, "artist"));
+    }
+    return t;
+}
+
+Track Api::track(const std::string& uri, const CT& ct) {
+    const std::string id = uri.rfind("spotify:track:", 0) == 0 ? uri.substr(14) : uri;
+    const std::string gid = gidFromId(id);
+    if (gid.empty()) throw ApiError(0, "Spotify track: invalid id " + uri);
+    const json j = spclient("GET", "https://spclient.wg.spotify.com/metadata/4/track/" + gid + "?market=from_token",
+                            nullptr, ct);
+    Track t = parseTrackMetadata(j);
+    if (t.id.empty() || t.name.empty()) throw ApiError(404, "Spotify track not found: " + uri);
+    return t;
 }
 
 } // namespace st::spotify

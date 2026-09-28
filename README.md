@@ -48,9 +48,11 @@ starts instantly and stays light.
 - 🎤 **Synced lyrics** from LRCLIB — click a line to jump there.
 - 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
-- 🪟 **Made for Windows** — media keys and lock-screen controls, always-on-top mini player, system tray, dark /
-  light / system theme, full keyboard navigation.
+- 🪟 **Made for Windows** — media keys and lock-screen controls, taskbar buttons and progress, always-on-top mini
+  player, system tray, dark / light / system theme, full keyboard navigation.
 - 🔗 **Scrobbling & presence** — Last.fm, ListenBrainz and Discord "Listening to" (optional).
+- 📋 **Paste a link** — a Spotify, YouTube or MusicBrainz link in Search (or Ctrl+V anywhere) opens the album,
+  playlist or artist, or plays the song or video.
 - 🛟 **Backup audio source** — Piped or Invidious when YouTube itself fails (off by default).
 - 🌍 **11 languages** — Türkçe, English, Deutsch, Español, Français, Português (BR), Русский, Українська,
   Bahasa Indonesia, 日本語, 한국어.
@@ -77,6 +79,14 @@ starts instantly and stays light.
    publisher: click **More info → Run anyway**.
 3. Click **Connect Spotify** and sign in with your account (email, Google or Apple), or choose
    **Explore without Spotify** to browse the open MusicBrainz catalog.
+
+**Or with a package manager:**
+
+```powershell
+scoop bucket add shadetube https://github.com/shadesofdeath/ShadeTube
+scoop install shadetube/shadetube
+winget install shadesofdeath.ShadeTube   # once the package is accepted into winget
+```
 
 Optional: **Settings → About → Install on this PC** adds ShadeTube to the Start menu and to Windows' installed
 apps (per user, no admin rights). Updates are checked once a day and installed with one click.

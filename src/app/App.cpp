@@ -1,6 +1,7 @@
 #include "app/App.h"
 
 #include "app/InternetRadio.h"
+#include "app/LinkOpener.h"
 #include "app/LoginWindow.h"
 #include "app/NowPlaying.h"
 #include "app/PageWidgets.h"
@@ -27,6 +28,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <utility>
 
 namespace st::app {
 
@@ -726,6 +728,8 @@ bool App::handleKey(const ui::KeyEvent& e) {
     case VK_F11:
         ctx().toggleNowPlaying(!shell_->nowPlaying());
         return true;
+    case 'V':   // a Spotify / YouTube / MusicBrainz link on the clipboard (app/LinkOpener)
+        return e.ctrl && !e.alt && !e.shift && openClipboardLink();
     case VK_BROWSER_BACK: ctx().router->back(); return true;
     case VK_BROWSER_FORWARD: ctx().router->forward(); return true;
     default: return false;
@@ -753,6 +757,9 @@ void App::housekeeping() {
     }
     if (matcher_) matcher_->flush();
     if (session_) session_->maybeRefresh();
+    // Dev: --open-link, once a saved Spotify session has finished connecting (its login re-applies the start route).
+    if (!options_.openLink.empty() && session_ && session_->state() != spotify::SessionState::Connecting)
+        openLink(links::parse(std::wstring_view(std::exchange(options_.openLink, {}))));
     // Scrobbling: the listened-time rule tolerates the 2 s cadence.
     if (scrobbler_ && player_ && player_->current())
         scrobbler_->onProgress(player_->positionMs(), player_->status() == player::Status::Playing, player_->durationMs());
@@ -953,6 +960,25 @@ void App::syncThumbBar() {
     st.playing = player_ && (player_->isPlaying() || player_->status() == player::Status::Resolving);
     st.canNext = player_ && player_->order().size() > 1;   // previous() always restarts or steps back
     thumbBar_->setState(st);
+
+    // Progress on the taskbar button; also called by the 1 s tick (position, the error turning back to nothing).
+    winshell::ProgressInput in;
+    in.enabled = Settings::get().taskbarProgress;
+    in.hasTrack = st.hasTrack;
+    if (player_ && st.hasTrack) {
+        in.live = player_->isLive();
+        static_assert(static_cast<int>(winshell::PlayStatus::Error) == static_cast<int>(player::Status::Error) &&
+                      static_cast<int>(winshell::PlayStatus::Paused) == static_cast<int>(player::Status::Paused) &&
+                      static_cast<int>(winshell::PlayStatus::Resolving) == static_cast<int>(player::Status::Resolving));
+        in.status = static_cast<winshell::PlayStatus>(player_->status());
+        in.positionMs = player_->positionMs();
+        in.durationMs = player_->durationMs() > 0 ? player_->durationMs() : player_->current()->durationMs;
+        const double now = ui::frame::realNow();
+        if (in.status != winshell::PlayStatus::Error) playErrorAt_ = -1;
+        else if (playErrorAt_ < 0) playErrorAt_ = now;
+        in.recentError = playErrorAt_ >= 0 && now - playErrorAt_ < 4000;
+    }
+    thumbBar_->setProgress(winshell::progressFor(in));
 }
 
 void App::syncTray() {
@@ -1000,6 +1026,7 @@ int App::run() {
         }
         if (now >= nextSmtc) {
             if (player_ && player_->isPlaying()) syncSmtc();
+            syncThumbBar();   // taskbar progress (unchanged values cost nothing)
             nextSmtc = now + 1000;
         }
         if (now >= nextSponsor) {

@@ -95,6 +95,27 @@ bool buildJumpList(const std::filesystem::path& exe, bool lightTheme);
 // only when the mode really changed and registration is allowed.
 void refreshJumpList();
 
+// ---- Taskbar progress ----
+// The playing song's position on the taskbar button (ITaskbarList3 progress, applied by ThumbBar): green while it
+// plays, yellow while paused, red for a few seconds after a playback error, an indeterminate pulse while the first
+// audio is on its way, nothing for idle, radio stations or when turned off (Settings::taskbarProgress).
+enum class PlayStatus { Idle, Resolving, Buffering, Playing, Paused, Error };   // mirrors player::Status
+struct ProgressInput {
+    bool enabled = true;
+    bool hasTrack = false;
+    bool live = false;               // an internet radio station: endless, no position to show
+    PlayStatus status = PlayStatus::Idle;
+    int64_t positionMs = 0;
+    int64_t durationMs = 0;
+    bool recentError = false;        // the error happened in the last few seconds
+};
+struct Progress {
+    TBPFLAG flag = TBPF_NOPROGRESS;
+    ULONGLONG completed = 0, total = 0;   // meaningful for NORMAL / PAUSED / ERROR; total 1000 (per mille)
+    bool operator==(const Progress&) const = default;
+};
+Progress progressFor(const ProgressInput& in);   // pure (tests)
+
 // ---- Taskbar thumbnail toolbar ----
 // Önceki / Oynat or Duraklat / Sonraki under the main window's taskbar thumbnail (ITaskbarList3). The buttons exist
 // only while the window has a taskbar button: they are (re)added on every "TaskbarButtonCreated" (first show, shown
@@ -127,6 +148,8 @@ public:
     bool handleMessage(UINT msg, WPARAM wp, LPARAM lp);
     void setState(const State& s);
     bool added() const { return added_; }
+    // The button's progress (progressFor); unchanged values cost nothing. Re-applied when the button is recreated.
+    void setProgress(const Progress& p);
 
     std::function<void(Command)> onCommand;   // a button click, inside the window procedure
 
@@ -139,7 +162,9 @@ private:
     HWND hwnd_;
     UINT buttonCreatedMsg_ = 0;
     Microsoft::WRL::ComPtr<ITaskbarList3> taskbar_;
+    void applyProgress();
     State state_{};
+    Progress progress_{};
     std::array<HICON, 4> icons_{};   // prev, play, pause, next
     int iconPx_ = 0;
     bool iconLight_ = false;

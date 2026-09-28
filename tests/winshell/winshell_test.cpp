@@ -2,7 +2,7 @@
 //
 //   winshell_test               commands: parsing, the `--command` argument, forwarding to a (hidden, own) window of
 //                               a test class; glyph icons: SVG -> pixels -> HICON / .ico; the exe icon as PNG; the
-//                               thumbnail toolbar's button states; under a test AppUserModelID
+//                               thumbnail toolbar's button states; the taskbar progress states; under a test AppUserModelID
 //                               (shadesofdeath.ShadeTube.WinShellTest.<pid>) and a temp profile: the AppUserModelId
 //                               registry round trip, the Start menu shortcut rules in a temp folder (portable copy,
 //                               installed copy through a test uninstall key; the real shortcut is never touched under
@@ -239,6 +239,52 @@ void testThumbStates() {
     check(playing[0].id != playing[1].id && playing[1].id != playing[2].id, "distinct button ids");
 }
 
+// ---- taskbar progress ----------------------------------------------------------------------------------------------
+
+void testProgress() {
+    std::printf("\n-- taskbar progress\n");
+    using PS = ws::PlayStatus;
+    auto in = [](PS status, int64_t pos, int64_t dur) {
+        ws::ProgressInput i;
+        i.hasTrack = true;
+        i.status = status;
+        i.positionMs = pos;
+        i.durationMs = dur;
+        return i;
+    };
+    const auto playing = ws::progressFor(in(PS::Playing, 60'000, 240'000));
+    check(playing.flag == TBPF_NORMAL && playing.completed == 250 && playing.total == 1000, "playing: normal, 25 %");
+    const auto paused = ws::progressFor(in(PS::Paused, 120'000, 240'000));
+    check(paused.flag == TBPF_PAUSED && paused.completed == 500, "paused with a position: paused (yellow), 50 %");
+    check(ws::progressFor(in(PS::Paused, 0, 240'000)).flag == TBPF_NOPROGRESS, "paused at 0:00 (restored queue): none");
+    check(ws::progressFor(in(PS::Resolving, 0, 240'000)).flag == TBPF_INDETERMINATE, "resolving the first audio: pulse");
+    check(ws::progressFor(in(PS::Buffering, 0, 240'000)).flag == TBPF_INDETERMINATE, "first buffering: pulse");
+    const auto stall = ws::progressFor(in(PS::Buffering, 30'000, 240'000));
+    check(stall.flag == TBPF_NORMAL && stall.completed == 125, "a stall later in the song keeps the position");
+    check(ws::progressFor(in(PS::Idle, 10'000, 240'000)).flag == TBPF_NOPROGRESS, "idle (queue ended): none");
+    check(ws::progressFor(in(PS::Playing, 10'000, 0)).flag == TBPF_NOPROGRESS, "no duration known: none");
+    check(ws::progressFor(in(PS::Playing, 300'000, 240'000)).completed == 1000, "position past the end: clamped");
+    check(ws::progressFor(in(PS::Playing, -5, 240'000)).completed == 0, "negative position: clamped");
+    auto err = in(PS::Error, 60'000, 240'000);
+    check(ws::progressFor(err).flag == TBPF_NOPROGRESS, "an old error: none");
+    err.recentError = true;
+    const auto red = ws::progressFor(err);
+    check(red.flag == TBPF_ERROR && red.completed == 250, "a fresh error: red at the position");
+    err.positionMs = 0;
+    check(ws::progressFor(err).completed == 1000, "a fresh error at 0:00: a full red bar");
+    auto live = in(PS::Playing, 60'000, 0);
+    live.live = true;
+    check(ws::progressFor(live).flag == TBPF_NOPROGRESS, "radio station: none");
+    auto off = in(PS::Playing, 60'000, 240'000);
+    off.enabled = false;
+    check(ws::progressFor(off).flag == TBPF_NOPROGRESS, "turned off: none");
+    auto empty = in(PS::Playing, 60'000, 240'000);
+    empty.hasTrack = false;
+    check(ws::progressFor(empty).flag == TBPF_NOPROGRESS, "nothing queued: none");
+    check(ws::progressFor(in(PS::Playing, 1, 240'000)) == ws::progressFor(in(PS::Playing, 200, 240'000)),
+          "sub-per-mille moves compare equal (no taskbar call)");
+}
+
 // ---- identity -----------------------------------------------------------------------------------------------------
 
 // Another running ShadeTube for the installer: this exe again (--hold-window), with a hidden window of the instance
@@ -457,6 +503,7 @@ int wmain(int argc, wchar_t** argv) {
     testForwarding();
     testIcons();
     testThumbStates();
+    testProgress();
     check(ws::registrationAllowed(), "a sandbox profile with a test AUMID may register");
     check(!ins::leaveRealShortcut(), "test AUMID + test Start menu folder: the test shortcut may be written");
     SetEnvironmentVariableW(L"SHADETUBE_SHORTCUT_DIR", nullptr);
