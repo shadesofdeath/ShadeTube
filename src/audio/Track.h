@@ -1,6 +1,7 @@
 #pragma once
 // One playable item (internal to st_audio):
-//   ProgressiveBuffer (download thread) -> Decoder (decode thread) -> PCM ring -> engine thread.
+//   ProgressiveBuffer (download thread) -> Decoder (decode thread) -> PCM ring -> engine thread, or for a live
+//   stream (StreamSource::live): LiveStream (stream thread) -> LiveDecoder (decode thread) -> PCM ring.
 //
 // Threading:
 //   - decode thread (owned): waits for the buffer length, opens the decoder, services seek
@@ -10,20 +11,29 @@
 //   Destruction: cancel() is non-blocking (wakes both threads); the destructor joins them, which
 //   is quick after cancel(). The engine retires tracks with cancel() and destroys them once
 //   finished() so it never waits on a thread.
+//
+// Live tracks have no duration and no seeking. Their output format may change mid-stream (a station switching
+// streams, HE-AAC detected late): the decode thread then waits until the ring is drained and publishes the new
+// format; read() returns nothing for a caller still expecting the old one, so the engine stalls and reopens the
+// device. Titles are queued with the PCM position they start at and taken by the engine when that is audible.
 #include "audio/AudioEngine.h"
 
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace st::audio {
 
 class Decoder;
+class LiveStream;
 class ProgressiveBuffer;
 
 class Track {
@@ -37,18 +47,21 @@ public:
 
     const StreamSource& source() const { return source_; }
     uint64_t tag() const { return source_.tag; }
-    const std::shared_ptr<ProgressiveBuffer>& buffer() const { return buffer_; }
+    const std::shared_ptr<ProgressiveBuffer>& buffer() const { return buffer_; }        // null for live tracks
+    const std::shared_ptr<LiveStream>& liveStream() const { return live_; }             // null unless live
+    bool live() const { return live_ != nullptr; }
 
     void cancel();
     bool finished() const;  // decode + download threads have exited
 
     bool formatReady() const { return formatReady_.load(std::memory_order_acquire); }
-    uint32_t sampleRate() const { return sampleRate_; }  // valid once formatReady()
-    uint32_t channels() const { return channels_; }
+    uint32_t sampleRate() const { return sampleRate_.load(std::memory_order_acquire); }  // valid once formatReady()
+    uint32_t channels() const { return channels_.load(std::memory_order_acquire); }
     int64_t durationMs() const;
 
-    // Engine side of the ring. `firstFrame` = track position (frames) of the first copied frame.
-    size_t read(float* dst, size_t frames, int64_t& firstFrame);
+    // Engine side of the ring. `firstFrame` = track position (frames) of the first copied frame. Nothing is copied
+    // when the ring holds another format than the caller's `channels` / `rate` (a live format change).
+    size_t read(float* dst, size_t frames, int64_t& firstFrame, uint32_t channels, uint32_t rate);
     size_t available() const;     // frames ready in the ring
     size_t capacity() const;      // ring capacity in frames
     bool ended() const;           // decoder reached the end AND the ring is drained
@@ -60,15 +73,28 @@ public:
     ErrorKind errorKind() const;
     std::string errorMessage() const;
 
+    // ---- live tracks
+    // Audio ready ahead of the read position: decoded (ring) + compressed (stream queue).
+    int64_t bufferedAheadMs() const;
+    // Pausing keeps only the newest seconds upstream. Resuming returns true when what the ring held was stale and
+    // has been dropped (the engine then rebuffers from the live edge).
+    bool setLivePaused(bool paused);
+    // The newest title that starts at or before `audibleMs` (track position), once.
+    std::optional<std::string> takeLiveTitle(int64_t audibleMs);
+
 private:
     void run();
     void decodeLoop(Decoder& decoder);
     bool openDecoder(Decoder& decoder);
+    void liveLoop();
+    bool pushLive(const std::vector<float>& pcm, int64_t& nextPos);   // false: quit
     void setError(ErrorKind kind, std::string message);
     void wake();
 
     const StreamSource source_;
     std::shared_ptr<ProgressiveBuffer> buffer_;
+    std::shared_ptr<LiveStream> live_;
+    const int64_t liveStartMs_ = 0;   // live: position the clock starts at
     void* wakeEvent_;
 
     mutable std::mutex mutex_;
@@ -83,10 +109,13 @@ private:
     bool decEof_ = false;
     bool quit_ = false;
     bool producerWaiting_ = false;
+    bool liveFlush_ = false;               // live resume dropped the ring: drop pending PCM, continue at readPos_
+    std::deque<std::pair<int64_t, std::string>> liveTitles_;   // (track frame, title)
     ErrorKind errorKind_ = ErrorKind::Other;
     std::string errorMessage_;
     // ----
-    uint32_t sampleRate_ = 0, channels_ = 0;  // written once before formatReady_ is published
+    // Set before formatReady_ is published; a live track changes them (under mutex_) only while the ring is empty.
+    std::atomic<uint32_t> sampleRate_{0}, channels_{0};
     std::atomic<bool> formatReady_{false};
     std::atomic<int64_t> durationMs_{0};
     std::atomic<bool> failed_{false};

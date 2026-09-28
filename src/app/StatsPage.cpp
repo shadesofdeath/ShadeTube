@@ -1,8 +1,9 @@
 // İstatistikler (Spotube's Stats): what the user really listened to over the last 7 / 30 days or all time —
 // total time, streams, distinct songs / artists, top songs / artists / albums and recent plays. The data comes from
 // app/ListenStats, which initListenStats() feeds from the player through the AppContext hooks (every source:
-// Spotify, MusicBrainz, downloads, local files).
+// Spotify, MusicBrainz, downloads, local files; not internet radio stations).
 #include "app/AppContext.h"
+#include "app/InternetRadio.h"
 #include "app/ListenStats.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -595,7 +596,12 @@ void initListenStats() {
             store().adopt(r ? std::move(*r) : ListenStats::Snapshot{});
         });
     // A new track: store the previous play, start the next (or continue it: re-resolve / "Yanlış eşleşme?").
+    // A radio station is not recorded: hours of a station would count as one very long "song".
     c.trackChangedHooks.push_back([](const catalog::Track& t) {
+        if (radio::isStationId(t.id)) {
+            store().stop(steadyMs());
+            return;
+        }
         const auto* p = ctx().player;
         store().trackStarted(t, p ? p->positionMs() : 0, nowUnix(), steadyMs());
     });

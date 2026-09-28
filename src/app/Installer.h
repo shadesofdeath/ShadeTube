@@ -2,10 +2,12 @@
 // Per-user install / uninstall without a separate setup exe: the app installs itself (no admin rights), the way
 // Spotube's per-user Windows installer lays things out.
 //   install    copy the running exe to %LOCALAPPDATA%\Programs\ShadeTube\ShadeTube.exe, a Start menu shortcut
-//              (FOLDERID_Programs\ShadeTube.lnk) and HKCU\...\Uninstall\ShadeTube, so Windows Ayarlar › Uygulamalar ›
-//              Yüklü uygulamalar lists it and runs `"<exe>" --uninstall` (QuietUninstallString adds --quiet).
-//   uninstall  shortcut + uninstall key go at once; the install folder (and, when asked, the user data) is deleted
-//              by a detached, windowless cmd.exe retry loop once this process has exited.
+//              (FOLDERID_Programs\ShadeTube.lnk, carrying the app's AppUserModelID) and HKCU\...\Uninstall\ShadeTube,
+//              so Windows Ayarlar › Uygulamalar › Yüklü uygulamalar lists it and runs `"<exe>" --uninstall`
+//              (QuietUninstallString adds --quiet).
+//   uninstall  shortcut, uninstall key and app identity (AppUserModelId key, <data>\shell, jump list) go at once; the
+//              install folder (and, when asked, the user data) is deleted by a detached, windowless cmd.exe retry
+//              loop once this process has exited.
 // Tests / dev override the locations with SHADETUBE_INSTALL_DIR, SHADETUBE_SHORTCUT_DIR and SHADETUBE_UNINSTALL_KEY
 // ("HKCU\Software\ShadeTubeTest\Uninstall\ShadeTube"; always under HKCU). They are read only when set.
 #include <cstdint>
@@ -44,7 +46,9 @@ void writeRegistration(const std::filesystem::path& exe);   // (re)writes every 
 void refreshRegistration();   // installed run: DisplayVersion / EstimatedSize follow the exe (after an update)
 std::filesystem::path shortcutTarget(const std::filesystem::path& lnk);   // IShellLink target; empty if unreadable
 
-void unregister();   // shortcut + uninstall key (idempotent)
+// Shortcut + uninstall key + app identity (idempotent). The identity is shared by every copy: it stays while another
+// ShadeTube runs (a window of instanceClass() in another process), which registers it again at its next start anyway.
+void unregister();
 // unregister(), then deletes the install folder (only ShadeTube's own files when other files live there) and, with
 // `removeUserData`, the data folder (paths::appData()). Whatever this process still uses goes once it has exited.
 void uninstall(bool removeUserData);
@@ -61,6 +65,12 @@ bool hasArg(std::wstring_view flag);   // the flag is on this process's command 
 // Another ShadeTube process (from any folder) has a window: the shared data folder must not be deleted under it.
 bool otherInstanceRunning();
 
+// What identifies a running ShadeTube: the window class of its windows ("ShadeTube.Window") and main.cpp's
+// single-instance mutex. Test hooks: SHADETUBE_INSTANCE_CLASS / SHADETUBE_INSTANCE_MUTEX replace them (read only when
+// set), so a test instance neither finds nor is found by the ShadeTube the user runs.
+std::wstring instanceClass();
+std::wstring instanceMutex();
+
 // `ShadeTube.exe --uninstall [--quiet]`, what Windows runs for "Kaldır". main.cpp calls it before the single-instance
 // check (uninstallRequested()): confirm dialog with "Ayarları ... de sil" (--quiet: none, user data kept), asks a
 // ShadeTube running from the install folder to quit, uninstalls, reports. With data removal, copies running from other
@@ -70,5 +80,39 @@ bool otherInstanceRunning();
 // running ShadeTube (read only when set).
 bool uninstallRequested();
 int runUninstallCommand();
+
+// ---- App identity (used by app/WinShell) ------------------------------------------------------------------------
+// The AppUserModelID (AUMID) of the process, its windows, the Start menu shortcut, the jump list and the media session.
+// Windows groups the taskbar button by it, and the media flyout names an unpackaged app after the Start menu shortcut
+// that carries the same AUMID (the shell's Apps folder). SHADETUBE_AUMID replaces it (tests; read only when set; a
+// malformed override never falls back to the real id).
+inline constexpr wchar_t kAppUserModelId[] = L"shadesofdeath.ShadeTube";
+std::wstring appUserModelId();
+bool appUserModelIdOverridden();
+// A test AUMID without SHADETUBE_SHORTCUT_DIR: the Start menu shortcut is the user's real one, so it is neither created
+// nor given the test id (ensureStartShortcut does nothing, install() writes it without an AUMID).
+bool leaveRealShortcut();
+// HKCU\Software\Classes\AppUserModelId\<AUMID> (DisplayName + IconUri): how Windows names and draws the notifications
+// of an app without a package.
+std::wstring appIdKey();
+std::filesystem::path shellDir();   // paths::appData()\shell: files the shell reads (the IconUri PNG, jump-list icons)
+struct AppIdentity {
+    bool exists = false;
+    std::wstring displayName, iconUri;
+};
+AppIdentity readAppIdentity();
+// Writes DisplayName "ShadeTube" and IconUri = `iconPng` where they differ. True when a value was written.
+bool registerAppIdentity(const std::filesystem::path& iconPng);
+// The key, shellDir() and the jump list (idempotent). Part of unregister(), except in a test run that overrides the
+// install locations without a test AUMID (it never touches the real identity) and while another ShadeTube runs.
+void unregisterAppIdentity();
+
+std::wstring shortcutAppId(const std::filesystem::path& lnk);   // System.AppUserModel.ID of a shortcut ("" if none)
+// The Start menu shortcut the media flyout needs. A registered install owns it (only the AUMID is added to an older
+// shortcut of the installed exe). A portable copy gets one to itself, once: a shortcut the user deleted stays deleted
+// (a marker in shellDir() remembers it was created); one whose exe is gone is pointed at `exe`, one to another existing
+// copy only gets the AUMID. Needs COM on the calling thread (initialized when missing).
+enum class ShortcutAction { None, Stamped, Created, Retargeted };
+ShortcutAction ensureStartShortcut(const std::filesystem::path& exe);
 
 } // namespace st::app::installer

@@ -20,8 +20,13 @@
 // frame position). played = framesWritten - GetCurrentPadding(); the run containing `played` is
 // what is audible now. Gapless transitions (onEnded(finished, next)) and the natural end
 // (onEnded(tag, 0)) are fired when they become audible, not when they are decoded.
+//
+// Live tracks: (re)starting waits for a jitter margin (kLivePrebufferMs, more after a stall) instead of 0.25 s;
+// pause / play tell the track (it keeps only the newest audio while paused and flushes what went stale), seek is
+// ignored, and stream titles are fired (onTitle) once the audio they start with is audible.
 #include "audio/AudioEngine.h"
 
+#include "audio/LiveStream.h"
 #include "audio/ProgressiveBuffer.h"
 #include "audio/Spectrum.h"
 #include "audio/Track.h"
@@ -54,6 +59,9 @@ constexpr float kVolumeRampSeconds = 0.030f;  // full-scale volume slew time
 constexpr ULONGLONG kLoadingDelayMs = 150;    // stalls / seeks shorter than this don't flash "Loading"
 constexpr double kPrebufferSeconds = 0.25;    // decoded audio needed before (re)starting after open/seek
 constexpr double kRebufferSeconds = 0.75;     // ... after a mid-track stall (avoid stutter)
+constexpr int64_t kLivePrebufferMs = 2000;    // live: audio buffered ahead before starting (jitter margin)
+constexpr int64_t kLiveRebufferMs = 3000;     // ... after a stall (the network just proved to be slow)
+constexpr ULONGLONG kLiveMaxWaitMs = 10000;   // ... but never wait longer than this once something is decoded
 
 // MFAudioFormat_Opus (WAVE_FORMAT_OPUS = 0x704F); defined locally for older SDKs.
 constexpr GUID kAudioFormatOpus = {0x0000704F, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
@@ -124,6 +132,7 @@ struct AudioEngine::Impl {
     std::atomic<int64_t> memBytes{0};
     mutable std::mutex bufferMutex;
     std::shared_ptr<ProgressiveBuffer> audibleBuffer;
+    std::shared_ptr<LiveStream> audibleLive;
     Spectrum spectrum;
     std::thread thread;
 
@@ -189,6 +198,7 @@ struct AudioEngine::Impl {
         {
             std::lock_guard lock(bufferMutex);
             audibleBuffer.reset();
+            audibleLive.reset();
         }
         if (mmcss) AvRevertMmThreadCharacteristics(mmcss);
         if (SUCCEEDED(mf)) MFShutdown();
@@ -211,7 +221,12 @@ struct AudioEngine::Impl {
         if (out->running()) renderAvailable();
         maybeStartOrStop();
         reap();
-        if (cur && cur->tag() == tag.load()) durMs.store(cur->durationMs());
+        if (cur && cur->tag() == tag.load()) {
+            durMs.store(cur->durationMs());
+            if (cur->live() && events.onTitle) {
+                if (auto title = cur->takeLiveTitle(posMs.load())) events.onTitle(*title, cur->tag());
+            }
+        }
         publishState();
     }
 
@@ -262,11 +277,12 @@ struct AudioEngine::Impl {
         cur = std::move(track);
         phase = Phase::Active;
         wantPlay = autoplay;
+        if (cur->live() && !autoplay) cur->setLivePaused(true);
         endPending = false;
         clearTransitions();
         trackGain = dbToGain(s.gainDb);
         beginRebuffer(Rebuffer::Open);
-        publishTrack(s.tag, std::max<int64_t>(0, startMs), cur->durationMs(), cur->buffer());
+        publishTrack(s.tag, std::max<int64_t>(0, startMs), cur->durationMs(), cur.get());
     }
 
     void cmdPlay() {
@@ -278,6 +294,8 @@ struct AudioEngine::Impl {
         if (phase == Phase::Active && !wantPlay) {
             wantPlay = true;
             fade = 0.f;  // fade in
+            // Live: what was kept while paused may be stale (dropped audio, closed connection): rebuffer live.
+            if (cur && cur->live() && cur->setLivePaused(false)) beginRebuffer(Rebuffer::Open);
         }
     }
 
@@ -285,6 +303,7 @@ struct AudioEngine::Impl {
         if (phase != Phase::Active || !wantPlay) return;
         captureTail();
         wantPlay = false;
+        if (cur && cur->live()) cur->setLivePaused(true);
     }
 
     void cmdStop() {
@@ -301,7 +320,7 @@ struct AudioEngine::Impl {
     }
 
     void cmdSeek(int64_t ms) {
-        if (!cur || (phase != Phase::Active && phase != Phase::Ended)) return;
+        if (!cur || (phase != Phase::Active && phase != Phase::Ended) || cur->live()) return;
         const int64_t dur = cur->durationMs();
         ms = std::max<int64_t>(0, dur > 0 ? std::min(ms, dur) : ms);
         captureTail();
@@ -313,12 +332,13 @@ struct AudioEngine::Impl {
         posMs.store(ms);
     }
 
-    void publishTrack(uint64_t t, int64_t pos, int64_t dur, std::shared_ptr<ProgressiveBuffer> buffer) {
+    void publishTrack(uint64_t t, int64_t pos, int64_t dur, const Track* track) {
         tag.store(t);
         posMs.store(pos);
         durMs.store(dur);
         std::lock_guard lock(bufferMutex);
-        audibleBuffer = std::move(buffer);
+        audibleBuffer = track ? track->buffer() : nullptr;
+        audibleLive = track ? track->liveStream() : nullptr;
     }
 
     void clearTransitions() {
@@ -374,7 +394,13 @@ struct AudioEngine::Impl {
         if (rebuffer != Rebuffer::None && cur->formatReady()) {
             const double seconds = rebuffer == Rebuffer::Stall ? kRebufferSeconds : kPrebufferSeconds;
             const size_t need = std::min(static_cast<size_t>(cur->sampleRate() * seconds), cur->capacity() * 9 / 10);
-            if (cur->available() >= need || cur->decoderEnded() || cur->failed()) {
+            bool ready = cur->available() >= need || cur->decoderEnded() || cur->failed();
+            if (ready && cur->live() && !cur->failed()) {
+                // A live stream arrives in real time: start only with a margin, or it stalls again right away.
+                const int64_t margin = rebuffer == Rebuffer::Stall ? kLiveRebufferMs : kLivePrebufferMs;
+                ready = cur->bufferedAheadMs() >= margin || GetTickCount64() - rebufferSince >= kLiveMaxWaitMs;
+            }
+            if (ready) {
                 if (out->isOpen() && !formatMatches(*cur)) {
                     // New sample rate / channel count: let the previous audio finish, then reopen.
                     if (out->running()) {
@@ -523,7 +549,7 @@ struct AudioEngine::Impl {
         const size_t n = static_cast<size_t>(out->sampleRate() * kFadeSeconds);
         tail.resize(n * ch);
         int64_t pos = 0;
-        const size_t got = cur->read(tail.data(), n, pos);
+        const size_t got = cur->read(tail.data(), n, pos, ch, out->sampleRate());
         tail.resize(got * ch);
         if (got == 0) return;
         for (size_t i = 0; i < got; ++i) {
@@ -599,7 +625,7 @@ struct AudioEngine::Impl {
             Track& t = *cur;
             float* p = dst + size_t(done) * ch;
             int64_t pos = 0;
-            const size_t got = t.read(p, n - done, pos);
+            const size_t got = t.read(p, n - done, pos, ch, rate);
             if (got > 0) {
                 spectrum.push(p, got, ch);
                 applyGain(p, got, ch, rate, volTarget, true, trackGain);
@@ -634,8 +660,7 @@ struct AudioEngine::Impl {
                 const uint64_t finished = r.finishedTag;
                 r.finishedTag = 0;
                 const bool isCur = cur && cur->tag() == r.tag;
-                publishTrack(r.tag, r.pos * 1000 / r.rate, isCur ? cur->durationMs() : 0,
-                             isCur ? cur->buffer() : nullptr);
+                publishTrack(r.tag, r.pos * 1000 / r.rate, isCur ? cur->durationMs() : 0, isCur ? cur.get() : nullptr);
                 if (events.onEnded) events.onEnded(finished, r.tag);
             }
             if (r.pos >= 0 && r.serial == serial) {
@@ -721,24 +746,57 @@ bool AudioEngine::spectrum(float* bands, int count) const {
 
 size_t AudioEngine::bufferedBytes() const { return static_cast<size_t>(std::max<int64_t>(0, impl_->memBytes.load())); }
 
+LiveInfo AudioEngine::liveInfo() const {
+    std::shared_ptr<LiveStream> stream;
+    {
+        std::lock_guard lock(impl_->bufferMutex);
+        stream = impl_->audibleLive;
+    }
+    return stream ? stream->info() : LiveInfo{};
+}
+
+namespace {
+// Whether Media Foundation has an audio decoder MFT for `subtype` (any thread; COM and MF are started for the call).
+bool hasAudioDecoder(const GUID& subtype) {
+    const HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    bool decoder = false;
+    if (SUCCEEDED(MFStartup(MF_VERSION, MFSTARTUP_LITE))) {
+        MFT_REGISTER_TYPE_INFO input{MFMediaType_Audio, subtype};
+        IMFActivate** activates = nullptr;
+        UINT32 count = 0;
+        if (SUCCEEDED(MFTEnumEx(MFT_CATEGORY_AUDIO_DECODER,
+                                MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_ASYNCMFT | MFT_ENUM_FLAG_LOCALMFT |
+                                    MFT_ENUM_FLAG_SORTANDFILTER,
+                                &input, nullptr, &activates, &count))) {
+            decoder = count > 0;
+            for (UINT32 i = 0; i < count; ++i) activates[i]->Release();
+            CoTaskMemFree(activates);
+        }
+        MFShutdown();
+    }
+    if (SUCCEEDED(co)) CoUninitialize();
+    return decoder;
+}
+} // namespace
+
+bool AudioEngine::supportsLiveCodec(std::string_view codec) {
+    std::string c;
+    for (const char ch : codec)
+        if (ch != ' ') c.push_back(ch >= 'A' && ch <= 'Z' ? static_cast<char>(ch - 'A' + 'a') : ch);
+    auto has = [&](const char* s) { return c.find(s) != std::string::npos; };
+    if (c.empty() || c == "unknown" || has("mpegurl") || has("m3u") || has("scpls") || c == "hls") return true;
+    if (has("mp3") || has("mpeg") || has("mpga") || c == "mp2" || c == "mp1") return true;
+    if (has("aac") || has("mp4a")) return true;   // AAC, AAC+, HE-AAC, audio/aacp, audio/x-aac, "AAC,H.264"...
+    if (has("opus")) {   // Ogg Opus (a plain "OGG" is usually Vorbis, which has no decoder here)
+        static const bool opus = hasAudioDecoder(kAudioFormatOpus);
+        return opus;
+    }
+    return false;   // Ogg Vorbis, FLAC, WMA, AC-3...
+}
+
 bool AudioEngine::supportsWebm() {
     static const bool supported = [] {
-        const HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-        bool decoder = false;
-        if (SUCCEEDED(MFStartup(MF_VERSION, MFSTARTUP_LITE))) {
-            MFT_REGISTER_TYPE_INFO input{MFMediaType_Audio, kAudioFormatOpus};
-            IMFActivate** activates = nullptr;
-            UINT32 count = 0;
-            if (SUCCEEDED(MFTEnumEx(MFT_CATEGORY_AUDIO_DECODER,
-                                    MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_ASYNCMFT | MFT_ENUM_FLAG_LOCALMFT |
-                                        MFT_ENUM_FLAG_SORTANDFILTER,
-                                    &input, nullptr, &activates, &count))) {
-                decoder = count > 0;
-                for (UINT32 i = 0; i < count; ++i) activates[i]->Release();
-                CoTaskMemFree(activates);
-            }
-            MFShutdown();
-        }
+        const bool decoder = hasAudioDecoder(kAudioFormatOpus);
         bool handler = false;
         for (const wchar_t* key : {L".webm", L"audio/webm", L"video/webm"}) {
             const std::wstring path = std::wstring(L"SOFTWARE\\Microsoft\\Windows Media Foundation\\ByteStreamHandlers\\") + key;
@@ -749,7 +807,6 @@ bool AudioEngine::supportsWebm() {
                 break;
             }
         }
-        if (SUCCEEDED(co)) CoUninitialize();
         ST_LOG_INFO("audio", "WebM/Opus support: decoder={} handler={}", decoder, handler);
         return decoder && handler;
     }();

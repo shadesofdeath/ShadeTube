@@ -12,7 +12,7 @@
 
 namespace st::app {
 
-enum class RouteKind { Home, Search, Library, Liked, Playlist, Album, Artist, Downloads, Settings, Stats, LocalFiles };
+enum class RouteKind { Home, Search, Library, Liked, Playlist, Album, Artist, Downloads, Settings, Stats, LocalFiles, Radio };
 
 struct Route {
     RouteKind kind = RouteKind::Home;

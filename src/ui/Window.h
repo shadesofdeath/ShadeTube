@@ -114,6 +114,10 @@ public:
 
     static Window* fromHwnd(HWND hwnd);
     LRESULT handleMessageThunk(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
+    // Window class of every Window ("ShadeTube.Window"; single-instance lookups find the app by it). setClassName only
+    // before the first Window exists: a test instance gets a class of its own (main.cpp, SHADETUBE_INSTANCE_CLASS).
+    static void setClassName(std::wstring name);
+    static const std::wstring& className();
 
 protected:
     virtual LRESULT handleMessage(UINT msg, WPARAM wp, LPARAM lp);

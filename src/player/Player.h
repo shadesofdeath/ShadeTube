@@ -110,7 +110,30 @@ public:
     // The skip rule changed (kara liste edit): drops a prepared next track that is now skipped and notifies.
     void skipRulesChanged();
 
-    // Resume support (last session).
+    // Internet radio: asked (UI thread) before each resolve, like localFileFor. A returned stream makes the item a
+    // live, endless stream: no duration, no seeking, no prefetch / gapless handoff; the engine reconnects when the
+    // stream drops. mimeType "" = let the engine sniff (audio/mpeg, audio/aac, audio/ogg, HLS playlists...).
+    // positionMs() is the listening time since the item started; pause keeps only a few seconds and play resumes
+    // live. next / previous walk the queue (the station list); a restored session resumes the station live.
+    struct LiveStream {
+        std::string url;
+        std::string mimeType;
+        bool allowLocalNetwork = false;   // tests with a local server; stations reach only the public internet
+    };
+    std::function<std::optional<LiveStream>(const Track&)> liveStreamFor;
+    bool isLive() const { return live_; }            // the current item is a live stream
+    // The station's current song (ICY "StreamTitle", e.g. "Artist - Title"), "" when it sends none. Changes fire
+    // onLiveTitle on the UI thread (and onChanged).
+    const std::wstring& liveTitle() const { return liveTitle_; }
+    std::function<void(const std::wstring& title)> onLiveTitle;
+    // Codec, bitrate, station name (icy-name), buffer and reconnect count of the live item (active = false otherwise).
+    audio::LiveInfo liveInfo() const { return engine_->liveInfo(); }
+    // A live item failed for good (UI thread, before the error toast and the move to the next item): kind is
+    // UnsupportedFormat for a codec / container this engine can't play (see AudioEngine::supportsLiveCodec) and
+    // Network when the station could not be reached or kept dropping.
+    std::function<void(const Track& station, audio::ErrorKind kind)> onLiveFailed;
+
+    // Resume support (last session). Set liveStreamFor first, so a restored station shows as live.
     void restoreSession();
     void saveSession() const;
 
@@ -128,6 +151,8 @@ private:
     void onEngineState(audio::State s, uint64_t tag);
     void onEngineEnded(uint64_t finished, uint64_t next);
     void onEngineError(audio::ErrorKind kind, const std::string& message, uint64_t tag);
+    void onEngineTitle(const std::string& title, uint64_t tag);
+    void clearLiveTitle();
     void advance(bool userInitiated);
     bool skipped(int orderIndex) const;
     int playableFrom(int orderIndex, int step) const;   // first non-skipped slot walking by `step`, or -1
@@ -173,6 +198,8 @@ private:
     std::shared_ptr<YoutubeExplode::CancellationTokenSource> resolveCts_;
     std::shared_ptr<YoutubeExplode::CancellationTokenSource> prefetchCts_;
     UINT_PTR timer_ = 0;
+    bool live_ = false;                 // current item plays through liveStreamFor (internet radio)
+    std::wstring liveTitle_;            // ICY StreamTitle of the current live item
 };
 
 } // namespace st::player

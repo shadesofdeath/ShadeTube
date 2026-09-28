@@ -146,13 +146,17 @@ public:
             if (s > 56 ? h <= s * 1.05f : h <= s * 2.1f) break;
         }
         const float th = titleText_.measure(tw).h;
-        float y = cover.bottom() - th - 30 - (desc_.empty() ? 0 : 24);
+        // The description wraps to at most two lines: reserve its measured height so the owner / count line below
+        // never overlaps it.
+        const float dw = std::min(tw, 640.f);
+        const float dh = desc_.empty() ? 0.f : std::ceil(desc_.measure(dw).h);
+        float y = cover.bottom() - th - 30 - (desc_.empty() ? 0.f : dh + 6);
         c.text(meta_.label, type::monoLabel, {tx, y - 26, tw, 14}, col.fgSecondary);
         c.text(titleText_, {tx - size * 0.04f, y, tw, th}, col.fgPrimary);
         y += th + 10;
         if (!desc_.empty()) {
-            c.text(desc_, {tx, y, std::min(tw, 640.f), 36}, col.fgSecondary);
-            y += 24;
+            c.text(desc_, {tx, y, dw, dh}, col.fgSecondary);
+            y += dh + 6;
         }
         float x = tx;
         if (!meta_.owner.empty()) {

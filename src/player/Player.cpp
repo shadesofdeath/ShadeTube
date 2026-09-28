@@ -30,6 +30,7 @@ Player::Player(youtube::MatchService& matcher) : matcher_(matcher) {
     ev.onError = [this](audio::ErrorKind k, const std::string& m, uint64_t tag) {
         Dispatcher::post([this, k, m, tag] { onEngineError(k, m, tag); });
     };
+    ev.onTitle = [this](const std::string& title, uint64_t tag) { Dispatcher::post([this, title, tag] { onEngineTitle(title, tag); }); };
     engine_ = std::make_unique<audio::AudioEngine>(std::move(ev));
     allowWebm_ = audio::AudioEngine::supportsWebm();
     const auto& s = Settings::get();
@@ -64,6 +65,7 @@ int64_t Player::positionMs() const {
 }
 
 int64_t Player::durationMs() const {
+    if (live_) return 0;
     const int64_t d = engine_->currentTag() == currentTag_ ? engine_->durationMs() : 0;
     if (d > 0) return d;
     const Track* t = current();
@@ -205,9 +207,10 @@ int Player::remainingPlayable(int limit) const {
     return n;
 }
 
-// Asked after a track starts and when the queue runs out; posted so the handler never runs inside a load.
+// Asked after a track starts and when the queue runs out; posted so the handler never runs inside a load. A station
+// list is not extended with songs.
 void Player::checkQueueLow() {
-    if (!onQueueLow || repeat_ != RepeatMode::Off) return;
+    if (!onQueueLow || repeat_ != RepeatMode::Off || live_) return;
     Dispatcher::post([this, ref = life_.ref()] {
         if (ref.expired() || !onQueueLow || repeat_ != RepeatMode::Off || !current()) return;
         if (remainingPlayable(2) <= 1) onQueueLow();
@@ -353,7 +356,7 @@ void Player::play() {
 void Player::pause() { engine_->pause(); }
 
 void Player::seek(int64_t ms) {
-    if (!current()) return;
+    if (!current() || live_) return;
     ms = std::clamp<int64_t>(ms, 0, std::max<int64_t>(0, durationMs() - 250));
     if (status_ == Status::Resolving) {
         pendingSeekMs_ = ms;
@@ -374,7 +377,8 @@ void Player::previous() {
     if (!current()) return;
     failStreak_ = 0;
     const int prev = pos_ > 0 ? playableFrom(pos_ - 1, -1) : -1;
-    if (positionMs() > 3000 || prev < 0) {
+    if (live_ && prev < 0) return;   // a station has no start to go back to
+    if (!live_ && (positionMs() > 3000 || prev < 0)) {
         seek(0);
         if (status_ == Status::Paused) play();
         return;
@@ -455,7 +459,7 @@ void Player::advanceAfterError() {
 
 void Player::useMatch(const youtube::Match& match) {
     const Track* t = current();
-    if (!t) return;
+    if (!t || live_) return;
     matcher_.pin(t->id, match);
     const int64_t at = positionMs();
     loadCurrent(at, status_ != Status::Paused);
@@ -478,10 +482,12 @@ void Player::loadCurrent(int64_t startMs, bool autoplay) {
     if (!t) return;
     retries_ = 0;
     endedAtEnd_ = false;
+    clearLiveTitle();
     // Gapless handoff already prepared for exactly this slot?
     if (prepared_ && prepared_->orderIndex == pos_ && startMs == 0) {
         currentTag_ = prepared_->tag;
         currentLocal_ = false;
+        live_ = false;
         match_ = prepared_->resolved.match;
         stream_ = prepared_->resolved.stream;
         engine_->open(sourceFor(prepared_->resolved, currentTag_, t->durationMs), 0, autoplay);
@@ -528,6 +534,26 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
     engine_->stop();   // release the previous track's buffers right away
 
     const Track track = items_[order_[orderIndex]];
+
+    // Internet radio: an endless stream straight from the station (no match, no duration; a start position only
+    // matters to tracks, so a restored station resumes live).
+    const std::optional<LiveStream> live = liveStreamFor ? liveStreamFor(track) : std::nullopt;
+    live_ = live.has_value();
+    if (live) {
+        currentLocal_ = false;
+        stream_ = {};
+        pendingSeekMs_ = -1;
+        status_ = Status::Buffering;
+        audio::StreamSource s;
+        s.url = live->url;
+        s.mimeType = live->mimeType;
+        s.live = true;
+        s.allowLocalNetwork = live->allowLocalNetwork;
+        s.tag = tag;
+        engine_->open(s, 0, autoplay);
+        notify();
+        return;
+    }
 
     // Offline: a downloaded track plays straight from its file — no YouTube match/stream.
     const std::wstring localPath = localFileFor ? localFileFor(track.id) : std::wstring{};
@@ -584,7 +610,8 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
 }
 
 void Player::maybePrefetch() {
-    if (!Settings::get().preloadNext || status_ != Status::Playing || prepared_ || prefetchTag_) return;
+    // Nothing is preloaded for or after a live item: a station never ends, and opening one early would stream it.
+    if (!Settings::get().preloadNext || status_ != Status::Playing || prepared_ || prefetchTag_ || live_) return;
     const int64_t dur = durationMs(), posMs = positionMs();
     if (dur <= 0 || dur - posMs > kPrefetchWindowMs) return;
     const int nextPos = upcomingSlot();   // blocked items are passed over, like advance()
@@ -592,6 +619,7 @@ void Player::maybePrefetch() {
     const Track track = items_[order_[nextPos]];
     // Downloaded tracks open instantly from disk; skip network prefetch for them.
     if (localFileFor && !localFileFor(track.id).empty()) return;
+    if (liveStreamFor && liveStreamFor(track)) return;
     const uint64_t tag = ++tagCounter_;
     prefetchTag_ = tag;
     if (prefetchCts_) prefetchCts_->cancel();
@@ -665,6 +693,8 @@ void Player::onEngineEnded(uint64_t finished, uint64_t next) {
         prepared_.reset();
         status_ = Status::Playing;
         currentLocal_ = false;
+        live_ = false;
+        clearLiveTitle();
         if (const Track* t = current(); t && onTrackChanged) onTrackChanged(*t);
         notify();
         checkQueueLow();
@@ -680,6 +710,22 @@ void Player::onEngineError(audio::ErrorKind kind, const std::string& message, ui
     }
     if (tag != currentTag_) return;
     ST_LOG_WARN("player", "engine error ({}): {}", static_cast<int>(kind), message);
+    if (live_) {
+        // The engine already reconnected as often as makes sense (or the format can't play): no retry loop here.
+        lastError_ = message;
+        status_ = Status::Error;
+        if (const Track* t = current(); t && onLiveFailed) {
+            const Track station = *t;
+            const auto handler = onLiveFailed;
+            handler(station, kind);
+        }
+        if (onError)
+            onError(kind == audio::ErrorKind::UnsupportedFormat ? tr(L"Bu radyo yayınının biçimi desteklenmiyor")
+                                                                : tr(L"Radyo yayınına bağlanılamadı"));
+        notify();
+        scheduleErrorAdvance();
+        return;
+    }
     if (currentLocal_) {
         // A local file: no YouTube stream to refresh or fall back from (and a file Media Foundation can't decode must
         // not turn off Opus for the YouTube streams of this session).
@@ -714,6 +760,21 @@ void Player::onEngineError(audio::ErrorKind kind, const std::string& message, ui
     scheduleErrorAdvance();
 }
 
+void Player::onEngineTitle(const std::string& title, uint64_t tag) {
+    if (tag != currentTag_ || !live_) return;
+    std::wstring text = toWide(title);
+    if (text == liveTitle_) return;
+    liveTitle_ = std::move(text);
+    if (onLiveTitle) onLiveTitle(liveTitle_);
+    notify();
+}
+
+void Player::clearLiveTitle() {
+    if (liveTitle_.empty()) return;
+    liveTitle_.clear();
+    if (onLiveTitle) onLiveTitle(liveTitle_);
+}
+
 // --- session persistence ---------------------------------------------------------------------------------------
 
 void Player::saveSession() const {
@@ -726,7 +787,7 @@ void Player::saveSession() const {
     const int last = std::min(total, first + 500);
     j["pos"] = pos_ < 0 ? 0 : pos_ - first;
     if (const Track* cur = current()) j["curId"] = cur->id;
-    j["positionMs"] = positionMs();
+    j["positionMs"] = live_ ? 0 : positionMs();   // a station resumes live
     j["contextUri"] = context_.uri;
     j["contextName"] = toUtf8(context_.name);
     json items = json::array();
@@ -789,6 +850,8 @@ void Player::restoreSessionFile() {
     }
     context_ = {j.value("contextUri", ""), toWide(j.value("contextName", ""))};
     pendingSeekMs_ = j.value("positionMs", 0LL);
+    live_ = liveStreamFor && liveStreamFor(items_[pos_]).has_value();   // a station: shown live, resumes live
+    if (live_) pendingSeekMs_ = -1;
     status_ = Status::Paused;   // shown in the player bar; pressing play resolves and resumes
     notify();
 }

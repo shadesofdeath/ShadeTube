@@ -13,6 +13,25 @@ namespace st::app {
 class NowPlayingView;
 class ConnectScreen;
 
+// ---- Internet radio (defined in app/RadioPage.cpp) --------------------------------------------------------------
+// Shared by the Radyo page and the live displays (player bar, queue, Now Playing, mini player). A station plays as a
+// track with a "radio:<uuid>" id (app/InternetRadio.h).
+// Station logo (favicon) letterboxed on a neutral surface, never cropped; a radio placeholder while it loads or when
+// it is missing / broken.
+void drawStationArt(Canvas& c, const std::vector<catalog::Image>& images, const Rect& r, float radius,
+                    Priority prio = Priority::High);
+// Context menu of a station: Favorilere ekle / kaldır, Web sitesini aç, Yayın adresini kopyala.
+void showStationMenu(const catalog::Track& station, gfx::Point windowPos);
+// Song titles (ICY StreamTitle) heard on the playing station this session, newest first; reset by another station.
+struct HeardTitle {
+    int64_t at = 0;       // unix seconds
+    std::wstring title;
+};
+const std::vector<HeardTitle>& heardTitles();
+// The "CANLI" pill of the live displays: a dot (pulsing while `playing`) and the mono label, vertically centered on
+// `leftCenter`. Returns its width.
+float drawLiveBadge(Canvas& c, gfx::Point leftCenter, bool playing);
+
 class TitleBar : public ui::Widget {
 public:
     TitleBar();
@@ -35,7 +54,7 @@ public:
     void paint(Canvas& c) override;
 
 private:
-    ui::Button *home_, *search_, *library_, *downloads_, *local_, *stats_, *settings_, *newPlaylist_;
+    ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *stats_, *settings_, *newPlaylist_;
     ui::ScrollView* list_;
     ui::Column* listCol_;
     std::vector<std::pair<ui::Button*, Route>> items_;
@@ -60,6 +79,7 @@ private:
     Rect infoRect_{}, artRect_{}, timeRect_{};
     bool nowPlaying_ = false;
     bool infoHover_ = false;
+    bool live_ = false;      // the current item is an internet radio station (no times, no seeking)
 
 public:
     bool onMouseDown(const ui::MouseEvent& e) override;

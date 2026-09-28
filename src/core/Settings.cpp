@@ -70,6 +70,17 @@ void Settings::load() {
     read(j, "updateCheck", updateCheck);
     read(j, "lastUpdateCheck", lastUpdateCheck);
     read(j, "skippedVersion", skippedVersion);
+    read(j, "eqEnabled", eqEnabled);
+    read(j, "eqPreset", eqPreset);
+    read(j, "eqGains", eqGains);
+    if (!eqGains.empty() && eqGains.size() != 10) eqGains.clear();
+    read(j, "eqPreampDb", eqPreampDb);
+    read(j, "crossfadeSec", crossfadeSec);
+    crossfadeSec = std::clamp(crossfadeSec, 0, 12);
+    read(j, "outputDeviceId", outputDeviceId);
+    read(j, "startWithWindows", startWithWindows);
+    read(j, "startInTray", startInTray);
+    read(j, "shortcuts", shortcuts);
     read(j, "closeToTray", closeToTray);
     read(j, "language", language);
     read(j, "region", region);
@@ -112,6 +123,15 @@ void Settings::save() const {
         {"updateCheck", updateCheck},
         {"lastUpdateCheck", lastUpdateCheck},
         {"skippedVersion", skippedVersion},
+        {"eqEnabled", eqEnabled},
+        {"eqPreset", eqPreset},
+        {"eqGains", eqGains},
+        {"eqPreampDb", eqPreampDb},
+        {"crossfadeSec", crossfadeSec},
+        {"outputDeviceId", outputDeviceId},
+        {"startWithWindows", startWithWindows},
+        {"startInTray", startInTray},
+        {"shortcuts", shortcuts},
         {"closeToTray", closeToTray},
         {"language", language},
         {"region", region},

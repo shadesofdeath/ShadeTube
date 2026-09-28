@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <cctype>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -23,6 +24,11 @@ namespace fs = std::filesystem;
 namespace {
 
 constexpr uint64_t kStaleFrames = 120;   // ~2 s at 60 fps (frames only advance while rendering)
+// Downloads are bounded: a station logo from the radio directory is any URL someone submitted (an endless audio stream,
+// a huge file). Real artwork (Spotify, Cover Art Archive front-1200, Wikimedia thumbnails) is far below both limits.
+constexpr size_t kMaxDownloadBytes = 16 * 1024 * 1024;
+constexpr auto kDownloadTimeout = std::chrono::seconds(45);
+constexpr uint64_t kMaxPixels = 64ull * 1024 * 1024;   // decoded size limit (a small file can claim 30000 x 30000)
 
 int bucketFor(int px) {
     for (int b : {64, 128, 256, 512, 1024})
@@ -63,6 +69,16 @@ std::wstring localFilePath(const std::string& url) {
     return toWide(p);
 }
 
+// What an image server may answer with. Only types that are certainly not an image are refused before the body is read
+// (servers label images loosely: octet-stream, text/plain for .ico...); WIC decides about the rest.
+bool imageContentType(std::string_view type) {
+    std::string t(type.substr(0, type.find(';')));
+    for (char& c : t)
+        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    return !t.starts_with("audio/") && !t.starts_with("video/") && t != "text/html" && t != "application/ogg" &&
+           t.find("mpegurl") == std::string::npos && t != "application/json";
+}
+
 std::string loadBytes(const std::string& url) {
     // Local artwork (covers of the user's own music files, app/LocalLibrary): read in place, never copied into the
     // disk cache.
@@ -84,7 +100,9 @@ std::string loadBytes(const std::string& url) {
             }
         }
     }
-    auto resp = http::get(url);
+    // Never into the user's own network (a logo URL like http://192.168.1.1/...); names are not resolved here.
+    if (http::isLocalUrl(url, false)) throw std::runtime_error("local network address");
+    auto resp = http::getLimited(url, {kMaxDownloadBytes, kDownloadTimeout, imageContentType});
     if (!resp.isSuccessStatusCode() || resp.body.empty())
         throw std::runtime_error("image HTTP " + std::to_string(resp.statusCode));
     std::ofstream(file, std::ios::binary).write(resp.body.data(), static_cast<std::streamsize>(resp.body.size()));
@@ -106,6 +124,7 @@ Decoded decode(const std::string& bytes, int targetWidth) {
     UINT w = 0, h = 0;
     frame->GetSize(&w, &h);
     if (!w || !h) throw std::runtime_error("empty image");
+    if (static_cast<uint64_t>(w) * h > kMaxPixels) throw std::runtime_error("image too large");
 
     ComPtr<IWICBitmapSource> source = frame;
     if (static_cast<int>(w) > targetWidth) {   // never upscale

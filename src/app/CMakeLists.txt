@@ -35,6 +35,7 @@ add_executable(ShadeTube WIN32
     AboutSettings.cpp
     AltSourceSettings.cpp
     App.cpp App.h
+    AudioSettings.cpp
     AppContext.cpp AppContext.h
     Blacklist.cpp Blacklist.h
     BrowsePages.cpp
@@ -56,17 +57,22 @@ add_executable(ShadeTube WIN32
     Pages.h
     PlaybackSettings.cpp
     Radio.cpp Radio.h
+    RadioPage.cpp
+    InternetRadio.cpp InternetRadio.h
     Router.cpp Router.h
     Scrobbler.cpp Scrobbler.h
     SettingsPage.cpp
     SettingsWidgets.h
+    Shortcuts.cpp Shortcuts.h
     Shell.cpp Shell.h
     Smtc.cpp Smtc.h
     Source.cpp Source.h
     Tray.cpp Tray.h
     SponsorBlock.cpp SponsorBlock.h
     StatsPage.cpp
+    SystemSettings.cpp
     Updater.cpp Updater.h
+    WinShell.cpp WinShell.h
     ShadeTube.manifest
     ${CMAKE_CURRENT_BINARY_DIR}/resources.rc
 )

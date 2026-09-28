@@ -12,7 +12,11 @@
 #include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <propvarutil.h>
 #include <wrl/client.h>
+// PKEY_AppUserModel_* are only declared unless INITGUID is set where propkey.h is first included.
+#include <initguid.h>
+#include <propkey.h>
 
 #include <algorithm>
 #include <format>
@@ -79,17 +83,6 @@ bool isOwnFile(const fs::path& name) {
     return updater::isUpdaterFileName(n);
 }
 
-// Test hooks (read only when set): the window class / mutex that identify a running ShadeTube, so tests can stand in
-// fake instances without touching real ones.
-std::wstring instanceClass() {
-    const std::wstring c = env(L"SHADETUBE_INSTANCE_CLASS");
-    return c.empty() ? std::wstring(kWindowClass) : c;
-}
-std::wstring instanceMutex() {
-    const std::wstring m = env(L"SHADETUBE_INSTANCE_MUTEX");
-    return m.empty() ? std::wstring(kMutexName) : m;
-}
-
 // COM for the shell link on whatever thread we are on (the UI thread already has an STA: S_FALSE, balanced).
 struct ComScope {
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -101,7 +94,28 @@ struct ComScope {
     }
 };
 
-void createShortcut(const fs::path& lnk, const fs::path& exe) {
+// Sets System.AppUserModel.ID (and, for a shortcut the user did not ask for, "don't highlight as newly installed") in a
+// shell link's property store. The caller saves the link.
+HRESULT setLinkAppId(IShellLinkW* link, const std::wstring& appId, bool quiet) {
+    ComPtr<IPropertyStore> props;
+    HRESULT hr = link->QueryInterface(IID_PPV_ARGS(&props));
+    PROPVARIANT pv;
+    if (SUCCEEDED(hr)) hr = InitPropVariantFromString(appId.c_str(), &pv);
+    if (FAILED(hr)) return hr;
+    hr = props->SetValue(PKEY_AppUserModel_ID, pv);
+    PropVariantClear(&pv);
+    if (SUCCEEDED(hr) && quiet) {
+        InitPropVariantFromBoolean(TRUE, &pv);
+        hr = props->SetValue(PKEY_AppUserModel_ExcludeFromShowInNewInstall, pv);
+        PropVariantClear(&pv);
+    }
+    if (SUCCEEDED(hr)) hr = props->Commit();
+    return hr;
+}
+
+// `quiet`: a shortcut ShadeTube makes on its own (portable copy), see ensureStartShortcut(). Under a test AUMID with the
+// real Start menu folder (leaveRealShortcut) the link gets no AUMID: the real app stamps its own on its next start.
+void createShortcut(const fs::path& lnk, const fs::path& exe, bool quiet = false) {
     ComScope com;
     std::error_code ec;
     fs::create_directories(lnk.parent_path(), ec);
@@ -111,12 +125,42 @@ void createShortcut(const fs::path& lnk, const fs::path& exe) {
     if (SUCCEEDED(hr)) hr = link->SetWorkingDirectory(exe.parent_path().c_str());
     if (SUCCEEDED(hr)) hr = link->SetDescription(tr(L"ShadeTube müzik çalar"));
     if (SUCCEEDED(hr)) hr = link->SetIconLocation(exe.c_str(), 0);
+    // The windows carry the same AppUserModelID: the taskbar pins / groups them with this shortcut, and the media
+    // flyout takes the app's name and icon from it. Without it the shortcut still starts the app.
+    if (SUCCEEDED(hr) && !leaveRealShortcut())
+        if (const HRESULT id = setLinkAppId(link.Get(), appUserModelId(), quiet); FAILED(id))
+            ST_LOG_WARN("install", "shortcut AppUserModelID not set (0x{:08X})", static_cast<unsigned>(id));
     ComPtr<IPersistFile> file;
     if (SUCCEEDED(hr)) hr = link.As(&file);
     if (SUCCEEDED(hr)) hr = file->Save(lnk.c_str(), TRUE);
     if (FAILED(hr))
         fail(i18n::format(tr(L"Başlat menüsü kısayolu oluşturulamadı ({})."), {std::format(L"0x{:08X}", static_cast<unsigned>(hr))}));
     SHChangeNotify(SHCNE_CREATE, SHCNF_PATHW | SHCNF_FLUSHNOWAIT, lnk.c_str(), nullptr);
+}
+
+// Adds the AUMID to an existing shortcut (installed by a version that did not set it). True when it carries it now.
+bool stampShortcut(const fs::path& lnk) {
+    ComScope com;
+    ComPtr<IShellLinkW> link;
+    ComPtr<IPersistFile> file;
+    HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&link));
+    if (SUCCEEDED(hr)) hr = link.As(&file);
+    if (SUCCEEDED(hr)) hr = file->Load(lnk.c_str(), STGM_READWRITE);
+    if (SUCCEEDED(hr)) hr = setLinkAppId(link.Get(), appUserModelId(), false);
+    if (SUCCEEDED(hr)) hr = file->Save(lnk.c_str(), TRUE);
+    if (FAILED(hr)) {
+        ST_LOG_WARN("install", "shortcut AppUserModelID not set (0x{:08X})", static_cast<unsigned>(hr));
+        return false;
+    }
+    SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW | SHCNF_FLUSHNOWAIT, lnk.c_str(), nullptr);
+    return true;
+}
+
+// Installer tests redirect the locations; unless they also give a test AUMID they must not touch the real identity.
+bool testLocationsWithoutTestAppId() {
+    const bool redirected = !env(L"SHADETUBE_INSTALL_DIR").empty() || !env(L"SHADETUBE_SHORTCUT_DIR").empty() ||
+                            !env(L"SHADETUBE_UNINSTALL_KEY").empty();
+    return redirected && !appUserModelIdOverridden();
 }
 
 std::wstring regString(HKEY key, const wchar_t* name) {
@@ -370,6 +414,16 @@ bool closeInstances(const std::vector<Instance>& instances) {
 
 } // namespace
 
+std::wstring instanceClass() {
+    const std::wstring c = env(L"SHADETUBE_INSTANCE_CLASS");
+    return c.empty() ? std::wstring(kWindowClass) : c;
+}
+
+std::wstring instanceMutex() {
+    const std::wstring m = env(L"SHADETUBE_INSTANCE_MUTEX");
+    return m.empty() ? std::wstring(kMutexName) : m;
+}
+
 // ---- Locations / registration ---------------------------------------------------------------------------------
 
 Locations locations() {
@@ -525,6 +579,12 @@ void install(const fs::path& sourceExe) {
 void unregister() {
     const Locations loc = locations();
     if (DeleteFileW(loc.shortcut.c_str())) SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW | SHCNF_FLUSHNOWAIT, loc.shortcut.c_str(), nullptr);
+    // The identity (key, <data>\shell, jump list) is shared by every copy: another ShadeTube that keeps running (a
+    // portable copy while the installed one goes) still uses it, and registers it again at its next start anyway.
+    if (!testLocationsWithoutTestAppId()) {
+        if (runningInstances().empty()) unregisterAppIdentity();
+        else ST_LOG_INFO("install", "app identity kept: another ShadeTube is running");
+    }
     // RegDeleteKeyW removes only this (value-only) key; locations() guarantees a non-empty sub key with a parent.
     const LSTATUS st = RegDeleteKeyW(HKEY_CURRENT_USER, loc.uninstallKey.c_str());
     if (st != ERROR_SUCCESS && st != ERROR_FILE_NOT_FOUND)
@@ -648,6 +708,121 @@ int runUninstallCommand() {
     log::shutdown();
     if (SUCCEEDED(com)) CoUninitialize();
     return code;
+}
+
+// ---- App identity ---------------------------------------------------------------------------------------------
+
+std::wstring appUserModelId() {
+    const std::wstring id = env(L"SHADETUBE_AUMID");
+    if (id.empty()) return kAppUserModelId;
+    // An AUMID is at most 128 characters without spaces; it also names a registry key here, so no backslash either.
+    const bool valid = id.size() <= 128 && id.find_first_of(L" \\/\t") == std::wstring::npos;
+    return valid ? id : std::wstring(kAppUserModelId) + L".InvalidOverride";
+}
+
+bool appUserModelIdOverridden() { return !env(L"SHADETUBE_AUMID").empty(); }
+
+bool leaveRealShortcut() { return appUserModelIdOverridden() && env(L"SHADETUBE_SHORTCUT_DIR").empty(); }
+
+std::wstring appIdKey() { return L"Software\\Classes\\AppUserModelId\\" + appUserModelId(); }
+
+fs::path shellDir() { return paths::appData() / L"shell"; }
+
+AppIdentity readAppIdentity() {
+    AppIdentity a;
+    HKEY key = nullptr;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, appIdKey().c_str(), 0, KEY_READ, &key) != ERROR_SUCCESS) return a;
+    a.exists = true;
+    a.displayName = regString(key, L"DisplayName");
+    a.iconUri = regString(key, L"IconUri");
+    RegCloseKey(key);
+    return a;
+}
+
+bool registerAppIdentity(const fs::path& iconPng) {
+    const AppIdentity now = readAppIdentity();
+    const std::wstring icon = iconPng.wstring();
+    if (now.exists && now.displayName == L"ShadeTube" && now.iconUri == icon) return false;
+    HKEY key = nullptr;
+    LSTATUS st = RegCreateKeyExW(HKEY_CURRENT_USER, appIdKey().c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr,
+                                 &key, nullptr);
+    if (st != ERROR_SUCCESS) {
+        ST_LOG_WARN("identity", "AppUserModelId key not written: {}", toUtf8(winError(static_cast<DWORD>(st))));
+        return false;
+    }
+    auto sz = [&](const wchar_t* name, const std::wstring& value) {
+        const LSTATUS s = RegSetValueExW(key, name, 0, REG_SZ, reinterpret_cast<const BYTE*>(value.c_str()),
+                                         static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
+        if (s != ERROR_SUCCESS) st = s;
+    };
+    sz(L"DisplayName", L"ShadeTube");   // brand name, never translated
+    sz(L"IconUri", icon);
+    RegCloseKey(key);
+    if (st != ERROR_SUCCESS) ST_LOG_WARN("identity", "AppUserModelId values not written: {}", toUtf8(winError(static_cast<DWORD>(st))));
+    return st == ERROR_SUCCESS;
+}
+
+void unregisterAppIdentity() {
+    // RegDeleteTreeW on exactly our key (appUserModelId() is never empty and has no backslash).
+    const LSTATUS st = RegDeleteTreeW(HKEY_CURRENT_USER, appIdKey().c_str());
+    if (st != ERROR_SUCCESS && st != ERROR_FILE_NOT_FOUND)
+        ST_LOG_WARN("identity", "AppUserModelId key not removed: {}", toUtf8(winError(static_cast<DWORD>(st))));
+    std::error_code ec;
+    fs::remove_all(shellDir(), ec);
+    ComScope com;
+    ComPtr<ICustomDestinationList> list;
+    if (SUCCEEDED(CoCreateInstance(CLSID_DestinationList, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&list))))
+        list->DeleteList(appUserModelId().c_str());
+    ST_LOG_INFO("identity", "app identity removed ({})", toUtf8(appUserModelId()));
+}
+
+std::wstring shortcutAppId(const fs::path& lnk) {
+    ComScope com;
+    ComPtr<IShellLinkW> link;
+    ComPtr<IPersistFile> file;
+    ComPtr<IPropertyStore> props;
+    if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&link))) || FAILED(link.As(&file)) ||
+        FAILED(file->Load(lnk.c_str(), STGM_READ)) || FAILED(link.As(&props)))
+        return {};
+    PROPVARIANT pv;
+    PropVariantInit(&pv);
+    std::wstring id;
+    if (SUCCEEDED(props->GetValue(PKEY_AppUserModel_ID, &pv)) && pv.vt == VT_LPWSTR && pv.pwszVal) id = pv.pwszVal;
+    PropVariantClear(&pv);
+    return id;
+}
+
+ShortcutAction ensureStartShortcut(const fs::path& exe) {
+    if (leaveRealShortcut()) return ShortcutAction::None;   // a test AUMID never goes into the user's real shortcut
+    const Locations loc = locations();
+    const fs::path marker = shellDir() / L"start-shortcut.flag";
+    std::error_code ec;
+    const bool exists = fs::exists(loc.shortcut, ec);
+    const fs::path target = exists ? shortcutTarget(loc.shortcut) : fs::path{};
+    const bool stamped = exists && shortcutAppId(loc.shortcut) == appUserModelId();
+    const auto stamp = [&] { return !stamped && stampShortcut(loc.shortcut) ? ShortcutAction::Stamped : ShortcutAction::None; };
+    try {
+        if (const auto installed = installedExe()) {
+            // The installer's shortcut: an older version created it without the AUMID.
+            return exists && !target.empty() && samePath(target, *installed) ? stamp() : ShortcutAction::None;
+        }
+        if (!exists) {
+            if (fs::exists(marker, ec)) return ShortcutAction::None;   // created once, removed by the user since
+            createShortcut(loc.shortcut, exe, true);
+            fs::create_directories(marker.parent_path(), ec);
+            std::ofstream(marker) << "1";
+            ST_LOG_INFO("identity", "Start menu shortcut created for {}", toUtf8(exe.wstring()));
+            return ShortcutAction::Created;
+        }
+        if (target.empty()) return ShortcutAction::None;   // unreadable: not ours to rewrite
+        if (samePath(target, exe) || fs::exists(target, ec)) return stamp();
+        createShortcut(loc.shortcut, exe, true);   // its portable copy was moved or deleted: point it at this one
+        ST_LOG_INFO("identity", "Start menu shortcut now points at {}", toUtf8(exe.wstring()));
+        return ShortcutAction::Retargeted;
+    } catch (const std::exception& e) {
+        ST_LOG_WARN("identity", "Start menu shortcut not written: {}", e.what());
+        return ShortcutAction::None;
+    }
 }
 
 } // namespace st::app::installer

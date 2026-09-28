@@ -1,7 +1,8 @@
 #pragma once
 // Artwork cache: URL -> disk cache -> WIC decode scaled to the requested pixel bucket (worker thread)
 // -> D2D bitmap (UI thread) in a GPU LRU bounded by a byte budget. "file:///" URLs (local music covers) are read
-// from the file itself (no disk-cache copy).
+// from the file itself (no disk-cache copy). Downloads are bounded in size and time and refuse audio / video / HTML
+// responses and local-network hosts: station logos come from a public directory anyone can submit to.
 //
 // request() is called from paint(): it returns the bitmap when ready, otherwise schedules the load
 // once and returns nullptr (the caller paints a placeholder). Requests not repeated for ~2 s (widget

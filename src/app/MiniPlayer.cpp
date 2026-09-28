@@ -2,6 +2,8 @@
 
 #include "app/AppContext.h"
 #include "app/Components.h"
+#include "app/InternetRadio.h"
+#include "app/Shell.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Settings.h"
@@ -113,8 +115,10 @@ public:
     void sync() {
         auto* p = ctx().player;
         const auto* t = p ? p->current() : nullptr;
-        title_.setText(t ? toWide(t->name) : std::wstring(tr(L"Çalan şarkı yok")));
-        artist_.setText(t ? toWide(t->artistLine()) : std::wstring(tr(L"Bir şarkı seçtiğinde burada görünür")));
+        // A station: the song it announces (ICY) over the station name, else the station over its country / genres.
+        const std::wstring song = t && radio::isStationId(t->id) ? p->liveTitle() : std::wstring();
+        title_.setText(!t ? std::wstring(tr(L"Çalan şarkı yok")) : song.empty() ? toWide(t->name) : song);
+        artist_.setText(!t ? std::wstring(tr(L"Bir şarkı seçtiğinde burada görünür")) : song.empty() ? toWide(t->artistLine()) : toWide(t->name));
         const bool playing = p && p->isPlaying();
         play_->setPlaying(playing);
         play_->setLoading(p && p->status() == player::Status::Resolving);
@@ -166,19 +170,23 @@ public:
         // Raised surface + a faint accent wash from the artwork (no blur: this window stays cheap).
         c.fillRect(r, col.bgRaised);
         c.fillRadialGradient(r, {art_.cx(), art_.cy()}, 240, acc.tint12, acc.tint12.withAlpha(0));
-        drawArtwork(c, t ? t->album.images : std::vector<catalog::Image>{}, art_, 2);
+        const bool live = t && radio::isStationId(t->id);
+        if (live) drawStationArt(c, t->album.images, art_, 2);
+        else drawArtwork(c, t ? t->album.images : std::vector<catalog::Image>{}, art_, 2);
         c.text(title_, titleRect_, t ? col.fgPrimary : col.fgSecondary, gfx::VAlign::Center);
         c.text(artist_, artistRect_, col.fgSecondary, gfx::VAlign::Center);
 
         const int64_t pos = p ? p->positionMs() : 0;
         int64_t dur = p ? p->durationMs() : 0;
         if (dur <= 0 && t) dur = t->durationMs;   // engine duration unknown until the stream opens
-        if (t) {
+        if (live) {
+            drawLiveBadge(c, {timeRect_.x, timeRect_.cy()}, p->isPlaying());   // a stream has no times
+        } else if (t) {
             time_.setText(ui::formatDuration(pos) + L" / " + ui::formatDuration(dur));
             c.text(time_, timeRect_, col.fgTertiary, gfx::VAlign::Center);
         }
-        // 2 px progress line on the bottom edge (spec: seek 2px at bottom edge).
-        const float frac = dur > 0 ? std::clamp(static_cast<float>(pos) / static_cast<float>(dur), 0.f, 1.f) : 0.f;
+        // 2 px progress line on the bottom edge (spec: seek 2px at bottom edge); just the track for a stream.
+        const float frac = !live && dur > 0 ? std::clamp(static_cast<float>(pos) / static_cast<float>(dur), 0.f, 1.f) : 0.f;
         c.fillRect({r.x, r.bottom() - 2, r.w, 2}, col.hairDefault);
         if (frac > 0) c.fillRect({r.x, r.bottom() - 2, r.w * frac, 2}, acc.base);
         paintChildren(c);

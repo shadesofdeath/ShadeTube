@@ -169,5 +169,8 @@ void buildAltSourceRows(ui::Column* c, const std::function<void()>& rebuild);   
 void buildBlacklistSection(ui::Column* c, const std::function<void()>& rebuild);      // KARA LİSTE (app/PlaybackSettings.cpp)
 void buildLocalFilesSection(ui::Column* c, const std::function<void()>& rebuild);     // YEREL MÜZİK (app/LocalFilesPage.cpp)
 void buildAboutSection(ui::Column* c, const std::function<void()>& rebuild);          // HAKKINDA  (app/AboutSettings.cpp)
+void buildAudioRows(ui::Column* c, const std::function<void()>& rebuild);             // SES       (app/AudioSettings.cpp)
+void buildStartupRows(ui::Column* c, const std::function<void()>& rebuild);           // PENCERE   (app/SystemSettings.cpp)
+void buildShortcutRows(ui::Column* c, const std::function<void()>& rebuild);          // KLAVYE    (app/SystemSettings.cpp)
 
 } // namespace st::app

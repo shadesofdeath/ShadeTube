@@ -2,6 +2,7 @@
 // User settings persisted as JSON in %LOCALAPPDATA%\ShadeTube\settings.json.
 // Access from the UI thread only. Call markDirty() after changes; App flushes with a debounce.
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,14 @@ struct Settings {
     AudioQuality quality = AudioQuality::High;
     bool normalizeVolume = true;
     bool preloadNext = true;
+    // Equalizer (audio engine DSP): 10 peaking bands 31 Hz .. 16 kHz in dB, a preamp, and the preset they came from
+    // ("custom" once edited). eqGains is empty or exactly 10 values.
+    bool eqEnabled = false;
+    std::string eqPreset = "flat";
+    std::vector<float> eqGains;
+    float eqPreampDb = 0;
+    int crossfadeSec = 0;                // 0 = gapless handoff, 1..12 = crossfade between tracks
+    std::string outputDeviceId;          // WASAPI endpoint id; "" = follow the Windows default device
 
     // Appearance
     AccentMode accentMode = AccentMode::Dynamic;
@@ -55,6 +64,10 @@ struct Settings {
     int64_t lastUpdateCheck = 0;         // unix seconds
     std::string skippedVersion;
     bool closeToTray = false;
+    bool startWithWindows = false;       // HKCU Run entry
+    bool startInTray = false;            // launched by Windows at sign-in: start hidden in the tray
+    // Keyboard shortcuts: action id -> key combo ("Ctrl+Shift+Right"); missing = the built-in default.
+    std::map<std::string, std::string> shortcuts;
     std::string language;                // UI language code (core/I18n); "" = Windows' display language
     std::string region = "TR";
 

@@ -34,6 +34,7 @@ private:
     void paintBackdrop(Canvas& c, const Rect& r);
     void paintArtShadow(Canvas& c);
     void paintLyrics(Canvas& c, const Rect& r);
+    void paintLive(Canvas& c, const Rect& r);   // internet radio: heard titles instead of lyrics
     float lineHeight(int i, float width);
     int lineAt(gfx::Point p) const;
 
@@ -70,6 +71,7 @@ private:
     double openedAt_ = 0;                // ui::frame::realNow() at activate()
     bool trimmed_ = true;                // the settle trim ran for this opening (see paint)
     gfx::Text title_, subtitle_, meta_;
+    gfx::Text liveNow_;                  // internet radio: the song on air in the heard-titles list
 };
 
 } // namespace st::app

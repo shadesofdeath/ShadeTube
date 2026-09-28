@@ -1,6 +1,7 @@
 // ShadeTube entry point: process setup (DPI, COM, logging, services) then App::run().
 #include "app/App.h"
 #include "app/Installer.h"
+#include "app/WinShell.h"
 #include "core/CrashHandler.h"
 #include "core/Dispatcher.h"
 #include "core/I18n.h"
@@ -12,6 +13,7 @@
 #include "gfx/Text.h"
 #include "gfx/Theme.h"
 #include "ui/Anim.h"
+#include "ui/Window.h"
 
 #include <windows.h>
 #include <shellapi.h>
@@ -39,6 +41,7 @@ static st::app::LaunchOptions parseArgs() {
         else if (a == L"--download" && i + 1 < argc) o.download = st::toUtf8(argv[++i]);
         else if (a == L"--route" && i + 1 < argc) o.route = st::toUtf8(argv[++i]);
         else if (a == L"--mini") o.mini = true;
+        else if (a == L"--command" && i + 1 < argc) o.command = st::app::winshell::parseCommand(argv[++i]);
         else if (a == L"--crash-test") o.crashTest = true;
         else if (a == L"--restart-after" && i + 1 < argc) o.restartAfterPid = static_cast<DWORD>(_wtoi(argv[++i]));
         else if (a == L"--theme" && i + 1 < argc) {
@@ -63,6 +66,8 @@ static st::app::LaunchOptions parseArgs() {
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     HeapSetInformation(nullptr, HeapEnableTerminationOnCorruption, nullptr, 0);
+    // The app's AppUserModelID, before any window exists: taskbar grouping, jump list, media session attribution.
+    const bool appIdSet = st::app::winshell::setProcessAppId();
     st::crash::install();   // minidump on a crash (%LOCALAPPDATA%\ShadeTube\crashes)
     const auto options = parseArgs();
     // Restart (Ayarlar > Dil): let the old instance finish saving and release the single-instance mutex first.
@@ -78,35 +83,73 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     // `ShadeTube.exe --uninstall [--quiet]`: Windows "Yüklü uygulamalar" > Kaldır. Before the single-instance check, no app UI.
     if (st::app::installer::uninstallRequested()) return st::app::installer::runUninstallCommand();
 
-    // Single instance (dev flags excepted): bring the running instance back instead.
+    // Single instance (dev flags excepted): bring the running instance back instead. The window class and the mutex
+    // come from installer::instanceClass() / instanceMutex(): tests give a sandboxed pair of instances their own.
+    const std::wstring windowClass = st::app::installer::instanceClass();
+    st::ui::Window::setClassName(windowClass);
     HANDLE mutex = nullptr;
+    bool running = false;
     if (!options.preview && options.screenshotAfterMs == 0) {
-        mutex = CreateMutexW(nullptr, TRUE, L"Local\\ShadeTube.SingleInstance");
-        if (GetLastError() == ERROR_ALREADY_EXISTS) {
-            // The running instance may be hidden in the tray or replaced by the mini player, so a plain
-            // ShowWindow/SetForegroundWindow from here would desync it: ask it to restore itself (App answers
-            // kActivateMessage with the mini player if open, else the main window). FindWindow also finds hidden
-            // windows; the main window is titled exactly "ShadeTube" (the mini player is "ShadeTube Mini").
-            HWND other = FindWindowW(L"ShadeTube.Window", L"ShadeTube");
-            if (!other) other = FindWindowW(L"ShadeTube.Window", nullptr);
-            if (other) {
-                DWORD pid = 0;
-                GetWindowThreadProcessId(other, &pid);
-                if (pid) AllowSetForegroundWindow(pid);   // this launch owns the foreground right: hand it over
-                if (const UINT msg = RegisterWindowMessageW(st::app::kActivateMessage)) PostMessageW(other, msg, 0, 0);
-                if (IsWindowVisible(other)) {             // visible: also restore directly (older instances)
-                    if (IsIconic(other)) ShowWindow(other, SW_RESTORE);
-                    SetForegroundWindow(other);
-                }
+        const std::wstring mutexName = st::app::installer::instanceMutex();
+        mutex = CreateMutexW(nullptr, TRUE, mutexName.c_str());
+        running = GetLastError() == ERROR_ALREADY_EXISTS;
+        if (!mutex && GetLastError() == ERROR_ACCESS_DENIED) {
+            // Created by an elevated ShadeTube (its default DACL gives us no full access; Explorer starts jump-list
+            // tasks at medium integrity): it is running. A wait-only handle still tells when it exits.
+            running = true;
+            mutex = OpenMutexW(SYNCHRONIZE, FALSE, mutexName.c_str());
+        }
+    }
+    // A jump-list task (`--command play-pause` ...) goes to the running instance, no UI of our own. That instance may
+    // not have its window yet (starting) or not any more (exiting): keep looking for a few seconds, and when it exits
+    // meanwhile (its mutex comes to us, abandoned at its exit), be the instance and carry the command out after startup.
+    if (running && options.command != st::app::winshell::Command::None) {
+        bool owned = false;
+        for (const ULONGLONG until = GetTickCount64() + 10000;;) {
+            if (st::app::winshell::forwardCommand(options.command, windowClass.c_str())) break;
+            if (mutex) {
+                const DWORD w = WaitForSingleObject(mutex, 100);
+                owned = w == WAIT_OBJECT_0 || w == WAIT_ABANDONED;
+                if (owned) break;
+            } else {
+                Sleep(100);
             }
+            if (GetTickCount64() >= until) break;
+        }
+        if (!owned) {
             if (mutex) CloseHandle(mutex);
             return 0;
         }
+        running = false;
+        settings.load();   // what the exited instance saved on its way out
+    }
+    if (running) {
+        // The running instance may be hidden in the tray or replaced by the mini player, so a plain
+        // ShowWindow/SetForegroundWindow from here would desync it: ask it to restore itself (App answers
+        // kActivateMessage with the mini player if open, else the main window). FindWindow also finds hidden
+        // windows; the main window is titled exactly "ShadeTube" (the mini player is "ShadeTube Mini").
+        HWND other = FindWindowW(windowClass.c_str(), L"ShadeTube");
+        if (!other) other = FindWindowW(windowClass.c_str(), nullptr);
+        if (other) {
+            DWORD pid = 0;
+            GetWindowThreadProcessId(other, &pid);
+            if (pid) AllowSetForegroundWindow(pid);   // this launch owns the foreground right: hand it over
+            if (const UINT msg = RegisterWindowMessageW(st::app::kActivateMessage)) PostMessageW(other, msg, 0, 0);
+            if (IsWindowVisible(other)) {             // visible: also restore directly (older instances)
+                if (IsIconic(other)) ShowWindow(other, SW_RESTORE);
+                SetForegroundWindow(other);
+            }
+        }
+        if (mutex) CloseHandle(mutex);
+        return 0;
     }
 
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     st::log::init();
-    ST_LOG_INFO("app", "ShadeTube starting");
+    ST_LOG_INFO("app", "ShadeTube starting (AppUserModelID {})",
+                appIdSet                                    ? st::toUtf8(st::app::installer::appUserModelId())
+                : st::app::winshell::registrationAllowed() ? std::string("not set: SetCurrentProcessExplicitAppUserModelID failed")
+                                                            : std::string("Windows default: sandbox profile"));
     if (options.crashTest) st::crash::crashForTest();
     st::ui::motion::setReduced(settings.reduceMotion);
 

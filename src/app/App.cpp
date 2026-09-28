@@ -1,5 +1,6 @@
 #include "app/App.h"
 
+#include "app/InternetRadio.h"
 #include "app/LoginWindow.h"
 #include "app/NowPlaying.h"
 #include "app/PageWidgets.h"
@@ -35,6 +36,17 @@ namespace type = gfx::type;
 
 namespace {
 constexpr int kHotkeyPlay = 1, kHotkeyNext = 2, kHotkeyPrev = 3, kHotkeyStop = 4;
+
+// A station as the media flyout and Discord show it: the song it announces (ICY "Artist - Title") with the station
+// as the artist, else the station itself (its artist line is "Country · genres").
+catalog::Track liveDisplay(const catalog::Track& station, const std::wstring& song) {
+    if (song.empty()) return station;
+    catalog::Track t = station;
+    t.name = toUtf8(song);
+    t.artists = {{"", station.name}};
+    t.album.name = station.name;
+    return t;
+}
 
 // "03:42 · SKOR 87" (+ " · ELLE SEÇİLDİ" for a pinned pick) under a candidate.
 std::wstring candidateMeta(const youtube::Match& m) {
@@ -153,6 +165,13 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     // A second launch (main.cpp) posts this to bring the running instance back from the tray / mini player.
     activateMsg_ = RegisterWindowMessageW(kActivateMessage);
     if (activateMsg_) ChangeWindowMessageFilterEx(window_->hwnd(), activateMsg_, MSGFLT_ALLOW, nullptr);
+    // Shell identity (AppUserModelID + pinning properties) before anything binds to the window (SMTC below), the
+    // commands of jump-list tasks started while this instance runs, and the taskbar thumbnail buttons.
+    winshell::setWindowIdentity(window_->hwnd());
+    commandMsg_ = RegisterWindowMessageW(winshell::kCommandMessage);
+    if (commandMsg_) ChangeWindowMessageFilterEx(window_->hwnd(), commandMsg_, MSGFLT_ALLOW, nullptr);
+    thumbBar_ = std::make_unique<winshell::ThumbBar>(window_->hwnd());
+    thumbBar_->onCommand = [this](winshell::Command cmd) { runCommand(cmd); };
 
     window_->onKey = [this](const ui::KeyEvent& e) { return handleKey(e); };
     window_->onNavButton = [](ui::MouseButton b) {
@@ -175,8 +194,13 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         quit();
     };
     window_->onMessage = [this](UINT msg, WPARAM wp, LPARAM lp) {
+        if (thumbBar_ && thumbBar_->handleMessage(msg, wp, lp)) return;
         if (activateMsg_ && msg == activateMsg_) {
             postActivate();
+            return;
+        }
+        if (commandMsg_ && msg == commandMsg_) {
+            postCommand(static_cast<winshell::Command>(wp));
             return;
         }
         if (msg == WM_ENDSESSION && wp) {   // logoff / shutdown: the process may end right after this message
@@ -186,6 +210,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         // Windows' light/dark app mode changed (also broadcast to hidden windows, so this works from the tray).
         // Windows sends a burst of these: applyTheme() is idempotent and runs outside the message.
         if (msg == WM_SETTINGCHANGE && lp && CompareStringOrdinal(reinterpret_cast<LPCWSTR>(lp), -1, L"ImmersiveColorSet", -1, TRUE) == CSTR_EQUAL) {
+            winshell::refreshJumpList();   // task icons follow Windows' own mode, whatever the app theme is
             if (themeMode() == ThemeMode::System)
                 Dispatcher::post([this, ref = life_.ref()] {
                     if (!ref.expired()) applyTheme();
@@ -273,6 +298,10 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         if (shell_) shell_->setConnect(on);
     };
     c.logoutSpotify = [this] {
+        // Logging out stops the music (the queue came from that account) and leaves Now Playing, then shows the
+        // connect screen over everything.
+        if (player_ && player_->isPlaying()) player_->pause();
+        if (shell_) shell_->setNowPlaying(false);
         session_->logout();
         if (shell_) shell_->setConnect(true);
     };
@@ -282,13 +311,14 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     showShell();
     window_->show();
     syncTray();
+    syncThumbBar();
     // Toast routing for when the main window is not on screen (see toast()): the mini player's compact toast, else a
     // tray notification. Wired only now so startup toasts still land in the main window.
     c.miniToast = [this](const std::wstring& message, bool error) { return mini_ && mini_->showToast(message, error); };
     c.trayBalloon = [this](const std::wstring& title, const std::wstring& text, bool error) {
         if (tray_) tray_->balloon(title, text, error);
     };
-    if (options_.mini)
+    if (options_.mini || options_.command == winshell::Command::Mini)
         Dispatcher::post([this, ref = life_.ref()] {
             if (!ref.expired()) openMini();
         });
@@ -334,11 +364,14 @@ App::~App() {
     c.restartApp = nullptr;
     c.quitApp = nullptr;
     gfx::ImageCache::get().onLoaded = nullptr;
+    if (mini_) winshell::clearWindowIdentity(mini_->hwnd());
     mini_.reset();
     tray_.reset();   // NIM_DELETE: no ghost icon left in the notification area
     if (mediaHotkeys_)
         for (int id : {kHotkeyPlay, kHotkeyNext, kHotkeyPrev, kHotkeyStop}) UnregisterHotKey(window_->hwnd(), id);
     c.router = nullptr;
+    thumbBar_.reset();
+    winshell::clearWindowIdentity(window_->hwnd());
     window_.reset();
     c.window = nullptr;
     player_.reset();
@@ -405,6 +438,8 @@ void App::showShell() {
     else if (options_.route == "downloads") start = {RouteKind::Downloads};
     else if (options_.route == "stats") start = {RouteKind::Stats};
     else if (options_.route == "local") start = {RouteKind::LocalFiles};
+    else if (options_.route == "radio") start = {RouteKind::Radio};
+    else if (options_.route.rfind("radio:", 0) == 0) start = {RouteKind::Radio, options_.route.substr(6)};
     else if (options_.route == "settings") start = {RouteKind::Settings};
     else if (options_.route.rfind("settings:", 0) == 0) start = {RouteKind::Settings, options_.route.substr(9)};
     startRoute_ = start;
@@ -420,6 +455,10 @@ void App::showShell() {
         player_->playContext({t}, 0, {"preview", tr(L"Önizleme")});
     }
     if (options_.route == "nowplaying") Dispatcher::post([this] { ctx().toggleNowPlaying(true); });
+    // A jump-list task started this instance (no ShadeTube was running): carry it out on the restored queue. (The mini
+    // player command opens it from the constructor, like --mini.)
+    if (options_.command != winshell::Command::None && options_.command != winshell::Command::Mini)
+        postCommand(options_.command);
     // The previous run crashed: say so once (a dev capture leaves the marker for the next real launch).
     if (options_.screenshotAfterMs <= 0) {
         if (auto dump = crash::takeUnreportedCrash()) {
@@ -452,6 +491,7 @@ void App::wirePlayer() {
             sponsor_.setVideo(m ? m->videoId : std::string{}, m ? m->durationSec * 1000LL : 0);
         }
         syncSmtc();
+        syncThumbBar();
         // End of the queue is Status::Idle (current() is kept), so treat Idle as "stopped" for scrobbling.
         if (scrobbler_ && (!player_->current() || player_->status() == player::Status::Idle)) scrobbler_->onStopped();
         syncDiscord();   // pause / resume / stop / error -> presence follows playback
@@ -477,14 +517,21 @@ void App::wirePlayer() {
         }
         syncAccent(t);
         syncSmtc();
+        syncThumbBar();
         if (mini_) mini_->sync();
         syncTray();
-        ctx().library.recordPlay(t);
+        // A radio station is no song: it stays out of the play history (the Radyo page keeps its own recently played)
+        // and is never scrobbled (hours of a station would count as one play of "the station by its country").
+        const bool station = radio::isStationId(t.id);
+        if (!station) ctx().library.recordPlay(t);
         if (shell_) {
             if (auto* np = shell_->nowPlayingView(); np && np->visible()) np->onTrackChanged();
         }
         player_->saveSession();
-        if (scrobbler_) scrobbler_->onTrackStarted(scrobbleTrackFrom(t));
+        if (scrobbler_) {
+            if (station) scrobbler_->onStopped();
+            else scrobbler_->onTrackStarted(scrobbleTrackFrom(t));
+        }
         syncDiscord();
         for (auto& hook : ctx().trackChangedHooks) hook(t);
     };
@@ -508,7 +555,7 @@ void App::syncSmtc() {
         smtc_->clear();
         return;
     }
-    smtc_->setTrack(*t);
+    smtc_->setTrack(player_->isLive() ? liveDisplay(*t, player_->liveTitle()) : *t);
     // Resolving is reported as Playing on purpose: the flyout then offers Pause (Play while resolving would
     // restart the resolve).
     smtc_->setPlaying(player_->isPlaying() || player_->status() == player::Status::Resolving);
@@ -532,8 +579,10 @@ void App::syncDiscord() {
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     const int64_t start = nowMs - std::max<int64_t>(0, player_->positionMs());
     const int64_t dur = player_->durationMs() > 0 ? player_->durationMs() : t->durationMs;
-    const auto* img = catalog::pickImage(t->album.images, 300);
-    discord_->setActivity(t->name, t->artistLine(), t->album.name, img ? img->url : std::string{}, start,
+    // A station: its song (or its name) with the elapsed listening time, no end.
+    const catalog::Track shown = player_->isLive() ? liveDisplay(*t, player_->liveTitle()) : *t;
+    const auto* img = catalog::pickImage(shown.album.images, 300);
+    discord_->setActivity(shown.name, shown.artistLine(), shown.album.name, img ? img->url : std::string{}, start,
                           dur > 0 ? start + dur : 0);
 }
 
@@ -584,6 +633,7 @@ void App::syncAccent(const catalog::Track& t) {
 }
 
 void App::showMatchPicker(const catalog::Track& track) {
+    if (radio::isStationId(track.id)) return;   // a radio station streams from the station: nothing matched on YouTube
     auto* d = ui::Dialog::open(window_.get(), tr(L"Yanlış eşleşme mi?"),
                                i18n::format(tr(L"\"{}\" için YouTube'da bulunan adaylar. Seçtiğin video bu şarkı için "
                                                L"kalıcı olarak kullanılır."),
@@ -653,7 +703,11 @@ bool App::handleKey(const ui::KeyEvent& e) {
             return true;
         }
         if (e.ctrl && e.vk == 'L') {
-            if (auto* t = p->current()) ctx().library.toggleLiked(*t);
+            if (auto* t = p->current()) {
+                // A station: the like is the radio favorite (like the player bar's heart).
+                if (!radio::isStationId(t->id)) ctx().library.toggleLiked(*t);
+                else if (const auto* s = radio::store().find(radio::uuidOf(t->id))) radio::store().toggleFavorite(*s);
+            }
             return true;
         }
         return false;
@@ -726,10 +780,13 @@ void App::openMini() {
             mini_ = std::make_unique<MiniPlayer>(window_->hwnd());
             mini_->onExpand = [this] { closeMini(); };
             mini_->onClose = [this] { closeMini(); };
-            mini_->onMessage = [this](UINT msg, WPARAM, LPARAM) {
+            mini_->onMessage = [this](UINT msg, WPARAM wp, LPARAM) {
                 if (activateMsg_ && msg == activateMsg_) postActivate();
+                if (commandMsg_ && msg == commandMsg_) postCommand(static_cast<winshell::Command>(wp));
             };
             if (activateMsg_) ChangeWindowMessageFilterEx(mini_->hwnd(), activateMsg_, MSGFLT_ALLOW, nullptr);
+            if (commandMsg_) ChangeWindowMessageFilterEx(mini_->hwnd(), commandMsg_, MSGFLT_ALLOW, nullptr);
+            winshell::setWindowIdentity(mini_->hwnd());   // the same app for the shell (grouping, pinning)
         }
         mini_->sync();
         mini_->show();   // first, so activation moves straight to the mini player instead of another app
@@ -750,6 +807,7 @@ void App::closeMini() {
     if (!mini_) return;
     showMain();      // first, so activation goes back to the main window rather than another app
     mini_->hide();   // stores the position
+    winshell::clearWindowIdentity(mini_->hwnd());
     // This usually runs inside the mini window's own message handler (button click / WM_CLOSE): destroy it once
     // that handler has returned. The closure owns it until the dispatcher has run.
     std::shared_ptr<MiniPlayer> dying(std::move(mini_));
@@ -792,6 +850,36 @@ void App::activate() {
 void App::postActivate() {
     Dispatcher::post([this, ref = life_.ref()] {
         if (!ref.expired()) activate();
+    });
+}
+
+void App::runCommand(winshell::Command c) {
+    switch (c) {
+    case winshell::Command::PlayPause:
+        // The rule the button shows (and SMTC uses): resolving counts as playing, so this pauses instead of
+        // restarting the resolve.
+        if (!player_) break;
+        if (player_->isPlaying() || player_->status() == player::Status::Resolving) player_->pause();
+        else player_->play();
+        break;
+    case winshell::Command::Next:
+        if (player_) player_->next();
+        break;
+    case winshell::Command::Previous:
+        if (player_) player_->previous();
+        break;
+    case winshell::Command::Mini:
+        if (mini_) mini_->show();
+        else openMini();
+        break;
+    case winshell::Command::None: break;
+    }
+}
+
+void App::postCommand(winshell::Command c) {
+    // Outside the current window message (the mini player command creates and shows a window).
+    Dispatcher::post([this, ref = life_.ref(), c] {
+        if (!ref.expired()) runCommand(c);
     });
 }
 
@@ -855,6 +943,16 @@ void App::applyTheme() {
     } catch (const std::exception& e) {
         ST_LOG_ERROR("theme", "theme switch failed: {}", e.what());
     }
+}
+
+void App::syncThumbBar() {
+    if (!thumbBar_) return;
+    winshell::ThumbBar::State st;
+    st.hasTrack = player_ && player_->current();
+    // Resolving counts as playing (same as SMTC and the tray menu): the button then offers "Duraklat".
+    st.playing = player_ && (player_->isPlaying() || player_->status() == player::Status::Resolving);
+    st.canNext = player_ && player_->order().size() > 1;   // previous() always restarts or steps back
+    thumbBar_->setState(st);
 }
 
 void App::syncTray() {

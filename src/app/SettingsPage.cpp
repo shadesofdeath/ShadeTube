@@ -32,6 +32,7 @@ std::unique_ptr<Page> makeArtistPage(const std::string& id);
 std::unique_ptr<Page> makeDownloadsPage();
 std::unique_ptr<Page> makeStatsPage();
 std::unique_ptr<Page> makeLocalFilesPage();
+std::unique_ptr<Page> makeRadioPage(const std::string& id);
 
 using gfx::accent;
 using gfx::colors;
@@ -209,6 +210,10 @@ private:
             buildAltSourceRows(c, rebuilder());
         }
 
+        // Equalizer, crossfade, output device.
+        section(c, tr(L"SES"));
+        buildAudioRows(c, rebuilder());
+
         section(c, tr(L"KARA LİSTE"));
         buildBlacklistSection(c, rebuilder());
 
@@ -268,7 +273,11 @@ private:
             open->onClick = [] {
                 if (ctx().openMiniPlayer) ctx().openMiniPlayer();
             };
+            buildStartupRows(c, rebuilder());
         }
+
+        section(c, tr(L"KLAVYE"));
+        buildShortcutRows(c, rebuilder());
 
         section(c, tr(L"İNDİRME"));
         {
@@ -568,6 +577,7 @@ std::unique_ptr<Page> createPage(const Route& route) {
     case RouteKind::Settings: return std::make_unique<SettingsPage>(route.id);
     case RouteKind::Stats: return makeStatsPage();
     case RouteKind::LocalFiles: return makeLocalFilesPage();
+    case RouteKind::Radio: return makeRadioPage(route.id);
     }
     return makeHomePage();
 }

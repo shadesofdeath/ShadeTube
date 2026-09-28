@@ -2,6 +2,7 @@
 
 #include "app/Blacklist.h"
 #include "app/ConnectScreen.h"
+#include "app/InternetRadio.h"
 #include "app/NowPlaying.h"
 #include "app/Source.h"
 #include "core/I18n.h"
@@ -22,7 +23,7 @@ using ui::ButtonKind;
 namespace type = gfx::type;
 namespace metrics = gfx::metrics;
 
-constexpr int kNavItems = 6;   // Ana Sayfa, Ara, Kitaplık, İndirilenler, Yerel dosyalar, İstatistikler
+constexpr int kNavItems = 7;   // Ana Sayfa, Ara, Kitaplık, İndirilenler, Yerel dosyalar, Radyo, İstatistikler
 
 // ===================================================================================================
 // TitleBar
@@ -99,6 +100,7 @@ Sidebar::Sidebar() {
     library_ = add<Button>(ButtonKind::Nav, tr(L"Kitaplık"), "library");
     downloads_ = add<Button>(ButtonKind::Nav, tr(L"İndirilenler"), "download");
     local_ = add<Button>(ButtonKind::Nav, tr(L"Yerel dosyalar"), "music-note");
+    radio_ = add<Button>(ButtonKind::Nav, tr(L"Radyo"), "radio");
     stats_ = add<Button>(ButtonKind::Nav, tr(L"İstatistikler"), "stats");
     settings_ = add<Button>(ButtonKind::Nav, tr(L"Ayarlar"), "settings");
     home_->onClick = [] { ctx().router->navigate({RouteKind::Home}); };
@@ -106,6 +108,7 @@ Sidebar::Sidebar() {
     library_->onClick = [] { ctx().router->navigate({RouteKind::Library}); };
     downloads_->onClick = [] { ctx().router->navigate({RouteKind::Downloads}); };
     local_->onClick = [] { ctx().router->navigate({RouteKind::LocalFiles}); };
+    radio_->onClick = [] { ctx().router->navigate({RouteKind::Radio}); };
     stats_->onClick = [] { ctx().router->navigate({RouteKind::Stats}); };
     settings_->onClick = [] { ctx().router->navigate({RouteKind::Settings}); };
     newPlaylist_ = add<Button>(ButtonKind::Icon, L"", "plus");
@@ -195,6 +198,7 @@ void Sidebar::syncActive() {
     library_->setActive(cur.kind == RouteKind::Library);
     downloads_->setActive(cur.kind == RouteKind::Downloads);
     local_->setActive(cur.kind == RouteKind::LocalFiles);
+    radio_->setActive(cur.kind == RouteKind::Radio);
     stats_->setActive(cur.kind == RouteKind::Stats);
     settings_->setActive(cur.kind == RouteKind::Settings);
     for (auto& [b, route] : items_) b->setActive(route == cur);
@@ -212,7 +216,7 @@ void Sidebar::layout() {
     const Rect r = rect();
     const float x = 16, w = r.w - 32;
     float y = 24;
-    for (auto* b : {home_, search_, library_, downloads_, local_, stats_}) {
+    for (auto* b : {home_, search_, library_, downloads_, local_, radio_, stats_}) {
         b->setRect({x, y, w, metrics::navItemH});
         y += metrics::navItemH + 2;
     }
@@ -273,7 +277,13 @@ PlayerBar::PlayerBar()
     play_->onClick = [] { ctx().player->togglePause(); };
     repeat_->onClick = [] { ctx().player->cycleRepeat(); };
     heart_->onClick = [] {
-        if (auto* t = ctx().player->current()) ctx().library.toggleLiked(*t);
+        const auto* t = ctx().player->current();
+        if (!t) return;
+        if (radio::isStationId(t->id)) {   // a station: the heart is the radio favorite
+            if (const auto* s = radio::store().find(radio::uuidOf(t->id))) radio::store().toggleFavorite(*s);
+            return;
+        }
+        ctx().library.toggleLiked(*t);
     };
     lyrics_->onClick = [this] { ctx().toggleNowPlaying(!nowPlaying_); };
     queue_->onClick = [] { ctx().toggleQueue(true); };
@@ -297,17 +307,22 @@ void PlayerBar::setNowPlayingMode(bool on) {
 void PlayerBar::sync() {
     auto* p = ctx().player;
     const auto* t = p ? p->current() : nullptr;
+    live_ = t && radio::isStationId(t->id);
     title_.setText(t ? toWide(t->name) : L"");
-    artist_.setText(t ? toWide(t->artistLine()) : L"");
+    // A station: the song it announces (ICY), else its country and genres.
+    artist_.setText(!t ? std::wstring() : live_ && !p->liveTitle().empty() ? p->liveTitle() : toWide(t->artistLine()));
     play_->setPlaying(p && p->isPlaying());
     play_->setLoading(p && p->status() == player::Status::Resolving);
     shuffle_->setActive(p && p->shuffle());
     const auto rep = p ? p->repeat() : RepeatMode::Off;
     repeat_->setActive(rep != RepeatMode::Off);
     repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
-    const bool liked = t && ctx().library.isLiked(t->id);
+    const bool liked = t && (live_ ? radio::store().isFavorite(radio::uuidOf(t->id)) : ctx().library.isLiked(t->id));
     heart_->setIcon(liked ? "heart-filled" : "heart");
     heart_->setActive(liked);
+    heart_->setTooltip(!live_ ? std::wstring(tr(L"Beğen")) : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
+    // Live: no seeking (the bar stays a hairline).
+    seek_->setEnabled(!live_);
     queue_->setActive(false);
     sleep_->setActive(sleepTimerActive());
     sleep_->setTooltip(sleepTimerActive() ? i18n::format(tr(L"Uyku zamanlayıcı · {}"), {sleepTimerLabel()})
@@ -356,19 +371,24 @@ void PlayerBar::layout() {
     heart_->setRect({textX + tw + 6, cy - 16 - 8, 32, 32});
     // No heart for a track that can't be liked (logged in: only Spotify tracks).
     const auto* cur = ctx().player ? ctx().player->current() : nullptr;
-    heart_->setVisible(!nowPlaying_ && cur && ctx().library.canLike(cur->id));
+    heart_->setVisible(!nowPlaying_ && cur && (radio::isStationId(cur->id) || ctx().library.canLike(cur->id)));
 }
 
 bool PlayerBar::onMouseDown(const ui::MouseEvent& e) {
     const gfx::Point p{e.pos.x - rect().x, e.pos.y - rect().y};
-    if (!nowPlaying_ && (artRect_.contains(p) || infoRect_.contains(p)) && ctx().player->current()) {
+    if (e.button == ui::MouseButton::Left && !nowPlaying_ && (artRect_.contains(p) || infoRect_.contains(p)) &&
+        ctx().player->current()) {
+        const auto* t = ctx().player->current();
         if (artRect_.contains(p)) ctx().toggleNowPlaying(true);
-        else if (const auto* t = ctx().player->current(); t && !t->album.id.empty())
-            ctx().router->navigate({RouteKind::Album, t->album.id});
+        else if (radio::isStationId(t->id)) ctx().router->navigate({RouteKind::Radio});
+        else if (!t->album.id.empty()) ctx().router->navigate({RouteKind::Album, t->album.id});
         return true;
     }
     if (e.button == ui::MouseButton::Right && infoRect_.contains(p)) {
-        if (const auto* t = ctx().player->current()) showTrackMenu({*t}, e.windowPos);
+        if (const auto* t = ctx().player->current()) {
+            if (radio::isStationId(t->id)) showStationMenu(*t, e.windowPos);
+            else showTrackMenu({*t}, e.windowPos);
+        }
         return false;
     }
     return false;
@@ -399,8 +419,8 @@ void PlayerBar::paint(Canvas& c) {
     const auto* t = p ? p->current() : nullptr;
     const int64_t dur = p ? p->durationMs() : 0;
     const int64_t pos = p ? p->positionMs() : 0;
-    if (!seek_->dragging()) seek_->setValue(dur > 0 ? static_cast<float>(pos) / static_cast<float>(dur) : 0.f);
-    seek_->setBuffered(p ? p->bufferedFraction() : 0.f);
+    if (!seek_->dragging()) seek_->setValue(!live_ && dur > 0 ? static_cast<float>(pos) / static_cast<float>(dur) : 0.f);
+    seek_->setBuffered(p && !live_ ? p->bufferedFraction() : 0.f);
 
     if (nowPlaying_) {
         // Spectrum strip instead of track info (hi-fi cue from the Now Playing mock).
@@ -410,22 +430,28 @@ void PlayerBar::paint(Canvas& c) {
         for (int i = 0; i < 48; ++i) {
             const float v = live ? bands[i] : 0.f;
             const float h = 2 + v * 14;
-            c.fillRect({x0 + i * 2.5f, baseY - h, 1, h}, (i < 48 * (dur > 0 ? static_cast<float>(pos) / dur : 0) ? acc.base : col.fgTertiary).mulAlpha(live ? 1.f : 0.5f));
+            const bool played = live_ || i < 48 * (dur > 0 ? static_cast<float>(pos) / dur : 0);   // a stream is all "now"
+            c.fillRect({x0 + i * 2.5f, baseY - h, 1, h}, (played ? acc.base : col.fgTertiary).mulAlpha(live ? 1.f : 0.5f));
         }
     } else if (t) {
         c.shadow(artRect_, 2, 40, 0, acc.glow);   // playerThumbGlow
-        drawArtwork(c, t->album.images, artRect_, 2);
+        if (live_) drawStationArt(c, t->album.images, artRect_, 2);
+        else drawArtwork(c, t->album.images, artRect_, 2);
         const Color titleCol = infoHover_ ? col.fgPrimary : col.fgPrimary;
         c.text(title_, {infoRect_.x, infoRect_.y + 1, heart_->rect().x - infoRect_.x - 4, 20}, titleCol, gfx::VAlign::Center);
         c.text(artist_, {infoRect_.x, infoRect_.y + 21, 320, 18}, infoHover_ ? col.fgPrimary : col.fgSecondary, gfx::VAlign::Center);
     }
 
-    // Time label "01:24 / 03:42".
-    time_.setText(ui::formatDuration(seek_->dragging() ? static_cast<int64_t>(seek_->value() * dur) : pos) + L"  /  " +
-                  ui::formatDuration(dur));
-    c.text(time_, timeRect_, col.fgSecondary, gfx::VAlign::Center);
+    // Time label "01:24 / 03:42"; a live stream has no times: the "CANLI" badge instead.
+    if (live_ && t) {
+        drawLiveBadge(c, {timeRect_.x, timeRect_.cy()}, p->isPlaying());
+    } else {
+        time_.setText(ui::formatDuration(seek_->dragging() ? static_cast<int64_t>(seek_->value() * dur) : pos) + L"  /  " +
+                      ui::formatDuration(dur));
+        c.text(time_, timeRect_, col.fgSecondary, gfx::VAlign::Center);
+    }
     // Hover time preview above the seek bar.
-    if (const float hf = seek_->hoverFraction(); hf >= 0 && dur > 0) {
+    if (const float hf = seek_->hoverFraction(); hf >= 0 && dur > 0 && !live_) {
         const std::wstring s = ui::formatDuration(static_cast<int64_t>(hf * dur));
         const float x = std::clamp(hf * r.w, 24.f, r.w - 24.f);
         const Rect tip{x - 24, -30, 48, 22};
@@ -460,7 +486,8 @@ void QueuePanel::saveAsPlaylist() {
     auto* p = ctx().player;
     if (!p || p->currentOrderIndex() < 0) return;
     std::vector<catalog::Track> tracks;
-    for (int i = p->currentOrderIndex(); i < static_cast<int>(p->order().size()); ++i) tracks.push_back(p->items()[p->order()[i]]);
+    for (int i = p->currentOrderIndex(); i < static_cast<int>(p->order().size()); ++i)
+        if (const auto& t = p->items()[p->order()[i]]; !radio::isStationId(t.id)) tracks.push_back(t);   // songs only
     if (tracks.empty()) return;
     // Name dialog -> a Spotify playlist with the Spotify tracks (logged in) or a local playlist; it reports with a toast.
     promptNewPlaylist({}, std::move(tracks));
@@ -476,9 +503,13 @@ void QueuePanel::sync() {
             ++count;
         }
     }
-    // "12 · 34 DK": upcoming tracks · their minutes.
-    meta_.setText(i18n::format(tr(L"{} · {} DK"), {std::to_wstring(count), std::to_wstring(remaining / 60000)}));
-    save_->setVisible(p && p->currentOrderIndex() >= 0 && !p->order().empty());
+    // "12 · 34 DK": upcoming tracks · their minutes; stations have no length: "12 İSTASYON".
+    const auto* cur = p ? p->current() : nullptr;
+    const bool stations = cur && radio::isStationId(cur->id);
+    meta_.setText(stations ? toUpperTr(i18n::plural(L"{} istasyon", count))
+                           : i18n::format(tr(L"{} · {} DK"), {std::to_wstring(count), std::to_wstring(remaining / 60000)}));
+    // "Kuyruğu kaydet" makes a playlist of songs: not for a list of stations.
+    save_->setVisible(p && p->currentOrderIndex() >= 0 && !p->order().empty() && !stations);
     invalidate();
 }
 
@@ -603,7 +634,9 @@ void QueuePanel::paint(Canvas& c) {
         const float alpha = blocked && !current ? 0.38f : 1.f;
         const float art = current ? 40.f : 36.f;
         const Rect artR{x, rr.cy() - art * 0.5f, art, art};
-        drawArtwork(c, t.album.images, artR, 2, Placeholder::Album, false, current ? Priority::High : Priority::Normal);
+        const bool station = radio::isStationId(t.id);
+        if (station) drawStationArt(c, t.album.images, artR, 2, current ? Priority::High : Priority::Normal);
+        else drawArtwork(c, t.album.images, artR, 2, Placeholder::Album, false, current ? Priority::High : Priority::Normal);
         if (alpha < 1) c.fillRect(artR, col.bgBase.withAlpha(0.6f));
         x += art + 12;
         float rightW = current ? 24.f : 52.f;
@@ -615,15 +648,16 @@ void QueuePanel::paint(Canvas& c) {
             rightW += bw + 8;
         }
         c.text(toWide(t.name), type::body.withSize(13), {x, rr.cy() - 17, r.w - x - rightW - padX, 18}, col.fgPrimary.mulAlpha(alpha));
-        c.text(toWide(t.artistLine()), type::caption.withSize(11), {x, rr.cy() + 1, r.w - x - rightW - padX, 16},
-               col.fgSecondary.mulAlpha(alpha));
+        // The playing station: the song it announces (ICY) when it sends one.
+        const std::wstring second = current && station && !p->liveTitle().empty() ? p->liveTitle() : toWide(t.artistLine());
+        c.text(second, type::caption.withSize(11), {x, rr.cy() + 1, r.w - x - rightW - padX, 16}, col.fgSecondary.mulAlpha(alpha));
         if (current) {
             const int f = p->isPlaying() ? static_cast<int>(ui::frame::now() / 66.0) % 12 : 0;
             char name[48];
             snprintf(name, sizeof name, "animations/equalizer/frame-%02d", f);
             c.icon(name, {r.w - padX - 16, rr.cy() - 8, 16, 16}, acc.base);
             if (p->isPlaying()) ui::frame::requestNext();
-        } else {
+        } else if (!station) {   // stations have no duration
             c.text(ui::formatDuration(t.durationMs), type::monoMeta, {r.w - padX - 52, rr.y, 52, rr.h}, col.fgTertiary.mulAlpha(alpha),
                    gfx::TextAlign::Trailing, gfx::VAlign::Center);
         }
@@ -744,6 +778,7 @@ void Shell::layout() {
         return;
     }
     connect_->setVisible(false);
+    playerBar_->setVisible(true);   // connect mode hid it (logout -> login again)
     playerBar_->setRect({0, bottom, r.w, metrics::playerBarH});
     const float q = queueOpen_ && !nowPlaying_ ? metrics::queueW : 0;
     sidebar_->setRect({0, top, metrics::sidebarW, bottom - top});

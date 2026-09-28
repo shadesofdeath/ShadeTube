@@ -1,5 +1,6 @@
 #include "app/NowPlaying.h"
 
+#include "app/InternetRadio.h"
 #include "app/Shell.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -9,6 +10,7 @@
 #include "ui/Window.h"
 
 #include <cmath>
+#include <ctime>
 #include <numbers>
 
 namespace st::app {
@@ -18,12 +20,14 @@ using gfx::colors;
 namespace type = gfx::type;
 
 NowPlayingView::NowPlayingView()
-    : title_({}, type::displayS), subtitle_({}, type::bodyL.withSize(17)), meta_({}, type::monoMeta) {
+    : title_({}, type::displayS), subtitle_({}, type::bodyL.withSize(17)), meta_({}, type::monoMeta),
+      liveNow_({}, type::title) {
     queue_ = add<QueuePanel>();
     gfx::TextOptions wrap;
     wrap.wrap = true;
     wrap.maxLines = 2;
     title_.setOptions(wrap);
+    liveNow_.setOptions(wrap);   // two lines
 }
 
 void NowPlayingView::activate() {
@@ -50,6 +54,7 @@ void NowPlayingView::deactivate() {
     title_.reset();
     subtitle_.reset();
     meta_.reset();
+    liveNow_.reset();
     trackId_.clear();
     state_ = LyricsState::None;
     life_.renew();
@@ -58,10 +63,17 @@ void NowPlayingView::deactivate() {
 void NowPlayingView::onTrackChanged() {
     const auto* t = ctx().player ? ctx().player->current() : nullptr;
     if (!t) return;
-    title_.setText(toWide(t->name));
-    std::wstring sub = toWide(t->artistLine());
-    if (!t->album.name.empty()) sub += L" · " + toWide(t->album.name);
-    subtitle_.setText(sub);
+    if (radio::isStationId(t->id)) {
+        // A station: the song it announces (ICY "Artist - Title") is the big title, the station below it.
+        const std::wstring& song = ctx().player->liveTitle();
+        title_.setText(song.empty() ? toWide(t->name) : song);
+        subtitle_.setText(song.empty() ? toWide(t->artistLine()) : toWide(t->name));
+    } else {
+        title_.setText(toWide(t->name));
+        std::wstring sub = toWide(t->artistLine());
+        if (!t->album.name.empty()) sub += L" · " + toWide(t->album.name);
+        subtitle_.setText(sub);
+    }
     if (t->id != trackId_ && visible()) {
         trackId_ = t->id;
         fetchLyrics();
@@ -79,6 +91,10 @@ void NowPlayingView::fetchLyrics() {
     scroll_.snap(0);
     manualUntil_ = 0;
     const auto* t = ctx().player->current();
+    if (t && radio::isStationId(t->id)) {   // live radio: the heard titles take the lyrics' place (paintLive)
+        state_ = LyricsState::None;
+        return;
+    }
     if (!t || !Settings::get().lyricsEnabled) {
         state_ = LyricsState::Missing;
         return;
@@ -348,8 +364,18 @@ void NowPlayingView::paint(Canvas& c) {
     const auto* t = p ? p->current() : nullptr;
     if (t) {
         // Hero art with glow + depth shadow.
+        const bool station = radio::isStationId(t->id);
         paintArtShadow(c);   // nowPlayingArtShadow
-        drawArtwork(c, t->album.images, artRect_, 2);
+        if (station) {
+            // A station logo is a small favicon: shown at under half the size on the surface with the tiles' ring
+            // motif instead of blown up to the hero size.
+            c.fillRounded(artRect_, 2, gfx::isLightTheme() ? col.bgSunken : col.bgOverlay);
+            c.strokeCircle({artRect_.cx(), artRect_.cy()}, artRect_.w * 0.36f, accent().base.withAlpha(0.35f), 1.f);
+            const float d = std::round(artRect_.w * 0.42f);
+            drawStationArt(c, t->album.images, artRect_.center(d, d), 2);
+        } else {
+            drawArtwork(c, t->album.images, artRect_, 2);
+        }
         float y = artRect_.bottom() + 28;
         const float w = artRect_.w + 40;
         const float th = title_.measure(w).h;
@@ -357,28 +383,104 @@ void NowPlayingView::paint(Canvas& c) {
         y += th + 8;
         c.text(subtitle_, {artRect_.x, y, w, 24}, col.fgSecondary, gfx::VAlign::Center);
         y += 34;
-        // Like Spotube, no stream / source wording (bitrate, YouTube / Piped / Invidious): the duration and how
-        // sure the match is, next to "Yanlış eşleşme?".
-        std::wstring meta = ui::formatDuration(p->durationMs());
-        if (auto m = p->currentMatch()) {
-            const int pct = static_cast<int>(std::round(std::clamp(m->score, 0.0, 100.0)));
-            meta = i18n::format(tr(L"{} · EŞLEŞME %{}"), {meta, std::to_wstring(pct)});   // "03:42 · EŞLEŞME %87"
+        if (station) {
+            // "CANLI" + the stream's codec / bitrate; nothing was matched, so no "Yanlış eşleşme?".
+            const float bw = drawLiveBadge(c, {artRect_.x, y + 8}, p->isPlaying());
+            if (const auto* s = radio::store().find(radio::uuidOf(t->id)))
+                c.text(toWide(radio::codecBadge(*s)), type::monoMeta, {artRect_.x + bw + 12, y, w - bw - 12, 16}, col.fgTertiary,
+                       gfx::TextAlign::Leading, gfx::VAlign::Center);
+            matchRect_ = {};
+        } else {
+            // Like Spotube, no stream / source wording (bitrate, YouTube / Piped / Invidious): the duration and how
+            // sure the match is, next to "Yanlış eşleşme?".
+            std::wstring meta = ui::formatDuration(p->durationMs());
+            if (auto m = p->currentMatch()) {
+                const int pct = static_cast<int>(std::round(std::clamp(m->score, 0.0, 100.0)));
+                meta = i18n::format(tr(L"{} · EŞLEŞME %{}"), {meta, std::to_wstring(pct)});   // "03:42 · EŞLEŞME %87"
+            }
+            meta_.setText(meta);
+            const float mw = std::ceil(meta_.measure().w);
+            c.text(meta_, {artRect_.x, y, mw + 1, 16}, col.fgTertiary, gfx::VAlign::Center);
+            const std::wstring wrongMatch = tr(L"Yanlış eşleşme?");
+            auto wl = gfx::makeLayout(wrongMatch, type::caption, 400);
+            DWRITE_TEXT_METRICS wm{};
+            wl->GetMetrics(&wm);
+            matchRect_ = {artRect_.x + mw + 14, y - 2, std::ceil(wm.widthIncludingTrailingWhitespace) + 4, 20};
+            c.text(wrongMatch, type::caption, matchRect_, matchHover_ ? accent().base : col.fgSecondary,
+                   gfx::TextAlign::Leading, gfx::VAlign::Center);
         }
-        meta_.setText(meta);
-        const float mw = std::ceil(meta_.measure().w);
-        c.text(meta_, {artRect_.x, y, mw + 1, 16}, col.fgTertiary, gfx::VAlign::Center);
-        const std::wstring wrongMatch = tr(L"Yanlış eşleşme?");
-        auto wl = gfx::makeLayout(wrongMatch, type::caption, 400);
-        DWRITE_TEXT_METRICS wm{};
-        wl->GetMetrics(&wm);
-        matchRect_ = {artRect_.x + mw + 14, y - 2, std::ceil(wm.widthIncludingTrailingWhitespace) + 4, 20};
-        c.text(wrongMatch, type::caption, matchRect_, matchHover_ ? accent().base : col.fgSecondary,
-               gfx::TextAlign::Leading, gfx::VAlign::Center);
     }
-    paintLyrics(c, lyricsRect_);
+    if (t && radio::isStationId(t->id)) paintLive(c, lyricsRect_);
+    else paintLyrics(c, lyricsRect_);
     c.popTransform();
     paintChildren(c);
     c.popClip();
+}
+
+// Live radio in the lyrics' place: the songs the station announced this session with the time each one started (the
+// current one on top; the big title on the left already names it), and the station's details at the bottom.
+void NowPlayingView::paintLive(Canvas& c, const Rect& r) {
+    const auto& col = colors();
+    const auto& acc = accent();
+    const auto* p = ctx().player;
+    const auto* t = p ? p->current() : nullptr;
+    c.text(toUpperTr(tr(L"Canlı yayın")), type::monoLabel, {r.x, r.y + 48, r.w, 16}, col.fgTertiary);
+    const Rect area{r.x, r.y + 96, r.w, r.h - 96 - 72};
+    const auto& heard = heardTitles();
+    const std::wstring now = p ? p->liveTitle() : std::wstring();
+    if (heard.empty()) {
+        const bool connecting = p && (p->status() == player::Status::Resolving || p->status() == player::Status::Buffering);
+        c.text(tr(L"Şu an yayında"), type::headline, {area.x, area.cy() - 40, area.w, 34}, col.fgSecondary);
+        c.text(connecting ? toUpperTr(tr(L"Bağlanıyor…")) : toUpperTr(tr(L"Şarkı bilgisi gelince burada görünür")), type::monoLabel,
+               {area.x, area.cy() + 4, area.w, 16}, col.fgTertiary);
+    } else {
+        auto clock = [](int64_t at) {
+            const std::time_t tt = static_cast<std::time_t>(at);
+            std::tm tm{};
+            localtime_s(&tm, &tt);
+            wchar_t hhmm[8];
+            swprintf(hhmm, 8, L"%02d:%02d", tm.tm_hour, tm.tm_min);
+            return std::wstring(hhmm);
+        };
+        float y = area.y;
+        for (size_t i = 0; i < heard.size(); ++i) {
+            const bool current = i == 0 && !now.empty() && heard[0].title == now;
+            if (current) {
+                // The song on air: its start time and "ŞİMDİ" in the accent, the title in the section size.
+                c.text(clock(heard[i].at) + L"  ·  " + tr(L"ŞİMDİ"), type::monoLabel, {area.x, y, area.w, 16}, acc.base);
+                liveNow_.setText(heard[i].title);
+                const float nh = liveNow_.measure(area.w).h;
+                c.text(liveNow_, {area.x, y + 24, area.w, nh}, col.fgPrimary);
+                y += 24 + nh + 36;
+                if (heard.size() > 1) {
+                    c.text(toUpperTr(tr(L"Az önce çalanlar")), type::monoLabel, {area.x, y, area.w, 16}, col.fgTertiary);
+                    y += 28;
+                }
+                continue;
+            }
+            if (y + 34 > area.bottom()) break;
+            c.text(clock(heard[i].at), type::monoMeta, {area.x, y, 56, 24}, col.fgTertiary, gfx::TextAlign::Leading, gfx::VAlign::Center);
+            c.text(heard[i].title, type::bodyL, {area.x + 64, y, area.w - 64, 24}, col.fgSecondary, gfx::TextAlign::Leading,
+                   gfx::VAlign::Center);
+            y += 34;
+        }
+        if (heard.size() == 1 && y + 16 < area.bottom())
+            c.text(toUpperTr(tr(L"Bu istasyonda dinlediğin önceki şarkılar burada listelenir")), type::monoLabel, {area.x, y, area.w, 16},
+                   col.fgTertiary);
+    }
+    // The station: country · genres, and its website.
+    if (t) {
+        const float by = r.bottom() - 72;
+        c.hline(r.x, r.right(), by, col.hairSubtle);
+        c.text(toUpperTr(toWide(t->artistLine())), type::monoLabel, {r.x, by + 16, r.w, 16}, col.fgTertiary);
+        if (const auto* s = radio::store().find(radio::uuidOf(t->id)); s && !s->homepage.empty()) {
+            std::wstring host = toWide(s->homepage);
+            if (const size_t scheme = host.find(L"://"); scheme != std::wstring::npos) host = host.substr(scheme + 3);
+            if (const size_t slash = host.find(L'/'); slash != std::wstring::npos) host.resize(slash);
+            if (host.rfind(L"www.", 0) == 0) host = host.substr(4);
+            c.text(host, type::caption, {r.x, by + 36, r.w, 18}, col.fgSecondary);
+        }
+    }
 }
 
 int NowPlayingView::lineAt(gfx::Point p) const {

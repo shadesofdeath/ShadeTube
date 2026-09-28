@@ -197,6 +197,8 @@ Album albumFrom(const json& a, bool withTracks) {
     return al;
 }
 
+std::string plainText(const std::string& html);   // below, with the home-feed parser
+
 } // namespace
 
 void Api::setCredentials(std::string accessToken, std::string spDc) {
@@ -721,7 +723,7 @@ Page<Track> Api::playlistTracks(const std::string& uri, int offset, int limit, c
     if (outMeta && pv2.is_object()) {
         outMeta->id = str(pv2, "uri").empty() ? uri : str(pv2, "uri");
         outMeta->name = str(pv2, "name");
-        outMeta->description = str(pv2, "description");
+        outMeta->description = plainText(str(pv2, "description"));   // the header shows text, not HTML
         const json& imgItems = at(at(pv2, "images"), "items");
         if (imgItems.is_array() && !imgItems.empty()) outMeta->images = imagesFrom(at(imgItems[0], "sources"));
         ownershipFrom(pv2, username(), *outMeta);

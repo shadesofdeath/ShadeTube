@@ -115,6 +115,8 @@ struct AppContext {
     std::function<void()> applyTheme;           // re-resolve the theme mode (+ Windows app mode) and switch live
     std::function<void()> restartApp;           // quit and start again (UI language change)
     std::function<void()> quitApp;              // "Çıkış" (App::quit): updater / installer relaunch
+    std::function<void()> toggleLyricsFullscreen;   // full-screen / karaoke lyrics view (set by the lyrics feature)
+    std::function<void(int ms)> lyricsOffsetBy;     // shift the current track's lyrics timing (+ later, - earlier)
 
     // Theme: `--theme light|dark|system` (dev) wins over Settings::theme until the user picks one in Ayarlar.
     std::optional<ThemeMode> themeOverride;
@@ -145,11 +147,15 @@ void initListenStats();        // app/StatsPage.cpp      (listening statistics)
 void initPlaybackFeatures();   // app/Radio.cpp          (endless playback / radio + kara liste)
 void initLocalLibrary();       // app/LocalFilesPage.cpp (Yerel dosyalar)
 void initUpdater();            // app/AboutSettings.cpp  (update check)
+void initInternetRadio();      // app/RadioPage.cpp      (radio-browser.info stations)
+void initWinShell();           // app/WinShell.cpp       (taskbar buttons, app identity for the media flyout)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
     initLocalLibrary();
     initUpdater();
+    initInternetRadio();
+    initWinShell();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the

@@ -226,6 +226,7 @@ void endlessCheck(bool fromPlayer) {
     auto* p = ctx().player;
     if (!p || !Settings::get().endlessPlayback || !radioAvailable()) return;
     if (p->repeat() != RepeatMode::Off || !p->current()) return;
+    if (p->isLive()) return;   // internet radio: songs are never appended to a list of stations
     // A queue that already ended only resumes through the player itself (its queue-low hook), never because a
     // setting or the kara liste changed later.
     if (!fromPlayer && p->status() == player::Status::Idle) return;

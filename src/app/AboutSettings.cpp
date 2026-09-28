@@ -4,6 +4,7 @@
 #include "app/Installer.h"
 #include "app/SettingsWidgets.h"
 #include "app/Updater.h"
+#include "app/WinShell.h"
 #include "core/Async.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -385,6 +386,9 @@ void runUninstall(bool removeData, bool self) {
                   return;
               }
               toast(tr(L"Kurulu kopya kaldırıldı"));
+              // This copy keeps running: the app identity the uninstall removed with the installed copy (key, Start
+              // menu shortcut, jump list) is registered again for it, as its next start would.
+              initWinShell();
               refresh();
           });
 }

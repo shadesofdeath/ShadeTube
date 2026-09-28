@@ -20,8 +20,12 @@ namespace st::ui {
 using gfx::ComPtr;
 
 namespace {
-constexpr wchar_t kClassName[] = L"ShadeTube.Window";
 constexpr double kTooltipDelay = 400;
+
+std::wstring& classNameStorage() {
+    static std::wstring name = L"ShadeTube.Window";
+    return name;
+}
 
 void registerClass() {
     static bool done = false;
@@ -41,7 +45,7 @@ void registerClass() {
     wc.hIcon = LoadIconW(wc.hInstance, MAKEINTRESOURCEW(1));
     wc.hIconSm = wc.hIcon;
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.lpszClassName = kClassName;
+    wc.lpszClassName = classNameStorage().c_str();
     RegisterClassExW(&wc);
 }
 
@@ -60,6 +64,12 @@ Window* Window::fromHwnd(HWND hwnd) {
     return reinterpret_cast<Window*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 }
 
+void Window::setClassName(std::wstring name) {
+    if (!name.empty()) classNameStorage() = std::move(name);
+}
+
+const std::wstring& Window::className() { return classNameStorage(); }
+
 Window::Window(const WindowOptions& options) : options_(options) {
     registerClass();
     DWORD style = WS_OVERLAPPEDWINDOW;
@@ -69,8 +79,8 @@ Window::Window(const WindowOptions& options) : options_(options) {
     if (options.topmost) exStyle |= WS_EX_TOPMOST;
     if (options.toolWindow) exStyle |= WS_EX_TOOLWINDOW;
 
-    hwnd_ = CreateWindowExW(exStyle, kClassName, options.title.c_str(), style, CW_USEDEFAULT, CW_USEDEFAULT, 100, 100,
-                            nullptr, nullptr, GetModuleHandleW(nullptr), this);
+    hwnd_ = CreateWindowExW(exStyle, classNameStorage().c_str(), options.title.c_str(), style, CW_USEDEFAULT,
+                            CW_USEDEFAULT, 100, 100, nullptr, nullptr, GetModuleHandleW(nullptr), this);
     const float s = static_cast<float>(GetDpiForWindow(hwnd_)) / 96.f;
     const int w = static_cast<int>(options.width * s), h = static_cast<int>(options.height * s);
     int x = options.x, y = options.y;
@@ -429,10 +439,17 @@ void Window::render() {
     graveyard_.clear();
     if (!target_ || isMinimized()) return;
     frame::begin();
+    // This frame consumes a wake-up that is due. Clear it before layout and painting: a repaint asked for meanwhile
+    // (invalidateAfter, e.g. a debounce or a caret blink) must be kept, not merged into the due one and dropped with it.
+    const double dueWake = wakeAt_;
+    if (frame::realNow() >= wakeAt_) wakeAt_ = 1e300;
     runLayout();
     // Widgets may request layout while painting (e.g. text measured late): run it before drawing.
     auto* dc = target_->begin();
-    if (!dc) return;
+    if (!dc) {
+        wakeAt_ = std::min(wakeAt_, dueWake);   // nothing was drawn: the wake-up stays due
+        return;
+    }
     gfx::ImageCache::get().beginFrame();
     const bool accentAnimating = gfx::Theme::get().tick(frame::now());
     {
@@ -446,7 +463,6 @@ void Window::render() {
     const bool more = frame::consumeRequest() || accentAnimating;
     dirty_ = false;
     animating_ = more;
-    if (frame::realNow() >= wakeAt_) wakeAt_ = 1e300;
     if (!target_->end()) dirty_ = true;   // device lost: redraw with recreated resources
     if (layoutDirty_) dirty_ = true;
 }

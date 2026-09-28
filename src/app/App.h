@@ -7,6 +7,7 @@
 #include "app/Scrobbler.h"
 #include "app/SponsorBlock.h"
 #include "app/Tray.h"
+#include "app/WinShell.h"
 #include "ui/Widget.h"
 
 #include <memory>
@@ -42,6 +43,8 @@ struct LaunchOptions {
     std::wstring toastText;
     bool crashTest = false;        // --crash-test: crash right after startup (checks the crash report path)
     DWORD restartAfterPid = 0;     // --restart-after <pid>: App::restart() — wait for the old instance to exit
+    // --command <name> (jump-list task) when no ShadeTube was running: carried out once the app is up.
+    winshell::Command command = winshell::Command::None;
 };
 
 // Windows' app mode (HKCU\...\Themes\Personalize AppsUseLightTheme; missing = light, the Windows default).
@@ -85,6 +88,9 @@ private:
     void saveMainPlacement();
     void trimMemory();           // nobody sees the main window: hand back rebuildable GPU / working-set memory
     void syncTray();             // tooltip = "ShadeTube" + current track
+    void syncThumbBar();         // player state -> taskbar thumbnail buttons
+    void runCommand(winshell::Command c);   // thumbnail button / jump-list task / --command
+    void postCommand(winshell::Command c);  // runCommand() outside the current window message
     void applyTheme();           // live theme switch: palette, accent, every window, tray menus
     void persist();              // flush everything to disk (exit / Windows session end)
 
@@ -101,7 +107,9 @@ private:
     std::unique_ptr<DiscordRpc> discord_;
     std::unique_ptr<MiniPlayer> mini_;   // only while the mini player is open
     std::unique_ptr<Tray> tray_;         // notification-area icon, for the whole app lifetime
+    std::unique_ptr<winshell::ThumbBar> thumbBar_;   // Önceki / Oynat / Sonraki under the taskbar thumbnail
     UINT activateMsg_ = 0;               // kActivateMessage
+    UINT commandMsg_ = 0;                // winshell::kCommandMessage (a jump-list task of a second launch)
     Shell* shell_ = nullptr;
     Route startRoute_{};                 // initial route; re-applied once the Spotify session logs in
     Lifetime life_;

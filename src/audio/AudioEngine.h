@@ -11,10 +11,17 @@
 //
 // Memory: only the current track (and optionally the preloaded next track) is buffered in memory
 // (a 4-minute 128 kbps AAC track is ~4 MB). Buffers are released as soon as a track is closed.
+//
+// Live streams (StreamSource::live, internet radio): Icecast / Shoutcast MP3 and AAC (ADTS, HE-AAC), Ogg Opus and
+// HLS (MPEG-TS, packed audio, fragmented MP4) behind station playlists (.pls / .m3u / .asx / .m3u8). They have no
+// duration and ignore seek(); a bounded rolling buffer (at most 60 s / 4 MB of compressed audio) starts playing
+// after ~2 s, reconnects with backoff when the connection drops and reports ICY / ID3 titles (onTitle). Pausing
+// keeps only the newest few seconds (a long pause disconnects), so resuming plays live again. See LiveStream.h.
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace st::audio {
 
@@ -26,13 +33,17 @@ struct StreamSource {
     int64_t durationMsHint = 0;   // shown before the container header is parsed
     float gainDb = 0;             // loudness normalisation gain to apply (0 = none)
     uint64_t tag = 0;             // opaque caller id, echoed back in events
+    bool live = false;            // endless internet-radio stream (url = station / playlist / HLS URL)
+    bool allowLocalNetwork = false;   // live: may reach this machine / its network (a test server); else public only
 };
 
 enum class State { Idle, Loading, Playing, Paused, Ended, Error };
 
 enum class ErrorKind {
-    Network,            // download failed after retries (URL may have expired -> caller re-resolves)
-    UnsupportedFormat,  // no decoder (e.g. WebM/Opus on a system without the extension) -> caller retries with mp4
+    Network,            // download failed after retries (URL may have expired -> caller re-resolves); live: the
+                        //   station could not be reached / kept dropping after the reconnect attempts
+    UnsupportedFormat,  // no decoder (e.g. WebM/Opus on a system without the extension) -> caller retries with mp4;
+                        //   live: a codec / container the engine can't play (Ogg Vorbis, FLAC, AC-3, SAMPLE-AES...)
     Device,             // audio device error (engine keeps retrying on device change)
     Other,
 };
@@ -43,6 +54,24 @@ struct EngineEvents {
     // gaplessly and `nextTag` is its tag; otherwise nextTag == 0.
     std::function<void(uint64_t finishedTag, uint64_t nextTag)> onEnded;
     std::function<void(ErrorKind kind, const std::string& message, uint64_t tag)> onError;
+    // Live streams: the station's title (ICY StreamTitle / ID3 / Ogg comments, UTF-8, "" = cleared) changed. Fired
+    // when the audio it belongs to becomes audible, not when it is received.
+    std::function<void(const std::string& title, uint64_t tag)> onTitle;
+};
+
+// What the engine knows about the live stream being played (all empty / 0 while nothing live plays).
+struct LiveInfo {
+    bool active = false;
+    std::string codec;            // "MP3", "AAC", "HE-AAC", "Opus", ... ("" until the first frame)
+    uint32_t bitrateKbps = 0;     // from the frame headers / icy-br, else measured
+    uint32_t sampleRate = 0;      // decoded output
+    uint32_t channels = 0;
+    std::string stationName;      // icy-name
+    std::string streamUrl;        // what finally plays (after playlists, HLS variants and redirects)
+    bool hls = false;
+    bool connected = false;
+    int64_t bufferedMs = 0;       // compressed audio waiting to be decoded
+    int reconnects = 0;
 };
 
 class AudioEngine {
@@ -81,6 +110,14 @@ public:
 
     // True if Media Foundation on this machine can decode Opus-in-WebM.
     static bool supportsWebm();
+    // Whether a live stream in this codec can play here, by radio-browser codec name or MIME type ("MP3", "AAC+",
+    // "OGG", "audio/aacp", "application/vnd.apple.mpegurl"...). Unknown / empty = true (the engine sniffs the
+    // stream and fails with UnsupportedFormat if it can't). Cheap; for hiding stations up front. "OGG" is false:
+    // Ogg Vorbis has no decoder here, although stations labelled OGG that actually send Opus do play.
+    static bool supportsLiveCodec(std::string_view codec);
+
+    // The live stream being played (LiveInfo::active false otherwise). Any thread; takes a short lock.
+    LiveInfo liveInfo() const;
 
     // Bytes currently held in media buffers (current + preloaded).
     size_t bufferedBytes() const;

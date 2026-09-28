@@ -1,9 +1,11 @@
 #include "app/AppContext.h"
 
 #include "app/Blacklist.h"
+#include "app/InternetRadio.h"
 #include "app/LocalLibrary.h"
 #include "app/Radio.h"
 #include "app/Router.h"
+#include "app/Shell.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -228,7 +230,8 @@ bool Library::isLiked(const std::string& trackId) const {
 }
 
 bool Library::canLike(const std::string& trackId) const {
-    return !trackId.empty() && (!source::loggedIn() || trackId.rfind("spotify:track:", 0) == 0);
+    // Radio stations have their own favorites (app/InternetRadio), not Liked Songs.
+    return !trackId.empty() && !radio::isStationId(trackId) && (!source::loggedIn() || trackId.rfind("spotify:track:", 0) == 0);
 }
 
 void Library::setLiked(const Track& t, bool liked) {
@@ -789,9 +792,12 @@ void showSleepTimerMenu(gfx::Point windowPos) {
                         "clock", L"", [m] { setSleepTimer(m); }};
         items.push_back(std::move(it));
     }
-    ui::MenuItem end{tr(L"Parça bitince"), "music-note", L"", [] { setSleepAtTrackEnd(); }};
-    end.checked = c.sleepAtTrackEnd;
-    items.push_back(std::move(end));
+    // A live station never ends: no "when this track ends" (unless it is already set, so it can be seen and changed).
+    if (!(c.player && c.player->isLive()) || c.sleepAtTrackEnd) {
+        ui::MenuItem end{tr(L"Parça bitince"), "music-note", L"", [] { setSleepAtTrackEnd(); }};
+        end.checked = c.sleepAtTrackEnd;
+        items.push_back(std::move(end));
+    }
     if (sleepTimerActive()) {
         items.push_back(ui::MenuItem::sep());
         // "Kapat (23 dk kaldı)": turns the running timer off.
@@ -829,8 +835,17 @@ void showDownloadFolderMenu(const std::vector<Track>& tracks, gfx::Point windowP
     ui::Menu::open(ctx().window, windowPos, std::move(items));
 }
 
-void showTrackMenu(const std::vector<Track>& tracks, gfx::Point windowPos, const std::string& playlistId) {
-    if (tracks.empty()) return;
+void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const std::string& playlistId) {
+    if (picked.empty()) return;
+    // Internet radio stations are no songs: nothing to download, match on YouTube, like, block or add to a playlist.
+    // A station gets its own menu; stations in a mixed selection are left out.
+    std::vector<Track> tracks;
+    for (const auto& t : picked)
+        if (!radio::isStationId(t.id)) tracks.push_back(t);
+    if (tracks.empty()) {
+        if (picked.size() == 1) showStationMenu(picked.front(), windowPos);
+        return;
+    }
     const Track track = tracks.front();
     const bool many = tracks.size() > 1;
     std::vector<ui::MenuItem> items;

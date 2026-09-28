@@ -1,6 +1,7 @@
 #include "app/Downloads.h"
 
 #include "app/AppContext.h"
+#include "app/InternetRadio.h"
 #include "app/SponsorBlock.h"
 #include "audio/Downloader.h"
 #include "core/Http.h"
@@ -127,7 +128,7 @@ int64_t DownloadManager::totalBytes() const {
 }
 
 void DownloadManager::enqueue(const Track& t, const std::string& collectionId) {
-    if (t.id.empty()) return;
+    if (t.id.empty() || radio::isStationId(t.id)) return;   // a live radio station has nothing to download
     if (auto* it = find(t.id)) {
         if (it->state == DlState::Failed) {
             it->state = DlState::Queued;   // retry
