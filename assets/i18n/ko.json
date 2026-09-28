@@ -944,5 +944,20 @@
   "Zaten Beğenilen Şarkılar'da": "이미 좋아요 표시한 곡에 있어요",
   "Yalnızca ilk {} dosya alındı": "처음 {}개 파일만 가져왔어요",
   "{} şarkı Beğenilen Şarkılar'a eklendi": "{}곡을 좋아요 표시한 곡에 추가했어요",
-  "{} şarkı sıraya eklendi": "{}곡을 대기열에 추가했어요"
+  "{} şarkı sıraya eklendi": "{}곡을 대기열에 추가했어요",
+  ".lrc dosyası": ".lrc 파일",
+  "Dosya etiketi": "파일 태그",
+  "KAYNAK · LRCLIB · SPOTIFY": "출처 · LRCLIB · SPOTIFY",
+  "Canlı radyo yayınlarında şarkı sözü gösterilmez": "라이브 라디오에서는 가사가 표시되지 않아요",
+  "Kapat (Esc)": "닫기 (Esc)",
+  "Senkronize değil": "싱크 없음",
+  "Söz zamanlaması: {}": "가사 타이밍: {}",
+  "Söz zamanlamasını sıfırla": "가사 타이밍 초기화",
+  "Sözleri daha erken göster": "가사를 더 빨리 표시",
+  "Sözleri daha geç göster": "가사를 더 늦게 표시",
+  "Sözleri indirmelere ekle": "다운로드에 가사 넣기",
+  "Tam ekran sözler": "전체 화면 가사",
+  "Şarkı sözleri Ayarlar'da kapalı": "설정에서 가사가 꺼져 있어요",
+  "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "가사가 MP3 태그에 기록돼요. 싱크 가사는 같은 이름의 .lrc 파일로 파일 옆에도 저장돼요.",
+  "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "LRCLIB의 실시간 싱크 가사를 보여줘요. Spotify에 연결되어 있으면 없는 가사를 Spotify에서 가져와요. 음악 파일 옆의 .lrc 파일과 태그 속 가사를 먼저 읽어요. 지금 재생 중 화면과 전체 화면 가사에 표시돼요."
 }

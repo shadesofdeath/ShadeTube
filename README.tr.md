@@ -46,7 +46,9 @@ kalır.
   videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar; Beğenilen Şarkılar,
   çalma listeleri ve albümler kendiliğinden indirilip güncel tutulabilir.
 - 📁 **Yerel dosyalar** — kendi klasörlerin: MP3, FLAC, M4A/ALAC, AAC, WAV ve WMA, etiket ve kapaklarıyla.
-- 🎤 **Senkron şarkı sözleri** (LRCLIB) — bir satıra tıkla, oraya atla.
+- 🎤 **Senkron şarkı sözleri** — LRCLIB'den, Spotify'a bağlıyken Spotify'dan ya da kendi `.lrc` dosyalarından; bir
+  satıra tıkla, oraya atla, zamanlama kaymışsa düzelt ya da sözleri söylendikçe dolduran tam ekran karaoke
+  görünümünü aç. İndirilenlerin etiketine sözler yazılır, yanlarına `.lrc` kaydedilir.
 - 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
 - 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, görev çubuğu düğmeleri ve ilerlemesi,
@@ -117,8 +119,8 @@ Taşınabilir kullanımda: `ShadeTube.exe`'yi ve `%LOCALAPPDATA%\ShadeTube` klas
 
 ## 🔒 Gizlilik
 
-ShadeTube'un sunucusu yoktur ve hiçbir veri toplamaz. Doğrudan şunlarla konuşur: Spotify (kitaplığın), YouTube
-(ses), LRCLIB (sözler), SponsorBlock (bölümler; video açık edilmeden, hash önekiyle sorulur), MusicBrainz / Cover
+ShadeTube'un sunucusu yoktur ve hiçbir veri toplamaz. Doğrudan şunlarla konuşur: Spotify (kitaplığın ve LRCLIB'de
+olmayan sözler), YouTube (ses), LRCLIB (sözler), SponsorBlock (bölümler; video açık edilmeden, hash önekiyle sorulur), MusicBrainz / Cover
 Art Archive / ListenBrainz (açık katalog) ve GitHub (güncelleme denetimi). Last.fm, ListenBrainz scrobble,
 Discord ve Piped / Invidious yalnızca sen açarsan kullanılır.
 

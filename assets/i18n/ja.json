@@ -944,5 +944,20 @@
   "Zaten Beğenilen Şarkılar'da": "すでにお気に入りの曲にあります",
   "Yalnızca ilk {} dosya alındı": "最初の{}ファイルだけを取り込みました",
   "{} şarkı Beğenilen Şarkılar'a eklendi": "{}曲をお気に入りの曲に追加しました",
-  "{} şarkı sıraya eklendi": "{}曲をキューに追加しました"
+  "{} şarkı sıraya eklendi": "{}曲をキューに追加しました",
+  ".lrc dosyası": ".lrc ファイル",
+  "Dosya etiketi": "ファイルのタグ",
+  "KAYNAK · LRCLIB · SPOTIFY": "ソース · LRCLIB · SPOTIFY",
+  "Canlı radyo yayınlarında şarkı sözü gösterilmez": "ライブラジオでは歌詞は表示されません",
+  "Kapat (Esc)": "閉じる (Esc)",
+  "Senkronize değil": "同期なし",
+  "Söz zamanlaması: {}": "歌詞のタイミング: {}",
+  "Söz zamanlamasını sıfırla": "歌詞のタイミングをリセット",
+  "Sözleri daha erken göster": "歌詞を早める",
+  "Sözleri daha geç göster": "歌詞を遅らせる",
+  "Sözleri indirmelere ekle": "ダウンロードに歌詞を含める",
+  "Tam ekran sözler": "全画面の歌詞",
+  "Şarkı sözleri Ayarlar'da kapalı": "歌詞は設定でオフになっています",
+  "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "歌詞は MP3 のタグに書き込まれます。同期歌詞は同じ名前の .lrc ファイルとしてファイルの横にも保存されます。",
+  "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "LRCLIBの同期歌詞を表示します。Spotify に接続中は、見つからない歌詞を Spotify から取得します。音楽ファイルの横の .lrc ファイルとタグ内の歌詞が優先されます。「再生中」画面と全画面の歌詞に表示されます。"
 }

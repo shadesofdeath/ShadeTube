@@ -66,6 +66,7 @@ void Settings::load() {
     read(j, "syncCapGb", syncCapGb);
     syncCapGb = std::clamp(syncCapGb, 0, 1024);
     read(j, "lyricsEnabled", lyricsEnabled);
+    read(j, "lyricsInDownloads", lyricsInDownloads);
     read(j, "scrobbleEnabled", scrobbleEnabled);
     read(j, "discordEnabled", discordEnabled);
     read(j, "discordAppId", discordAppId);
@@ -127,6 +128,7 @@ void Settings::save() const {
         {"syncRemoveDropped", syncRemoveDropped},
         {"syncCapGb", syncCapGb},
         {"lyricsEnabled", lyricsEnabled},
+        {"lyricsInDownloads", lyricsInDownloads},
         {"scrobbleEnabled", scrobbleEnabled},
         {"discordEnabled", discordEnabled},
         {"discordAppId", discordAppId},

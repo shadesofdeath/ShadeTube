@@ -1058,5 +1058,20 @@
   "{} şarkı sıraya eklendi": {
     "one": "{} Song zur Warteschlange hinzugefügt",
     "other": "{} Songs zur Warteschlange hinzugefügt"
-  }
+  },
+  ".lrc dosyası": ".lrc-Datei",
+  "Dosya etiketi": "Datei-Tag",
+  "KAYNAK · LRCLIB · SPOTIFY": "QUELLEN · LRCLIB · SPOTIFY",
+  "Canlı radyo yayınlarında şarkı sözü gösterilmez": "Bei Live-Radio werden keine Songtexte angezeigt",
+  "Kapat (Esc)": "Schließen (Esc)",
+  "Senkronize değil": "Nicht synchronisiert",
+  "Söz zamanlaması: {}": "Songtext-Timing: {}",
+  "Söz zamanlamasını sıfırla": "Songtext-Timing zurücksetzen",
+  "Sözleri daha erken göster": "Songtext früher anzeigen",
+  "Sözleri daha geç göster": "Songtext später anzeigen",
+  "Sözleri indirmelere ekle": "Songtexte zu Downloads hinzufügen",
+  "Tam ekran sözler": "Songtext im Vollbild",
+  "Şarkı sözleri Ayarlar'da kapalı": "Songtexte sind in den Einstellungen ausgeschaltet",
+  "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "Songtexte werden in die Tags der MP3-Datei geschrieben; synchronisierte Songtexte werden zusätzlich als gleichnamige .lrc-Datei neben der Datei gespeichert.",
+  "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Synchronisierte Songtexte über LRCLIB; bist du mit Spotify verbunden, kommen fehlende von Spotify. .lrc-Dateien neben deinen Musikdateien und Songtexte in ihren Tags werden zuerst gelesen. Werden in der Ansicht „Läuft gerade“ und im Songtext-Vollbild angezeigt."
 }

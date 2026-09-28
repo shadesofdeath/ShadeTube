@@ -944,5 +944,20 @@
   "Zaten Beğenilen Şarkılar'da": "Sudah ada di Lagu yang Disukai",
   "Yalnızca ilk {} dosya alındı": "Hanya {} file pertama yang diambil",
   "{} şarkı Beğenilen Şarkılar'a eklendi": "{} lagu ditambahkan ke Lagu yang Disukai",
-  "{} şarkı sıraya eklendi": "{} lagu ditambahkan ke antrean"
+  "{} şarkı sıraya eklendi": "{} lagu ditambahkan ke antrean",
+  ".lrc dosyası": "file .lrc",
+  "Dosya etiketi": "Tag file",
+  "KAYNAK · LRCLIB · SPOTIFY": "SUMBER · LRCLIB · SPOTIFY",
+  "Canlı radyo yayınlarında şarkı sözü gösterilmez": "Lirik tidak ditampilkan untuk radio siaran langsung",
+  "Kapat (Esc)": "Tutup (Esc)",
+  "Senkronize değil": "Tidak sinkron",
+  "Söz zamanlaması: {}": "Waktu lirik: {}",
+  "Söz zamanlamasını sıfırla": "Atur ulang waktu lirik",
+  "Sözleri daha erken göster": "Tampilkan lirik lebih awal",
+  "Sözleri daha geç göster": "Tampilkan lirik lebih lambat",
+  "Sözleri indirmelere ekle": "Tambahkan lirik ke unduhan",
+  "Tam ekran sözler": "Lirik layar penuh",
+  "Şarkı sözleri Ayarlar'da kapalı": "Lirik dimatikan di Setelan",
+  "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "Lirik ditulis ke tag MP3; lirik tersinkron juga disimpan di samping file sebagai file .lrc dengan nama yang sama.",
+  "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Lirik tersinkron dari LRCLIB; saat terhubung ke Spotify, yang tidak ada di sana diambil dari Spotify. File .lrc di samping file musik dan lirik di tag-nya dibaca lebih dulu. Ditampilkan di layar Sedang Diputar dan tampilan lirik layar penuh."
 }

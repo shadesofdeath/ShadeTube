@@ -4,6 +4,7 @@
 #include "app/Commands.h"
 #include "app/InternetRadio.h"
 #include "app/LinkOpener.h"
+#include "app/LyricsService.h"
 #include "app/LoginWindow.h"
 #include "app/NowPlaying.h"
 #include "app/PageWidgets.h"
@@ -460,6 +461,15 @@ void App::showShell() {
     if (player_) wirePlayer();
     initFeatures();
     commands::initSystemFeatures();   // key bindings cleanup + the "Windows ile başlat" Run value
+    // Lyrics are timed to the song: the parts of a music video SponsorBlock skips (intro skits, sponsor spots) aren't
+    // in it, so they come out of the lyrics' clock.
+    setLyricsExtraProvider([this] {
+        lyrics::Ranges extra;
+        const auto m = player_ ? player_->currentMatch() : std::nullopt;
+        if (!m || m->videoId != sponsor_.videoId() || !Settings::get().sponsorBlockEnabled) return extra;
+        for (const auto& s : sponsor_.segments()) extra.emplace_back(s.startMs, s.endMs);
+        return extra;
+    });
     wireSession();
     // Restore a saved sp_dc (starts a background token + library fetch). With no session and not in preview,
     // greet the user with the connect screen; they can still choose "Spotify olmadan keşfet".
@@ -496,7 +506,12 @@ void App::showShell() {
         t.id = "preview:" + options_.previewPlay;
         player_->playContext({t}, 0, {"preview", tr(L"Önizleme")});
     }
-    if (options_.route == "nowplaying") Dispatcher::post([this] { ctx().toggleNowPlaying(true); });
+    if (options_.route == "nowplaying" || options_.route == "lyrics")
+        Dispatcher::post([this] { ctx().toggleNowPlaying(true); });
+    if (options_.route == "lyrics")   // dev: the full-screen lyrics over Now Playing
+        Dispatcher::post([] {
+            if (ctx().toggleLyricsFullscreen) ctx().toggleLyricsFullscreen();
+        });
     if (options_.palette) Dispatcher::post([q = *options_.palette] { openCommandPalette(q); });
     // A jump-list task started this instance (no ShadeTube was running): carry it out on the restored queue. (The mini
     // player command opens it from the constructor, like --mini.)

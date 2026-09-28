@@ -1058,5 +1058,20 @@
   "{} şarkı sıraya eklendi": {
     "one": "{} titre ajouté à la file d'attente",
     "other": "{} titres ajoutés à la file d'attente"
-  }
+  },
+  ".lrc dosyası": "fichier .lrc",
+  "Dosya etiketi": "Tag du fichier",
+  "KAYNAK · LRCLIB · SPOTIFY": "SOURCES · LRCLIB · SPOTIFY",
+  "Canlı radyo yayınlarında şarkı sözü gösterilmez": "Les paroles ne s'affichent pas pour la radio en direct",
+  "Kapat (Esc)": "Fermer (Échap)",
+  "Senkronize değil": "Non synchronisées",
+  "Söz zamanlaması: {}": "Décalage des paroles : {}",
+  "Söz zamanlamasını sıfırla": "Réinitialiser le décalage des paroles",
+  "Sözleri daha erken göster": "Afficher les paroles plus tôt",
+  "Sözleri daha geç göster": "Afficher les paroles plus tard",
+  "Sözleri indirmelere ekle": "Ajouter les paroles aux téléchargements",
+  "Tam ekran sözler": "Paroles en plein écran",
+  "Şarkı sözleri Ayarlar'da kapalı": "Les paroles sont désactivées dans les Paramètres",
+  "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "Les paroles sont écrites dans les tags du MP3 ; les paroles synchronisées sont aussi enregistrées à côté du fichier dans un .lrc du même nom.",
+  "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Paroles synchronisées via LRCLIB ; si tu es connecté à Spotify, celles qui manquent viennent de Spotify. Les fichiers .lrc à côté de tes fichiers audio et les paroles de leurs tags sont lus en premier. Affichées sur l'écran En cours de lecture et en plein écran."
 }

@@ -1134,5 +1134,20 @@
     "few": "{} трека добавлены в очередь",
     "many": "{} треков добавлено в очередь",
     "other": "{} трека добавлено в очередь"
-  }
+  },
+  ".lrc dosyası": "файл .lrc",
+  "Dosya etiketi": "Тег файла",
+  "KAYNAK · LRCLIB · SPOTIFY": "ИСТОЧНИКИ · LRCLIB · SPOTIFY",
+  "Canlı radyo yayınlarında şarkı sözü gösterilmez": "Для радио в прямом эфире тексты песен не показываются",
+  "Kapat (Esc)": "Закрыть (Esc)",
+  "Senkronize değil": "Без синхронизации",
+  "Söz zamanlaması: {}": "Сдвиг текста: {}",
+  "Söz zamanlamasını sıfırla": "Сбросить сдвиг текста",
+  "Sözleri daha erken göster": "Показывать текст раньше",
+  "Sözleri daha geç göster": "Показывать текст позже",
+  "Sözleri indirmelere ekle": "Добавлять тексты в загрузки",
+  "Tam ekran sözler": "Текст на весь экран",
+  "Şarkı sözleri Ayarlar'da kapalı": "Тексты песен отключены в настройках",
+  "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "Текст записывается в теги MP3; синхронизированный текст также сохраняется рядом с файлом в .lrc с тем же именем.",
+  "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Синхронизированные тексты из LRCLIB; при подключённом Spotify недостающие берутся из Spotify. Сначала читаются файлы .lrc рядом с музыкальными файлами и тексты в их тегах. Показываются на экране «Сейчас играет» и в полноэкранном режиме."
 }

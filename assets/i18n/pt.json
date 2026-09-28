@@ -1058,5 +1058,20 @@
   "{} şarkı sıraya eklendi": {
     "one": "{} música adicionada à fila",
     "other": "{} músicas adicionadas à fila"
-  }
+  },
+  ".lrc dosyası": "arquivo .lrc",
+  "Dosya etiketi": "Tag do arquivo",
+  "KAYNAK · LRCLIB · SPOTIFY": "FONTES · LRCLIB · SPOTIFY",
+  "Canlı radyo yayınlarında şarkı sözü gösterilmez": "A letra não aparece em rádio ao vivo",
+  "Kapat (Esc)": "Fechar (Esc)",
+  "Senkronize değil": "Não sincronizada",
+  "Söz zamanlaması: {}": "Sincronia da letra: {}",
+  "Söz zamanlamasını sıfırla": "Redefinir a sincronia da letra",
+  "Sözleri daha erken göster": "Mostrar a letra antes",
+  "Sözleri daha geç göster": "Mostrar a letra depois",
+  "Sözleri indirmelere ekle": "Adicionar letras aos downloads",
+  "Tam ekran sözler": "Letra em tela cheia",
+  "Şarkı sözleri Ayarlar'da kapalı": "As letras estão desativadas nas Configurações",
+  "Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı adla bir .lrc dosyası olarak kaydedilir.": "A letra é gravada nas tags do MP3; a letra sincronizada também é salva ao lado do arquivo como um .lrc com o mesmo nome.",
+  "LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve tam ekran söz görünümünde gösterilir.": "Letras sincronizadas via LRCLIB; com o Spotify conectado, as que faltarem vêm do Spotify. Arquivos .lrc ao lado dos seus arquivos de música e letras nas tags deles são lidos primeiro. Aparecem na tela Tocando agora e na letra em tela cheia."
 }

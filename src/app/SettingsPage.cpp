@@ -200,7 +200,10 @@ private:
                       L"kesintisiz geçiş."),
                    s.preloadNext, [](bool v) { Settings::get().preloadNext = v; });
             toggle(c, tr(L"Şarkı sözleri"),
-                   tr(L"LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir."), s.lyricsEnabled,
+                   tr(L"LRCLIB'den senkronize sözler; Spotify'a bağlıyken orada bulunmayanlar Spotify'dan gelir. Müzik "
+                      L"dosyalarının yanındaki .lrc dosyaları ve etiketlerdeki sözler önce okunur. Şimdi Çalıyor'da ve "
+                      L"tam ekran söz görünümünde gösterilir."),
+                   s.lyricsEnabled,
                    [](bool v) { Settings::get().lyricsEnabled = v; });
             toggle(c, tr(L"Müzik dışı bölümleri atla"),
                    tr(L"SponsorBlock topluluk verisiyle müzik videolarındaki konuşma, sponsor ve tanıtım bölümleri "
@@ -297,6 +300,10 @@ private:
                 Settings::get().downloadMp3Kbps = kbps[i];
                 Settings::get().markDirty();
             };
+            toggle(c, tr(L"Sözleri indirmelere ekle"),
+                   tr(L"Şarkı sözleri MP3 dosyasının etiketine yazılır; senkronize sözler ayrıca dosyanın yanına aynı "
+                      L"adla bir .lrc dosyası olarak kaydedilir."),
+                   s.lyricsInDownloads, [](bool v) { Settings::get().lyricsInDownloads = v; });
             auto* row2 = c->add<SettingRow>(
                 tr(L"İndirme klasörü"), tr(L"Varsayılan: Müzik\\ShadeTube. Dosyalar Sanatçı/Albüm alt klasörlerine, "
                                            L"kapak ve etiketleriyle yazılır."));

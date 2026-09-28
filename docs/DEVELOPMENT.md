@@ -75,7 +75,7 @@ ShadeTube/
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming)
-│   lyrics/      st_lyrics       LRCLIB client + LRC parser
+│   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim
@@ -236,7 +236,10 @@ and encodes **MP3** (320/256/192 kbps) with a Media Foundation Sink Writer (no F
 with the cover; bitrate 0 keeps the original stream as `.m4a` (passthrough). With SponsorBlock on, MP3 downloads are
 **trimmed**: segments are cut sample-accurately from the decoded PCM with 8 ms raised-cosine fades at every splice
 and a continuous timeline (cuts that would leave < 10 s are ignored); the count and removed time are stored per item.
-Passthrough downloads are never trimmed. Downloaded tracks play offline from disk.
+Passthrough downloads are never trimmed. Downloaded tracks play offline from disk. With `Settings.lyricsInDownloads`
+(and lyrics on) the lyrics are fetched before the transcode (3.15) and written into the MP3's tag (USLT text, SYLT
+lines in ms, UTF-16), and synced ones also as `<file>.lrc` next to it (passthrough `.m4a` too). Their times are not
+shifted by the cuts: lyrics are timed to the song, which is what the trimmed file holds.
 
 **Download sync** ("Çevrimdışı kullanılabilir"; `app/SyncRules` = rules + pure planning, standalone and tested;
 `app/DownloadSync` = engine + UI). Liked Songs (Spotify's while logged in, else the local ones), playlists (Spotify or
@@ -395,7 +398,7 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `blacklist.json`, `listening.json`,
-`local-library.json`, `dropped-files.json`, `recent-searches.json`, `palette-recent.json`, `spotify-hashes.json`,
+`local-library.json`, `dropped-files.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `spotify-hashes.json`,
 `sync.json`, `update-leftovers.txt`, `cache\` (images, `matches.json`, lyrics, `mb`, `local-covers`, `dropped-covers`),
 `logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default.
 
@@ -418,6 +421,28 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
   (`local:<hash>`); `dropped-files.json` (the local index format, newest 5 000) and a player resolver asked before
   the local library's keep them playable after a restart (restored queue, history). A single dropped folder the
   library doesn't cover yet gets an "add to Yerel dosyalar" toast action.
+
+### 3.16 Lyrics
+
+- **Sources** (`lyrics::fetch`, worker thread; the query comes from `app/LyricsService` `lyricsQueryFor`): for an item
+  that plays from disk (a local file or a download) its own synced lyrics win — a sidecar `<stem>.lrc` (UTF-8 /
+  UTF-16 / ANSI), else the file's tags (MP3: ID3v2.3 / 2.4 `SYLT`, then `USLT`, which may hold LRC, read by our own
+  parser; other formats: `System.Music.Lyrics`). Then LRCLIB, then — for a `spotify:track:` while logged in — Spotify's
+  lyrics service (`spclient /color-lyrics/v2/track/<id>`, `Api::trackLyrics`) when LRCLIB has nothing or only unsynced
+  lyrics. An unsynced local text beats an unsynced online one. Spotify answering 429 / 403 pauses that provider for
+  10 / 30 minutes.
+- **Cache** (`cache\lyrics\<id>.json`): the online answer plus the providers already asked (`tried`); a definitive
+  "none" is kept 7 days, a transient failure is never cached, and a provider that wasn't asked yet (the user logged in
+  later) still is. Enhanced-LRC word times are kept (`words`).
+- **Timeline**: lyrics are timed to the song. A matched music video's SponsorBlock segments (intro skits, sponsor
+  spots) are not in it, so the lyrics' clock is the player position minus the skipped segments before it
+  (`lyrics::songTime`, provided by `App` through `setLyricsExtraProvider`); a click on a line seeks back through
+  `lyrics::mediaTime`. Then the per-track offset applies (`lyrics-offsets.json`, + = later, ±30 s, 250 ms steps:
+  `ctx().lyricsOffsetBy`, the −/+ buttons of Now Playing and the full-screen view, − / + keys there).
+- **Full-screen lyrics** (`app/LyricsFullscreen`, `ctx().toggleLyricsFullscreen`): a modal overlay over the whole
+  window (its top strip is a caption area: the window still moves). The active line fills with the accent as it is
+  sung: per word with word times, else across the line until the next one (capped by the line's length). Controls fade
+  after 2.5 s without mouse movement; everything it holds goes with it when it closes. Not offered for live radio.
 
 ## 4. Coding conventions
 
@@ -478,6 +503,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `stats_test` | stream rule, recording, aggregation, persistence, timing | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff | offline |
+| `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
@@ -496,7 +522,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |

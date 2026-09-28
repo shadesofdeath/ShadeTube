@@ -1,5 +1,6 @@
 #pragma once
-// Full-screen "Şimdi Çalıyor": blurred artwork backdrop, glowing hero art, synced lyrics, queue panel.
+// Full-screen "Şimdi Çalıyor": blurred artwork backdrop, glowing hero art, synced lyrics (with the timing offset −/+
+// and the full-screen karaoke view in their header), queue panel.
 #include "app/Components.h"
 #include "lyrics/Lyrics.h"
 #include "ui/Anim.h"
@@ -31,6 +32,7 @@ public:
 private:
     enum class LyricsState { None, Loading, Synced, Plain, Instrumental, Missing };
     void fetchLyrics();
+    void syncLyricsControls();           // header buttons for the lyrics state + the track's offset
     void paintBackdrop(Canvas& c, const Rect& r);
     void paintArtShadow(Canvas& c);
     void paintLyrics(Canvas& c, const Rect& r);
@@ -39,9 +41,11 @@ private:
     int lineAt(gfx::Point p) const;
 
     QueuePanel* queue_;
+    ui::Button *earlier_, *offset_, *later_, *fullscreen_;
     Lifetime life_;
     std::string trackId_;
     LyricsState state_ = LyricsState::None;
+    bool askedSpotify_ = false;          // the "no lyrics" note names the sources asked
     lyrics::Lyrics lyrics_;
     std::vector<gfx::Text> lines_;       // inactive style; a line keeps its layout only while it is on screen
     std::vector<float> lineH_;           // measured heights (-1 = not yet) for width lineHW_

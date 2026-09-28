@@ -47,7 +47,9 @@ starts instantly and stays light.
   Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline, and
   Liked Songs, playlists and albums can be kept offline and in sync automatically.
 - 📁 **Local files** — add your own folders: MP3, FLAC, M4A/ALAC, AAC, WAV and WMA with tags and covers.
-- 🎤 **Synced lyrics** from LRCLIB — click a line to jump there.
+- 🎤 **Synced lyrics** from LRCLIB, Spotify (when connected) or your own `.lrc` files — click a line to jump there,
+  nudge the timing if it's off, or open the full-screen karaoke view that fills each line as it's sung. Downloads
+  get the lyrics in their tags and a `.lrc` next to them.
 - 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
 - 🪟 **Made for Windows** — media keys and lock-screen controls, taskbar buttons and progress, always-on-top mini
@@ -119,8 +121,8 @@ The portable copy: delete `ShadeTube.exe` and `%LOCALAPPDATA%\ShadeTube`.
 
 ## 🔒 Privacy
 
-ShadeTube has no servers and collects nothing. It talks directly to Spotify (your library), YouTube (audio), LRCLIB
-(lyrics), SponsorBlock (segments, queried by hash prefix so the video is not revealed), MusicBrainz / Cover Art
+ShadeTube has no servers and collects nothing. It talks directly to Spotify (your library, and lyrics LRCLIB
+lacks), YouTube (audio), LRCLIB (lyrics), SponsorBlock (segments, queried by hash prefix so the video is not revealed), MusicBrainz / Cover Art
 Archive / ListenBrainz (open catalog) and GitHub (update checks). Last.fm, ListenBrainz scrobbling, Discord and
 Piped / Invidious are used only if you turn them on.
 

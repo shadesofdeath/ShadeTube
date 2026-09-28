@@ -113,6 +113,25 @@ void apicFrame(std::vector<uint8_t>& frames, const std::vector<uint8_t>& jpeg) {
     frames.push_back(0);
     frames.insert(frames.end(), data.begin(), data.end());
 }
+void utf16Bom(std::vector<uint8_t>& data, const std::string& utf8, bool terminate) {
+    data.push_back(0xFF);
+    data.push_back(0xFE);
+    for (wchar_t ch : toWide(utf8)) {
+        data.push_back(static_cast<uint8_t>(ch & 0xFF));
+        data.push_back(static_cast<uint8_t>((ch >> 8) & 0xFF));
+    }
+    if (terminate) {
+        data.push_back(0);
+        data.push_back(0);
+    }
+}
+void rawFrame(std::vector<uint8_t>& frames, const char* id, const std::vector<uint8_t>& data) {
+    frames.insert(frames.end(), id, id + 4);
+    putBE32(frames, static_cast<uint32_t>(data.size()));
+    frames.push_back(0);
+    frames.push_back(0);
+    frames.insert(frames.end(), data.begin(), data.end());
+}
 uint32_t readBE32(const uint8_t* p) {
     return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
 }
@@ -138,7 +157,7 @@ size_t takeSinkTag(std::ifstream& in, std::vector<uint8_t>& keep) {
     in.clear();
     in.seekg(0);
     if (!ok) return 0;
-    static constexpr const char* kOurs[] = {"TIT2", "TPE1", "TALB", "TYER", "TSSE", "APIC"};
+    static constexpr const char* kOurs[] = {"TIT2", "TPE1", "TALB", "TYER", "TSSE", "APIC", "USLT", "SYLT"};
     size_t pos = 0;
     while (pos + 10 <= size && body[pos] != 0) {   // a zero byte starts the padding
         const uint32_t len = readBE32(&body[pos + 4]);
@@ -160,6 +179,8 @@ std::vector<uint8_t> buildId3(const DownloadRequest& req, const std::vector<uint
     textFrame(frames, "TYER", req.year.size() >= 4 ? req.year.substr(0, 4) : req.year);
     textFrame(frames, "TSSE", "ShadeTube");
     apicFrame(frames, req.coverJpeg);
+    const auto lyr = id3LyricsFrames(req.lyricsText, req.syncedLyrics);
+    frames.insert(frames.end(), lyr.begin(), lyr.end());
     frames.insert(frames.end(), extraFrames.begin(), extraFrames.end());
     if (frames.empty()) return {};
     std::vector<uint8_t> tag;
@@ -506,6 +527,29 @@ std::vector<std::pair<int64_t, int64_t>> normalizeCuts(std::vector<std::pair<int
         else out.push_back(c);
     }
     return out;
+}
+
+std::vector<uint8_t> id3LyricsFrames(const std::string& text, const std::vector<std::pair<int64_t, std::string>>& synced) {
+    std::vector<uint8_t> frames;
+    if (!text.empty()) {
+        // USLT: encoding, language, descriptor (empty), text.
+        std::vector<uint8_t> data{0x01, 'e', 'n', 'g'};
+        utf16Bom(data, "", true);
+        utf16Bom(data, text, false);
+        rawFrame(frames, "USLT", data);
+    }
+    if (!synced.empty()) {
+        // SYLT: encoding, language, time stamp format (2 = ms), content type (1 = lyrics), descriptor, then each line
+        // as a terminated string + a 32-bit time stamp.
+        std::vector<uint8_t> data{0x01, 'e', 'n', 'g', 0x02, 0x01};
+        utf16Bom(data, "", true);
+        for (const auto& [ms, line] : synced) {
+            utf16Bom(data, line, true);
+            putBE32(data, static_cast<uint32_t>(std::clamp<int64_t>(ms, 0, UINT32_MAX)));
+        }
+        rawFrame(frames, "SYLT", data);
+    }
+    return frames;
 }
 
 DownloadStatus downloadTrack(const DownloadRequest& req, const std::function<void(float)>& progress,
