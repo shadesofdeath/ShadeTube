@@ -41,7 +41,8 @@ kalır.
   şarkılarla devam eder.
 - ⛔ **Kara liste** — engellediğin şarkı ve sanatçılar kendiliğinden hiç çalmaz.
 - ⬇️ **Gerçek MP3 indirme** — etiketli ve kapaklı 320 kbps MP3 (ya da orijinal m4a), Sanatçı/Albüm klasörlerine;
-  videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar.
+  videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar; Beğenilen Şarkılar,
+  çalma listeleri ve albümler kendiliğinden indirilip güncel tutulabilir.
 - 📁 **Yerel dosyalar** — kendi klasörlerin: MP3, FLAC, M4A/ALAC, AAC, WAV ve WMA, etiket ve kapaklarıyla.
 - 🎤 **Senkron şarkı sözleri** (LRCLIB) — bir satıra tıkla, oraya atla.
 - 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri.

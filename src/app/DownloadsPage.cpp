@@ -1,4 +1,5 @@
 // İndirilenler: aktif indirmeler (ilerleme), kullanıcı klasörleri (koleksiyonlar) ve indirilen şarkılar.
+#include "app/DownloadSync.h"
 #include "app/Downloads.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -123,6 +124,7 @@ class DownloadsPage : public ScrollPage {
 public:
     DownloadsPage() {
         ctx().downloads.subscribe(life_.ref(), [this] { scheduleRebuild(); });
+        sync::subscribe(life_.ref(), [this] { scheduleRebuild(); });
         rebuild();
     }
 
@@ -204,10 +206,13 @@ private:
         c->add<ui::Label>(stats, type::secondary, ui::Tone::Tertiary);
 
         if (collectionFilter_.empty()) {
-            // Active downloads.
+            // Active downloads. Sync downloads waiting or failed are summed up per collection below instead of one
+            // row each (a synced list can queue thousands); the one downloading right now still shows here.
             std::vector<const DownloadItem*> active;
-            for (const auto& i : dm.items())
+            for (const auto& i : dm.items()) {
+                if (i.synced && i.state != DlState::Downloading) continue;
                 if (i.state == DlState::Downloading || i.state == DlState::Queued || i.state == DlState::Failed) active.push_back(&i);
+            }
             if (!active.empty()) {
                 c->add<SectionHeader>(tr(L"İndiriliyor"), std::to_wstring(active.size()));
                 for (const auto* i : active) {
@@ -217,6 +222,9 @@ private:
                     row->onRetry = [i2 = *i] { ctx().downloads.enqueue(i2.track); };
                 }
             }
+
+            // Collections kept offline (download sync).
+            sync::buildSyncSection(c);
 
             // Collections (user folders).
             c->add<SectionHeader>(tr(L"Klasörlerin"), std::to_wstring(dm.collections().size()));

@@ -2,6 +2,7 @@
 
 #include "app/Blacklist.h"
 #include "app/ConnectScreen.h"
+#include "app/DownloadSync.h"
 #include "app/InternetRadio.h"
 #include "app/NowPlaying.h"
 #include "app/Source.h"
@@ -145,12 +146,14 @@ void Sidebar::refresh() {
             const std::string id = p.id;
             const std::wstring name = toWide(p.name);
             const bool editable = !liked && p.editable, owned = p.owned;
-            b->onContext = [id, name, liked, editable, owned](const ui::MouseEvent& e) {
+            const sync::Target offline{liked ? sync::Kind::Liked : sync::Kind::Playlist, id, p.name, p.images};
+            b->onContext = [id, name, liked, editable, owned, offline](const ui::MouseEvent& e) {
                 const Route r = liked ? Route{RouteKind::Liked} : Route{RouteKind::Playlist, id};
                 Route rp = r;
                 rp.id += "#play";
                 std::vector<ui::MenuItem> items{{tr(L"Aç"), "arrow-up-right", L"", [r] { ctx().router->navigate(r); }},
-                                                {tr(L"Çal"), "play", L"", [rp] { ctx().router->navigate(rp); }}};
+                                                {tr(L"Çal"), "play", L"", [rp] { ctx().router->navigate(rp); }},
+                                                sync::menuItem(offline)};
                 // Editable Spotify playlists (owned or collaborative): rename (owner only) / delete (unfollow).
                 if (editable) {
                     items.push_back(ui::MenuItem::sep());
@@ -166,14 +169,22 @@ void Sidebar::refresh() {
         }
     } else {
         auto& lib = ctx().library;
-        addItem(tr(L"Beğenilen Şarkılar"), static_cast<int>(lib.liked().size()), {RouteKind::Liked});
+        auto* liked = addItem(tr(L"Beğenilen Şarkılar"), static_cast<int>(lib.liked().size()), {RouteKind::Liked});
+        liked->onContext = [](const ui::MouseEvent& e) {
+            ui::Menu::open(ctx().window, e.windowPos,
+                           {{tr(L"Aç"), "arrow-up-right", L"", [] { ctx().router->navigate({RouteKind::Liked}); }},
+                            {tr(L"Çal"), "play", L"", [] { ctx().router->navigate({RouteKind::Liked, "#play"}); }},
+                            sync::menuItem(sync::likedTarget())});
+        };
         for (const auto& p : lib.playlists()) {
             auto* b = addItem(toWide(p.name), p.totalTracks, {RouteKind::Playlist, p.id});
             const std::string id = p.id;
-            b->onContext = [id](const ui::MouseEvent& e) {
+            const sync::Target offline{sync::Kind::Playlist, id, p.name, p.images};
+            b->onContext = [id, offline](const ui::MouseEvent& e) {
                 ui::Menu::open(ctx().window, e.windowPos,
                                {{tr(L"Aç"), "arrow-up-right", L"", [id] { ctx().router->navigate({RouteKind::Playlist, id}); }},
                                 {tr(L"Çal"), "play", L"", [id] { ctx().router->navigate({RouteKind::Playlist, id + "#play"}); }},
+                                sync::menuItem(offline),
                                 ui::MenuItem::sep(),
                                 {tr(L"Sil"), "trash", L"", [id] {
                                      ui::Dialog::confirm(ctx().window, tr(L"Çalma listesi silinsin mi?"),

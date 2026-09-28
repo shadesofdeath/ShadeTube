@@ -60,6 +60,11 @@ void Settings::load() {
     read(j, "reduceMotion", reduceMotion);
     read(j, "downloadsDir", downloadsDir);
     read(j, "downloadMp3Kbps", downloadMp3Kbps);
+    read(j, "syncPaused", syncPaused);
+    read(j, "syncOnMetered", syncOnMetered);
+    read(j, "syncRemoveDropped", syncRemoveDropped);
+    read(j, "syncCapGb", syncCapGb);
+    syncCapGb = std::clamp(syncCapGb, 0, 1024);
     read(j, "lyricsEnabled", lyricsEnabled);
     read(j, "scrobbleEnabled", scrobbleEnabled);
     read(j, "discordEnabled", discordEnabled);
@@ -115,6 +120,10 @@ void Settings::save() const {
         {"reduceMotion", reduceMotion},
         {"downloadsDir", downloadsDir},
         {"downloadMp3Kbps", downloadMp3Kbps},
+        {"syncPaused", syncPaused},
+        {"syncOnMetered", syncOnMetered},
+        {"syncRemoveDropped", syncRemoveDropped},
+        {"syncCapGb", syncCapGb},
         {"lyricsEnabled", lyricsEnabled},
         {"scrobbleEnabled", scrobbleEnabled},
         {"discordEnabled", discordEnabled},

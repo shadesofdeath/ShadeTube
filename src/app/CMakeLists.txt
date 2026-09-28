@@ -45,6 +45,7 @@ add_executable(ShadeTube WIN32
     DiscordRpc.cpp DiscordRpc.h
     Downloads.cpp Downloads.h
     DownloadsPage.cpp
+    DownloadSync.cpp DownloadSync.h
     HomePage.cpp
     Installer.cpp Installer.h
     ListenStats.cpp ListenStats.h
@@ -70,6 +71,7 @@ add_executable(ShadeTube WIN32
     Tray.cpp Tray.h
     SponsorBlock.cpp SponsorBlock.h
     StatsPage.cpp
+    SyncRules.cpp SyncRules.h
     SystemSettings.cpp
     Updater.cpp Updater.h
     WinShell.cpp WinShell.h

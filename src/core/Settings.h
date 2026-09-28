@@ -48,6 +48,11 @@ struct Settings {
     // Misc
     std::string downloadsDir;            // empty = default (Music\ShadeTube)
     int downloadMp3Kbps = 320;           // MP3 transcode bitrate for downloads; 0 = keep original (m4a)
+    // Download sync (app/DownloadSync): collections marked "Çevrimdışı kullanılabilir" are kept downloaded.
+    bool syncPaused = false;             // the user paused it (nothing is listed or downloaded for sync)
+    bool syncOnMetered = false;          // also sync on a metered connection (off: waits for an unmetered one)
+    bool syncRemoveDropped = false;      // delete synced files of songs that left every synced collection
+    int syncCapGb = 0;                   // storage cap for synced downloads in GB; 0 = no limit
     bool lyricsEnabled = true;
 
     // Integrations

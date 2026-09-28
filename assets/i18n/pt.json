@@ -869,5 +869,57 @@
   "Sesin çalınacağı aygıt. Seçtiğin aygıt çıkarılırsa Windows varsayılanına geçilir ve geri takılınca ona dönülür.": "Onde o som toca. Se o dispositivo escolhido for desconectado, o ShadeTube passa para o padrão do Windows e volta a ele quando for reconectado.",
   "Windows varsayılanı": "Padrão do Windows",
   "Seçili aygıt": "Dispositivo escolhido",
-  "varsayılan": "padrão"
+  "varsayılan": "padrão",
+  "\"{}\" artık güncel tutulmayacak. Senkronla indirilen şarkılar bu bilgisayarda kalsın mı? Kalanlar İndirilenler'de senin indirdiklerin gibi durur.": "“{}” não será mais mantida atualizada. Manter neste PC as músicas baixadas pela sincronização? As que ficarem continuam em Downloads como os seus próprios downloads.",
+  "\"{}\" artık senkronize edilmiyor": "“{}” não é mais sincronizada",
+  "\"{}\" artık senkronize edilmiyor; {} silindi": "“{}” não é mais sincronizada; {} excluídas",
+  "\"{}\" eklendi; senkron duraklatıldığı için şimdilik indirilmiyor": "“{}” adicionada; a sincronização está pausada, então nada é baixado por enquanto",
+  "\"{}\" çevrimdışı kullanılabilir olacak": "“{}” ficará disponível offline",
+  "Depolama sınırına ulaşıldı ({} / {}). Yeni şarkılar indirilmiyor.": "Limite de armazenamento atingido ({} / {}). Músicas novas não são baixadas.",
+  "Hataları yeniden dene": "Tentar de novo as que falharam",
+  "Kapalıyken kotalı (ölçülü) bir bağlantıdayken senkron indirmeleri bekler; kendi başlattığın indirmeler etkilenmez.": "Desativado, os downloads da sincronização esperam enquanto você estiver em uma conexão limitada; downloads que você mesmo inicia não são afetados.",
+  "Liste alınamadı; yeniden denenecek": "Não foi possível obter a lista; será tentado de novo",
+  "Liste alınıyor…": "Obtendo a lista…",
+  "Liste bulunamadı; silinmiş ya da gizli olabilir": "Lista não encontrada; pode ter sido excluída ou ficado privada",
+  "Listeden çıkan şarkıları sil": "Excluir músicas removidas das listas",
+  "Senkron bekliyor": "Aguardando sincronização",
+  "Senkron depolama sınırına ulaştı; yeni şarkılar indirilmiyor": "A sincronização atingiu o limite de armazenamento; músicas novas não são baixadas",
+  "Senkron duraklatıldı.": "A sincronização está pausada.",
+  "Senkron için depolama sınırı": "Limite de armazenamento da sincronização",
+  "Senkronize edilen listelerin hiçbirinde kalmayan bir şarkının dosyası silinir. Kendi indirdiklerin ve klasörlerine eklediklerin hiç silinmez.": "O arquivo de uma música que não está mais em nenhuma lista sincronizada é excluído. As que você mesmo baixou ou pôs nas suas pastas nunca são excluídas.",
+  "Senkronize edilen şarkılar şu an {} yer kaplıyor. Sınıra ulaşınca yeni şarkı indirilmez.": "As músicas sincronizadas ocupam {} agora. Ao atingir o limite, nenhuma música nova é baixada.",
+  "Senkronize edilenler": "Sincronizadas",
+  "Senkronu kapat": "Parar de sincronizar",
+  "Spotify istekleri sınırladı; birazdan yeniden denenecek": "O Spotify está limitando as solicitações; será tentado de novo em breve",
+  "Spotify'a bağlanınca senkronize edilir": "Sincroniza quando você se conectar ao Spotify",
+  "Sürdür": "Retomar",
+  "Sınırsız": "Sem limite",
+  "güncelleniyor…": "atualizando…",
+  "{} / {} şarkı": {
+    "one": "{} / {} música",
+    "other": "{} / {} músicas"
+  },
+  "{} hata": {
+    "one": "{} erro",
+    "other": "{} erros"
+  },
+  "{} indirilecek": {
+    "one": "{} a baixar",
+    "other": "{} a baixar"
+  },
+  "Çevrimdışı kullanılabilir yap": "Disponibilizar offline",
+  "Çevrimdışı kullanılabilir yaptığın Beğenilen Şarkılar, çalma listeleri ve albümler arka planda indirilir ve güncel tutulur. Bir listenin başlığındaki indirme düğmesiyle ekle.": "Músicas Curtidas, playlists e álbuns que você disponibilizar offline são baixados em segundo plano e mantidos atualizados. Adicione pelo botão de download no cabeçalho.",
+  "Çevrimdışı kullanılabilir · senkronize ediliyor…": "Disponível offline · sincronizando…",
+  "Çevrimdışı kullanılabilir · {} / {} şarkı": {
+    "one": "Disponível offline · {} / {} música",
+    "other": "Disponível offline · {} / {} músicas"
+  },
+  "Çevrimdışı senkron": "Sincronização offline",
+  "Çevrimdışı senkron kapatılsın mı?": "Parar a sincronização offline?",
+  "Çevrimdışı senkronu kapat": "Parar a sincronização offline",
+  "Ölçülü bağlantıda da senkronize et": "Sincronizar também em conexões limitadas",
+  "Ölçülü bir bağlantıdasın; senkron indirmeleri bekliyor.": "Você está em uma conexão limitada; os downloads da sincronização estão aguardando.",
+  "Şarkıları sakla": "Manter músicas",
+  "Şarkıları sil": "Excluir músicas",
+  "Şimdi senkronize et": "Sincronizar agora"
 }

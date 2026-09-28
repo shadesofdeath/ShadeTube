@@ -116,7 +116,8 @@ private:
 
 class SettingsPage : public ScrollPage {
 public:
-    // `focus`: a section to open scrolled to ("appearance" = GÖRÜNÜM), e.g. the start route "settings:appearance".
+    // `focus`: a section to open scrolled to ("appearance" = GÖRÜNÜM, "downloads" = İNDİRME), e.g. the start route
+    // "settings:appearance".
     explicit SettingsPage(std::string focus = {}) : focus_(std::move(focus)) {
         build();
         if (ctx().session)
@@ -280,7 +281,8 @@ private:
         section(c, tr(L"KLAVYE"));
         buildShortcutRows(c, rebuilder());
 
-        section(c, tr(L"İNDİRME"));
+        auto* downloads = section(c, tr(L"İNDİRME"));
+        if (focus_ == "downloads") focusLabel_ = downloads;
         {
             auto* row = c->add<SettingRow>(
                 tr(L"İndirme kalitesi"),
@@ -306,6 +308,7 @@ private:
                 std::filesystem::create_directories(p, ec);
                 openPath(p.wstring());
             };
+            buildDownloadSyncRows(c, rebuilder());
         }
 
         section(c, tr(L"YEREL MÜZİK"));

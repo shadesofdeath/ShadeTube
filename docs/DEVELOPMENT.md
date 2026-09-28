@@ -228,6 +228,37 @@ with the cover; bitrate 0 keeps the original stream as `.m4a` (passthrough). Wit
 and a continuous timeline (cuts that would leave < 10 s are ignored); the count and removed time are stored per item.
 Passthrough downloads are never trimmed. Downloaded tracks play offline from disk.
 
+**Download sync** ("Çevrimdışı kullanılabilir"; `app/SyncRules` = rules + pure planning, standalone and tested;
+`app/DownloadSync` = engine + UI). Liked Songs (Spotify's while logged in, else the local ones), playlists (Spotify or
+local) and albums (Spotify or MusicBrainz) can be kept downloaded: the download button in a collection header, or the
+context menus of the sidebar and Library cards. Rules live in `sync.json` with each one's last listing (track ids),
+error and backoff, plus per-track download attempts.
+
+- **Passes** (UI thread; listings on workers): 45 s after startup, then whenever a rule is due (`ruleDue`): never
+  listed, a change seen here (a like / unlike through the library snapshot, a Spotify playlist edit, a local list
+  change; debounced 5 s, at least 1 min between Spotify listings and 5 min for Spotify Liked Songs, which pages every
+  like), tracks still missing 30 min after the last listing, or the periodic relist (playlists 45 min, Spotify Liked
+  Songs 6 h, albums 24 h). "Şimdi senkronize et" forces one. Rules are listed one at a time; Spotify pages go 300 ms
+  apart and collections 1.5 s apart; a failed listing backs off 1 / 5 / 15 / 60 min, and a 429 stops every Spotify
+  rule for at least 10 min. Rules whose source is unavailable (Spotify while logged out) are skipped and keep their
+  track ids.
+- **Queueing**: a listing's downloadable tracks (not radio / local files / podcast episodes, not blocked) become the
+  rule's track ids; what is neither downloaded nor queued goes to `DownloadManager::enqueueSynced` — after the user's
+  own downloads, marked `"sy"` in `downloads.json`. Failed sync downloads are retried after 1 h, then 6 h, then wait for
+  "Hataları yeniden dene". The storage cap (`Settings.syncCapGb`) counts sync files on disk plus size estimates of the
+  queued ones (duration × bit rate) and leaves out what does not fit.
+- **Gating**: sync downloads wait in the queue while sync is paused (`syncPaused`) or the connection is metered
+  (WinRT `NetworkInformation` connection cost, checked every minute on a worker) unless `syncOnMetered`.
+- **Dropping**: after every listing, sync downloads that no rule wants any more are dropped from the queue, and their
+  files are deleted only with `syncRemoveDropped` ("Listeden çıkan şarkıları sil", off by default). A listing that
+  comes back empty after holding tracks never deletes anything. A manual download or a folder add makes a sync
+  download the user's own (`synced = false`): sync never cancels or deletes those. Removing a rule asks whether to
+  keep its songs (they become the user's own downloads) or delete them (unless another rule wants them).
+- **UI**: the header toggle shows the progress as an arc around the icon (accent while working, tertiary while
+  waiting) and a check when complete; the Downloads page lists the rules ("Senkronize edilenler": done / total,
+  queued, errors, last sync, why sync waits) instead of one row per queued sync download; Ayarlar › İNDİRME has the
+  pause, metered, cleanup and storage cap rows.
+
 ### 3.8 Local files and listening stats
 
 - **Local files** (`app/LocalLibrary`): `local::scan()` walks `Settings.localFolders` on workers (up to 50 000 files),
@@ -308,8 +339,9 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `blacklist.json`, `listening.json`,
-`local-library.json`, `recent-searches.json`, `spotify-hashes.json`, `update-leftovers.txt`, `cache\` (images,
-`matches.json`, lyrics, `mb`), `logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default.
+`local-library.json`, `recent-searches.json`, `spotify-hashes.json`, `sync.json`, `update-leftovers.txt`, `cache\`
+(images, `matches.json`, lyrics, `mb`), `logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by
+default.
 
 ## 4. Coding conventions
 
@@ -369,6 +401,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `stats_test` | stream rule, recording, aggregation, persistence, timing | offline |
+| `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff | offline |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -383,7 +416,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--login` | open the Spotify WebView2 login window at startup |
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:appearance`, `settings:audio`, `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:appearance`, `settings:audio`, `settings:downloads`, `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |
