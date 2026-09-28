@@ -1,0 +1,28 @@
+{
+ "payload": {
+  "artists": [
+   {
+    "artist_mbid": "0d79fe8e-ba27-4859-bb8c-2f255f346853",
+    "artist_name": "BTS",
+    "listen_count": 515886
+   },
+   {
+    "artist_mbid": "f09d2950-e3c6-47b2-b21c-2bad2cd3f616",
+    "artist_name": "Agust D",
+    "listen_count": 71466
+   },
+   {
+    "artist_mbid": "23c8056b-ee13-4cfc-a772-2f5292e35bb5",
+    "artist_name": "Jung Kook",
+    "listen_count": 42991
+   }
+  ],
+  "count": 3,
+  "from_ts": 1789344000,
+  "last_updated": 1790483445,
+  "offset": 0,
+  "range": "week",
+  "to_ts": 1789948800,
+  "total_artist_count": 550616
+ }
+}

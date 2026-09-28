@@ -1,0 +1,16 @@
+# st_audio: playback engine (AudioEngine) + queue logic (Player, added later).
+# Internal pieces (ProgressiveBuffer, MfByteStream, Decoder, Track, WasapiOutput, Spectrum) are
+# implementation details of AudioEngine; only AudioEngine.h (and later Player.h) are public.
+add_library(st_audio STATIC
+    AudioEngine.cpp AudioEngine.h
+    ProgressiveBuffer.cpp ProgressiveBuffer.h   # range-request download into one contiguous buffer
+    MfByteStream.cpp MfByteStream.h             # IMFByteStream over the buffer
+    Decoder.cpp Decoder.h                       # MF Source Reader -> float PCM
+    Track.cpp Track.h                           # buffer + decode thread + PCM ring
+    WasapiOutput.cpp WasapiOutput.h             # WASAPI shared, event-driven render client
+    Spectrum.cpp Spectrum.h                     # Hann + radix-2 FFT -> log bands
+    Downloader.cpp Downloader.h                 # offline download + MF PCM->MP3 transcode + ID3
+)
+target_link_libraries(st_audio
+    PUBLIC st_core
+    PRIVATE mfplat mfreadwrite mfuuid ole32 avrt winhttp advapi32)

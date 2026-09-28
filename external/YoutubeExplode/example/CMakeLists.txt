@@ -1,0 +1,5 @@
+add_executable(yte-example main.cpp)
+target_link_libraries(yte-example PRIVATE YoutubeExplode::YoutubeExplode)
+if(MSVC)
+    target_compile_options(yte-example PRIVATE /utf-8)
+endif()

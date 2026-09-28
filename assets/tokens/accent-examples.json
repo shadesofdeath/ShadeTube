@@ -1,0 +1,65 @@
+{
+  "note": "Runtime: extract dominant vivid color from album art (quantize to 16 colors, pick highest saturation*population, clamp HSL saturation ≥ 55%, lightness 55–80% dark / 30–45% light). Derived shades below use the same formulas: hover +6 L, pressed -8 L, muted -30 L / -25 S, subtle -38 L / -30 S, tints = base at 6/12/25% alpha. onAccent = #0F0D0B when relative luminance > 0.35 else #F3EDE4. Crossfade all accent-bound brushes over 600ms standard easing when the track changes.",
+  "default": {
+    "name": "Volt",
+    "base": "#DDFF47",
+    "onAccent": "#0F0D0B",
+    "hover": "#E3FF66",
+    "pressed": "#D5FF1E",
+    "muted": "#7F9716",
+    "subtle": "#5F7014",
+    "glowRgba": "rgba(221,255,71,0.18)",
+    "tint06": "rgba(221,255,71,0.06)",
+    "tint12": "rgba(221,255,71,0.12)",
+    "tint25": "rgba(221,255,71,0.25)",
+    "bufferedRgba": "rgba(221,255,71,0.25)",
+    "headerWash": "rgba(221,255,71,0.10)"
+  },
+  "alternates": [
+    {
+      "name": "Kor (coral)",
+      "base": "#FF5C3A",
+      "onAccent": "#F3EDE4",
+      "hover": "#FF7559",
+      "pressed": "#FF3A11",
+      "muted": "#8C2914",
+      "subtle": "#652012",
+      "glowRgba": "rgba(255,92,58,0.18)",
+      "tint06": "rgba(255,92,58,0.06)",
+      "tint12": "rgba(255,92,58,0.12)",
+      "tint25": "rgba(255,92,58,0.25)",
+      "bufferedRgba": "rgba(255,92,58,0.25)",
+      "headerWash": "rgba(255,92,58,0.10)"
+    },
+    {
+      "name": "Buz (ice)",
+      "base": "#7CE0FF",
+      "onAccent": "#0F0D0B",
+      "hover": "#9BE7FF",
+      "pressed": "#53D6FF",
+      "muted": "#1C9EC6",
+      "subtle": "#1C7F9D",
+      "glowRgba": "rgba(124,224,255,0.18)",
+      "tint06": "rgba(124,224,255,0.06)",
+      "tint12": "rgba(124,224,255,0.12)",
+      "tint25": "rgba(124,224,255,0.25)",
+      "bufferedRgba": "rgba(124,224,255,0.25)",
+      "headerWash": "rgba(124,224,255,0.10)"
+    },
+    {
+      "name": "Fuşya (magenta)",
+      "base": "#FF4FA3",
+      "onAccent": "#F3EDE4",
+      "hover": "#FF6EB3",
+      "pressed": "#FF268E",
+      "muted": "#9E1757",
+      "subtle": "#771544",
+      "glowRgba": "rgba(255,79,163,0.18)",
+      "tint06": "rgba(255,79,163,0.06)",
+      "tint12": "rgba(255,79,163,0.12)",
+      "tint25": "rgba(255,79,163,0.25)",
+      "bufferedRgba": "rgba(255,79,163,0.25)",
+      "headerWash": "rgba(255,79,163,0.10)"
+    }
+  ]
+}

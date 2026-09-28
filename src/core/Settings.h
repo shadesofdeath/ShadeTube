@@ -1,0 +1,74 @@
+#pragma once
+// User settings persisted as JSON in %LOCALAPPDATA%\ShadeTube\settings.json.
+// Access from the UI thread only. Call markDirty() after changes; App flushes with a debounce.
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace st {
+
+enum class RepeatMode { Off, All, One };
+enum class AudioQuality { High, Normal };   // High = best bitrate (opus/aac), Normal = <=128 kbps AAC
+enum class AccentMode { Dynamic, Fixed };
+// Koyu / Açık / Sistem (Sistem follows Windows' app mode: Personalize\AppsUseLightTheme).
+enum class ThemeMode { Dark, Light, System };
+
+struct WindowPlacementData {
+    int x = -1, y = -1, width = 1440, height = 900;
+    bool maximized = false;
+};
+
+struct Settings {
+    // Playback
+    float volume = 0.7f;
+    bool shuffle = false;
+    RepeatMode repeat = RepeatMode::Off;
+    AudioQuality quality = AudioQuality::High;
+    bool normalizeVolume = true;
+    bool preloadNext = true;
+
+    // Appearance
+    AccentMode accentMode = AccentMode::Dynamic;
+    std::string fixedAccent = "#DDFF47";
+    ThemeMode theme = ThemeMode::Dark;   // settings.json "theme": "dark" | "light" | "system" (was bool "lightTheme")
+    bool grain = true;
+    bool reduceMotion = false;
+
+    // Misc
+    std::string downloadsDir;            // empty = default (Music\ShadeTube)
+    int downloadMp3Kbps = 320;           // MP3 transcode bitrate for downloads; 0 = keep original (m4a)
+    bool lyricsEnabled = true;
+
+    // Integrations
+    bool scrobbleEnabled = true;         // Last.fm / ListenBrainz (credentials live DPAPI-encrypted in scrobble.dat)
+    bool discordEnabled = false;         // Discord Rich Presence ("dinliyor")
+    std::string discordAppId;            // the user's Discord application id (required by Discord RPC)
+    bool sponsorBlockEnabled = true;     // skip non-music / sponsor segments of the matched YouTube video
+    bool endlessPlayback = true;         // queue ended: continue with Spotify's radio of the last tracks (logged in)
+    // Backup audio source used when YouTube itself fails: "off" | "piped" | "invidious".
+    // altSourceInstance: API base URL of the instance ("" = the built-in list, tried in order).
+    std::string altSource = "off";
+    std::string altSourceInstance;
+    std::vector<std::string> localFolders;   // "Yerel dosyalar": folders scanned for the user's own music files
+    // Updates (GitHub releases): check at startup at most once a day; a version the user dismissed stays quiet.
+    bool updateCheck = true;
+    int64_t lastUpdateCheck = 0;         // unix seconds
+    std::string skippedVersion;
+    bool closeToTray = false;
+    std::string language;                // UI language code (core/I18n); "" = Windows' display language
+    std::string region = "TR";
+
+    WindowPlacementData window;
+    int miniX = -1, miniY = -1;
+
+    static Settings& get();
+    void load();
+    void save() const;
+    void markDirty();
+    bool consumeDirty();
+
+private:
+    bool dirty_ = false;
+};
+
+} // namespace st

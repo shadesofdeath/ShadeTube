@@ -1,0 +1,4 @@
+{
+ "error": "org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: \"Sign in to confirm that you're not a bot\"\n\tat org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor.checkPlayabilityStatus(YoutubeStreamExtractor.java:905)\n\tat org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor.fetchAndroidClient(YoutubeStreamExtractor.java:955)",
+ "message": "YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: \"Sign in to confirm that you're not a bot\""
+}

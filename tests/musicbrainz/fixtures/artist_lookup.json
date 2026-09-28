@@ -1,0 +1,542 @@
+{
+ "isnis": [
+  "0000000078396229"
+ ],
+ "ipis": [],
+ "life-span": {
+  "begin": "1972-10-17",
+  "ended": false,
+  "end": null
+ },
+ "disambiguation": "",
+ "sort-name": "Tarkan",
+ "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+ "country": "TR",
+ "gender": "Male",
+ "end-area": null,
+ "area": {
+  "iso-3166-1-codes": [
+   "TR"
+  ],
+  "disambiguation": "",
+  "id": "d3be28b4-41f7-3752-8a05-ed45e1d1e492",
+  "type-id": null,
+  "sort-name": "Türkiye",
+  "name": "Türkiye",
+  "type": null
+ },
+ "relations": [
+  {
+   "direction": "forward",
+   "ended": false,
+   "attribute-ids": {},
+   "url": {
+    "id": "f009362f-5ce7-46ad-88b0-65f1310a1073",
+    "resource": "https://www.allmusic.com/artist/mn0000010278"
+   },
+   "type": "allmusic",
+   "source-credit": "",
+   "attributes": [],
+   "begin": null,
+   "attribute-values": {},
+   "end": null,
+   "type-id": "6b3e3c85-0002-4f34-aca6-80ace0d7e846",
+   "target-type": "url",
+   "target-credit": ""
+  },
+  {
+   "end": null,
+   "attribute-values": {},
+   "begin": null,
+   "attributes": [],
+   "source-credit": "",
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "04a5b104-a4c2-4bac-99a1-7b837c37d9e4",
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward",
+   "type": "discogs",
+   "url": {
+    "id": "152d9e4c-c285-417a-80fc-50851a9b4e18",
+    "resource": "https://www.discogs.com/artist/200979"
+   }
+  },
+  {
+   "begin": null,
+   "attributes": [],
+   "attribute-values": {},
+   "end": null,
+   "source-credit": "",
+   "target-type": "url",
+   "target-credit": "",
+   "type-id": "f484f897-81cc-406e-96f9-cd799a04ee24",
+   "ended": false,
+   "attribute-ids": {},
+   "direction": "forward",
+   "type": "fanpage",
+   "url": {
+    "id": "e2232216-9934-4f6c-a0e5-f85703f568a0",
+    "resource": "http://tarkandeluxe.blogspot.com/"
+   }
+  },
+  {
+   "target-type": "url",
+   "target-credit": "",
+   "type-id": "769085a1-c2f7-4c24-a532-2375a77693bd",
+   "attributes": [],
+   "begin": null,
+   "attribute-values": {},
+   "end": null,
+   "source-credit": "",
+   "url": {
+    "resource": "https://open.spotify.com/artist/2yMN0IP20GOaN6q0p0zL5k",
+    "id": "8565be36-5ca4-40b9-ad21-ddf3b657f22f"
+   },
+   "type": "free streaming",
+   "ended": false,
+   "attribute-ids": {},
+   "direction": "forward"
+  },
+  {
+   "direction": "forward",
+   "ended": false,
+   "attribute-ids": {},
+   "url": {
+    "resource": "https://www.deezer.com/artist/3254",
+    "id": "bd42cb81-5160-4057-83f5-f7749f20f8de"
+   },
+   "type": "free streaming",
+   "source-credit": "",
+   "begin": null,
+   "attributes": [],
+   "end": null,
+   "attribute-values": {},
+   "type-id": "769085a1-c2f7-4c24-a532-2375a77693bd",
+   "target-type": "url",
+   "target-credit": ""
+  },
+  {
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "94c8b0cc-4477-4106-932c-da60e63de61c",
+   "attribute-values": {},
+   "end": null,
+   "attributes": [],
+   "begin": null,
+   "source-credit": "",
+   "url": {
+    "resource": "https://www.imdb.com/name/nm0850463/",
+    "id": "c022ff07-37b7-475f-ba4e-2423cfd812f9"
+   },
+   "type": "IMDb",
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward"
+  },
+  {
+   "direction": "forward",
+   "ended": false,
+   "attribute-ids": {},
+   "type": "last.fm",
+   "url": {
+    "id": "199f7ed4-3e2f-47b6-a633-eabc1e8c0384",
+    "resource": "https://www.last.fm/music/Tarkan"
+   },
+   "source-credit": "",
+   "begin": null,
+   "attributes": [],
+   "end": null,
+   "attribute-values": {},
+   "type-id": "08db8098-c0df-4b78-82c3-c8697b4bba7f",
+   "target-type": "url",
+   "target-credit": ""
+  },
+  {
+   "attribute-values": {},
+   "end": null,
+   "begin": null,
+   "attributes": [],
+   "source-credit": "",
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "e4d73442-3762-45a8-905c-401da65544ed",
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward",
+   "type": "lyrics",
+   "url": {
+    "resource": "http://muzikum.eu/en/122-4014/tarkan/lyrics.html",
+    "id": "f9eccfc4-5126-4ae2-80f7-62f8d4feaebe"
+   }
+  },
+  {
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "fe33d22f-c3b0-4d68-bd53-a856badf2b15",
+   "end": null,
+   "attribute-values": {},
+   "attributes": [],
+   "begin": null,
+   "source-credit": "",
+   "url": {
+    "resource": "http://www.tarkan.com/",
+    "id": "023e0e32-4b6a-4a6c-977d-e0ca02d749a9"
+   },
+   "type": "official homepage",
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward"
+  },
+  {
+   "target-type": "url",
+   "target-credit": "",
+   "type-id": "35b3a50f-bf0e-4309-a3b4-58eeed8cee6a",
+   "attributes": [],
+   "begin": null,
+   "attribute-values": {},
+   "end": null,
+   "source-credit": "",
+   "type": "online community",
+   "url": {
+    "id": "4ac6732f-c228-4dbe-8d93-4a5b304b0d3f",
+    "resource": "http://tarkantagious.livejournal.com/"
+   },
+   "ended": false,
+   "attribute-ids": {},
+   "direction": "forward"
+  },
+  {
+   "type": "other databases",
+   "url": {
+    "id": "d0e1d0d1-bd28-4d26-b103-2de5854f2c22",
+    "resource": "http://id.loc.gov/authorities/names/no2003113007"
+   },
+   "direction": "forward",
+   "ended": false,
+   "attribute-ids": {},
+   "type-id": "d94fb61c-fa20-4e3c-a19a-71a949fb2c55",
+   "target-type": "url",
+   "target-credit": "",
+   "source-credit": "",
+   "attributes": [],
+   "begin": null,
+   "end": null,
+   "attribute-values": {}
+  },
+  {
+   "ended": false,
+   "attribute-ids": {},
+   "direction": "forward",
+   "url": {
+    "id": "5f2d299c-4440-43bf-adb2-893383ad1e38",
+    "resource": "http://musicmoz.org/Bands_and_Artists/T/Tarkan/"
+   },
+   "type": "other databases",
+   "begin": null,
+   "attributes": [],
+   "end": null,
+   "attribute-values": {},
+   "source-credit": "",
+   "target-type": "url",
+   "target-credit": "",
+   "type-id": "d94fb61c-fa20-4e3c-a19a-71a949fb2c55"
+  },
+  {
+   "ended": false,
+   "attribute-ids": {},
+   "direction": "forward",
+   "type": "other databases",
+   "url": {
+    "id": "95ef7247-4f75-464a-8e0f-e4aa75b74586",
+    "resource": "https://catalogue.bnf.fr/ark:/12148/cb140111175"
+   },
+   "attributes": [],
+   "begin": null,
+   "end": null,
+   "attribute-values": {},
+   "source-credit": "",
+   "target-type": "url",
+   "target-credit": "",
+   "type-id": "d94fb61c-fa20-4e3c-a19a-71a949fb2c55"
+  },
+  {
+   "type": "other databases",
+   "url": {
+    "resource": "https://d-nb.info/gnd/129888346",
+    "id": "8780233d-949a-49d5-91b6-f1531e5cfdc7"
+   },
+   "direction": "forward",
+   "ended": false,
+   "attribute-ids": {},
+   "type-id": "d94fb61c-fa20-4e3c-a19a-71a949fb2c55",
+   "target-type": "url",
+   "target-credit": "",
+   "source-credit": "",
+   "begin": null,
+   "attributes": [],
+   "end": null,
+   "attribute-values": {}
+  },
+  {
+   "ended": false,
+   "attribute-ids": {},
+   "direction": "forward",
+   "url": {
+    "resource": "https://www.worldcat.org/identities/lccn-no2003113007",
+    "id": "cbbd8373-42af-497d-8a33-2318047d8318"
+   },
+   "type": "other databases",
+   "attributes": [],
+   "begin": null,
+   "end": null,
+   "attribute-values": {},
+   "source-credit": "",
+   "target-type": "url",
+   "target-credit": "",
+   "type-id": "d94fb61c-fa20-4e3c-a19a-71a949fb2c55"
+  },
+  {
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "f8319a2f-f824-4617-81c8-be6560b3b203",
+   "attribute-values": {},
+   "end": null,
+   "attributes": [],
+   "begin": null,
+   "source-credit": "",
+   "url": {
+    "id": "4b68464a-f698-418a-974c-32eb70666280",
+    "resource": "https://itunes.apple.com/us/artist/id102640"
+   },
+   "type": "purchase for download",
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward"
+  },
+  {
+   "url": {
+    "resource": "https://twitter.com/tarkan",
+    "id": "bddb3363-11a7-4a56-af50-fbac1f2b341b"
+   },
+   "type": "social network",
+   "direction": "forward",
+   "attribute-ids": {},
+   "ended": false,
+   "type-id": "99429741-f3f6-484b-84f8-23af51991770",
+   "target-credit": "",
+   "target-type": "url",
+   "source-credit": "",
+   "attribute-values": {},
+   "end": null,
+   "attributes": [],
+   "begin": null
+  },
+  {
+   "direction": "forward",
+   "attribute-ids": {},
+   "ended": false,
+   "url": {
+    "id": "f1cfa5ed-8135-45c2-9b9f-7ca01c893102",
+    "resource": "https://vk.com/tarkan_official"
+   },
+   "type": "social network",
+   "source-credit": "",
+   "attribute-values": {},
+   "end": null,
+   "attributes": [],
+   "begin": null,
+   "type-id": "99429741-f3f6-484b-84f8-23af51991770",
+   "target-credit": "",
+   "target-type": "url"
+  },
+  {
+   "url": {
+    "id": "d98a1223-9903-499a-a112-54dd3b57b5ad",
+    "resource": "https://www.facebook.com/tarkan"
+   },
+   "type": "social network",
+   "direction": "forward",
+   "attribute-ids": {},
+   "ended": false,
+   "type-id": "99429741-f3f6-484b-84f8-23af51991770",
+   "target-credit": "",
+   "target-type": "url",
+   "source-credit": "",
+   "end": null,
+   "attribute-values": {},
+   "attributes": [],
+   "begin": null
+  },
+  {
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward",
+   "url": {
+    "id": "303bdf28-db6c-4634-aa8d-007791fc0bc0",
+    "resource": "https://www.instagram.com/tarkan/"
+   },
+   "type": "social network",
+   "attribute-values": {},
+   "end": null,
+   "attributes": [],
+   "begin": null,
+   "source-credit": "",
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "99429741-f3f6-484b-84f8-23af51991770"
+  },
+  {
+   "attributes": [],
+   "begin": null,
+   "attribute-values": {},
+   "end": null,
+   "source-credit": "",
+   "target-type": "url",
+   "target-credit": "",
+   "type-id": "aac9c4bc-a5b9-30b8-9839-e3ac314c6e58",
+   "ended": false,
+   "attribute-ids": {},
+   "direction": "forward",
+   "url": {
+    "id": "5af669de-0fe8-458c-82fc-aa7ec7b894a7",
+    "resource": "https://www.songkick.com/artists/171051"
+   },
+   "type": "songkick"
+  },
+  {
+   "direction": "forward",
+   "ended": false,
+   "attribute-ids": {},
+   "type": "streaming",
+   "url": {
+    "resource": "https://music.apple.com/gb/artist/102640",
+    "id": "53948d78-cd81-4295-a7f6-12ad36c2d821"
+   },
+   "source-credit": "",
+   "attributes": [],
+   "begin": null,
+   "end": null,
+   "attribute-values": {},
+   "type-id": "63cc5d1f-f096-4c94-a43f-ecb32ea94161",
+   "target-type": "url",
+   "target-credit": ""
+  },
+  {
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward",
+   "url": {
+    "id": "b9ec905b-d1b9-420d-9865-47e5e46235ca",
+    "resource": "https://music.apple.com/tr/artist/102640"
+   },
+   "type": "streaming",
+   "end": null,
+   "attribute-values": {},
+   "attributes": [],
+   "begin": null,
+   "source-credit": "",
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "63cc5d1f-f096-4c94-a43f-ecb32ea94161"
+  },
+  {
+   "end": null,
+   "attribute-values": {},
+   "begin": null,
+   "attributes": [],
+   "source-credit": "",
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "63cc5d1f-f096-4c94-a43f-ecb32ea94161",
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward",
+   "url": {
+    "resource": "https://tidal.com/artist/3501624",
+    "id": "b7d65faa-2fef-4db0-9d06-05ecac83a231"
+   },
+   "type": "streaming"
+  },
+  {
+   "type-id": "e8571dcc-35d4-4e91-a577-a3382fd84460",
+   "target-type": "url",
+   "target-credit": "",
+   "source-credit": "",
+   "begin": null,
+   "attributes": [],
+   "end": null,
+   "attribute-values": {},
+   "type": "VIAF",
+   "url": {
+    "resource": "http://viaf.org/viaf/74944638",
+    "id": "fdc29c20-ef1e-47a5-8cf7-ebc4431afc05"
+   },
+   "direction": "forward",
+   "ended": false,
+   "attribute-ids": {}
+  },
+  {
+   "url": {
+    "id": "b2716caf-59d6-4541-874e-bc49998a6f51",
+    "resource": "https://www.wikidata.org/wiki/Q485771"
+   },
+   "type": "wikidata",
+   "attribute-ids": {},
+   "ended": false,
+   "direction": "forward",
+   "target-credit": "",
+   "target-type": "url",
+   "type-id": "689870a4-a1e4-4912-b17f-7b2664215698",
+   "attribute-values": {},
+   "end": null,
+   "attributes": [],
+   "begin": null,
+   "source-credit": ""
+  },
+  {
+   "url": {
+    "id": "82129428-8a7d-47b6-af62-6ad646d9bcef",
+    "resource": "https://www.youtube.com/channel/UCnxZBLfmnZwjh8vSg6Kt-Dg"
+   },
+   "type": "youtube",
+   "direction": "forward",
+   "ended": false,
+   "attribute-ids": {},
+   "type-id": "6a540e5b-58c6-4192-b6ba-dbc71ec8fcf0",
+   "target-type": "url",
+   "target-credit": "",
+   "source-credit": "",
+   "begin": null,
+   "attributes": [],
+   "attribute-values": {},
+   "end": null
+  }
+ ],
+ "tags": [
+  {
+   "name": "aslı",
+   "count": 1
+  },
+  {
+   "name": "pop",
+   "count": 3
+  },
+  {
+   "count": 2,
+   "name": "turkish"
+  }
+ ],
+ "gender-id": "36d3d30a-839d-3eda-8cb3-29be4384e4a9",
+ "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+ "begin-area": {
+  "type-id": null,
+  "sort-name": "Alzey",
+  "name": "Alzey",
+  "type": null,
+  "disambiguation": "",
+  "id": "bf6a9b45-2f7c-4a6a-bc7e-0c29a86f5985"
+ },
+ "name": "Tarkan",
+ "type": "Person"
+}

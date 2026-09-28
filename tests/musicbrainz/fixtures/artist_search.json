@@ -1,0 +1,145 @@
+{
+ "created": "2026-09-27T16:01:51.225Z",
+ "count": 14,
+ "offset": 0,
+ "artists": [
+  {
+   "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+   "type": "Person",
+   "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+   "score": 100,
+   "gender-id": "36d3d30a-839d-3eda-8cb3-29be4384e4a9",
+   "name": "Tarkan",
+   "sort-name": "Tarkan",
+   "gender": "male",
+   "country": "TR",
+   "area": {
+    "id": "d3be28b4-41f7-3752-8a05-ed45e1d1e492",
+    "type": "Country",
+    "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de",
+    "name": "Türkiye",
+    "sort-name": "Türkiye",
+    "life-span": {
+     "ended": null
+    }
+   },
+   "begin-area": {
+    "id": "bf6a9b45-2f7c-4a6a-bc7e-0c29a86f5985",
+    "type": "City",
+    "type-id": "6fd8f29a-3d0a-32fc-980d-ea697b69da78",
+    "name": "Alzey",
+    "sort-name": "Alzey",
+    "life-span": {
+     "ended": null
+    }
+   },
+   "isnis": [
+    "0000000078396229"
+   ],
+   "life-span": {
+    "begin": "1972-10-17",
+    "ended": null
+   },
+   "aliases": [
+    {
+     "sort-name": "Tevetoğlu, Tarkan",
+     "type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+     "name": "Tarkan Tevetoğlu",
+     "locale": null,
+     "type": "Legal name",
+     "primary": null,
+     "begin-date": null,
+     "end-date": null
+    }
+   ],
+   "tags": [
+    {
+     "count": 1,
+     "name": "aslı"
+    },
+    {
+     "count": 2,
+     "name": "turkish"
+    },
+    {
+     "count": 3,
+     "name": "pop"
+    }
+   ]
+  },
+  {
+   "id": "a558ae40-f749-4ad4-a20e-15879a4bf14c",
+   "type": "Person",
+   "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+   "score": 77,
+   "gender-id": "36d3d30a-839d-3eda-8cb3-29be4384e4a9",
+   "name": "Tarkan Çakır",
+   "sort-name": "Çakır, Tarkan",
+   "gender": "male",
+   "country": "TR",
+   "area": {
+    "id": "d3be28b4-41f7-3752-8a05-ed45e1d1e492",
+    "type": "Country",
+    "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de",
+    "name": "Türkiye",
+    "sort-name": "Türkiye",
+    "life-span": {
+     "ended": null
+    }
+   },
+   "begin-area": {
+    "id": "f9a822ff-adce-434c-9292-a8b6a0a37a8e",
+    "type": "City",
+    "type-id": "6fd8f29a-3d0a-32fc-980d-ea697b69da78",
+    "name": "Istanbul",
+    "sort-name": "Istanbul",
+    "life-span": {
+     "ended": null
+    }
+   },
+   "ipis": [
+    "00530171693"
+   ],
+   "life-span": {
+    "begin": "1971-02-08",
+    "ended": null
+   }
+  },
+  {
+   "id": "a6a70a9c-a17a-46cd-8a12-ba3fe69f1036",
+   "type": "Person",
+   "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+   "score": 75,
+   "gender-id": "36d3d30a-839d-3eda-8cb3-29be4384e4a9",
+   "name": "DJ Tarkan",
+   "sort-name": "Tarkan, DJ",
+   "gender": "male",
+   "country": "TR",
+   "area": {
+    "id": "d3be28b4-41f7-3752-8a05-ed45e1d1e492",
+    "type": "Country",
+    "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de",
+    "name": "Türkiye",
+    "sort-name": "Türkiye",
+    "life-span": {
+     "ended": null
+    }
+   },
+   "life-span": {
+    "ended": null
+   },
+   "aliases": [
+    {
+     "sort-name": "Örs, Tarkan",
+     "type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+     "name": "Tarkan Örs",
+     "locale": null,
+     "type": "Legal name",
+     "primary": null,
+     "begin-date": null,
+     "end-date": null
+    }
+   ]
+  }
+ ]
+}

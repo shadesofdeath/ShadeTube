@@ -1,0 +1,56 @@
+[
+ {
+  "artist_mbid": "9e956eda-5766-4d13-848d-e6fd6d83ea8b",
+  "name": "Mustafa Sandal",
+  "comment": "",
+  "type": "Person",
+  "gender": "Male",
+  "score": 158,
+  "reference_mbid": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+ },
+ {
+  "artist_mbid": "635e2a34-a566-47c4-b61d-fa5d203856aa",
+  "name": "Sezen Aksu",
+  "comment": "",
+  "type": "Person",
+  "gender": "Female",
+  "score": 125,
+  "reference_mbid": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+ },
+ {
+  "artist_mbid": "73e5e69d-3554-40d8-8516-00cb38737a1c",
+  "name": "Rihanna",
+  "comment": "Barbadian R&B/pop singer",
+  "type": "Person",
+  "gender": "Female",
+  "score": 125,
+  "reference_mbid": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+ },
+ {
+  "artist_mbid": "d138302b-4f57-4d1d-83e3-47f95cb51774",
+  "name": "Sertab Erener",
+  "comment": "",
+  "type": "Person",
+  "gender": "Female",
+  "score": 118,
+  "reference_mbid": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+ },
+ {
+  "artist_mbid": "79239441-bfd5-4981-a70c-55c3f15c1287",
+  "name": "Madonna",
+  "comment": "“Queen of Pop”",
+  "type": "Person",
+  "gender": "Female",
+  "score": 114,
+  "reference_mbid": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+ },
+ {
+  "artist_mbid": "8538e728-ca0b-4321-b7e5-cff6565dd4c0",
+  "name": "Depeche Mode",
+  "comment": "",
+  "type": "Group",
+  "gender": null,
+  "score": 108,
+  "reference_mbid": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+ }
+]

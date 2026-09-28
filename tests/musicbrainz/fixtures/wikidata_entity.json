@@ -1,0 +1,76 @@
+{
+ "entities": {
+  "Q485771": {
+   "id": "Q485771",
+   "claims": {
+    "P18": [
+     {
+      "mainsnak": {
+       "snaktype": "value",
+       "property": "P18",
+       "hash": "3e0a2e055ad06e0bbd7fa24d7d093815ae89129f",
+       "datavalue": {
+        "value": "Tarkan (9).jpg",
+        "type": "string"
+       },
+       "datatype": "commonsMedia"
+      },
+      "type": "statement",
+      "qualifiers": {
+       "P585": [
+        {
+         "snaktype": "value",
+         "property": "P585",
+         "hash": "019685fcc2c2f7d0c379ab0c027e89bd58ab40f6",
+         "datavalue": {
+          "value": {
+           "time": "+2011-04-24T00:00:00Z",
+           "timezone": 0,
+           "before": 0,
+           "after": 0,
+           "precision": 11,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727"
+          },
+          "type": "time"
+         },
+         "datatype": "time"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P585"
+      ],
+      "id": "Q485771$CDB51D7A-5274-4DAD-AEA0-B31094FE893C",
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "288ab581e7d2d02995a26dfa8b091d96e78457fc",
+        "snaks": {
+         "P143": [
+          {
+           "snaktype": "value",
+           "property": "P143",
+           "hash": "6a164248fc96bfa583bbb495cb63ae6401ec203c",
+           "datavalue": {
+            "value": {
+             "entity-type": "item",
+             "numeric-id": 206855,
+             "id": "Q206855"
+            },
+            "type": "wikibase-entityid"
+           },
+           "datatype": "wikibase-item"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

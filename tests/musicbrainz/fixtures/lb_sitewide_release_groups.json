@@ -1,0 +1,57 @@
+{
+ "payload": {
+  "count": 4,
+  "from_ts": 1789344000,
+  "last_updated": 1790483445,
+  "offset": 0,
+  "range": "week",
+  "release_groups": [
+   {
+    "artist_mbids": [
+     "0d79fe8e-ba27-4859-bb8c-2f255f346853"
+    ],
+    "artist_name": "BTS",
+    "caa_id": 44649468687,
+    "caa_release_mbid": "909d000d-56e9-4b38-aa3f-008d38436ea2",
+    "listen_count": 269722,
+    "release_group_mbid": "21159e3f-172e-43f6-aa7d-8e06a81fea49",
+    "release_group_name": "ARIRANG"
+   },
+   {
+    "artist_mbids": [
+     "0d79fe8e-ba27-4859-bb8c-2f255f346853"
+    ],
+    "artist_name": "BTS",
+    "caa_id": 44649396012,
+    "caa_release_mbid": "20af35dd-dda2-47de-8ea5-78211c0dfe9c",
+    "listen_count": 211727,
+    "release_group_mbid": "21159e3f-172e-43f6-aa7d-8e06a81fea49",
+    "release_group_name": "ARIRANG"
+   },
+   {
+    "artist_mbids": [
+     "23c8056b-ee13-4cfc-a772-2f5292e35bb5"
+    ],
+    "artist_name": "Jung Kook",
+    "caa_id": 37167600440,
+    "caa_release_mbid": "183b9a00-3169-402a-835a-dca1918906de",
+    "listen_count": 37236,
+    "release_group_mbid": "e51c54ea-71d2-413a-9fbe-1be9389b0fa6",
+    "release_group_name": "GOLDEN"
+   },
+   {
+    "artist_mbids": [
+     "f09d2950-e3c6-47b2-b21c-2bad2cd3f616"
+    ],
+    "artist_name": "Agust D",
+    "caa_id": 35452896988,
+    "caa_release_mbid": "ad596b3e-feb2-4042-ab77-01c3d9ee384a",
+    "listen_count": 36800,
+    "release_group_mbid": "4c87e1ec-5d76-4f74-a683-2177e5f0ddf1",
+    "release_group_name": "D‐DAY"
+   }
+  ],
+  "to_ts": 1789948800,
+  "total_release_group_count": 968324
+ }
+}

@@ -1,0 +1,230 @@
+{
+ "label-info": [
+  {
+   "catalog-number": "[none]",
+   "label": {
+    "type": "Production",
+    "name": "Hitt Müzik",
+    "label-code": null,
+    "id": "9fab610c-9c27-4937-8490-820cc7f527ee",
+    "disambiguation": "",
+    "sort-name": "Hitt Müzik",
+    "type-id": "a2426aab-2dd4-339c-b47d-b4923a241678"
+   }
+  },
+  {
+   "catalog-number": "[none]",
+   "label": {
+    "label-code": null,
+    "disambiguation": "",
+    "id": "7f58bbf2-90e9-4a87-8f59-a1b2aad391e2",
+    "type-id": "a2426aab-2dd4-339c-b47d-b4923a241678",
+    "sort-name": "İstanbul Plak",
+    "name": "İstanbul Plak",
+    "type": "Production"
+   }
+  }
+ ],
+ "id": "39a72717-1477-43ab-90e7-83d429bf85e1",
+ "status": "Official",
+ "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+ "barcode": "8693953000559",
+ "release-events": [
+  {
+   "date": "2001-07-26",
+   "area": {
+    "name": "Türkiye",
+    "type": null,
+    "type-id": null,
+    "sort-name": "Türkiye",
+    "disambiguation": "",
+    "id": "d3be28b4-41f7-3752-8a05-ed45e1d1e492",
+    "iso-3166-1-codes": [
+     "TR"
+    ]
+   }
+  }
+ ],
+ "date": "2001-07-26",
+ "cover-art-archive": {
+  "darkened": false,
+  "count": 23,
+  "front": true,
+  "artwork": true,
+  "back": true
+ },
+ "artist-credit": [
+  {
+   "artist": {
+    "name": "Tarkan",
+    "type": "Person",
+    "sort-name": "Tarkan",
+    "country": "TR",
+    "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+    "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+    "disambiguation": ""
+   },
+   "joinphrase": "",
+   "name": "Tarkan"
+  }
+ ],
+ "packaging-id": "ec27701a-4a22-37f4-bfac-6616e0f9750a",
+ "disambiguation": "",
+ "asin": "B00005NGZP",
+ "country": "TR",
+ "text-representation": {
+  "language": "tur",
+  "script": "Latn"
+ },
+ "title": "Karma",
+ "packaging": "Jewel Case",
+ "media": [
+  {
+   "tracks": [
+    {
+     "title": "Aşk",
+     "recording": {
+      "first-release-date": "2001-07-26",
+      "video": false,
+      "length": 262160,
+      "title": "Aşk",
+      "artist-credit": [
+       {
+        "name": "Tarkan",
+        "joinphrase": "",
+        "artist": {
+         "sort-name": "Tarkan",
+         "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+         "country": "TR",
+         "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+         "disambiguation": "",
+         "name": "Tarkan",
+         "type": "Person"
+        }
+       }
+      ],
+      "disambiguation": "",
+      "id": "9c7b0a23-236a-4fb3-880e-62896df12db4"
+     },
+     "length": 262160,
+     "id": "ed1a4598-1b20-36b8-8997-c94e945ec668",
+     "position": 1,
+     "number": "1",
+     "artist-credit": [
+      {
+       "artist": {
+        "country": "TR",
+        "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+        "sort-name": "Tarkan",
+        "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+        "disambiguation": "",
+        "name": "Tarkan",
+        "type": "Person"
+       },
+       "joinphrase": "",
+       "name": "Tarkan"
+      }
+     ]
+    },
+    {
+     "length": 260640,
+     "recording": {
+      "artist-credit": [
+       {
+        "joinphrase": "",
+        "name": "Tarkan",
+        "artist": {
+         "type": "Person",
+         "name": "Tarkan",
+         "country": "TR",
+         "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+         "sort-name": "Tarkan",
+         "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+         "disambiguation": ""
+        }
+       }
+      ],
+      "id": "1737ea6a-c22c-406b-9700-9da4a3765d8f",
+      "disambiguation": "",
+      "title": "Ay",
+      "length": 260640,
+      "video": false,
+      "first-release-date": "2001-07-26"
+     },
+     "title": "Ay",
+     "number": "2",
+     "artist-credit": [
+      {
+       "name": "Tarkan",
+       "joinphrase": "",
+       "artist": {
+        "type": "Person",
+        "name": "Tarkan",
+        "country": "TR",
+        "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+        "sort-name": "Tarkan",
+        "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+        "disambiguation": ""
+       }
+      }
+     ],
+     "id": "cc4cdf37-2e31-3ff6-ba47-2ab44c561631",
+     "position": 2
+    },
+    {
+     "number": "3",
+     "artist-credit": [
+      {
+       "artist": {
+        "name": "Tarkan",
+        "type": "Person",
+        "disambiguation": "",
+        "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+        "sort-name": "Tarkan",
+        "country": "TR",
+        "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df"
+       },
+       "name": "Tarkan",
+       "joinphrase": ""
+      }
+     ],
+     "id": "b9a0e2aa-968c-31d0-81c2-3b1fa586677a",
+     "position": 3,
+     "title": "Kuzu Kuzu",
+     "length": 233560,
+     "recording": {
+      "title": "Kuzu Kuzu",
+      "length": 233560,
+      "id": "95ef0440-318d-4359-88c8-02395af7a852",
+      "disambiguation": "",
+      "artist-credit": [
+       {
+        "artist": {
+         "name": "Tarkan",
+         "type": "Person",
+         "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+         "country": "TR",
+         "sort-name": "Tarkan",
+         "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+         "disambiguation": ""
+        },
+        "joinphrase": "",
+        "name": "Tarkan"
+       }
+      ],
+      "video": false,
+      "first-release-date": "2001-07-26"
+     }
+    }
+   ],
+   "track-count": 12,
+   "track-offset": 0,
+   "format-id": "9712d52a-4509-3d4b-a1a2-67c88c643e31",
+   "title": "",
+   "format": "CD",
+   "position": 1,
+   "id": "f941b315-1ef3-3cca-ab59-455a4856034a"
+  }
+ ],
+ "quality": "normal"
+}

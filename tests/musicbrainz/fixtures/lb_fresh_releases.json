@@ -1,0 +1,97 @@
+{
+ "payload": {
+  "releases": [
+   {
+    "artist_credit_name": "차가을",
+    "artist_mbids": [
+     "e7773d3f-d239-4246-8955-1b360346c9ad"
+    ],
+    "caa_id": 46186051741,
+    "caa_release_mbid": "6523ae19-0e3b-406f-a3df-b44e6af33336",
+    "listen_count": 0,
+    "release_date": "2026-09-13",
+    "release_group_mbid": "fddb6ac9-ad42-44ba-af20-9a556c7749aa",
+    "release_group_primary_type": "Single",
+    "release_mbid": "6523ae19-0e3b-406f-a3df-b44e6af33336",
+    "release_name": "가을이 끝나기 전에 헤어지자",
+    "release_tags": []
+   },
+   {
+    "artist_credit_name": "1 9 9 9 d r e a m s",
+    "artist_mbids": [
+     "16ab293b-a321-46e6-8d3a-db809ad9c977"
+    ],
+    "caa_id": 46182331542,
+    "caa_release_mbid": "d4c6ba33-5144-48a3-a210-cab00d83c583",
+    "listen_count": 0,
+    "release_date": "2026-09-13",
+    "release_group_mbid": "ce4ced7f-64f3-46e9-9fa8-b494cffaa857",
+    "release_group_primary_type": "Album",
+    "release_mbid": "d4c6ba33-5144-48a3-a210-cab00d83c583",
+    "release_name": "Laundry Music",
+    "release_tags": []
+   },
+   {
+    "artist_credit_name": "Ａｇｅｎｚｉａ Ｒｅｔｅ Ｐｅｎｏｍｂｒａ",
+    "artist_mbids": [
+     "dda267d8-ba97-4c33-aa35-0640324086cb"
+    ],
+    "caa_id": 46180575732,
+    "caa_release_mbid": "15059653-dbeb-40ef-bc49-9627b5f1a4fa",
+    "listen_count": 0,
+    "release_date": "2026-09-13",
+    "release_group_mbid": "d601fb75-91a4-4e6e-b023-9d0241be03bc",
+    "release_group_primary_type": "Album",
+    "release_mbid": "15059653-dbeb-40ef-bc49-9627b5f1a4fa",
+    "release_name": "ｍｉｌａｎｏ ３",
+    "release_tags": []
+   },
+   {
+    "artist_credit_name": "Alice Merton",
+    "artist_mbids": [
+     "7292ba91-0465-4679-a697-6891570ae06c"
+    ],
+    "caa_id": null,
+    "caa_release_mbid": null,
+    "listen_count": 0,
+    "release_date": "2026-09-13",
+    "release_group_mbid": "8b690b2e-633b-43cc-a4b3-5bbd7bf681d7",
+    "release_group_primary_type": "Single",
+    "release_mbid": "dfb49f6d-c3d8-4d78-9923-ef1ce8a85b0c",
+    "release_name": "Colours",
+    "release_tags": []
+   },
+   {
+    "artist_credit_name": "ANYREBELLION",
+    "artist_mbids": [
+     "0412aa59-1e0b-440b-8b79-db7d035199a3"
+    ],
+    "caa_id": 46231283014,
+    "caa_release_mbid": "ce1b43f0-4a3a-4395-bb08-892268101740",
+    "listen_count": 0,
+    "release_date": "2026-09-13",
+    "release_group_mbid": "54239b7f-2ee6-4847-983b-a50e6c285c7f",
+    "release_group_primary_type": "Single",
+    "release_mbid": "ce1b43f0-4a3a-4395-bb08-892268101740",
+    "release_name": "Red Dress",
+    "release_tags": []
+   },
+   {
+    "artist_credit_name": "Aria Rivers",
+    "artist_mbids": [
+     "e0c283a7-9b33-4e31-ac5c-e3d9e0bcfc9e"
+    ],
+    "caa_id": null,
+    "caa_release_mbid": null,
+    "listen_count": 0,
+    "release_date": "2026-09-13",
+    "release_group_mbid": "63dcaafe-b7c2-4f61-b7b1-c0374edcec59",
+    "release_group_primary_type": "Single",
+    "release_mbid": "1aa6501e-70fb-4f9e-b6ff-fa2cd85f53c7",
+    "release_name": "Valkyrie Code",
+    "release_tags": []
+   }
+  ],
+  "total_count": 3412
+ }
+}

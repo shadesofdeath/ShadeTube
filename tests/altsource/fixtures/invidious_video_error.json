@@ -1,0 +1,3 @@
+{
+ "error": "Error while communicating with Invidious companion: read (#<TCPSocket:0x7f0bc1e6b640>): Connection reset by peer"
+}

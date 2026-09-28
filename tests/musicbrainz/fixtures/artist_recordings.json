@@ -1,0 +1,1645 @@
+{
+ "created": "2026-09-27T16:04:10.583Z",
+ "count": 319,
+ "offset": 0,
+ "recordings": [
+  {
+   "id": "374176dc-50d7-45a8-b649-f3713a0ec4a6",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Bounce",
+   "length": 224880,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2005-10",
+   "releases": [
+    {
+     "id": "64cc9082-fb9b-4dbd-9ffc-a6133a71c353",
+     "title": "Bravo Hits 53",
+     "status": "Official",
+     "release-group": {
+      "id": "6ead407a-de05-3f4a-9932-ef74235364f2",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Bravo Hits 53",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2006",
+     "country": "CH"
+    },
+    {
+     "id": "6e167cd0-297e-428d-943f-ee84545728d2",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2006-03-24",
+     "country": "DE"
+    },
+    {
+     "id": "cf6f4993-7fe6-4087-8fe9-99eab76ad34d",
+     "title": "Bravo Hits 53",
+     "status": "Official",
+     "release-group": {
+      "id": "6ead407a-de05-3f4a-9932-ef74235364f2",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Bravo Hits 53",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2006-05-05",
+     "country": "AT"
+    },
+    {
+     "id": "4f20d183-fa99-486a-a555-3f714eefc444",
+     "title": "Bravo Hits 53",
+     "status": "Official",
+     "release-group": {
+      "id": "6ead407a-de05-3f4a-9932-ef74235364f2",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Bravo Hits 53",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2006-05-05",
+     "country": "DE"
+    },
+    {
+     "id": "308176be-136c-47fb-b31c-4b8bf7e19970",
+     "title": "Bravo Hits 53",
+     "status": "Official",
+     "release-group": {
+      "id": "6ead407a-de05-3f4a-9932-ef74235364f2",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Bravo Hits 53",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2006-05-05",
+     "country": "DE"
+    },
+    {
+     "id": "62e0e218-69a0-4a8f-9c18-50c420a7ad0d",
+     "title": "Fetenhits: Best of 2006",
+     "status": "Official",
+     "release-group": {
+      "id": "4f892941-e71c-4057-bc76-0ca82e39d6da",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Fetenhits: Best of 2006",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2006",
+     "country": "DE"
+    },
+    {
+     "id": "cc23f81e-1ede-4a1a-9343-73f0b25aff42",
+     "title": "Come Closer",
+     "status": "Official",
+     "release-group": {
+      "id": "8c4067dd-b56f-3caa-9c12-7eba9c47c1a2",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Come Closer",
+      "primary-type": "Album"
+     },
+     "date": "2006-04",
+     "country": "XE"
+    },
+    {
+     "id": "392df958-7bc9-450c-93f0-c1b4e12760aa",
+     "title": "Come Closer",
+     "status": "Official",
+     "release-group": {
+      "id": "8c4067dd-b56f-3caa-9c12-7eba9c47c1a2",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Come Closer",
+      "primary-type": "Album"
+     },
+     "date": "2006-04-07",
+     "country": "XE"
+    },
+    {
+     "id": "e5044f29-684b-3cb6-b02f-1a4356e73906",
+     "title": "Come Closer",
+     "status": "Official",
+     "release-group": {
+      "id": "8c4067dd-b56f-3caa-9c12-7eba9c47c1a2",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Come Closer",
+      "primary-type": "Album"
+     },
+     "date": "2006-10",
+     "country": "RU"
+    },
+    {
+     "id": "dcf7d954-16fd-3c2e-b63e-6e4eb577421c",
+     "title": "Come Closer",
+     "status": "Official",
+     "release-group": {
+      "id": "8c4067dd-b56f-3caa-9c12-7eba9c47c1a2",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Come Closer",
+      "primary-type": "Album"
+     },
+     "date": "2006-04-07",
+     "country": "XE"
+    },
+    {
+     "id": "7a083add-2518-4344-85be-500d5f57d370",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2006",
+     "country": "XE"
+    },
+    {
+     "id": "ee967be9-0cd5-3e2c-afe6-279371797f63",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2005-10",
+     "country": "TR"
+    },
+    {
+     "id": "d66beaab-cfdd-427d-8d00-9d2189eb885f",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2005-10",
+     "country": "TR"
+    },
+    {
+     "id": "c9ab14c6-4024-407f-8f6e-8ca8205269eb",
+     "title": "Hitbreaker 3 - 2006",
+     "status": "Official",
+     "release-group": {
+      "id": "ffd447d1-8a1b-4d3c-97bc-e296e132598b",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Hitbreaker 3 - 2006",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2006",
+     "country": "DE"
+    },
+    {
+     "id": "fa484853-1699-42b8-b488-0d0ef1fa7fd0",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2006",
+     "country": "DE"
+    }
+   ],
+   "isrcs": [
+    "TR0250600001"
+   ]
+  },
+  {
+   "id": "232c3e4e-e7ee-4325-871e-dd0f959d5a69",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Dön Bebeğim",
+   "length": 285000,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "1994-04-28",
+   "releases": [
+    {
+     "id": "8e34ce50-b279-43f3-a561-a015cc4af434",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1999",
+     "country": "CO"
+    },
+    {
+     "id": "3735ad61-c63e-4a0f-9640-1438d60e2fdd",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1998",
+     "country": "XE"
+    },
+    {
+     "id": "03d78496-5514-472d-9d55-6db00f9f6ffa",
+     "title": "Aacayipsin",
+     "status": "Official",
+     "release-group": {
+      "id": "9f5be094-776b-396f-8d79-918441d8fe0c",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Aacayipsin",
+      "primary-type": "Album"
+     },
+     "date": "1994-04-28",
+     "country": "TR"
+    },
+    {
+     "id": "e96fcade-b3d6-30fe-a524-a4fcdbf37f23",
+     "title": "Aacayipsin",
+     "status": "Official",
+     "release-group": {
+      "id": "9f5be094-776b-396f-8d79-918441d8fe0c",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Aacayipsin",
+      "primary-type": "Album"
+     },
+     "date": "1994",
+     "country": "TR"
+    },
+    {
+     "id": "c08eec66-2731-4dd5-8b0b-692eb3b80c45",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2000",
+     "country": "US"
+    },
+    {
+     "id": "403d1a14-7a86-42ca-a7a7-8e0df9043cfd",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1999",
+     "country": "XE"
+    },
+    {
+     "id": "a18d1388-8a91-4354-93a9-ce089fd62f42",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1998",
+     "country": "FR"
+    },
+    {
+     "id": "f47dc898-e45e-4c74-a501-d1bc10a84e03",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2000-05-24",
+     "country": "JP"
+    },
+    {
+     "id": "4fbcc528-529e-4892-9f2e-dcfdf5ab4618",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2003",
+     "country": "US"
+    },
+    {
+     "id": "35df7f43-5984-490f-81d6-b216537171a6",
+     "title": "Tarkan",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     }
+    }
+   ],
+   "isrcs": [
+    "FRZ069470020"
+   ],
+   "tags": [
+    {
+     "count": 1,
+     "name": "trance"
+    },
+    {
+     "count": 1,
+     "name": "electronic"
+    },
+    {
+     "count": 1,
+     "name": "turkish"
+    },
+    {
+     "count": 3,
+     "name": "pop"
+    },
+    {
+     "count": 1,
+     "name": "punk"
+    },
+    {
+     "count": 1,
+     "name": "disco"
+    },
+    {
+     "count": 1,
+     "name": "europop"
+    },
+    {
+     "count": 1,
+     "name": "progressive trance"
+    },
+    {
+     "count": 1,
+     "name": "latin"
+    },
+    {
+     "count": 1,
+     "name": "middle-eastern"
+    }
+   ]
+  },
+  {
+   "id": "3074808b-9487-4b06-9fb7-476625feb3a2",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "İnci Tanem",
+   "length": 338960,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "1997-07",
+   "releases": [
+    {
+     "id": "8e34ce50-b279-43f3-a561-a015cc4af434",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1999",
+     "country": "CO"
+    },
+    {
+     "id": "3735ad61-c63e-4a0f-9640-1438d60e2fdd",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1998",
+     "country": "XE"
+    },
+    {
+     "id": "c08eec66-2731-4dd5-8b0b-692eb3b80c45",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2000",
+     "country": "US"
+    },
+    {
+     "id": "403d1a14-7a86-42ca-a7a7-8e0df9043cfd",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1999",
+     "country": "XE"
+    },
+    {
+     "id": "e69e863e-7129-461b-a8a0-7ee722123252",
+     "title": "Ölürüm Sana",
+     "status": "Official",
+     "release-group": {
+      "id": "92537e95-3f76-3465-b97c-1d67ac3e9fca",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Ölürüm Sana",
+      "primary-type": "Album"
+     },
+     "date": "1997-07",
+     "country": "TR"
+    },
+    {
+     "id": "951e293b-a239-3818-9683-80fd19a97bca",
+     "title": "Ölürüm Sana",
+     "status": "Official",
+     "release-group": {
+      "id": "92537e95-3f76-3465-b97c-1d67ac3e9fca",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Ölürüm Sana",
+      "primary-type": "Album"
+     },
+     "date": "2001",
+     "country": "US"
+    },
+    {
+     "id": "a18d1388-8a91-4354-93a9-ce089fd62f42",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1998",
+     "country": "FR"
+    },
+    {
+     "id": "f47dc898-e45e-4c74-a501-d1bc10a84e03",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2000-05-24",
+     "country": "JP"
+    },
+    {
+     "id": "4fbcc528-529e-4892-9f2e-dcfdf5ab4618",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2003",
+     "country": "US"
+    },
+    {
+     "id": "35df7f43-5984-490f-81d6-b216537171a6",
+     "title": "Tarkan",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     }
+    }
+   ],
+   "isrcs": [
+    "TR1290601387",
+    "FRZ069770110"
+   ],
+   "tags": [
+    {
+     "count": 1,
+     "name": "electronic"
+    },
+    {
+     "count": 3,
+     "name": "pop"
+    },
+    {
+     "count": 1,
+     "name": "house"
+    },
+    {
+     "count": 1,
+     "name": "punk"
+    },
+    {
+     "count": 1,
+     "name": "synth-pop"
+    },
+    {
+     "count": 1,
+     "name": "latin"
+    },
+    {
+     "count": 1,
+     "name": "tribal"
+    },
+    {
+     "count": 1,
+     "name": "middle-eastern"
+    }
+   ]
+  },
+  {
+   "id": "a34b1c85-8604-4d54-a10e-bf6e8bbdefd8",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Gül Döktüm Yollarına",
+   "length": 249000,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "1994-04-28",
+   "releases": [
+    {
+     "id": "8e34ce50-b279-43f3-a561-a015cc4af434",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1999",
+     "country": "CO"
+    },
+    {
+     "id": "3735ad61-c63e-4a0f-9640-1438d60e2fdd",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1998",
+     "country": "XE"
+    },
+    {
+     "id": "03d78496-5514-472d-9d55-6db00f9f6ffa",
+     "title": "Aacayipsin",
+     "status": "Official",
+     "release-group": {
+      "id": "9f5be094-776b-396f-8d79-918441d8fe0c",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Aacayipsin",
+      "primary-type": "Album"
+     },
+     "date": "1994-04-28",
+     "country": "TR"
+    },
+    {
+     "id": "e96fcade-b3d6-30fe-a524-a4fcdbf37f23",
+     "title": "Aacayipsin",
+     "status": "Official",
+     "release-group": {
+      "id": "9f5be094-776b-396f-8d79-918441d8fe0c",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Aacayipsin",
+      "primary-type": "Album"
+     },
+     "date": "1994",
+     "country": "TR"
+    },
+    {
+     "id": "403d1a14-7a86-42ca-a7a7-8e0df9043cfd",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1999",
+     "country": "XE"
+    },
+    {
+     "id": "a18d1388-8a91-4354-93a9-ce089fd62f42",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "1998",
+     "country": "FR"
+    },
+    {
+     "id": "f47dc898-e45e-4c74-a501-d1bc10a84e03",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2000-05-24",
+     "country": "JP"
+    },
+    {
+     "id": "4fbcc528-529e-4892-9f2e-dcfdf5ab4618",
+     "title": "Tarkan",
+     "status": "Official",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2003",
+     "country": "US"
+    },
+    {
+     "id": "35df7f43-5984-490f-81d6-b216537171a6",
+     "title": "Tarkan",
+     "release-group": {
+      "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Tarkan",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     }
+    }
+   ],
+   "isrcs": [
+    "FRZ069470030"
+   ],
+   "tags": [
+    {
+     "count": 1,
+     "name": "trance"
+    },
+    {
+     "count": 1,
+     "name": "electronic"
+    },
+    {
+     "count": 3,
+     "name": "pop"
+    },
+    {
+     "count": 1,
+     "name": "disco"
+    },
+    {
+     "count": 1,
+     "name": "europop"
+    },
+    {
+     "count": 1,
+     "name": "progressive trance"
+    },
+    {
+     "count": 1,
+     "name": "latin"
+    }
+   ]
+  },
+  {
+   "id": "55787581-5b64-45a1-9d94-f8fa8c1f23b6",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Shhh",
+   "length": 214466,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2006-04-07",
+   "releases": [
+    {
+     "id": "cc23f81e-1ede-4a1a-9343-73f0b25aff42",
+     "title": "Come Closer",
+     "status": "Official",
+     "release-group": {
+      "id": "8c4067dd-b56f-3caa-9c12-7eba9c47c1a2",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Come Closer",
+      "primary-type": "Album"
+     },
+     "date": "2006-04",
+     "country": "XE"
+    },
+    {
+     "id": "392df958-7bc9-450c-93f0-c1b4e12760aa",
+     "title": "Come Closer",
+     "status": "Official",
+     "release-group": {
+      "id": "8c4067dd-b56f-3caa-9c12-7eba9c47c1a2",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Come Closer",
+      "primary-type": "Album"
+     },
+     "date": "2006-04-07",
+     "country": "XE"
+    },
+    {
+     "id": "e5044f29-684b-3cb6-b02f-1a4356e73906",
+     "title": "Come Closer",
+     "status": "Official",
+     "release-group": {
+      "id": "8c4067dd-b56f-3caa-9c12-7eba9c47c1a2",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Come Closer",
+      "primary-type": "Album"
+     },
+     "date": "2006-10",
+     "country": "RU"
+    },
+    {
+     "id": "dcf7d954-16fd-3c2e-b63e-6e4eb577421c",
+     "title": "Come Closer",
+     "status": "Official",
+     "release-group": {
+      "id": "8c4067dd-b56f-3caa-9c12-7eba9c47c1a2",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Come Closer",
+      "primary-type": "Album"
+     },
+     "date": "2006-04-07",
+     "country": "XE"
+    }
+   ]
+  },
+  {
+   "id": "501bac16-a37e-4a54-a5d4-27471754f204",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Pare Pare",
+   "length": 316000,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2007-12-26",
+   "releases": [
+    {
+     "id": "e4f752ea-9a8e-4524-8728-7f5ddb5bf77c",
+     "title": "Metamorfoz",
+     "status": "Official",
+     "release-group": {
+      "id": "d653d125-819d-33df-8257-96927717fcf7",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Metamorfoz",
+      "primary-type": "Album"
+     },
+     "date": "2007-12-26",
+     "country": "TR"
+    },
+    {
+     "id": "af023610-3586-3216-afbb-053d4f440857",
+     "title": "Metamorfoz",
+     "status": "Official",
+     "release-group": {
+      "id": "d653d125-819d-33df-8257-96927717fcf7",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Metamorfoz",
+      "primary-type": "Album"
+     },
+     "date": "2008",
+     "country": "XW"
+    },
+    {
+     "id": "72052e90-72eb-3364-8e3c-13f9169db6c0",
+     "title": "Metamorfoz",
+     "status": "Official",
+     "release-group": {
+      "id": "d653d125-819d-33df-8257-96927717fcf7",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Metamorfoz",
+      "primary-type": "Album"
+     },
+     "date": "2008-08-02",
+     "country": "TR"
+    },
+    {
+     "id": "f6b4a698-c95c-3d41-bc64-caed13e9211e",
+     "title": "Metamorfoz",
+     "status": "Official",
+     "release-group": {
+      "id": "d653d125-819d-33df-8257-96927717fcf7",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Metamorfoz",
+      "primary-type": "Album"
+     },
+     "date": "2007-12-26",
+     "country": "TR"
+    }
+   ],
+   "tags": [
+    {
+     "count": 1,
+     "name": "electronic"
+    },
+    {
+     "count": 2,
+     "name": "pop"
+    },
+    {
+     "count": 1,
+     "name": "folk"
+    },
+    {
+     "count": 1,
+     "name": "hip hop"
+    },
+    {
+     "count": 1,
+     "name": "ballad"
+    }
+   ]
+  },
+  {
+   "id": "7a017b0d-3c4a-4fcc-afdd-567db3daea51",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Bounce (Ozinga)",
+   "length": 222586,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2005-10",
+   "releases": [
+    {
+     "id": "7a083add-2518-4344-85be-500d5f57d370",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2006",
+     "country": "XE"
+    },
+    {
+     "id": "ee967be9-0cd5-3e2c-afe6-279371797f63",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2005-10",
+     "country": "TR"
+    },
+    {
+     "id": "d66beaab-cfdd-427d-8d00-9d2189eb885f",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2005-10",
+     "country": "TR"
+    }
+   ]
+  },
+  {
+   "id": "0b513ade-4ba0-4b27-8bb5-1efd4dd88ef9",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Bounce (Kerim & DkEvrim remix)",
+   "length": 260586,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2005-10",
+   "releases": [
+    {
+     "id": "7a083add-2518-4344-85be-500d5f57d370",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2006",
+     "country": "XE"
+    },
+    {
+     "id": "ee967be9-0cd5-3e2c-afe6-279371797f63",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2005-10",
+     "country": "TR"
+    },
+    {
+     "id": "d66beaab-cfdd-427d-8d00-9d2189eb885f",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2005-10",
+     "country": "TR"
+    }
+   ]
+  },
+  {
+   "id": "0ba51758-1e89-4f35-9b1a-9d5c08b7fbb4",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Bounce (Pacifique)",
+   "length": 225000,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2005-10",
+   "releases": [
+    {
+     "id": "7a083add-2518-4344-85be-500d5f57d370",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2006",
+     "country": "XE"
+    },
+    {
+     "id": "ee967be9-0cd5-3e2c-afe6-279371797f63",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2005-10",
+     "country": "TR"
+    },
+    {
+     "id": "d66beaab-cfdd-427d-8d00-9d2189eb885f",
+     "title": "Bounce",
+     "status": "Official",
+     "release-group": {
+      "id": "184c27fa-db55-3355-955e-9e06282ac668",
+      "type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+      "title": "Bounce",
+      "primary-type": "Single"
+     },
+     "date": "2005-10",
+     "country": "TR"
+    }
+   ]
+  },
+  {
+   "id": "e1a585e0-381a-4ac3-974f-91060dcece19",
+   "score": 100,
+   "artist-credit-id": "624bf807-9fc5-3e60-a1af-36e1d6578b90",
+   "title": "Pass the Flame (The Official Torch Relay Theme)",
+   "length": 253333,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "The Trevor Horn Orchestra",
+     "artist": {
+      "id": "f01cfac6-5c92-4cbd-ab1f-de408b1336db",
+      "name": "The Trevor Horn Orchestra"
+     }
+    },
+    {
+     "name": "Yiannis Kotsiras",
+     "artist": {
+      "id": "908e0544-7c83-45cf-ae69-69d7ffc03a7e",
+      "name": "Γιάννης Κότσιρας"
+     }
+    },
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2004-07-14",
+   "releases": [
+    {
+     "id": "659655c6-14a1-4701-a015-f874c187c707",
+     "title": "Unity: Athens 2004",
+     "status": "Official",
+     "release-group": {
+      "id": "10051543-9032-37be-85d0-92ad3b54e986",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Unity: Athens 2004",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2004",
+     "country": "XE"
+    },
+    {
+     "id": "60ab3531-7b9c-421b-9b7d-4c8749d200e5",
+     "title": "Unity: The Official Athens 2004 Olympic Games Album",
+     "status": "Official",
+     "release-group": {
+      "id": "10051543-9032-37be-85d0-92ad3b54e986",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Unity: Athens 2004",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2004-07-14",
+     "country": "JP"
+    },
+    {
+     "id": "9494593f-5014-4a23-bbbc-103544532b46",
+     "title": "Unity: Athens 2004",
+     "status": "Official",
+     "release-group": {
+      "id": "10051543-9032-37be-85d0-92ad3b54e986",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Unity: Athens 2004",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2004",
+     "country": "XE"
+    }
+   ]
+  },
+  {
+   "id": "55a598b1-4f83-41da-be91-21322baeccd1",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Gülümse Kaderine",
+   "length": 229453,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2003-12",
+   "releases": [
+    {
+     "id": "3ad7d77e-8a7e-467a-b60b-04fda562fae6",
+     "title": "Dudu",
+     "status": "Official",
+     "release-group": {
+      "id": "09ca11fb-e180-3734-b082-b1e2f24a38d8",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Dudu",
+      "primary-type": "Album"
+     },
+     "date": "2003",
+     "country": "TR"
+    },
+    {
+     "id": "93af3bb8-2dc3-3a98-8561-c3c7eaea5191",
+     "title": "Dudu",
+     "status": "Official",
+     "release-group": {
+      "id": "09ca11fb-e180-3734-b082-b1e2f24a38d8",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Dudu",
+      "primary-type": "Album"
+     },
+     "date": "2003-12",
+     "country": "RU"
+    },
+    {
+     "id": "fb50b595-fd45-4855-8f97-50849334cf1c",
+     "title": "64 Türkçe Şarkı",
+     "status": "Official",
+     "release-group": {
+      "id": "5b3ff595-298a-3512-8200-df6bd6817309",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "64 Türkçe Şarkı",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2006-12-08",
+     "country": "TR"
+    }
+   ],
+   "tags": [
+    {
+     "count": 2,
+     "name": "pop"
+    },
+    {
+     "count": 2,
+     "name": "ballad"
+    },
+    {
+     "count": 2,
+     "name": "europop"
+    },
+    {
+     "count": 1,
+     "name": "deathcore"
+    },
+    {
+     "count": 1,
+     "name": "party"
+    }
+   ]
+  },
+  {
+   "id": "060dd287-6054-4ca5-b80d-a9371e3fa230",
+   "score": 100,
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "title": "Dudu (Özgür Buldum remix)",
+   "length": 236000,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan"
+     }
+    }
+   ],
+   "first-release-date": "2003-12",
+   "releases": [
+    {
+     "id": "3ad7d77e-8a7e-467a-b60b-04fda562fae6",
+     "title": "Dudu",
+     "status": "Official",
+     "release-group": {
+      "id": "09ca11fb-e180-3734-b082-b1e2f24a38d8",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Dudu",
+      "primary-type": "Album"
+     },
+     "date": "2003",
+     "country": "TR"
+    },
+    {
+     "id": "93af3bb8-2dc3-3a98-8561-c3c7eaea5191",
+     "title": "Dudu",
+     "status": "Official",
+     "release-group": {
+      "id": "09ca11fb-e180-3734-b082-b1e2f24a38d8",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Dudu",
+      "primary-type": "Album"
+     },
+     "date": "2003-12",
+     "country": "RU"
+    },
+    {
+     "id": "cf9de0f2-0d2f-4aff-b437-4a2d676b06de",
+     "title": "Putumayo Presents: Turkish Groove",
+     "status": "Official",
+     "release-group": {
+      "id": "39a195d0-653f-3fd1-9020-7780881bd259",
+      "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Putumayo Presents: Turkish Groove",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ],
+      "secondary-type-ids": [
+       "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+      ]
+     },
+     "date": "2006-03-21",
+     "country": "US"
+    }
+   ],
+   "tags": [
+    {
+     "count": 1,
+     "name": "electronic"
+    },
+    {
+     "count": 1,
+     "name": "pop"
+    },
+    {
+     "count": 1,
+     "name": "industrial"
+    },
+    {
+     "count": 1,
+     "name": "industrial metal"
+    },
+    {
+     "count": 1,
+     "name": "metal"
+    },
+    {
+     "count": 1,
+     "name": "traditional"
+    },
+    {
+     "count": 2,
+     "name": "ballad"
+    },
+    {
+     "count": 2,
+     "name": "europop"
+    },
+    {
+     "count": 1,
+     "name": "post-hardcore"
+    },
+    {
+     "count": 1,
+     "name": "death-doom metal"
+    },
+    {
+     "count": 1,
+     "name": "party"
+    }
+   ]
+  }
+ ]
+}

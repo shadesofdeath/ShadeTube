@@ -1,0 +1,246 @@
+{
+ "created": "2026-09-27T16:01:54.201Z",
+ "count": 497,
+ "offset": 0,
+ "recordings": [
+  {
+   "id": "a528b4f9-c0b3-417c-b344-c2d1f8d7346a",
+   "score": 100,
+   "artist-credit-id": "6a8cc141-8624-4b32-8649-fd05f4931493",
+   "title": "Tärkan",
+   "length": 131613,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Draaiorgel \"De Adriaen\"",
+     "artist": {
+      "id": "a6d5fc2f-2bff-4259-a4f1-36ee344798bc",
+      "name": "Draaiorgel \"De Adriaen\"",
+      "sort-name": "Draaiorgel \"De Adriaen\"",
+      "disambiguation": "Keukenhof street organ"
+     }
+    }
+   ],
+   "releases": [
+    {
+     "id": "8a547f6e-13ea-4108-bc04-569653e91354",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "count": 1,
+     "title": "25 Bekende Melodieën – CD3",
+     "status": "Official",
+     "release-group": {
+      "id": "5cfa584a-466d-4ffe-bb8b-fba658d5d4aa",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "25 Bekende Melodieën – CD3",
+      "primary-type": "Album"
+     },
+     "date": "",
+     "country": "NL",
+     "release-events": [
+      {
+       "date": "",
+       "area": {
+        "id": "ef1b7cc0-cd26-36f4-8ea0-04d9623786c7",
+        "name": "Netherlands",
+        "sort-name": "Netherlands",
+        "iso-3166-1-codes": [
+         "NL"
+        ]
+       }
+      }
+     ],
+     "track-count": 25,
+     "media": [
+      {
+       "id": "a478c77f-2214-30eb-aa34-16ecd5c98d40",
+       "position": 1,
+       "format": "CD-R",
+       "track": [
+        {
+         "id": "695a6b4f-0e73-4b65-9c08-de0022cc3693",
+         "number": "23",
+         "title": "Tärkan",
+         "length": 131613
+        }
+       ],
+       "track-count": 25,
+       "track-offset": 22
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ef8d3600-74f7-47ac-8317-97f6bc30363a",
+   "score": 94,
+   "artist-credit-id": "a6cecf93-02ba-464a-9ff2-c2d5f907d1e0",
+   "title": "2001 TARKAN",
+   "length": 141913,
+   "video": null,
+   "artist-credit": [
+    {
+     "joinphrase": " & ",
+     "name": "Yves Nisha",
+     "artist": {
+      "id": "3cfdb338-c366-4e51-ac50-aad70c871ae5",
+      "name": "Yves Nisha",
+      "sort-name": "Yves Nisha",
+      "disambiguation": "Turkish rapper"
+     }
+    },
+    {
+     "name": "Yung Ouzo",
+     "artist": {
+      "id": "c3d8460b-2368-4ba3-9325-70d840cd1344",
+      "name": "Yung Ouzo",
+      "sort-name": "Yung Ouzo",
+      "aliases": [
+       {
+        "sort-name": "Ünlüer, Yağız",
+        "type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+        "name": "Yağız Ünlüer",
+        "locale": "tr",
+        "type": "Legal name",
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "2023-08-25",
+   "releases": [
+    {
+     "id": "ec110681-95b2-4bdb-bd36-34ae970d37d7",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "artist-credit-id": "93455d46-0b79-423b-8aaa-c66f74fefcc9",
+     "count": 1,
+     "title": "Yeni Nokia",
+     "status": "Official",
+     "artist-credit": [
+      {
+       "name": "Yves Nisha",
+       "artist": {
+        "id": "3cfdb338-c366-4e51-ac50-aad70c871ae5",
+        "name": "Yves Nisha",
+        "sort-name": "Yves Nisha",
+        "disambiguation": "Turkish rapper"
+       }
+      }
+     ],
+     "release-group": {
+      "id": "4a150fb2-4a40-41d8-9561-6460198f0816",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Yeni Nokia",
+      "primary-type": "Album"
+     },
+     "date": "2023-08-25",
+     "country": "XW",
+     "release-events": [
+      {
+       "date": "2023-08-25",
+       "area": {
+        "id": "525d4e18-3d00-31b9-a58b-a146a916de8f",
+        "name": "[Worldwide]",
+        "sort-name": "[Worldwide]",
+        "iso-3166-1-codes": [
+         "XW"
+        ]
+       }
+      }
+     ],
+     "track-count": 9,
+     "media": [
+      {
+       "id": "ad0b116d-1874-3e4b-96b3-c29e57df5197",
+       "position": 1,
+       "format": "Digital Media",
+       "track": [
+        {
+         "id": "571d9de1-2b83-44ec-bbda-abac00eaee15",
+         "number": "5",
+         "title": "2001 TARKAN",
+         "length": 141913
+        }
+       ],
+       "track-count": 9,
+       "track-offset": 4
+      }
+     ]
+    }
+   ],
+   "isrcs": [
+    "QZPLS2359054"
+   ]
+  },
+  {
+   "id": "d67ae9ba-fca6-42f6-9ad7-1012d560b0bf",
+   "score": 83,
+   "artist-credit-id": "915f63b9-9934-4869-a2d3-4dc392e5f29d",
+   "title": "Şımarık (Tarkan Cover)",
+   "length": 179000,
+   "video": null,
+   "artist-credit": [
+    {
+     "name": "Concrete Age",
+     "artist": {
+      "id": "2c74a6a8-f964-46cc-9584-15e76aec3e2e",
+      "name": "Concrete Age",
+      "sort-name": "Concrete Age"
+     }
+    }
+   ],
+   "first-release-date": "2025-05-15",
+   "releases": [
+    {
+     "id": "07765082-8df2-4c7a-abbb-27955a821b5e",
+     "count": 1,
+     "title": "Awaken The Gods",
+     "release-group": {
+      "id": "249de862-bd88-42e1-8682-f78e921faf2a",
+      "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+      "title": "Awaken The Gods",
+      "primary-type": "Album"
+     },
+     "date": "2025-05-15",
+     "country": "GB",
+     "release-events": [
+      {
+       "date": "2025-05-15",
+       "area": {
+        "id": "8a754a16-0027-3a29-b6d7-2b40ea0481ed",
+        "name": "United Kingdom",
+        "sort-name": "United Kingdom",
+        "iso-3166-1-codes": [
+         "GB"
+        ]
+       }
+      }
+     ],
+     "track-count": 10,
+     "media": [
+      {
+       "id": "289d0f4f-f3f0-46c7-ab54-4161ed7f401e",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "bf661949-d826-4ebd-ab76-ffa01a87f824",
+         "number": "10",
+         "title": "Şımarık (Tarkan Cover)",
+         "length": 179000
+        }
+       ],
+       "track-count": 10,
+       "track-offset": 9
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

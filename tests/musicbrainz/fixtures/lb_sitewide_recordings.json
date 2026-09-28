@@ -1,0 +1,52 @@
+{
+ "payload": {
+  "count": 3,
+  "from_ts": 1789344000,
+  "last_updated": 1790483445,
+  "offset": 0,
+  "range": "week",
+  "recordings": [
+   {
+    "artist_mbids": [
+     "0d79fe8e-ba27-4859-bb8c-2f255f346853"
+    ],
+    "artist_name": "BTS",
+    "caa_id": 44649518152,
+    "caa_release_mbid": "a0e20443-675e-4817-b482-9cba5f47ed7a",
+    "listen_count": 146184,
+    "recording_mbid": "6f33dc05-cdc0-4a2f-8039-e8fed082eec6",
+    "release_mbid": "bfa4553e-fa39-44b2-b17e-14f2875d352f",
+    "release_name": "ARIRANG",
+    "track_name": "SWIM"
+   },
+   {
+    "artist_mbids": [
+     "0d79fe8e-ba27-4859-bb8c-2f255f346853"
+    ],
+    "artist_name": "BTS",
+    "caa_id": 44649518152,
+    "caa_release_mbid": "a0e20443-675e-4817-b482-9cba5f47ed7a",
+    "listen_count": 105987,
+    "recording_mbid": "98faaa53-eb11-4a49-9b69-33262055efb7",
+    "release_mbid": "bfa4553e-fa39-44b2-b17e-14f2875d352f",
+    "release_name": "ARIRANG",
+    "track_name": "NORMAL"
+   },
+   {
+    "artist_mbids": [
+     "0d79fe8e-ba27-4859-bb8c-2f255f346853"
+    ],
+    "artist_name": "BTS",
+    "caa_id": 44649396012,
+    "caa_release_mbid": "20af35dd-dda2-47de-8ea5-78211c0dfe9c",
+    "listen_count": 70019,
+    "recording_mbid": "6f33dc05-cdc0-4a2f-8039-e8fed082eec6",
+    "release_mbid": "bfa4553e-fa39-44b2-b17e-14f2875d352f",
+    "release_name": "ARIRANG",
+    "track_name": "SWIM"
+   }
+  ],
+  "to_ts": 1789948800,
+  "total_recording_count": 2247269
+ }
+}

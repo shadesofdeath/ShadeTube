@@ -1,0 +1,110 @@
+{
+ "release-group-count": 42,
+ "release-groups": [
+  {
+   "secondary-type-ids": [
+    "0c60f497-ff81-3818-befd-abfc84a4858b"
+   ],
+   "primary-type": "Album",
+   "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+   "secondary-types": [
+    "Remix"
+   ],
+   "id": "035a991a-ef46-499e-9342-8e53b53bbe6a",
+   "disambiguation": "",
+   "first-release-date": "2008-07-28",
+   "title": "Metamorfoz Remixes"
+  },
+  {
+   "disambiguation": "",
+   "secondary-types": [],
+   "id": "03e8fb2a-13be-4319-acae-73b9a3eed96e",
+   "secondary-type-ids": [],
+   "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+   "primary-type": "Single",
+   "title": "Sen Rahat Uyu",
+   "first-release-date": "2023-10-24"
+  },
+  {
+   "primary-type": "Album",
+   "secondary-type-ids": [],
+   "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+   "disambiguation": "",
+   "id": "09ca11fb-e180-3734-b082-b1e2f24a38d8",
+   "secondary-types": [],
+   "title": "Dudu",
+   "first-release-date": "2003-12"
+  },
+  {
+   "title": "Uzun İnce Bir Yoldayım (Ozinga Şatıroğlu Remix)",
+   "first-release-date": "2003",
+   "secondary-type-ids": [],
+   "primary-type": "Single",
+   "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+   "disambiguation": "",
+   "id": "0cf95d4c-cf83-42e9-bb46-d68fd123a313",
+   "secondary-types": []
+  },
+  {
+   "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+   "secondary-type-ids": [],
+   "primary-type": "Single",
+   "secondary-types": [],
+   "id": "0f46fb1f-c33d-4f19-9042-9e8a54273e0e",
+   "disambiguation": "",
+   "first-release-date": "2022-07-22",
+   "title": "Yap Bi Güzellik"
+  },
+  {
+   "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+   "secondary-type-ids": [],
+   "primary-type": "Album",
+   "id": "13657f74-1ee6-3df0-bfa0-8e42fe87d785",
+   "secondary-types": [],
+   "disambiguation": "",
+   "first-release-date": "2001-07-26",
+   "title": "Karma"
+  },
+  {
+   "first-release-date": "1992-12-21",
+   "title": "Yine Sensiz...",
+   "id": "15266c5e-6b4e-3990-9f40-217bd1101c15",
+   "secondary-types": [],
+   "disambiguation": "",
+   "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+   "secondary-type-ids": [],
+   "primary-type": "Album"
+  },
+  {
+   "secondary-type-ids": [],
+   "primary-type": "Single",
+   "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+   "secondary-types": [],
+   "id": "184c27fa-db55-3355-955e-9e06282ac668",
+   "disambiguation": "",
+   "first-release-date": "2005-10",
+   "title": "Bounce"
+  },
+  {
+   "first-release-date": "2010-08-29",
+   "title": "Adımı Kalbine Yaz",
+   "secondary-types": [],
+   "id": "1d3ef442-fa1b-4699-a9f2-57740d4bfc43",
+   "disambiguation": "",
+   "secondary-type-ids": [],
+   "primary-type": "Album",
+   "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc"
+  },
+  {
+   "primary-type-id": "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
+   "secondary-type-ids": [],
+   "primary-type": "Single",
+   "secondary-types": [],
+   "id": "1ee11408-b0a8-4325-ba18-ad930a2d7912",
+   "disambiguation": "",
+   "first-release-date": "2018-04-03",
+   "title": "Her Şey Fani (Mahmut Orhan Remix)"
+  }
+ ],
+ "release-group-offset": 0
+}

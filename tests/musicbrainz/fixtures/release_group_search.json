@@ -1,0 +1,204 @@
+{
+ "created": "2026-09-27T16:01:52.708Z",
+ "count": 56,
+ "offset": 0,
+ "release-groups": [
+  {
+   "id": "90c58ee1-e8d0-33f4-9342-06c02f3909ab",
+   "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+   "score": 100,
+   "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+   "artist-credit-id": "a44c117a-4c71-3923-8530-3b98646f621b",
+   "count": 9,
+   "title": "Tarkan",
+   "first-release-date": "1998",
+   "primary-type": "Album",
+   "secondary-types": [
+    "Compilation"
+   ],
+   "secondary-type-ids": [
+    "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+   ],
+   "artist-credit": [
+    {
+     "name": "Tarkan",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan",
+      "sort-name": "Tarkan",
+      "aliases": [
+       {
+        "sort-name": "Tevetoğlu, Tarkan",
+        "type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+        "name": "Tarkan Tevetoğlu",
+        "locale": null,
+        "type": "Legal name",
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "releases": [
+    {
+     "id": "9c5a5a4a-63d1-4a06-aa7e-0260c4cde03f",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan",
+     "status": "Official"
+    },
+    {
+     "id": "8e34ce50-b279-43f3-a561-a015cc4af434",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan",
+     "status": "Official"
+    },
+    {
+     "id": "403d1a14-7a86-42ca-a7a7-8e0df9043cfd",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan",
+     "status": "Official"
+    },
+    {
+     "id": "c08eec66-2731-4dd5-8b0b-692eb3b80c45",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan",
+     "status": "Official"
+    },
+    {
+     "id": "3735ad61-c63e-4a0f-9640-1438d60e2fdd",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan",
+     "status": "Official"
+    },
+    {
+     "id": "a18d1388-8a91-4354-93a9-ce089fd62f42",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan",
+     "status": "Official"
+    },
+    {
+     "id": "4fbcc528-529e-4892-9f2e-dcfdf5ab4618",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan",
+     "status": "Official"
+    },
+    {
+     "id": "f47dc898-e45e-4c74-a501-d1bc10a84e03",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan",
+     "status": "Official"
+    },
+    {
+     "id": "35df7f43-5984-490f-81d6-b216537171a6",
+     "title": "Tarkan"
+    }
+   ],
+   "tags": [
+    {
+     "count": 1,
+     "name": "electronic"
+    },
+    {
+     "count": 1,
+     "name": "turkish"
+    },
+    {
+     "count": 1,
+     "name": "pop"
+    }
+   ]
+  },
+  {
+   "id": "51e4ff25-43f2-40ed-b348-48da871a5496",
+   "type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+   "score": 85,
+   "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+   "artist-credit-id": "0d6c95a7-3ea8-3ce8-9557-4186a3fa61f1",
+   "count": 1,
+   "title": "Tarkan Çakır",
+   "first-release-date": "2013-12-04",
+   "primary-type": "Album",
+   "artist-credit": [
+    {
+     "name": "Tarkan Çakır",
+     "artist": {
+      "id": "a558ae40-f749-4ad4-a20e-15879a4bf14c",
+      "name": "Tarkan Çakır",
+      "sort-name": "Çakır, Tarkan"
+     }
+    }
+   ],
+   "releases": [
+    {
+     "id": "277648d1-62f8-473e-b3f8-85c5fcba51ed",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan Çakır",
+     "status": "Official"
+    }
+   ],
+   "tags": [
+    {
+     "count": 1,
+     "name": "rock"
+    },
+    {
+     "count": 1,
+     "name": "hard rock"
+    },
+    {
+     "count": 1,
+     "name": "rock and roll"
+    }
+   ]
+  },
+  {
+   "id": "b2e56149-8693-4ab6-8b9a-2e882ddb3883",
+   "type-id": "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1",
+   "score": 71,
+   "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+   "artist-credit-id": "a8c98f10-43b9-345a-bf6d-75da3e807d82",
+   "count": 1,
+   "title": "Tarkan Best Of The Tarkan 2011 Albümü Şarkıları",
+   "first-release-date": "2011",
+   "primary-type": "Album",
+   "secondary-types": [
+    "Compilation"
+   ],
+   "secondary-type-ids": [
+    "dd2a21e1-0c00-3729-a7a0-de60b84eb5d1"
+   ],
+   "artist-credit": [
+    {
+     "name": "Tarkan Tevetoğlu",
+     "artist": {
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd",
+      "name": "Tarkan",
+      "sort-name": "Tarkan",
+      "aliases": [
+       {
+        "sort-name": "Tevetoğlu, Tarkan",
+        "type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+        "name": "Tarkan Tevetoğlu",
+        "locale": null,
+        "type": "Legal name",
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "releases": [
+    {
+     "id": "11ada671-0aad-4c10-847d-252f9c4ec66f",
+     "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+     "title": "Tarkan Best Of The Tarkan 2011 Albümü Şarkıları",
+     "status": "Official"
+    }
+   ]
+  }
+ ]
+}

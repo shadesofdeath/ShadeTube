@@ -1,0 +1,214 @@
+{
+ "secondary-type-ids": [],
+ "primary-type-id": "f529b476-6e62-324f-b0aa-1f3e33d313fc",
+ "title": "Karma",
+ "disambiguation": "",
+ "first-release-date": "2001-07-26",
+ "artist-credit": [
+  {
+   "name": "Tarkan",
+   "artist": {
+    "tags": [
+     {
+      "name": "aslı",
+      "count": 1
+     },
+     {
+      "name": "pop",
+      "count": 3
+     },
+     {
+      "count": 2,
+      "name": "turkish"
+     }
+    ],
+    "type": "Person",
+    "disambiguation": "",
+    "country": "TR",
+    "sort-name": "Tarkan",
+    "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+    "name": "Tarkan",
+    "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+   },
+   "joinphrase": ""
+  }
+ ],
+ "tags": [
+  {
+   "count": 1,
+   "name": "electronic"
+  },
+  {
+   "name": "europop",
+   "count": 1
+  },
+  {
+   "name": "latin",
+   "count": 1
+  },
+  {
+   "name": "pop",
+   "count": 1
+  },
+  {
+   "count": 1,
+   "name": "synth-pop"
+  }
+ ],
+ "primary-type": "Album",
+ "releases": [
+  {
+   "media": [
+    {
+     "format-id": "9712d52a-4509-3d4b-a1a2-67c88c643e31",
+     "track-count": 12,
+     "format": "CD",
+     "position": 1,
+     "title": "",
+     "id": "f941b315-1ef3-3cca-ab59-455a4856034a"
+    }
+   ],
+   "artist-credit": [
+    {
+     "joinphrase": "",
+     "name": "Tarkan",
+     "artist": {
+      "type": "Person",
+      "tags": [
+       {
+        "count": 1,
+        "name": "aslı"
+       },
+       {
+        "name": "pop",
+        "count": 3
+       },
+       {
+        "count": 2,
+        "name": "turkish"
+       }
+      ],
+      "country": "TR",
+      "disambiguation": "",
+      "name": "Tarkan",
+      "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+      "sort-name": "Tarkan",
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+     }
+    }
+   ],
+   "tags": [
+    {
+     "name": "pop",
+     "count": 1
+    }
+   ],
+   "barcode": "8693953000559",
+   "release-events": [
+    {
+     "area": {
+      "name": "Türkiye",
+      "iso-3166-1-codes": [
+       "TR"
+      ],
+      "type-id": null,
+      "sort-name": "Türkiye",
+      "id": "d3be28b4-41f7-3752-8a05-ed45e1d1e492",
+      "type": null,
+      "disambiguation": ""
+     },
+     "date": "2001-07-26"
+    }
+   ],
+   "disambiguation": "",
+   "title": "Karma",
+   "text-representation": {
+    "language": "tur",
+    "script": "Latn"
+   },
+   "status-id": "4e304316-386d-3409-af2e-78857eec5cfe",
+   "quality": "normal",
+   "country": "TR",
+   "packaging-id": "ec27701a-4a22-37f4-bfac-6616e0f9750a",
+   "date": "2001-07-26",
+   "status": "Official",
+   "id": "39a72717-1477-43ab-90e7-83d429bf85e1",
+   "packaging": "Jewel Case"
+  },
+  {
+   "text-representation": {
+    "language": "tur",
+    "script": "Latn"
+   },
+   "tags": [],
+   "artist-credit": [
+    {
+     "artist": {
+      "type": "Person",
+      "tags": [
+       {
+        "count": 1,
+        "name": "aslı"
+       },
+       {
+        "count": 3,
+        "name": "pop"
+       },
+       {
+        "count": 2,
+        "name": "turkish"
+       }
+      ],
+      "country": "TR",
+      "disambiguation": "",
+      "name": "Tarkan",
+      "type-id": "b6e035f4-3ce9-331c-97df-83397230b0df",
+      "sort-name": "Tarkan",
+      "id": "4ec2451d-ed0c-4273-b683-4c1312df25fd"
+     },
+     "name": "Tarkan",
+     "joinphrase": ""
+    }
+   ],
+   "media": [
+    {
+     "format-id": "9712d52a-4509-3d4b-a1a2-67c88c643e31",
+     "id": "05b93a84-5eb6-38de-9a63-e5281cff726c",
+     "title": "",
+     "format": "CD",
+     "track-count": 12,
+     "position": 1
+    }
+   ],
+   "title": "Karma",
+   "disambiguation": "",
+   "release-events": [
+    {
+     "area": {
+      "disambiguation": "",
+      "type": null,
+      "id": "1f1fc3a4-9500-39b8-9f10-f0a465557eef",
+      "type-id": null,
+      "name": "Russia",
+      "iso-3166-1-codes": [
+       "RU"
+      ],
+      "sort-name": "Russia"
+     },
+     "date": "2004-05"
+    }
+   ],
+   "barcode": "4607087280026",
+   "status": "Official",
+   "date": "2004-05",
+   "packaging-id": null,
+   "packaging": null,
+   "id": "d520df6b-1266-31f8-a431-391ec6568894",
+   "country": "RU",
+   "quality": "normal",
+   "status-id": "4e304316-386d-3409-af2e-78857eec5cfe"
+  }
+ ],
+ "id": "13657f74-1ee6-3df0-bfa0-8e42fe87d785",
+ "secondary-types": []
+}

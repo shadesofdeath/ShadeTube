@@ -1,0 +1,109 @@
+{
+ "data": {
+  "home": {
+   "__typename": "HomeResponsePayload",
+   "greeting": {"transformedLabel": "İyi akşamlar", "translatedBaseText": "Good evening"},
+   "homeChips": [{"id": "music-chip", "label": {"transformedLabel": "Müzik"}}],
+   "sectionContainer": {
+    "uri": "spotify:page:0JQ5DAozXW0GUBAKjHsifD",
+    "sections": {
+     "totalCount": 6,
+     "items": [
+      {
+       "uri": "spotify:section:shorts",
+       "data": {"__typename": "HomeShortsSectionData"},
+       "sectionItems": {"totalCount": 2, "items": [
+        {"uri": "spotify:user:@:collection", "data": null, "content": {"__typename": "UnknownType", "uri": "spotify:user:@:collection"}},
+        {"uri": "spotify:album:1El3k8dU3sKyoGUeuyrolH", "data": null, "content": {"__typename": "AlbumResponseWrapper", "data": {
+         "__typename": "Album", "name": "Kısayol albümü", "uri": "spotify:album:1El3k8dU3sKyoGUeuyrolH",
+         "artists": {"items": [{"profile": {"name": "Duman"}, "uri": "spotify:artist:duman"}]},
+         "coverArt": {"sources": [{"url": "https://i.scdn.co/image/a300", "width": 300, "height": 300}]}}}}
+       ]}
+      },
+      {
+       "uri": "spotify:section:madeforyou",
+       "data": {"__typename": "HomeGenericSectionData", "headerEntity": {"__typename": "UnknownType"},
+                "title": {"transformedLabel": "Senin için hazırlandı: Test", "translatedBaseText": "Made For {0}"},
+                "subtitle": {"transformedLabel": "Her hafta yenilenir", "translatedBaseText": null}},
+       "sectionItems": {"totalCount": 3, "items": [
+        {"uri": "spotify:playlist:37i9dQZEVXcDiscoverWkly", "data": {"__typename": "HomeRecsItemData"}, "content": {"__typename": "PlaylistResponseWrapper", "data": {
+         "__typename": "Playlist", "name": "Haftalık Keşif", "uri": "spotify:playlist:37i9dQZEVXcDiscoverWkly", "format": "discover-weekly",
+         "description": "<a href=\"spotify:artist:duman\">Duman</a>, <a href=\"spotify:artist:mve\">Mor ve Ötesi</a>\n &amp; daha fazlası. Her pazartesi &#x27;yeni&#39;",
+         "images": {"items": [{"sources": [{"url": "https://pickasso.spotifycdn.com/image/dw", "width": null, "height": null}]}]},
+         "ownerV2": {"data": {"__typename": "User", "name": "Spotify", "uri": "spotify:user:spotify"}}}}},
+        {"uri": "spotify:playlist:37i9dQZF1E37DailyMix01", "data": {"__typename": "HomeRecsItemData"}, "content": {"__typename": "PlaylistResponseWrapper", "data": {
+         "__typename": "Playlist", "name": "Günlük Mix", "uri": "spotify:playlist:37i9dQZF1E37DailyMix01", "description": "",
+         "images": {"items": [{"sources": [{"url": "https://pickasso.spotifycdn.com/image/dm", "width": 640, "height": 640}]}]},
+         "ownerV2": {"data": {"__typename": "User", "name": "Spotify", "uri": "spotify:user:spotify"}}}}},
+        {"uri": "spotify:playlist:37i9dQZEVXcDiscoverWkly", "data": {"__typename": "HomeRecsItemData"}, "content": {"__typename": "PlaylistResponseWrapper", "data": {
+         "__typename": "Playlist", "name": "Haftalık Keşif", "uri": "spotify:playlist:37i9dQZEVXcDiscoverWkly", "description": "yinelenen"}}}
+       ]}
+      },
+      {
+       "uri": "spotify:section:recent",
+       "data": {"__typename": "HomeRecentlyPlayedSectionData", "headerEntity": {"__typename": "UnknownType"},
+                "title": {"transformedLabel": "Son çalınanlar", "translatedBaseText": "Recently played"}},
+       "sectionItems": {"totalCount": 5, "items": [
+        {"uri": "spotify:album:1El3k8dU3sKyoGUeuyrolH", "data": null, "content": {"__typename": "AlbumResponseWrapper", "data": {
+         "__typename": "Album", "name": "Belki Alışman Lazım", "uri": "spotify:album:1El3k8dU3sKyoGUeuyrolH", "albumType": "ALBUM",
+         "playability": {"playable": true, "reason": "PLAYABLE"},
+         "artists": {"items": [{"profile": {"name": "Duman"}, "uri": "spotify:artist:duman"}]},
+         "coverArt": {"sources": [
+          {"url": "https://i.scdn.co/image/a300", "width": 300, "height": 300},
+          {"url": "https://i.scdn.co/image/a64", "width": 64, "height": 64},
+          {"url": "https://i.scdn.co/image/a640", "width": 640, "height": 640}]}}}},
+        {"uri": "spotify:artist:mve", "data": null, "content": {"__typename": "ArtistResponseWrapper", "data": {
+         "__typename": "Artist", "uri": "spotify:artist:mve", "profile": {"name": "Mor ve Ötesi"},
+         "visuals": {"avatarImage": {"sources": [
+          {"url": "https://i.scdn.co/image/r640", "width": 640, "height": 640},
+          {"url": "https://i.scdn.co/image/r160", "width": 160, "height": 160}]}}}}},
+        {"uri": "spotify:user:31abcxyz:collection", "data": null, "content": {"__typename": "UnknownType", "uri": "spotify:user:31abcxyz:collection"}},
+        {"uri": "spotify:episode:4rOoJ6Egrf8K2IrywzwOMk", "data": null, "content": {"__typename": "EpisodeOrChapterResponseWrapper", "data": {
+         "__typename": "Episode", "name": "Bir podcast bölümü", "uri": "spotify:episode:4rOoJ6Egrf8K2IrywzwOMk"}}},
+        {"uri": "spotify:track:6habFhsOp2NvshLv26DqMb", "data": null, "content": {"__typename": "TrackResponseWrapper", "data": {
+         "__typename": "Track", "name": "Senden Daha Güzel", "uri": "spotify:track:6habFhsOp2NvshLv26DqMb",
+         "duration": {"totalMilliseconds": 245000},
+         "artists": {"items": [{"profile": {"name": "Duman"}, "uri": "spotify:artist:duman"}]},
+         "albumOfTrack": {"name": "Belki Alışman Lazım", "uri": "spotify:album:1El3k8dU3sKyoGUeuyrolH",
+                          "coverArt": {"sources": [{"url": "https://i.scdn.co/image/a300", "width": 300, "height": 300}]}}}}}
+       ]}
+      },
+      {
+       "uri": "spotify:section:podcasts",
+       "data": {"__typename": "HomeGenericSectionData", "title": {"transformedLabel": "Podcast'ler"}, "subtitle": {"transformedLabel": ""}},
+       "sectionItems": {"totalCount": 2, "items": [
+        {"uri": "spotify:show:5CfCWKI5pZ28U0uOzXkDHe", "data": null, "content": {"__typename": "PodcastOrAudiobookResponseWrapper", "data": {
+         "__typename": "Podcast", "name": "Bir podcast", "uri": "spotify:show:5CfCWKI5pZ28U0uOzXkDHe"}}},
+        {"uri": "spotify:episode:4rOoJ6Egrf8K2IrywzwOMk", "data": null, "content": {"__typename": "EpisodeOrChapterResponseWrapper", "data": {
+         "__typename": "Episode", "name": "Bir podcast bölümü", "uri": "spotify:episode:4rOoJ6Egrf8K2IrywzwOMk"}}}
+       ]}
+      },
+      {
+       "uri": "spotify:section:templateonly",
+       "data": {"__typename": "HomeGenericSectionData", "title": {"transformedLabel": "", "translatedBaseText": "More like {0}"}},
+       "sectionItems": {"totalCount": 1, "items": [
+        {"uri": "spotify:playlist:37i9dQZF1DXtemplate", "data": null, "content": {"__typename": "PlaylistResponseWrapper", "data": {
+         "__typename": "Playlist", "name": "Şablon", "uri": "spotify:playlist:37i9dQZF1DXtemplate"}}}
+       ]}
+      },
+      {
+       "uri": "spotify:section:topmixes",
+       "data": {"__typename": "HomeGenericSectionData",
+                "title": {"transformedLabel": "En çok dinlediğin mixler", "translatedBaseText": "Your top mixes"},
+                "subtitle": {"transformedLabel": "En sevdiğin şarkı ve sanatçılara dayanan kesintisiz müzik."}},
+       "sectionItems": {"totalCount": 13, "items": [
+        {"uri": "spotify:playlist:37i9dQZF1E37DailyMix01", "data": {"__typename": "HomeRecsItemData"}, "content": {"__typename": "PlaylistResponseWrapper", "data": {
+         "__typename": "Playlist", "name": "Daily Mix 1", "uri": "spotify:playlist:37i9dQZF1E37DailyMix01", "description": "Duman, Teoman ve daha fazlası <3",
+         "images": {"items": [{"sources": [{"url": "https://dailymix-images.scdn.co/v2/img/1", "width": null, "height": null}]}]}}}},
+        {"uri": "spotify:artist:teoman", "data": null, "content": {"__typename": "ArtistResponseWrapper", "data": {
+         "uri": "spotify:artist:teoman", "profile": {"name": "Teoman"}}}},
+        {"uri": "spotify:playlist:restricted", "data": null, "content": {"__typename": "PlaylistResponseWrapper", "data": {"__typename": "NotFound"}}}
+       ]}
+      }
+     ]
+    }
+   }
+  }
+ },
+ "extensions": {}
+}
