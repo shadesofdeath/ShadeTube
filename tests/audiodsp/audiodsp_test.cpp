@@ -5,10 +5,13 @@
 //   2. ReplayGain tags (audio/ReplayGain): the gain text parser, ID3v2.2 / 2.3 / 2.4 TXXX frames (Latin-1, UTF-16 with
 //      a BOM, UTF-8, a big cover before it, tag-wide unsynchronisation), FLAC Vorbis comments behind a PICTURE block, an
 //      MP4 freeform atom, and a real temporary file; files without a gain give none.
-//   3. Output devices: AudioEngine::outputDevices() enumerates without failing (names are printed).
+//   3. Limiter (audio/Limiter): quiet audio passes unchanged, only delayed by the look-ahead; a +6 dB sine and a lone
+//      spike never exceed the ceiling; the gain comes back after the loud part.
+//   4. Output devices: AudioEngine::outputDevices() enumerates without failing (names are printed).
 //   audiodsp_test
 #include "audio/AudioEngine.h"
 #include "audio/Equalizer.h"
+#include "audio/Limiter.h"
 #include "audio/ReplayGain.h"
 
 #include <windows.h>
@@ -360,6 +363,47 @@ void testReplayGain() {
     fs::remove_all(dir, ec);
 }
 
+void testLimiter() {
+    std::printf("limiter\n");
+    constexpr uint32_t kRate = 48000;
+    Limiter lim;
+    lim.configure(kRate, 2);
+    const uint32_t L = lim.latencyFrames();
+    CHECK(L == 240);   // 5 ms
+    // Under the ceiling: bit-exact, L frames late.
+    auto quiet = sine(440, kRate, 4800, 0.5f);
+    const auto original = quiet;
+    lim.process(quiet.data(), 4800);
+    bool exact = true;
+    for (size_t i = L; i < 4800; ++i) exact = exact && quiet[i * 2] == original[(i - L) * 2];
+    CHECK(exact);
+    CHECK(lim.gainReduction() == 0.f);
+    // A sine at 2x full scale: never above the ceiling (+ float slack), processed in odd-sized blocks.
+    lim.reset();
+    auto loud = sine(1000, kRate, kRate, 2.f);
+    float peak = 0;
+    for (size_t off = 0; off < loud.size() / 2;) {
+        const size_t n = std::min<size_t>(441, loud.size() / 2 - off);
+        lim.process(loud.data() + off * 2, n);
+        off += n;
+    }
+    for (float x : loud) peak = std::max(peak, std::fabs(x));
+    CHECK(peak <= Limiter::kCeiling + 1e-4f);
+    CHECK(peak > Limiter::kCeiling - 0.02f);   // it limits, it doesn't just attenuate
+    // A lone spike in quiet audio: capped, and the gain moves smoothly (no step larger than the look-ahead ramp).
+    lim.reset();
+    auto spiky = sine(200, kRate, 9600, 0.2f);
+    spiky[4000 * 2] = spiky[4000 * 2 + 1] = 3.f;
+    lim.process(spiky.data(), 9600);
+    peak = 0;
+    for (float x : spiky) peak = std::max(peak, std::fabs(x));
+    CHECK(peak <= Limiter::kCeiling + 1e-4f);
+    // After the loud part, silence then quiet audio: the gain has recovered.
+    std::vector<float> after(size_t(kRate) * 2, 0.f);
+    lim.process(after.data(), kRate);
+    CHECK(lim.gainReduction() < 0.01f);
+}
+
 void testDevices() {
     std::printf("output devices\n");
     const auto devices = AudioEngine::outputDevices();
@@ -378,6 +422,7 @@ void testDevices() {
 int main() {
     testEqualizer();
     testReplayGain();
+    testLimiter();
     testDevices();
     std::printf(g_failures ? "\n%d FAILED\n" : "\nall passed\n", g_failures);
     return g_failures ? 1 : 0;

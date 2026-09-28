@@ -71,7 +71,7 @@ int64_t Track::durationMs() const { return durationMs_.load(std::memory_order_re
 float Track::gainDb() const {
     if (!source_.replayGain) return source_.gainDb;
     const float rg = replayGainDb_.load(std::memory_order_acquire);
-    return std::isnan(rg) ? 0.f : rg + source_.gainDb;
+    return std::isnan(rg) ? 0.f : std::min(rg + source_.gainDb, source_.maxBoostDb);
 }
 
 ErrorKind Track::errorKind() const {

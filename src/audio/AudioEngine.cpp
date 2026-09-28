@@ -26,13 +26,15 @@
 // curves until it ends; positions and the transition event follow the incoming track from the first mixed block. A
 // pause / seek / open / stop during the mix captures both into the tail and drops the outgoing track.
 //
-// DSP order per block: crossfade mix -> equalizer -> spectrum -> volume / fades / loudness gain -> soft limiter.
+// DSP order per block: crossfade mix -> equalizer -> spectrum -> volume / fades / loudness gain; then the whole device
+// block through the look-ahead limiter (audio/Limiter: -0.3 dBFS ceiling, 5 ms late) instead of hard clipping.
 //
 // Live tracks: (re)starting waits for a jitter margin (kLivePrebufferMs, more after a stall) instead of 0.25 s;
 // pause / play tell the track (it keeps only the newest audio while paused and flushes what went stale), seek is
 // ignored, and stream titles are fired (onTitle) once the audio they start with is audible.
 #include "audio/AudioEngine.h"
 
+#include "audio/Limiter.h"
 #include "audio/LiveStream.h"
 #include "audio/ProgressiveBuffer.h"
 #include "audio/Spectrum.h"
@@ -81,16 +83,6 @@ float perceptualGain(float linear) {
 }
 
 float dbToGain(float db) { return db == 0.f ? 1.f : std::pow(10.f, std::clamp(db, -30.f, 15.f) / 20.f); }
-
-// Soft limiter: transparent up to about -1 dBFS, then a tanh knee that approaches full scale, instead of hard clipping
-// the peaks an equalizer boost or a normalisation gain push over.
-inline float softClip(float x) {
-    constexpr float kKnee = 0.89f, kRoom = 1.f - kKnee;
-    const float a = std::fabs(x);
-    if (a <= kKnee) return x;
-    const float y = kKnee + kRoom * std::tanh((a - kKnee) / kRoom);
-    return x < 0 ? -y : y;
-}
 
 struct Command {
     enum class Type { Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek, SetDevice } type;
@@ -174,6 +166,7 @@ struct AudioEngine::Impl {
 
     Equalizer eq;
     uint32_t eqApplied = 0, eqRate = 0, eqChannels = 0;
+    Limiter limiter;
 
     // Crossfade (see the header comment).
     std::unique_ptr<Track> fading;    // the outgoing track, mixed under cur
@@ -566,6 +559,8 @@ struct AudioEngine::Impl {
     void startOutput() {
         runs.clear();
         written = lastRealEnd = 0;
+        limiter.configure(out->sampleRate(), out->channels());
+        limiter.reset();   // what it still delays belongs to the previous run
         uint32_t pad = 0;
         HRESULT hr = out->padding(pad);
         const uint32_t n = out->bufferFrames() - std::min(pad, out->bufferFrames());
@@ -650,17 +645,11 @@ struct AudioEngine::Impl {
                 fade = std::min(1.f, fade + fadeStep);
                 g *= fade;
             }
-            for (uint32_t c = 0; c < ch; ++c) {
-                float& s = p[f * ch + c];
-                s = softClip(s * g);
-            }
+            for (uint32_t c = 0; c < ch; ++c) p[f * ch + c] *= g;
         }
-        const float g = vol * gain;  // steady state
-        if (g == 1.f) {
-            for (size_t i = f * ch; i < frames * ch; ++i) p[i] = softClip(p[i]);
-        } else {
-            for (size_t i = f * ch; i < frames * ch; ++i) p[i] = softClip(p[i] * g);
-        }
+        const float g = vol * gain;  // steady state; peaks are the limiter's job (end of render())
+        if (g != 1.f)
+            for (size_t i = f * ch; i < frames * ch; ++i) p[i] *= g;
     }
 
     float gainOf(const Track& t) const { return dbToGain(t.gainDb()); }
@@ -752,6 +741,7 @@ struct AudioEngine::Impl {
         const float volTarget = perceptualGain(volume.load(std::memory_order_relaxed));
         uint32_t done = 0;
         syncEq();
+        limiter.configure(rate, ch);
 
         if (!tail.empty()) {
             const size_t tailFrames = tail.size() / ch;
@@ -762,7 +752,7 @@ struct AudioEngine::Impl {
             addRun(written, k, tailTag, tailPos + static_cast<int64_t>(tailDone), rate, tailSerial, 0);
             tailDone += k;
             done += k;
-            lastRealEnd = written + done;
+            lastRealEnd = written + done + limiter.latencyFrames();   // it leaves the limiter that much later
             if (tailDone >= tailFrames) {
                 tail.clear();
                 tailDone = 0;
@@ -788,7 +778,7 @@ struct AudioEngine::Impl {
                 addRun(written + done, got, t.tag(), pos, rate, serial, pendingFinishedTag);
                 pendingFinishedTag = 0;
                 done += static_cast<uint32_t>(got);
-                lastRealEnd = written + done;
+                lastRealEnd = written + done + limiter.latencyFrames();   // it leaves the limiter that much later
                 continue;
             }
             if (t.ended()) {
@@ -804,6 +794,7 @@ struct AudioEngine::Impl {
             spectrum.pushSilence(n - done);
             addRun(written + done, n - done, 0, -1, rate, serial, 0);
         }
+        limiter.process(dst, n);
         written += n;
     }
 

@@ -3,7 +3,7 @@
 //
 //   network (range requests) -> in-memory progressive buffer -> IMFByteStream -> Media Foundation
 //   Source Reader (AAC/MP4, Opus/WebM when the OS has the decoder) -> float PCM -> [crossfade mix] -> equalizer ->
-//   volume ramp / normalisation gain -> soft limiter -> WASAPI shared-mode event-driven render (AUTOCONVERTPCM
+//   volume ramp / normalisation gain -> look-ahead limiter -> WASAPI shared-mode event-driven render (AUTOCONVERTPCM
 //   handles resampling) on the Windows default device or the one picked in the settings
 //
 // Threading: the engine owns one decode/render thread. All public methods are thread-safe and
@@ -41,6 +41,7 @@ struct StreamSource {
     int64_t durationMsHint = 0;   // shown before the container header is parsed
     float gainDb = 0;             // loudness normalisation gain to apply (0 = none)
     bool replayGain = false;      // local file: gainDb is added to the file's ReplayGain track gain; no tag = no gain
+    float maxBoostDb = 8;         // replayGain: the most the sum may raise the level
     int crossfadeMs = 0;          // as a preloaded next track: crossfade into it over this long (0 = gapless)
     uint64_t tag = 0;             // opaque caller id, echoed back in events
     bool live = false;            // endless internet-radio stream (url = station / playlist / HLS URL)

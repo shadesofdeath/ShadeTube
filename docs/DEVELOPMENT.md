@@ -154,8 +154,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
    URLs are cached until they expire (about 5 h). If YouTube fails and a backup source is set, the stream comes from
    Piped / Invidious (3.9).
 4. `AudioEngine::open()`: `ProgressiveBuffer` (ranged download) → `MfByteStream` → MF Source Reader → float PCM →
-   [crossfade mix] → equalizer → volume ramp / loudness gain → soft limiter → WASAPI shared, event-driven, on the
-   Windows default device or the one picked in *Ayarlar › SES*.
+   [crossfade mix] → equalizer → volume ramp / loudness gain → look-ahead limiter → WASAPI shared, event-driven, on
+   the Windows default device or the one picked in *Ayarlar › SES*.
 5. The next queue item is resolved at Low priority and preloaded 25 s before the end (`Settings.preloadNext`, implied
    by a crossfade) for a gapless handoff; downloads and local files are preloaded straight from disk. The queue is
    saved to `session.json` and restored at startup.
@@ -169,8 +169,12 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   `playerConfig.audioConfig` as the fallback), so a stream gets `target + 14 - loudnessDb` dB. Local files and
   downloads use their ReplayGain track gain (`audio/ReplayGain`: ID3v2 TXXX, FLAC Vorbis comments, MP4 freeform atoms,
   read by the decode thread before the decoder opens) plus `target + 18`; no tag = no gain. MP3 downloads carry the
-  stream's loudness as a `REPLAYGAIN_TRACK_GAIN` TXXX frame (`-4 - loudnessDb`), so they play at the same level. Gains are capped to
-  -20 .. +8 dB; the engine's soft limiter (tanh knee above ~-1 dBFS) replaces hard clipping.
+  stream's loudness as a `REPLAYGAIN_TRACK_GAIN` TXXX frame (`-4 - loudnessDb`), so they play at the same level.
+  Without the peak levels, boosts are capped at +4 dB (+8 dB at the loud target); cuts go down to -20 dB.
+- **Limiter** (`audio/Limiter`): the whole device block goes through a look-ahead peak limiter (-0.3 dBFS ceiling,
+  5 ms look-ahead: the needed gain is min-filtered and averaged over the window, ~150 ms release) instead of hard
+  clipping, so EQ boosts, normalisation boosts and hot masters are turned down without overshoot or clicks. Its delay
+  is counted in the engine's "last real frame", so a pause still plays its whole fade-out.
 - **Equalizer** (`audio/Equalizer`): 10 peaking biquads (31 Hz .. 16 kHz, Q 1.41, double precision) plus a preamp and
   an automatic headroom cut equal to the largest boost of the combined response. The engine picks up changes through
   a versioned snapshot (`setEqualizer`) at the next block; coefficients follow the output format. Presets live in
@@ -532,7 +536,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
 | `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album) | offline; `[<audio dir>]`; needs an audio device |
-| `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), output-device enumeration | offline |
+| `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), limiter (ceiling, latency, release), output-device enumeration | offline |
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |

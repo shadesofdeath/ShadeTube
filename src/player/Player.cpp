@@ -510,8 +510,12 @@ void Player::useMatch(const youtube::Match& match) {
 // --- loading --------------------------------------------------------------------------------------------
 
 // Loudness normalisation (Settings::normalizeVolume) brings every track to Settings::loudnessTarget: YouTube reports a
-// stream's loudness against its -14 LUFS reference, local files carry ReplayGain (a gain to -18 LUFS). Boosts are
-// capped; the engine's soft limiter catches the peaks of what is boosted.
+// stream's loudness against its -14 LUFS reference, local files carry ReplayGain (a gain to -18 LUFS). Without the
+// peak levels boosts stay modest (+4 dB, +8 dB at the loud target) and the engine's limiter catches their peaks.
+namespace {
+double maxBoostDb() { return Settings::get().loudnessTarget >= -12 ? 8.0 : 4.0; }
+} // namespace
+
 audio::StreamSource Player::sourceFor(const youtube::Resolved& r, uint64_t tag, int64_t durationHint) const {
     audio::StreamSource s;
     s.url = r.stream.url;
@@ -521,7 +525,7 @@ audio::StreamSource Player::sourceFor(const youtube::Resolved& r, uint64_t tag, 
     s.tag = tag;
     const auto& st = Settings::get();
     if (st.normalizeVolume && r.stream.loudnessDb)
-        s.gainDb = static_cast<float>(std::clamp(st.loudnessTarget + 14 - *r.stream.loudnessDb, -20.0, 8.0));
+        s.gainDb = static_cast<float>(std::clamp(st.loudnessTarget + 14 - *r.stream.loudnessDb, -20.0, maxBoostDb()));
     return s;
 }
 
@@ -535,6 +539,7 @@ audio::StreamSource Player::localSource(const std::wstring& path, uint64_t tag, 
     if (st.normalizeVolume) {
         s.replayGain = true;
         s.gainDb = static_cast<float>(st.loudnessTarget + 18);
+        s.maxBoostDb = static_cast<float>(maxBoostDb());
     }
     return s;
 }
