@@ -266,6 +266,8 @@ void DownloadManager::startNext() {
                 req.contentLength = resolved.stream.contentLength;
                 req.outPath = target;
                 req.mp3Kbps = kbps;
+                // YouTube's loudness (vs. -14 LUFS) as a ReplayGain 2 track gain (to -18 LUFS).
+                if (resolved.stream.loudnessDb) req.replayGainDb = static_cast<float>(-4.0 - *resolved.stream.loudnessDb);
                 if (trim && !cancel->load()) req.cutMs = sponsorCuts(resolved.match);
                 req.title = track.name;
                 req.artist = track.artistLine();

@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,6 +39,9 @@ struct DownloadRequest {
     // are timed to the song, which is what the file holds once the video's non-music parts are cut: no mapping.
     std::string lyricsText;
     std::vector<std::pair<int64_t, std::string>> syncedLyrics;
+    // ReplayGain track gain in dB (MP3 mode only): a TXXX "REPLAYGAIN_TRACK_GAIN" frame, so ShadeTube's loudness
+    // normalisation (and other players) treat the file like the stream it came from.
+    std::optional<float> replayGainDb;
 };
 
 // What actually happened to the audio (filled on success; MP3 mode).

@@ -9,6 +9,7 @@
 //   downloads_test            run everything
 //   downloads_test --keep     keep the generated files (prints the folder)
 #include "audio/Downloader.h"
+#include "audio/ReplayGain.h"
 
 #include <windows.h>
 
@@ -208,6 +209,7 @@ audio::DownloadStatus run(const fs::path& wav, const fs::path& out, std::vector<
     req.title = "Deneme Şarkısı";
     req.artist = "ShadeTube Test";
     req.album = "Kesim Albümü";
+    req.replayGainDb = -3.25f;
     std::atomic<bool> cancel{false};
     lastProgress = 0;
     stats = {};
@@ -286,6 +288,8 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(contains(bytes, "\x01\xFF\xFE" + utf16le("Deneme Şarkısı"), tagSize));   // encoding 1 + BOM + text
     CHECK(contains(bytes, "TALB", tagSize) && contains(bytes, utf16le("Kesim Albümü"), tagSize));
     CHECK(contains(bytes, "iTunSMPB", tagSize));   // the MF sink's gapless info, merged into our tag
+    const auto gain = audio::replaygain::readTrackGainDb(cut);   // what the player reads back for normalisation
+    CHECK(gain && std::fabs(*gain + 3.25f) < 0.01f);
     CHECK(tagSize + 4 < bytes.size() && bytes[tagSize] == 0xFF && (bytes[tagSize + 1] & 0xE0) == 0xE0);   // one tag, then audio
 
     std::printf("[content: nothing of the cut ranges left, no clicks]\n");

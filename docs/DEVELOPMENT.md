@@ -167,7 +167,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   reports each stream's `loudnessDb` against its -14 LUFS reference (YoutubeExplode parses it per format, with
   `playerConfig.audioConfig` as the fallback), so a stream gets `target + 14 - loudnessDb` dB. Local files and
   downloads use their ReplayGain track gain (`audio/ReplayGain`: ID3v2 TXXX, FLAC Vorbis comments, MP4 freeform atoms,
-  read by the decode thread before the decoder opens) plus `target + 18`; no tag = no gain. Gains are capped to
+  read by the decode thread before the decoder opens) plus `target + 18`; no tag = no gain. MP3 downloads carry the
+  stream's loudness as a `REPLAYGAIN_TRACK_GAIN` TXXX frame (`-4 - loudnessDb`), so they play at the same level. Gains are capped to
   -20 .. +8 dB; the engine's soft limiter (tanh knee above ~-1 dBFS) replaces hard clipping.
 - **Equalizer** (`audio/Equalizer`): 10 peaking biquads (31 Hz .. 16 kHz, Q 1.41, double precision) plus a preamp and
   an automatic headroom cut equal to the largest boost of the combined response. The engine picks up changes through

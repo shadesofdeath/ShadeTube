@@ -171,6 +171,24 @@ size_t takeSinkTag(std::ifstream& in, std::vector<uint8_t>& keep) {
     return 10 + size;
 }
 
+// TXXX (user text): ISO-8859-1 description + value; ReplayGain readers match the description case-insensitively.
+void replayGainFrame(std::vector<uint8_t>& frames, std::optional<float> gainDb) {
+    if (!gainDb) return;
+    char value[32];
+    std::snprintf(value, sizeof value, "%+.2f dB", *gainDb);
+    std::vector<uint8_t> data;
+    data.push_back(0x00);
+    const std::string desc = "REPLAYGAIN_TRACK_GAIN";
+    data.insert(data.end(), desc.begin(), desc.end());
+    data.push_back(0);
+    data.insert(data.end(), value, value + std::strlen(value));
+    frames.insert(frames.end(), {'T', 'X', 'X', 'X'});
+    putBE32(frames, static_cast<uint32_t>(data.size()));
+    frames.push_back(0);
+    frames.push_back(0); // frame flags
+    frames.insert(frames.end(), data.begin(), data.end());
+}
+
 std::vector<uint8_t> buildId3(const DownloadRequest& req, const std::vector<uint8_t>& extraFrames) {
     std::vector<uint8_t> frames;
     textFrame(frames, "TIT2", req.title);
@@ -179,6 +197,7 @@ std::vector<uint8_t> buildId3(const DownloadRequest& req, const std::vector<uint
     textFrame(frames, "TYER", req.year.size() >= 4 ? req.year.substr(0, 4) : req.year);
     textFrame(frames, "TSSE", "ShadeTube");
     apicFrame(frames, req.coverJpeg);
+    replayGainFrame(frames, req.replayGainDb);
     const auto lyr = id3LyricsFrames(req.lyricsText, req.syncedLyrics);
     frames.insert(frames.end(), lyr.begin(), lyr.end());
     frames.insert(frames.end(), extraFrames.begin(), extraFrames.end());
