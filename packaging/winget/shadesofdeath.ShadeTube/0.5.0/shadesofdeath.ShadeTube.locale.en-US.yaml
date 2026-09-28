@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
 PackageIdentifier: shadesofdeath.ShadeTube
-PackageVersion: 0.4.0
+PackageVersion: 0.5.0
 PackageLocale: en-US
 Publisher: shadesofdeath
 PublisherUrl: https://github.com/shadesofdeath
@@ -30,6 +30,6 @@ Tags:
 - musicbrainz
 - spotube
 - native
-ReleaseNotesUrl: https://github.com/shadesofdeath/ShadeTube/releases/tag/v0.4.0
+ReleaseNotesUrl: https://github.com/shadesofdeath/ShadeTube/releases/tag/v0.5.0
 ManifestType: defaultLocale
 ManifestVersion: 1.10.0
