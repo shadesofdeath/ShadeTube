@@ -377,7 +377,7 @@ json Api::playlistService(const char* method, const std::string& path, const jso
     return spclient(method, std::string(kPlaylistService) + path, body, ct);
 }
 
-json Api::spclient(const char* method, const std::string& url, const json* body, const CT& ct) {
+json Api::spclient(const char* method, const std::string& url, const json* body, const CT& ct, int quietStatus) {
     std::string token, cookie;
     {
         std::lock_guard lock(mutex_);
@@ -407,8 +407,9 @@ json Api::spclient(const char* method, const std::string& url, const json* body,
     const std::string path = url.rfind(host, 0) == 0 ? url.substr(host.size()) : url;
     const std::string where = std::string(method) + " " + path.substr(0, path.find('?'));
     if (!resp.isSuccessStatusCode()) {
-        ST_LOG_WARN("spotify", "spclient {} HTTP {} body={}", where, resp.statusCode,
-                    resp.body.substr(0, std::min<size_t>(resp.body.size(), 500)));
+        if (resp.statusCode != quietStatus)
+            ST_LOG_WARN("spotify", "spclient {} HTTP {} body={}", where, resp.statusCode,
+                        resp.body.substr(0, std::min<size_t>(resp.body.size(), 500)));
         throw ApiError(resp.statusCode, "Spotify " + where + " HTTP " + std::to_string(resp.statusCode));
     }
     if (resp.body.empty()) return json();
@@ -1129,6 +1130,25 @@ std::string Api::radioPlaylist(const std::string& seedUri, const CT& ct) {
         if (uri.rfind("spotify:playlist:", 0) == 0) return uri;
     }
     return {};
+}
+
+// ---- Lyrics (spclient color-lyrics) ---------------------------------------------------------------------
+// What the web player's lyrics view loads: {"lyrics":{"syncType":"LINE_SYNCED","lines":[{"startTimeMs":"960",
+// "words":"...","syllables":[],"endTimeMs":"0"}...],"provider":"MusixMatch",...},"colors":{...}}. 404 = no lyrics.
+std::string Api::trackLyrics(const std::string& trackId, const CT& ct) {
+    std::string id = trackId;
+    if (const auto colon = id.rfind(':'); colon != std::string::npos) id = id.substr(colon + 1);
+    if (id.empty() || id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") != std::string::npos)
+        throw ApiError(0, "Spotify lyrics: invalid track id " + trackId);
+    const std::string url = "https://spclient.wg.spotify.com/color-lyrics/v2/track/" + id +
+                            "?format=json&vocalRemoval=false&market=from_token";
+    try {
+        const json j = spclient("GET", url, nullptr, ct, 404);
+        return j.is_null() ? std::string() : j.dump();
+    } catch (const ApiError& e) {
+        if (e.status == 404) return {};
+        throw;
+    }
 }
 
 } // namespace st::spotify

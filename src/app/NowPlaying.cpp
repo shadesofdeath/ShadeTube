@@ -1,6 +1,7 @@
 #include "app/NowPlaying.h"
 
 #include "app/InternetRadio.h"
+#include "app/LyricsService.h"
 #include "app/Shell.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -23,6 +24,30 @@ NowPlayingView::NowPlayingView()
     : title_({}, type::displayS), subtitle_({}, type::bodyL.withSize(17)), meta_({}, type::monoMeta),
       liveNow_({}, type::title) {
     queue_ = add<QueuePanel>();
+    earlier_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "minus");
+    earlier_->setTooltip(tr(L"Sözleri daha erken göster"));
+    earlier_->onClick = [this] {
+        setLyricsOffset(trackId_, lyricsOffset(trackId_) - kLyricsOffsetStepMs);
+        syncLyricsControls();
+    };
+    offset_ = add<ui::Button>(ui::ButtonKind::Ghost, formatLyricsOffset(0));
+    offset_->setTooltip(tr(L"Söz zamanlamasını sıfırla"));
+    offset_->onClick = [this] {
+        setLyricsOffset(trackId_, 0);
+        syncLyricsControls();
+    };
+    later_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "plus");
+    later_->setTooltip(tr(L"Sözleri daha geç göster"));
+    later_->onClick = [this] {
+        setLyricsOffset(trackId_, lyricsOffset(trackId_) + kLyricsOffsetStepMs);
+        syncLyricsControls();
+    };
+    fullscreen_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "expand");
+    fullscreen_->setTooltip(tr(L"Tam ekran sözler"));
+    fullscreen_->onClick = [] {
+        if (ctx().toggleLyricsFullscreen) ctx().toggleLyricsFullscreen();
+    };
+    syncLyricsControls();
     gfx::TextOptions wrap;
     wrap.wrap = true;
     wrap.maxLines = 2;
@@ -57,6 +82,7 @@ void NowPlayingView::deactivate() {
     liveNow_.reset();
     trackId_.clear();
     state_ = LyricsState::None;
+    syncLyricsControls();
     life_.renew();
 }
 
@@ -93,23 +119,24 @@ void NowPlayingView::fetchLyrics() {
     const auto* t = ctx().player->current();
     if (t && radio::isStationId(t->id)) {   // live radio: the heard titles take the lyrics' place (paintLive)
         state_ = LyricsState::None;
+        syncLyricsControls();
         return;
     }
     if (!t || !Settings::get().lyricsEnabled) {
         state_ = LyricsState::Missing;
+        syncLyricsControls();
         return;
     }
     state_ = LyricsState::Loading;
-    lyrics::Query q;
-    q.cacheKey = t->id.empty() ? t->name : t->id;
-    q.title = t->name;
-    q.artist = t->artists.empty() ? "" : t->artists[0].name;
-    q.album = t->album.name;
-    q.durationSec = t->durationMs / 1000;
+    syncLyricsControls();
+    // The track's own file first (a .lrc next to it, its tags), then LRCLIB, then Spotify when logged in.
+    const lyrics::Query q = lyricsQueryFor(*t);
+    askedSpotify_ = static_cast<bool>(q.fallback);
     async(Priority::High, life_.ref(), [q] { return lyrics::fetch(q); },
           [this](Result<std::optional<lyrics::Lyrics>> r) {
               if (!r || !*r) {
                   state_ = LyricsState::Missing;
+                  syncLyricsControls();
                   invalidate();
                   return;
               }
@@ -126,8 +153,20 @@ void NowPlayingView::fetchLyrics() {
               }
               lineH_.assign(lines_.size(), -1.f);
               activeText_ = gfx::Text({}, type::lyricActive, wrap);
+              syncLyricsControls();
               invalidate();
           });
+}
+
+void NowPlayingView::syncLyricsControls() {
+    const bool synced = state_ == LyricsState::Synced;
+    earlier_->setVisible(synced);
+    offset_->setVisible(synced);
+    later_->setVisible(synced);
+    fullscreen_->setVisible(synced || state_ == LyricsState::Plain);
+    offset_->setLabel(formatLyricsOffset(lyricsOffset(trackId_)));
+    requestLayout();
+    invalidate();
 }
 
 void NowPlayingView::layout() {
@@ -137,6 +176,23 @@ void NowPlayingView::layout() {
     artRect_ = {64, std::max(40.f, (r.h - artSize - 140) * 0.5f), artSize, artSize};
     const float lx = artRect_.right() + 64;
     lyricsRect_ = {lx, 0, std::max(200.f, r.w - gfx::metrics::queueW - 48 - lx), r.h};
+    // Lyrics header, right-aligned on the label's row: [−] [+0,5 sn] [+]  [full screen].
+    const float cy = lyricsRect_.y + 56, bs = 28;
+    float x = lyricsRect_.right();
+    if (fullscreen_->visible()) {
+        x -= bs;
+        fullscreen_->setRect({x, cy - bs / 2, bs, bs});
+        x -= 12;
+    }
+    if (later_->visible()) {
+        x -= bs;
+        later_->setRect({x, cy - bs / 2, bs, bs});
+        const float ow = std::max(64.f, offset_->naturalWidth());
+        x -= ow + 2;
+        offset_->setRect({x, cy - 14, ow, 28});
+        x -= bs + 2;
+        earlier_->setRect({x, cy - bs / 2, bs, bs});
+    }
 }
 
 void NowPlayingView::paintBackdrop(Canvas& c, const Rect& r) {
@@ -268,8 +324,19 @@ float NowPlayingView::lineHeight(int i, float width) {
 void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
     const auto& col = colors();
     const auto& acc = accent();
-    c.text(state_ == LyricsState::Synced ? tr(L"ŞARKI SÖZLERİ · SENKRONİZE") : toUpperTr(tr(L"Şarkı sözleri")), type::monoLabel,
-           {r.x, r.y + 48, r.w, 16}, col.fgTertiary);
+    std::wstring label = state_ == LyricsState::Synced ? tr(L"ŞARKI SÖZLERİ · SENKRONİZE") : toUpperTr(tr(L"Şarkı sözleri"));
+    if ((state_ == LyricsState::Synced || state_ == LyricsState::Plain) && !lyrics_.source.empty())
+        label += L" · " + lyricsSourceLabel(lyrics_.source);
+    const float controlsX = earlier_->visible() ? earlier_->rect().x : fullscreen_->visible() ? fullscreen_->rect().x : r.right();
+    c.text(label, type::monoLabel, {r.x, r.y + 48, std::max(40.f, controlsX - r.x - 12), 16}, col.fgTertiary);
+    // The offset value flashes in the accent right after a change.
+    if (offset_->visible() && lyricsOffsetChangedAt() > 0) {
+        const double since = ui::frame::realNow() - lyricsOffsetChangedAt();
+        if (since < 1200) {
+            c.fillPill(offset_->rect(), acc.base.withAlpha(0.18f * static_cast<float>(1.0 - since / 1200)));
+            ui::frame::requestNext();
+        }
+    }
     const Rect area{r.x, r.y + 96, r.w, r.h - 96 - 24};
     auto centered = [&](const wchar_t* big, const wchar_t* note) {
         c.text(big, type::headline, {area.x, area.cy() - 40, area.w, 34}, col.fgSecondary);
@@ -281,13 +348,14 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
             c.skeleton({area.x, area.cy() - 100 + i * 48.f, area.w * (0.4f + 0.1f * ((i * 7) % 4)), 22}, 2, ui::frame::now());
         ui::frame::requestNext();
         return;
-    case LyricsState::Missing: centered(tr(L"Bu şarkı için söz bulunamadı."), tr(L"KAYNAK · LRCLIB")); return;
+    case LyricsState::Missing: centered(tr(L"Bu şarkı için söz bulunamadı."), askedSpotify_ ? tr(L"KAYNAK · LRCLIB · SPOTIFY") : tr(L"KAYNAK · LRCLIB"));
+        return;
     case LyricsState::Instrumental: centered(tr(L"♪  Enstrümantal"), tr(L"SÖZ YOK · SADECE MÜZİK")); return;
     case LyricsState::None: return;
     default: break;
     }
     const auto* p = ctx().player;
-    const int pos = static_cast<int>(p->positionMs());
+    const int pos = lyricsClockMs(trackId_);   // on the song's timeline, offset applied
     const bool synced = state_ == LyricsState::Synced;
     const int active = synced ? lyrics::activeLine(lyrics_, pos + 150) : -1;   // 150 ms lookahead feels in sync
     if (active != active_) {
@@ -507,7 +575,7 @@ bool NowPlayingView::onMouseDown(const ui::MouseEvent& e) {
     if (state_ != LyricsState::Synced) return false;
     const int i = lineAt(lp);
     if (i >= 0 && lyrics_.lines[i].timeMs >= 0) {
-        ctx().player->seek(lyrics_.lines[i].timeMs);
+        seekToLyricsTime(trackId_, lyrics_.lines[i].timeMs);
         manualUntil_ = 0;
         return true;
     }

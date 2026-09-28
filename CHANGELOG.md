@@ -2,6 +2,19 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.5.0 — unreleased
+
+- **Full-screen lyrics**: a karaoke view over the whole window with large lines that fill as they're sung (word by
+  word when the lyrics have word timing), a click-to-seek on every line and controls that fade away. Open it from the
+  lyrics header in Now Playing.
+- **Lyrics timing**: shift a song's lyrics earlier or later in 0.25 s steps (Now Playing, the full-screen view, or −
+  / + there); the correction is remembered per song. Music videos no longer throw lyrics off: the intro and other
+  parts SponsorBlock skips are taken out of the lyrics' clock.
+- **More lyrics**: when LRCLIB has none (or only unsynced ones) and you're connected, Spotify's lyrics are used. Local
+  files and downloads use a `.lrc` next to them or the lyrics in their tags first. The lyrics header names the source.
+- **Lyrics in downloads**: MP3 downloads get the lyrics in their tags (synced and plain), and synced lyrics are saved
+  as a `.lrc` next to the file (Settings › Downloads).
+
 ## 0.4.0 — 2026-09-28
 
 - **11 UI languages**: Turkish, English, German, Spanish, French, Portuguese (Brazil), Russian, Ukrainian,

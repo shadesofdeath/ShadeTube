@@ -34,6 +34,10 @@ struct DownloadRequest {
     // ID3 metadata (MP3 mode only).
     std::string title, artist, album, year;
     std::vector<uint8_t> coverJpeg;   // optional front-cover APIC
+    // Lyrics (MP3 mode only): the plain text goes to an USLT frame, synced lines to a SYLT frame. Empty = none. Lyrics
+    // are timed to the song, which is what the file holds once the video's non-music parts are cut: no mapping.
+    std::string lyricsText;
+    std::vector<std::pair<int64_t, std::string>> syncedLyrics;
 };
 
 // What actually happened to the audio (filled on success; MP3 mode).
@@ -56,5 +60,9 @@ DownloadStatus downloadTrack(const DownloadRequest& req, const std::function<voi
 
 // Sorts, clamps (start >= 0) and merges overlapping/touching ranges; drops empty ones. Exposed for tests.
 std::vector<std::pair<int64_t, int64_t>> normalizeCuts(std::vector<std::pair<int64_t, int64_t>> cuts);
+
+// The ID3v2.3 lyrics frames written for `text` (USLT) and `synced` (SYLT, ms): UTF-16 with a BOM, language "eng",
+// empty descriptors. Exposed for tests.
+std::vector<uint8_t> id3LyricsFrames(const std::string& text, const std::vector<std::pair<int64_t, std::string>>& synced);
 
 } // namespace st::audio

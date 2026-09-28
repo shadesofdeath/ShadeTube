@@ -47,6 +47,7 @@ struct Settings {
     std::string downloadsDir;            // empty = default (Music\ShadeTube)
     int downloadMp3Kbps = 320;           // MP3 transcode bitrate for downloads; 0 = keep original (m4a)
     bool lyricsEnabled = true;
+    bool lyricsInDownloads = true;       // MP3 downloads: lyrics in the ID3 tag + a synced .lrc next to the file
 
     // Integrations
     bool scrobbleEnabled = true;         // Last.fm / ListenBrainz (credentials live DPAPI-encrypted in scrobble.dat)

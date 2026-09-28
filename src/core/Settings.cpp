@@ -59,6 +59,7 @@ void Settings::load() {
     read(j, "downloadsDir", downloadsDir);
     read(j, "downloadMp3Kbps", downloadMp3Kbps);
     read(j, "lyricsEnabled", lyricsEnabled);
+    read(j, "lyricsInDownloads", lyricsInDownloads);
     read(j, "scrobbleEnabled", scrobbleEnabled);
     read(j, "discordEnabled", discordEnabled);
     read(j, "discordAppId", discordAppId);
@@ -112,6 +113,7 @@ void Settings::save() const {
         {"downloadsDir", downloadsDir},
         {"downloadMp3Kbps", downloadMp3Kbps},
         {"lyricsEnabled", lyricsEnabled},
+        {"lyricsInDownloads", lyricsInDownloads},
         {"scrobbleEnabled", scrobbleEnabled},
         {"discordEnabled", discordEnabled},
         {"discordAppId", discordAppId},

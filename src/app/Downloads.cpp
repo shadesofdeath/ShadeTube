@@ -2,6 +2,7 @@
 
 #include "app/AppContext.h"
 #include "app/InternetRadio.h"
+#include "app/LyricsService.h"
 #include "app/SponsorBlock.h"
 #include "audio/Downloader.h"
 #include "core/Http.h"
@@ -195,6 +196,7 @@ void DownloadManager::startNext() {
     const bool lowQ = Settings::get().quality == AudioQuality::Normal;
     const std::wstring target = downloadTargetPath(track, mp3);
     auto cancel = cancelFlag_;
+    const auto lyricsQuery = downloadLyricsQuery(track);   // nullopt: lyrics in downloads are off
 
     struct Out {
         audio::DownloadStatus status = audio::DownloadStatus::NetworkError;
@@ -207,7 +209,7 @@ void DownloadManager::startNext() {
 
     async(
         Priority::Low, life_.ref(),
-        [matcher, track, kbps, mp3, trim, lowQ, target, cancel, trackId]() -> Out {
+        [matcher, track, kbps, mp3, trim, lowQ, target, cancel, trackId, lyricsQuery]() -> Out {
             Out o;
             o.path = target;
             try {
@@ -234,6 +236,8 @@ void DownloadManager::startNext() {
                     } catch (...) {
                     }
                 }
+                // Lyrics: into the MP3's tag (USLT / SYLT) and, once the file exists, a synced .lrc next to it.
+                const auto lyr = cancel->load() ? std::nullopt : addDownloadLyrics(req, lyricsQuery);
                 auto progressCb = [trackId](float f) {
                     Dispatcher::post([trackId, f] {
                         auto& dm = ctx().downloads;
@@ -248,6 +252,7 @@ void DownloadManager::startNext() {
                     o.size = static_cast<int64_t>(std::filesystem::file_size(target, ec2));
                     o.cutSegments = stats.segmentsCut;
                     o.cutMs = stats.cutMs;
+                    if (lyr) writeLyricsSidecar(target, *lyr, track);
                 }
             } catch (const std::exception& e) {
                 o.status = audio::DownloadStatus::NetworkError;

@@ -149,6 +149,7 @@ void initLocalLibrary();       // app/LocalFilesPage.cpp (Yerel dosyalar)
 void initUpdater();            // app/AboutSettings.cpp  (update check)
 void initInternetRadio();      // app/RadioPage.cpp      (radio-browser.info stations)
 void initWinShell();           // app/WinShell.cpp       (taskbar buttons, app identity for the media flyout)
+void initLyrics();             // app/LyricsService.cpp  (lyrics offset, full-screen lyrics)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -156,6 +157,7 @@ inline void initFeatures() {
     initUpdater();
     initInternetRadio();
     initWinShell();
+    initLyrics();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the
