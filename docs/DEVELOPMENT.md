@@ -81,13 +81,14 @@ ShadeTube/
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
-│                                LocalFiles, Stats, Settings (+ About/AltSource/Playback), ConnectScreen, MiniPlayer
+│                                LocalFiles, Podcasts, Stats, Settings (+ About/AltSource/Playback), ConnectScreen,
+│                                MiniPlayer
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, ListenStats, Radio, Blacklist,
-│                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Links +
+│                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list)
-└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, downloads,
-                                 links, localfiles, musicbrainz, playback, scrobble, smtc, sponsorblock, spotify, stats,
-                                 updater, winshell
+└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
+                                 links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts, radio, scrobble,
+                                 shortcuts, smtc, sponsorblock, spotify, stats, sync, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -399,9 +400,9 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `blacklist.json`, `listening.json`,
-`local-library.json`, `dropped-files.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `spotify-hashes.json`,
-`sync.json`, `update-leftovers.txt`, `cache\` (images, `matches.json`, lyrics, `mb`, `local-covers`, `dropped-covers`),
-`logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default.
+`local-library.json`, `dropped-files.json`, `podcasts.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `spotify-hashes.json`,
+`sync.json`, `update-leftovers.txt`, `cache\` (images, `matches.json`, lyrics, `mb`, `local-covers`, `dropped-covers`, `podcasts`),
+`logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
 ### 3.15 Drag and drop
 
@@ -444,6 +445,39 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
   window (its top strip is a caption area: the window still moves). The active line fills with the accent as it is
   sung: per word with word times, else across the line until the next one (capped by the line's length). Controls fade
   after 2.5 s without mouse movement; everything it holds goes with it when it closes. Not offered for live radio.
+
+### 3.17 Podcasts
+
+`app/Podcasts` (standalone: directory client, RSS parsing, episode model, downloads, store; `podcasts_test`) and
+`app/PodcastsPage.cpp` (the Podcastler pages and the wiring). Open sources only, no Spotify podcasts:
+
+- **Directory**: Apple's `itunes.apple.com/search` (media=podcast) and `/lookup` (a show's feed URL); the top shows
+  of the Windows home location from `rss.applemarketingtools.com` (the legacy `itunes.apple.com/<cc>/rss/toppodcasts`
+  as a fallback). Answers are cached in memory for 10 minutes.
+- **Feeds**: RSS 2.0 + the iTunes namespace through a small XML reader (CDATA, entities, BOMs, UTF-16 and
+  Windows-1252 documents, namespace prefixes renamed to the usual ones); show notes become text; at most 3000
+  episodes, newest first. Parsed feeds are kept in `cache\podcasts\<fnv>.json` and fetched again after 30 minutes
+  (show page) or 3 hours (subscriptions: refreshed in the background one at a time, checked every 10 minutes from a
+  minute after startup). A feed that fails falls back to its cached copy.
+- **Episodes** are `catalog::Track`s with the id `podcast:<16 hex>` (FNV-1a of feed URL + guid; `catalog/TrackKind.h`
+  `isPodcastId`). They skip YouTube matching, *Wrong match?*, SponsorBlock, lyrics (Now Playing shows the show notes
+  instead), scrobbling, the play history, listening stats, the song downloads, likes and radio / autoplay seeds.
+- **Playback**: `Player::directStreamFor` hands the player the enclosure URL; its `resolve` step (worker) follows the
+  analytics redirects once with a two-byte range request, so the progressive buffer talks straight to the audio
+  host and knows the length and type. `Player::startPositionFor` resumes an episode 3 s before where it was left.
+  The position is recorded on every player change and housekeeping tick; an episode heard to 95 % or into its last
+  30 s is *played* (and starts from the beginning next time).
+- **Downloads**: one at a time in the background to `<downloads folder>\Podcasts\<show>\<yyyy-mm-dd> <title>.<ext>`,
+  as published (no transcoding), through `<file>.part` with HTTP range resume. Downloaded episodes play from disk
+  (a `localFileResolvers` entry); deleting one removes the file (and the show folder once empty).
+- **Store** (`podcasts.json`): subscriptions (newest episode date seen, the new-episode count behind the sidebar
+  badge, whether it was added by URL), per-episode state (position, measured length, played, downloaded file) for at
+  most 4000 episodes (downloads are never dropped) and the episodes of the playing queue, so a restored session
+  resumes them. Saved at most every 30 s while playing and on exit.
+- **Network**: anything the directory or a feed supplies must be on the public internet; only a feed the user added
+  by its RSS address (a self-hosted server) may be on the local network, and so may its audio.
+- **Routes** `Route{RouteKind::Podcasts, id}`: `""` (home), `search:<text>`, `feed:<url>`, `apple:<directory id>`,
+  `new` (new episodes of the subscriptions), `downloads`.
 
 ## 4. Coding conventions
 
@@ -502,6 +536,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
+| `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads) |
 | `stats_test` | stream rule, recording, aggregation, persistence, timing | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
@@ -524,6 +559,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
 | `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
+| `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |
@@ -593,6 +629,8 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   code signature.
 - **Ogg / Opus local files**: stock Windows has no Media Foundation Ogg handler, so `.ogg` / `.oga` / `.opus` files
   are scanned and played only when one is installed. Passthrough `.m4a` downloads are not SponsorBlock-trimmed.
+- **Podcast episodes are buffered whole**, like songs: the progressive buffer holds the entire file while it plays
+  (a three-hour episode can take 150+ MB). There is no playback speed control (the engine has no time stretching).
 - **Memory** (Release, Intel iGPU): about 75 MB private commit when idle, roughly 42 MB of it the GPU driver's shader
   compiler (WARP software rendering gets to ~33 MB but costs ~24 % CPU in Now Playing, so hardware rendering stays).
   Now Playing needs noticeably more while open (effects, large glyph atlases). Mitigations: the caps and trims in 3.2.

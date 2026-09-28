@@ -3,10 +3,12 @@
 #include "app/Blacklist.h"
 #include "app/InternetRadio.h"
 #include "app/LocalLibrary.h"
+#include "app/PodcastUi.h"
 #include "app/Radio.h"
 #include "app/Router.h"
 #include "app/Shell.h"
 #include "app/Source.h"
+#include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Paths.h"
@@ -230,12 +232,12 @@ bool Library::isLiked(const std::string& trackId) const {
 }
 
 bool Library::canLike(const std::string& trackId) const {
-    // Radio stations have their own favorites (app/InternetRadio), not Liked Songs.
-    return !trackId.empty() && !radio::isStationId(trackId) && (!source::loggedIn() || trackId.rfind("spotify:track:", 0) == 0);
+    // Radio stations have their own favorites (app/InternetRadio), not Liked Songs; podcast episodes have none.
+    return !trackId.empty() && !radio::isStationId(trackId) && !catalog::isPodcastId(trackId) && (!source::loggedIn() || trackId.rfind("spotify:track:", 0) == 0);
 }
 
 void Library::setLiked(const Track& t, bool liked) {
-    if (t.id.empty() || isLiked(t.id) == liked) return;
+    if (t.id.empty() || catalog::isPodcastId(t.id) || isLiked(t.id) == liked) return;
     if (source::loggedIn()) {
         if (!canLike(t.id)) {
             toast(tr(L"Yalnızca Spotify şarkıları beğenilebilir"), true);
@@ -870,13 +872,14 @@ void showDownloadFolderMenu(const std::vector<Track>& tracks, gfx::Point windowP
 
 void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const std::string& playlistId) {
     if (picked.empty()) return;
-    // Internet radio stations are no songs: nothing to download, match on YouTube, like, block or add to a playlist.
-    // A station gets its own menu; stations in a mixed selection are left out.
+    // Internet radio stations and podcast episodes are no songs: nothing to download here, match on YouTube, like,
+    // block or add to a playlist. A station or an episode gets its own menu; in a mixed selection they are left out.
     std::vector<Track> tracks;
     for (const auto& t : picked)
-        if (!radio::isStationId(t.id)) tracks.push_back(t);
+        if (!radio::isStationId(t.id) && !catalog::isPodcastId(t.id)) tracks.push_back(t);
     if (tracks.empty()) {
-        if (picked.size() == 1) showStationMenu(picked.front(), windowPos);
+        if (picked.size() == 1 && catalog::isPodcastId(picked.front().id)) showEpisodeMenu(picked.front(), windowPos);
+        else if (picked.size() == 1) showStationMenu(picked.front(), windowPos);
         return;
     }
     const Track track = tracks.front();

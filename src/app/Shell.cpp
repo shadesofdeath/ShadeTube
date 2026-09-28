@@ -6,7 +6,9 @@
 #include "app/DroppedFiles.h"
 #include "app/InternetRadio.h"
 #include "app/NowPlaying.h"
+#include "app/PodcastUi.h"
 #include "app/Source.h"
+#include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
@@ -27,7 +29,7 @@ using ui::ButtonKind;
 namespace type = gfx::type;
 namespace metrics = gfx::metrics;
 
-constexpr int kNavItems = 7;   // Ana Sayfa, Ara, Kitaplık, İndirilenler, Yerel dosyalar, Radyo, İstatistikler
+constexpr int kNavItems = 8;   // Ana Sayfa, Ara, Kitaplık, İndirilenler, Yerel dosyalar, Radyo, Podcastler, İstatistikler
 
 // ===================================================================================================
 // TitleBar
@@ -249,6 +251,7 @@ Sidebar::Sidebar() {
     downloads_ = add<Button>(ButtonKind::Nav, tr(L"İndirilenler"), "download");
     local_ = add<Button>(ButtonKind::Nav, tr(L"Yerel dosyalar"), "music-note");
     radio_ = add<Button>(ButtonKind::Nav, tr(L"Radyo"), "radio");
+    podcasts_ = add<Button>(ButtonKind::Nav, tr(L"Podcastler"), "podcast");
     stats_ = add<Button>(ButtonKind::Nav, tr(L"İstatistikler"), "stats");
     settings_ = add<Button>(ButtonKind::Nav, tr(L"Ayarlar"), "settings");
     home_->onClick = [] { ctx().router->navigate({RouteKind::Home}); };
@@ -257,6 +260,7 @@ Sidebar::Sidebar() {
     downloads_->onClick = [] { ctx().router->navigate({RouteKind::Downloads}); };
     local_->onClick = [] { ctx().router->navigate({RouteKind::LocalFiles}); };
     radio_->onClick = [] { ctx().router->navigate({RouteKind::Radio}); };
+    podcasts_->onClick = [] { ctx().router->navigate({RouteKind::Podcasts}); };
     stats_->onClick = [] { ctx().router->navigate({RouteKind::Stats}); };
     settings_->onClick = [] { ctx().router->navigate({RouteKind::Settings}); };
     newPlaylist_ = add<Button>(ButtonKind::Icon, L"", "plus");
@@ -396,6 +400,7 @@ void Sidebar::syncActive() {
     downloads_->setActive(cur.kind == RouteKind::Downloads);
     local_->setActive(cur.kind == RouteKind::LocalFiles);
     radio_->setActive(cur.kind == RouteKind::Radio);
+    podcasts_->setActive(cur.kind == RouteKind::Podcasts);
     stats_->setActive(cur.kind == RouteKind::Stats);
     settings_->setActive(cur.kind == RouteKind::Settings);
     for (auto& [b, route] : items_) b->setActive(route == cur);
@@ -478,7 +483,7 @@ void Sidebar::layout() {
     const Rect r = rect();
     const float x = 16, w = r.w - 32;
     float y = 24;
-    for (auto* b : {home_, search_, library_, downloads_, local_, radio_, stats_}) {
+    for (auto* b : {home_, search_, library_, downloads_, local_, radio_, podcasts_, stats_}) {
         b->setRect({x, y, w, metrics::navItemH});
         y += metrics::navItemH + 2;
     }
@@ -496,6 +501,18 @@ void Sidebar::paint(Canvas& c) {
     const float labelY = r.y + 24 + (metrics::navItemH + 2) * kNavItems + 28 - 14;
     c.text(toUpperTr(tr(L"Çalma listeleri")), type::monoLabel, {r.x + 28, labelY, 200, 14}, col.fgTertiary);
     paintChildren(c);
+    // New episodes of the podcast subscriptions: a count on the Podcastler entry.
+    if (const int n = podcastNewEpisodeCount(); n > 0) {
+        const Rect b = podcasts_->rect();
+        const std::wstring label = n > 99 ? std::wstring(L"99+") : std::to_wstring(n);
+        auto layout = gfx::makeLayout(label, type::monoBadge, 100);
+        DWRITE_TEXT_METRICS m{};
+        layout->GetMetrics(&m);
+        const float w = std::max(18.f, std::ceil(m.widthIncludingTrailingWhitespace) + 10);
+        const Rect pill{r.x + b.right() - 10 - w, r.y + b.cy() - 9, w, 18};
+        c.fillPill(pill, accent().base);
+        c.text(label, type::monoBadge, pill, accent().onAccent, gfx::TextAlign::Center, gfx::VAlign::Center);
+    }
 }
 
 // ===================================================================================================
@@ -644,6 +661,7 @@ bool PlayerBar::onMouseDown(const ui::MouseEvent& e) {
         const auto* t = ctx().player->current();
         if (artRect_.contains(p)) ctx().toggleNowPlaying(true);
         else if (radio::isStationId(t->id)) ctx().router->navigate({RouteKind::Radio});
+        else if (catalog::isPodcastId(t->id)) openEpisodeShow(*t);
         else if (!t->album.id.empty()) ctx().router->navigate({RouteKind::Album, t->album.id});
         return true;
     }
@@ -750,7 +768,8 @@ void QueuePanel::saveAsPlaylist() {
     if (!p || p->currentOrderIndex() < 0) return;
     std::vector<catalog::Track> tracks;
     for (int i = p->currentOrderIndex(); i < static_cast<int>(p->order().size()); ++i)
-        if (const auto& t = p->items()[p->order()[i]]; !radio::isStationId(t.id)) tracks.push_back(t);   // songs only
+        if (const auto& t = p->items()[p->order()[i]]; !radio::isStationId(t.id) && !catalog::isPodcastId(t.id))
+            tracks.push_back(t);   // songs only
     if (tracks.empty()) return;
     // Name dialog -> a Spotify playlist with the Spotify tracks (logged in) or a local playlist; it reports with a toast.
     promptNewPlaylist({}, std::move(tracks));

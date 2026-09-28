@@ -140,6 +140,21 @@ public:
     // Network when the station could not be reached or kept dropping.
     std::function<void(const Track& station, audio::ErrorKind kind)> onLiveFailed;
 
+    // Direct media (podcast episodes): asked (UI thread) before each resolve, after liveStreamFor and localFileFor. A
+    // returned stream plays from its URL — seekable, with a duration — instead of a YouTube match: no prefetch / gapless
+    // handoff and no match to change. `resolve` (optional) runs on a worker first (redirects, length) and may throw to
+    // fail the item; a network error during playback resolves it again (twice) before the item fails.
+    struct DirectStream {
+        std::string url;
+        std::string mimeType;          // "" = let Media Foundation sniff
+        int64_t contentLength = 0;     // 0 = probed by the first request
+        std::function<DirectStream(const YoutubeExplode::CancellationToken&)> resolve;
+    };
+    std::function<std::optional<DirectStream>(const Track&)> directStreamFor;
+    // Resume: asked (UI thread) when an item starts from its beginning (not a seek, re-resolve or restored position);
+    // a position > 0 starts it there (podcast episodes continue where they were left).
+    std::function<int64_t(const Track&)> startPositionFor;
+
     // Resume support (last session). Set liveStreamFor first, so a restored station shows as live.
     void restoreSession();
     void saveSession() const;
@@ -210,6 +225,7 @@ private:
     std::shared_ptr<YoutubeExplode::CancellationTokenSource> prefetchCts_;
     UINT_PTR timer_ = 0;
     bool live_ = false;                 // current item plays through liveStreamFor (internet radio)
+    bool direct_ = false;               // current item plays through directStreamFor (podcast episode)
     std::wstring liveTitle_;            // ICY StreamTitle of the current live item
 };
 

@@ -41,6 +41,10 @@ All notable changes to ShadeTube, newest first.
   files and downloads use a `.lrc` next to them or the lyrics in their tags first. The lyrics header names the source.
 - **Lyrics in downloads**: MP3 downloads get the lyrics in their tags (synced and plain), and synced lyrics are saved
   as a `.lrc` next to the file (Settings › Downloads).
+- **Podcasts**: a new Podcasts page. Search Apple's podcast directory, browse the popular shows of your country or
+  add any show by its RSS address (self-hosted ones too). Subscribe and see new episodes (with a count in the
+  sidebar), pick up where you left off, mark episodes as played and read the show notes in Now Playing. Episodes
+  download as published (no re-encoding) for offline listening, and subscriptions refresh in the background.
 
 ## 0.4.0 — 2026-09-28
 

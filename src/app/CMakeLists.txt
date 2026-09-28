@@ -68,6 +68,8 @@ add_executable(ShadeTube WIN32
     PlaybackSettings.cpp
     Radio.cpp Radio.h
     RadioPage.cpp
+    PodcastsPage.cpp PodcastUi.h
+    Podcasts.cpp Podcasts.h
     InternetRadio.cpp InternetRadio.h
     Router.cpp Router.h
     Scrobbler.cpp Scrobbler.h

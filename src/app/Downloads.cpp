@@ -5,6 +5,7 @@
 #include "app/LyricsService.h"
 #include "app/SponsorBlock.h"
 #include "audio/Downloader.h"
+#include "catalog/TrackKind.h"
 #include "core/Http.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -130,7 +131,8 @@ int64_t DownloadManager::totalBytes() const {
 }
 
 void DownloadManager::enqueue(const Track& t, const std::string& collectionId) {
-    if (t.id.empty() || radio::isStationId(t.id)) return;   // a live radio station has nothing to download
+    // A live radio station has nothing to download; a podcast episode downloads as-is on the Podcastler pages.
+    if (t.id.empty() || radio::isStationId(t.id) || catalog::isPodcastId(t.id)) return;
     if (auto* it = find(t.id)) {
         it->synced = false;   // the user asked for it: their own download from now on
         if (it->state == DlState::Failed) {

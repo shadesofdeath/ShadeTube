@@ -4,6 +4,7 @@
 #include "app/AppContext.h"
 #include "app/Blacklist.h"
 #include "app/Source.h"
+#include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Utf.h"
@@ -227,6 +228,7 @@ void endlessCheck(bool fromPlayer) {
     if (!p || !Settings::get().endlessPlayback || !radioAvailable()) return;
     if (p->repeat() != RepeatMode::Off || !p->current()) return;
     if (p->isLive()) return;   // internet radio: songs are never appended to a list of stations
+    if (catalog::isPodcastId(p->current()->id)) return;   // nor after a podcast episode
     // A queue that already ended only resumes through the player itself (its queue-low hook), never because a
     // setting or the kara liste changed later.
     if (!fromPlayer && p->status() == player::Status::Idle) return;

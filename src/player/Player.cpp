@@ -1,5 +1,6 @@
 #include "player/Player.h"
 
+#include "catalog/TrackKind.h"
 #include "core/Dispatcher.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -500,7 +501,7 @@ void Player::advanceAfterError() {
 
 void Player::useMatch(const youtube::Match& match) {
     const Track* t = current();
-    if (!t || live_) return;
+    if (!t || live_ || direct_) return;
     matcher_.pin(t->id, match);
     const int64_t at = positionMs();
     loadCurrent(at, status_ != Status::Paused);
@@ -548,7 +549,7 @@ int Player::crossfadeInto(int orderIndex) const {
         (a->trackNumber <= 0 || b.trackNumber <= 0 || b.trackNumber == a->trackNumber + 1))
         return 0;
     // Spoken word never fades into music or the next episode.
-    if (a->id.starts_with("podcast:") || b.id.starts_with("podcast:")) return 0;
+    if (catalog::isPodcastId(a->id) || catalog::isPodcastId(b.id)) return 0;
     return sec * 1000;
 }
 
@@ -564,6 +565,7 @@ void Player::loadCurrent(int64_t startMs, bool autoplay) {
         currentTag_ = prepared_->tag;
         currentLocal_ = !prepared_->source.localPath.empty();
         live_ = false;
+        direct_ = false;
         if (currentLocal_) match_.reset();
         else match_ = prepared_->resolved.match;
         stream_ = prepared_->resolved.stream;
@@ -576,6 +578,8 @@ void Player::loadCurrent(int64_t startMs, bool autoplay) {
         return;
     }
     dropPrepared();
+    // A podcast episode continues where it was left (asked only for a start from the beginning).
+    if (startMs == 0 && startPositionFor) startMs = std::max<int64_t>(0, startPositionFor(*t));
     startResolve(pos_, startMs, autoplay, false);
     if (onTrackChanged) onTrackChanged(*t);
     notify();
@@ -616,6 +620,7 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
     // matters to tracks, so a restored station resumes live).
     const std::optional<LiveStream> live = liveStreamFor ? liveStreamFor(track) : std::nullopt;
     live_ = live.has_value();
+    direct_ = false;
     if (live) {
         currentLocal_ = false;
         stream_ = {};
@@ -640,6 +645,49 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
         stream_ = {};
         status_ = Status::Buffering;
         engine_->open(localSource(localPath, tag, track.durationMs), startMs, autoplay);
+        notify();
+        return;
+    }
+
+    // Podcast episode: its own media URL (redirects resolved on a worker first), no YouTube match.
+    if (std::optional<DirectStream> direct = directStreamFor ? directStreamFor(track) : std::nullopt) {
+        direct_ = true;
+        match_.reset();
+        stream_ = {};
+        auto open = [this, tag, startMs, autoplay, durationMs = track.durationMs](const DirectStream& d) {
+            status_ = Status::Buffering;
+            audio::StreamSource s;
+            s.url = d.url;
+            s.mimeType = d.mimeType;
+            s.contentLength = d.contentLength;
+            s.durationMsHint = durationMs;
+            s.tag = tag;
+            engine_->open(s, startMs, autoplay);
+            notify();
+        };
+        if (!direct->resolve) {
+            open(*direct);
+            return;
+        }
+        auto token = resolveCts_->token();
+        async(
+            Priority::High, life_.ref(), [resolve = direct->resolve, token] { return resolve(token); },
+            [this, tag, open, track](Result<DirectStream> r) {
+                if (tag != currentTag_) return;   // superseded
+                if (r) {
+                    open(*r);
+                    return;
+                }
+                const std::string err = r.errorMessage();
+                if (err.find("canceled") != std::string::npos) return;
+                lastError_ = err;
+                status_ = Status::Error;
+                pendingSeekMs_ = -1;
+                ST_LOG_WARN("player", "episode \"{}\" unavailable: {}", track.name, err);
+                if (onError) onError(tr(L"Bölüm çalınamadı — sonrakine geçiliyor"));
+                notify();
+                scheduleErrorAdvance();
+            });
         notify();
         return;
     }
@@ -692,6 +740,7 @@ void Player::maybePrefetch() {
     if (nextPos < 0) return;
     const Track track = items_[order_[nextPos]];
     if (liveStreamFor && liveStreamFor(track)) return;
+    if (directStreamFor && directStreamFor(track)) return;   // an episode opens when it starts
     if (track.id == preloadFailed_) return;
     // Downloads and local files: nothing to resolve, the engine prepares them straight from disk (gapless / crossfade).
     if (const std::wstring path = localFileFor ? localFileFor(track.id) : std::wstring{}; !path.empty()) {
@@ -780,6 +829,7 @@ void Player::onEngineEnded(uint64_t finished, uint64_t next) {
         prepared_.reset();
         status_ = Status::Playing;
         live_ = false;
+        direct_ = false;
         clearLiveTitle();
         if (const Track* t = current(); t && onTrackChanged) onTrackChanged(*t);
         notify();
@@ -827,6 +877,24 @@ void Player::onEngineError(audio::ErrorKind kind, const std::string& message, ui
         return;
     }
     const int64_t at = engine_->positionMs();
+    if (direct_) {
+        // A podcast episode: a dropped / expired media URL is resolved again (it may have moved) and continues where it
+        // was; anything else, or a third failure, moves on.
+        if (kind == audio::ErrorKind::Network && retries_ < 2) {
+            const int keepRetries = retries_ + 1;
+            startResolve(pos_, at, true, true);
+            retries_ = keepRetries;
+            return;
+        }
+        lastError_ = message;
+        status_ = Status::Error;
+        if (onError)
+            onError(kind == audio::ErrorKind::UnsupportedFormat ? tr(L"Bu bölümün ses biçimi çalınamıyor — sonrakine geçiliyor")
+                                                                : tr(L"Bölüm çalınamadı — sonrakine geçiliyor"));
+        notify();
+        scheduleErrorAdvance();
+        return;
+    }
     if (kind == audio::ErrorKind::UnsupportedFormat && allowWebm_) {
         allowWebm_ = false;   // fall back to AAC for the rest of the session
         startResolve(pos_, at, true, true);

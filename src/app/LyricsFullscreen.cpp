@@ -3,6 +3,7 @@
 #include "app/AppContext.h"
 #include "app/InternetRadio.h"
 #include "app/LyricsService.h"
+#include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
@@ -63,13 +64,23 @@ void LyricsFullscreen::toggle() {
         toast(tr(L"Canlı radyo yayınlarında şarkı sözü gösterilmez"));
         return;
     }
+    if (catalog::isPodcastId(t->id)) {   // episodes show their notes in Now Playing instead
+        toast(tr(L"Podcast bölümlerinde şarkı sözü gösterilmez"));
+        return;
+    }
     w->pushOverlay(std::make_unique<LyricsFullscreen>(), true);
 }
 
 bool LyricsFullscreen::isOpen() { return g_view != nullptr; }
 
 void LyricsFullscreen::trackChanged() {
-    if (g_view) g_view->load();
+    if (!g_view) return;
+    const auto* t = ctx().player ? ctx().player->current() : nullptr;
+    if (t && catalog::isPodcastId(t->id)) {   // the queue moved on to an episode: nothing to sing along to
+        g_view->close();
+        return;
+    }
+    g_view->load();
 }
 
 LyricsFullscreen::LyricsFullscreen()
