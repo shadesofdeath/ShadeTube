@@ -588,7 +588,6 @@
   "Veri tasarrufu": "Економія трафіку",
   "Sonraki şarkıyı önceden hazırla": "Готувати наступний трек заздалегідь",
   "Parça bitmeden 25 saniye önce sıradaki şarkı YouTube'da bulunur ve arabelleğe alınır: kesintisiz geçiş.": "За 25 секунд до кінця треку ShadeTube знаходить наступний на YouTube і буферизує його — перехід без пауз.",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "Синхронізовані тексти з LRCLIB. Показуються на екрані «Зараз грає».",
   "Müzik dışı bölümleri atla": "Пропускати фрагменти без музики",
   "SponsorBlock topluluk verisiyle müzik videolarındaki konuşma, sponsor ve tanıtım bölümleri çalarken otomatik atlanır, MP3 indirmelerde ise dosyadan kesilir. Hangi videoyu dinlediğin sunucuya gönderilmez.": "Завдяки даним спільноти SponsorBlock розмови, спонсорські вставки й самореклама в музичних відео автоматично пропускаються під час відтворення, а з MP3-завантажень вирізаються. Сервер не дізнається, яке відео ти слухаєш.",
   "KARA LİSTE": "ЧОРНИЙ СПИСОК",

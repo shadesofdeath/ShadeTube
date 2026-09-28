@@ -588,7 +588,6 @@
   "Veri tasarrufu": "Экономия трафика",
   "Sonraki şarkıyı önceden hazırla": "Заранее готовить следующий трек",
   "Parça bitmeden 25 saniye önce sıradaki şarkı YouTube'da bulunur ve arabelleğe alınır: kesintisiz geçiş.": "За 25 секунд до конца трека следующий ищется на YouTube и буферизуется — переход без пауз.",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "Синхронизированные тексты из LRCLIB. Показываются на экране «Сейчас играет».",
   "Müzik dışı bölümleri atla": "Пропускать фрагменты без музыки",
   "SponsorBlock topluluk verisiyle müzik videolarındaki konuşma, sponsor ve tanıtım bölümleri çalarken otomatik atlanır, MP3 indirmelerde ise dosyadan kesilir. Hangi videoyu dinlediğin sunucuya gönderilmez.": "По данным сообщества SponsorBlock разговоры, спонсорские вставки и самореклама в музыкальных клипах автоматически пропускаются при воспроизведении, а из MP3 при скачивании вырезаются. Какие видео ты слушаешь, на сервер не отправляется.",
   "KARA LİSTE": "ЧЁРНЫЙ СПИСОК",

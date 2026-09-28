@@ -458,7 +458,6 @@
   "Veri tasarrufu": "データセーバー",
   "Sonraki şarkıyı önceden hazırla": "次の曲を事前に準備",
   "Parça bitmeden 25 saniye önce sıradaki şarkı YouTube'da bulunur ve arabelleğe alınır: kesintisiz geçiş.": "曲が終わる25秒前に次の曲をYouTubeで検索してバッファリングし、途切れなく切り替えます。",
-  "LRCLIB üzerinden senkronize sözler. Şimdi Çalıyor ekranında gösterilir.": "LRCLIBの同期歌詞を「再生中」画面に表示します。",
   "Müzik dışı bölümleri atla": "音楽以外の部分をスキップ",
   "SponsorBlock topluluk verisiyle müzik videolarındaki konuşma, sponsor ve tanıtım bölümleri çalarken otomatik atlanır, MP3 indirmelerde ise dosyadan kesilir. Hangi videoyu dinlediğin sunucuya gönderilmez.": "SponsorBlockのコミュニティデータを使い、ミュージックビデオ内のトーク・スポンサー・宣伝部分を、再生中は自動でスキップし、MP3ダウンロードではファイルからカットします。どの動画を聴いているかはサーバーに送信されません。",
   "KARA LİSTE": "ブロックリスト",
