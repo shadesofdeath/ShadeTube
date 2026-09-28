@@ -2,6 +2,7 @@
 // relaunch after exit and the `--uninstall` command. See Installer.h.
 #include "app/Installer.h"
 
+#include "app/Autostart.h"
 #include "app/Updater.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -585,6 +586,9 @@ void unregister() {
         if (runningInstances().empty()) unregisterAppIdentity();
         else ST_LOG_INFO("install", "app identity kept: another ShadeTube is running");
     }
+    // "Windows ile başlat": the Run value would start the removed exe at sign-in. (A portable copy that is still used
+    // writes it again at its next start.) A test that redirects the locations never touches the real one.
+    autostart::remove();
     // RegDeleteKeyW removes only this (value-only) key; locations() guarantees a non-empty sub key with a parent.
     const LSTATUS st = RegDeleteKeyW(HKEY_CURRENT_USER, loc.uninstallKey.c_str());
     if (st != ERROR_SUCCESS && st != ERROR_FILE_NOT_FOUND)

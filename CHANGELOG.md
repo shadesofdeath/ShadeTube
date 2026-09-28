@@ -2,6 +2,19 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.5.0 — unreleased
+
+- **Command palette** (Ctrl+K): one search box for commands, pages, settings sections, your playlists, albums and
+  artists, and songs from the catalog. Enter opens or plays, Shift+Enter plays a collection or adds a song to the
+  queue; recent picks come first.
+- **Custom keyboard shortcuts** (Settings › Keyboard): every action can get a new key combination (click it and press
+  the keys), taken combinations move over, and each one or all can be reset. New defaults: Shift+←/→ skip 15 s,
+  Ctrl+M mutes, Alt+Home goes home, Ctrl+, opens Settings, Ctrl+Shift+M the mini player; the mini player follows your
+  bindings too. The volume keys now also move the volume knob.
+- **Global shortcuts**: play / pause, next, previous, volume, mute, like, the mini player and show / hide ShadeTube
+  can also get system-wide keys that work while the app is in the background or in the tray (off by default).
+- **Start with Windows**, optionally hidden in the tray with your queue loaded but paused. Uninstalling removes it.
+
 ## 0.4.0 — 2026-09-28
 
 - **11 UI languages**: Turkish, English, German, Spanish, French, Portuguese (Brazil), Russian, Ukrainian,

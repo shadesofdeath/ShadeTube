@@ -1,5 +1,6 @@
 // ShadeTube entry point: process setup (DPI, COM, logging, services) then App::run().
 #include "app/App.h"
+#include "app/Autostart.h"
 #include "app/Installer.h"
 #include "app/WinShell.h"
 #include "core/CrashHandler.h"
@@ -43,6 +44,8 @@ static st::app::LaunchOptions parseArgs() {
         else if (a == L"--mini") o.mini = true;
         else if (a == L"--command" && i + 1 < argc) o.command = st::app::winshell::parseCommand(argv[++i]);
         else if (a == L"--crash-test") o.crashTest = true;
+        else if (a == st::app::autostart::kFlag) o.autostart = true;
+        else if (a == L"--palette") o.palette = (i + 1 < argc && argv[i + 1][0] != L'-') ? std::wstring(argv[++i]) : std::wstring();
         else if (a == L"--restart-after" && i + 1 < argc) o.restartAfterPid = static_cast<DWORD>(_wtoi(argv[++i]));
         else if (a == L"--theme" && i + 1 < argc) {
             if (auto m = themeArg(argv[++i])) o.theme = m;
@@ -122,6 +125,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         }
         running = false;
         settings.load();   // what the exited instance saved on its way out
+    }
+    if (running && options.autostart) {   // Windows' sign-in start while ShadeTube already runs: nothing to do
+        if (mutex) CloseHandle(mutex);
+        return 0;
     }
     if (running) {
         // The running instance may be hidden in the tray or replaced by the mini player, so a plain

@@ -116,7 +116,8 @@ private:
 
 class SettingsPage : public ScrollPage {
 public:
-    // `focus`: a section to open scrolled to ("appearance" = GÖRÜNÜM), e.g. the start route "settings:appearance".
+    // `focus`: a section to open scrolled to (sectionId(): "appearance" = GÖRÜNÜM, "keyboard" = KLAVYE...), e.g. the
+    // start route "settings:appearance".
     explicit SettingsPage(std::string focus = {}) : focus_(std::move(focus)) {
         build();
         if (ctx().session)
@@ -217,8 +218,7 @@ private:
         section(c, tr(L"KARA LİSTE"));
         buildBlacklistSection(c, rebuilder());
 
-        auto* appearance = section(c, tr(L"GÖRÜNÜM"));
-        if (focus_ == "appearance") focusLabel_ = appearance;
+        section(c, tr(L"GÖRÜNÜM"));
         {
             auto* themeRow = c->add<SettingRow>(
                 tr(L"Tema"), tr(L"Koyu, açık ya da Windows'un uygulama moduna uyan sistem teması. Değişiklik anında "
@@ -543,7 +543,24 @@ private:
         }
     }
 
-    ui::Label* section(ui::Column* c, const wchar_t* label) { return settingsSection(c, label); }
+    // Deep links (Route{Settings, <id>}: --route settings:<id>, the command palette) open scrolled to a section,
+    // named by the id of its header.
+    ui::Label* section(ui::Column* c, const wchar_t* label) {
+        auto* l = settingsSection(c, label);
+        if (!focus_.empty() && focus_ == sectionId(label)) focusLabel_ = l;
+        return l;
+    }
+    static std::string sectionId(const wchar_t* label) {
+        const std::pair<const wchar_t*, const char*> ids[] = {
+            {L"SPOTIFY", "spotify"},             {tr(L"BAĞLANTILAR"), "connections"}, {tr(L"OYNATMA"), "playback"},
+            {tr(L"SES"), "audio"},               {tr(L"KARA LİSTE"), "blocklist"},    {tr(L"GÖRÜNÜM"), "appearance"},
+            {tr(L"PENCERE"), "window"},          {tr(L"KLAVYE"), "keyboard"},         {tr(L"İNDİRME"), "downloads"},
+            {tr(L"YEREL MÜZİK"), "local"},       {tr(L"KİTAPLIK VE DEPOLAMA"), "storage"}, {tr(L"HAKKINDA"), "about"},
+        };
+        for (const auto& [text, id] : ids)
+            if (std::wstring_view(label) == text) return id;
+        return {};
+    }
 
     void toggle(ui::Column* c, const wchar_t* title, const wchar_t* desc, bool value, std::function<void(bool)> apply) {
         settingsToggle(c, title, desc, value, std::move(apply));

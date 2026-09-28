@@ -37,9 +37,12 @@ add_executable(ShadeTube WIN32
     App.cpp App.h
     AudioSettings.cpp
     AppContext.cpp AppContext.h
+    Autostart.cpp Autostart.h
     Blacklist.cpp Blacklist.h
     BrowsePages.cpp
     CollectionPage.cpp
+    CommandPalette.cpp CommandPalette.h
+    Commands.cpp Commands.h
     Components.cpp Components.h
     ConnectScreen.cpp ConnectScreen.h
     DiscordRpc.cpp DiscordRpc.h

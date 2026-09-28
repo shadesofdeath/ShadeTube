@@ -1,6 +1,7 @@
 #include "app/MiniPlayer.h"
 
 #include "app/AppContext.h"
+#include "app/Commands.h"
 #include "app/Components.h"
 #include "app/InternetRadio.h"
 #include "app/Shell.h"
@@ -269,22 +270,8 @@ MiniPlayer::MiniPlayer(HWND anchor) {
         if (msg == WM_EXITSIZEMOVE) savePosition();   // end of a drag
         if (onMessage) onMessage(msg, wp, lp);
     };
-    window_->onKey = [](const ui::KeyEvent& e) {
-        auto* p = ctx().player;
-        if (!p) return false;
-        switch (e.vk) {
-        case VK_SPACE: p->togglePause(); return true;
-        case VK_RIGHT:
-            if (e.ctrl) p->next();
-            else p->seek(p->positionMs() + 5000);
-            return true;
-        case VK_LEFT:
-            if (e.ctrl) p->previous();
-            else p->seek(p->positionMs() - 5000);
-            return true;
-        default: return false;
-        }
-    };
+    // The player actions of the keyboard shortcuts (Ayarlar › KLAVYE), with the user's bindings.
+    window_->onKey = [](const ui::KeyEvent& e) { return commands::dispatchKey(e, commands::Scope::Mini, false); };
     ST_LOG_INFO("mini", "mini player window created at {},{}", pos.x, pos.y);
 }
 

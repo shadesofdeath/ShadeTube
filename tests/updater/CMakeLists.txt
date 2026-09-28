@@ -1,4 +1,5 @@
-add_executable(updater_test updater_test.cpp ${CMAKE_SOURCE_DIR}/src/app/Updater.cpp ${CMAKE_SOURCE_DIR}/src/app/Installer.cpp)
+add_executable(updater_test updater_test.cpp ${CMAKE_SOURCE_DIR}/src/app/Updater.cpp ${CMAKE_SOURCE_DIR}/src/app/Installer.cpp
+    ${CMAKE_SOURCE_DIR}/src/app/Autostart.cpp)
 target_link_libraries(updater_test PRIVATE st_core)
 # ST_APP_EXE: the app of this build tree. The running-instance checks start it with SHADETUBE_DATA_DIR, which only
 # builds that know the variable honour: an older released exe (dist\*.zip) would use the user's real profile.

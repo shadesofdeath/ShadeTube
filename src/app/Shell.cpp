@@ -328,6 +328,7 @@ void PlayerBar::sync() {
     sleep_->setTooltip(sleepTimerActive() ? i18n::format(tr(L"Uyku zamanlayıcı · {}"), {sleepTimerLabel()})
                                           : std::wstring(tr(L"Uyku zamanlayıcı")));
     for (auto* b : {prev_, next_}) b->setEnabled(t != nullptr);
+    if (p) knob_->setValue(p->volume());   // volume / mute shortcuts
     // Keyboard-focused seek bar: arrows step 5 s like the global shortcuts (0 = the slider's 2 % default).
     const int64_t durMs = p ? p->durationMs() : 0;
     seek_->keyStep = durMs > 0 ? std::clamp(5000.f / static_cast<float>(durMs), 0.001f, 0.25f) : 0.f;

@@ -235,6 +235,37 @@ answers `206` with the expected container. Backup-source stream URLs are cached 
 - **Discord Rich Presence** (`app/DiscordRpc`): local IPC pipe, own thread, silent without Discord; off by default.
 - **Single instance**: a second launch posts `ShadeTube.Activate`; the running app restores itself (or its mini player).
 
+### 3.10.1 Keyboard shortcuts, command palette and startup
+
+- **Shortcut registry** (`app/Shortcuts`, standalone): the action table (stable ids stored in settings, a category, a
+  default combo, flags: `kGlobal` may also get a system-wide key, `kGlobalOnly`, `kMini` works in the mini player,
+  `kInText` also while a text field has focus, `kRepeat` a held key repeats it), combos in a layout-independent text
+  form (`"Ctrl+Shift+Right"`, `"Ctrl+Comma"`, `"Oem4"`) and the bindings: `Settings::shortcuts` maps an id to a combo
+  (missing = default, `""` = unbound) and `"global:<id>"` to a global one (no defaults). One combo triggers one action
+  per scope; `assign()` takes it from the previous owner, `normalize()` cleans a hand-edited file at startup.
+- **Dispatch** (`app/Commands`): `App::handleKey` keeps only Esc (leave Now Playing) and the browser keys hard-coded;
+  every other key the widgets did not take goes through `commands::dispatchKey` (the mini player's keys too, `kMini`
+  actions only). Handlers are built in (player, router, ctx hooks such as `toggleLyricsFullscreen` /
+  `lyricsOffsetBy`, which are skipped while unset); App adds the ones that need its windows (`now-playing`,
+  `mini-player`, `show-window`). **Global hotkeys** are `RegisterHotKey` on the main window (ids `0x200 + index`;
+  SMTC keeps the media keys) and re-registered after every change; a combo another app holds is reported in
+  *Settings › Keyboard*.
+- **Settings › Keyboard** (`app/SystemSettings.cpp`): one row per action with a recorder (click / Enter, then the key
+  chord; Esc cancels, Backspace unbinds; reserved keys, Win combos in-app and plain keys as global hotkeys are refused
+  with a reason), reset per row and for all.
+- **Command palette** (`app/CommandPalette`, Ctrl+K): commands (shortcut actions with their keys, the settings
+  sections through `Route{Settings, <section id>}`, themes, a few app commands), the library snapshot and, 300 ms after
+  the last keystroke, `source::search` on a worker. `shortcuts::fuzzyScore` ranks (exact > prefix > word start >
+  substring > subsequence; `foldForSearch` makes it accent / case / I-ı insensitive); recent picks are kept in
+  `palette-recent.json`.
+- **Start with Windows** (`app/Autostart`, standalone): the HKCU `Run` value `ShadeTube` = `"<exe>" --autostart`,
+  pointed at the installed copy when there is one. `commands::initSystemFeatures()` re-syncs it at every start (moved
+  portable copy, new install), the uninstaller removes it, and turning the option on clears Windows' own *Startup
+  apps* switch (`Explorer\StartupApproved\Run`) when it had been turned off there. `--autostart` with *Start in the
+  tray* never shows the main window (the tray icon arrives with the taskbar; after 30 s without one the window is
+  shown minimized); a second `--autostart` launch exits silently. Sandbox profiles never touch the real value unless
+  `SHADETUBE_RUN_KEY` names a test key.
+
 ### 3.11 Installer and updater
 
 - **Installer** (`app/Installer`): *Settings › About › Install on this PC* copies the running exe to
@@ -285,8 +316,9 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `blacklist.json`, `listening.json`,
-`local-library.json`, `recent-searches.json`, `spotify-hashes.json`, `update-leftovers.txt`, `cache\` (images,
-`matches.json`, lyrics, `mb`), `logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default.
+`local-library.json`, `recent-searches.json`, `palette-recent.json`, `spotify-hashes.json`, `update-leftovers.txt`,
+`cache\` (images, `matches.json`, lyrics, `mb`), `logs\shadetube.log` and `crashes\`. Downloads go to
+`Music\ShadeTube` by default.
 
 ## 4. Coding conventions
 
@@ -346,6 +378,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `stats_test` | stream rule, recording, aggregation, persistence, timing | offline |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
+| `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the Run value (in a test key) | offline |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -359,16 +392,18 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--login` | open the Spotify WebView2 login window at startup |
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:appearance`, `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |
 | `--toast-at <ms> <text>` | show a toast after `<ms>`; `!` prefix = error, `~` prefix = hide all windows first and send it 3× (tray routing) |
 | `--screenshot <ms> <file.png>` | render the window to PNG after `<ms>` and exit (used for `docs/screenshots/`) |
 | `--crash-test` | crash right after startup to check crash reports |
+| `--palette [query]` | open the command palette at startup, optionally with `query` typed in |
 
-Used by the app itself: `--restart-after <pid>` (language change), `--installed` / `--updated` (notice after an
-install or update), `--uninstall [--quiet]` (Windows' *Installed apps*).
+Used by the app itself: `--autostart` (the *Start with Windows* Run value), `--restart-after <pid>` (language
+change), `--installed` / `--updated` (notice after an install or update), `--uninstall [--quiet]` (Windows' *Installed
+apps*).
 
 ### 5.4 Environment variables
 
@@ -383,6 +418,7 @@ install or update), `--uninstall [--quiet]` (Windows' *Installed apps*).
 | `SHADETUBE_INSTANCE_CLASS`, `SHADETUBE_INSTANCE_MUTEX` | how the uninstaller recognizes a running ShadeTube |
 | `SHADETUBE_SPDC` | `sp_dc` cookie for the live `spotify_test` modes (never printed) |
 | `SHADETUBE_DISCORD_APPID` | Discord application id for `scrobble_test`'s live presence |
+| `SHADETUBE_RUN_KEY` | HKCU key used instead of `…\CurrentVersion\Run` for *Start with Windows* (its `StartupApproved` stand-in is a subkey); without it a sandbox profile never touches the real value |
 
 ## 6. Release process
 
