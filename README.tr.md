@@ -45,8 +45,8 @@ kalır.
   şarkılarla devam eder.
 - 📡 **İnternet radyosu** — radio-browser.info'dan türe, ülkeye ya da ada göre binlerce canlı istasyon; favoriler ve o
   an çalan şarkı.
-- 🎚️ **Ses** — hazır ayarlı 10 bantlı ekolayzer, şarkılar arası geçiş (albümler kesintisiz kalır), her şarkıyı aynı
-  seviyede çalan ses dengeleme ve çıkış aygıtı seçimi.
+- 🎚️ **Ses** — hazır ayarlı 10 bantlı ekolayzer, akıllı şarkı geçişi (albümler kesintisiz kalır, sessiz bitişler
+  atlanır), her şarkıyı aynı seviyede çalan ses dengeleme, tonu bozmadan çalma hızı ve çıkış aygıtı seçimi.
 - ⛔ **Kara liste** — engellediğin şarkı ve sanatçılar kendiliğinden hiç çalmaz.
 - ⬇️ **Gerçek MP3 indirme** — etiketli ve kapaklı 320 kbps MP3 (ya da orijinal m4a), Sanatçı/Albüm klasörlerine;
   videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar; Beğenilen Şarkılar,

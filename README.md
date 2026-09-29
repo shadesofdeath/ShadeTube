@@ -46,8 +46,9 @@ starts instantly and stays light.
   keep playing.
 - 📡 **Internet radio** — thousands of live stations from radio-browser.info by genre, country or name, with
   favorites and the song that's on air.
-- 🎚️ **Sound** — a 10-band equalizer with presets, crossfade between songs (albums stay gapless), volume
-  normalization so every song plays at the same level, and a choice of output device.
+- 🎚️ **Sound** — a 10-band equalizer with presets, smart crossfade between songs (albums stay gapless, silent endings
+  are skipped), volume normalization so every song plays at the same level, playback speed without a pitch change and
+  a choice of output device.
 - ⛔ **Blocklist** — block songs or artists and they are never picked automatically.
 - ⬇️ **Real MP3 downloads** — 320 kbps MP3 (or the original m4a) with tags and cover art, sorted into
   Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline, and
