@@ -5,6 +5,7 @@
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/SmartListsPage.h"
+#include "app/PlaylistTransfer.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -86,20 +87,24 @@ MediaCard* addAlbumCard(ui::Grid* grid, const Album& a, bool showArtist = true) 
         ui::Menu::open(ctx().window, wp,
                        {{tr(L"Aç"), "arrow-up-right", L"", [id] { ctx().router->navigate({RouteKind::Album, id}); }},
                         {tr(L"Çal"), "play", L"", [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); }},
-                        sync::menuItem(offline)});
+                        sync::menuItem(offline),
+                        transfer::exportMenuItem(transfer::What::Album, offline.id, offline.name)});
     };
     return card;
 }
 
-// Open / play / keep offline, for playlist cards (Liked Songs included).
+// Open / play / keep offline / export, for playlist cards (Liked Songs included).
 void setPlaylistCardMenu(MediaCard* card, Route open, sync::Target offline) {
     card->onContext = [open, offline](gfx::Point wp) {
         Route play = open;
         play.id += "#play";
+        const auto what = offline.kind == sync::Kind::Liked ? transfer::What::Liked : transfer::What::Playlist;
+        const std::string name = offline.kind == sync::Kind::Liked ? toUtf8(tr(L"Beğenilen Şarkılar")) : offline.name;
         ui::Menu::open(ctx().window, wp,
                        {{tr(L"Aç"), "arrow-up-right", L"", [open] { ctx().router->navigate(open); }},
                         {tr(L"Çal"), "play", L"", [play] { ctx().router->navigate(play); }},
-                        sync::menuItem(offline)});
+                        sync::menuItem(offline),
+                        transfer::exportMenuItem(what, offline.id, name)});
     };
 }
 
@@ -729,14 +734,19 @@ private:
         create->onClick = [] {
             promptNewPlaylist([](const std::string& id) { ctx().router->navigate({RouteKind::Playlist, id}); });
         };
+        // A playlist file or a YouTube playlist -> a local playlist (app/PlaylistTransfer).
+        Button* import = top->add<Button>(ButtonKind::Ghost, tr(L"İçe aktar"), "list");
+        import->onClick = [import] {
+            const Rect br = import->toWindow(import->rect());
+            transfer::showImportMenu({br.x, br.bottom() + 6});
+        };
         top->onPreferredHeight = [](float) { return 64.f; };
-        top->onLayout = [title, create](ui::Box& b) {
+        top->onLayout = [title, create, import](ui::Box& b) {
             const float w = b.rect().w;
             title->setRect({0, 0, w * 0.6f, 64});
-            if (create) {
-                const float cw = create->naturalWidth();
-                create->setRect({w - cw, 12, cw, 40});
-            }
+            const float cw = create->naturalWidth(), iw = import->naturalWidth();
+            create->setRect({w - cw, 12, cw, 40});
+            import->setRect({w - cw - 10 - iw, 12, iw, 40});
         };
         auto* tabs = c->add<Tabs>(
             std::vector<std::wstring>{tr(L"Çalma listeleri"), tr(L"Albümler"), tr(L"Sanatçılar"), tr(L"Geçmiş")});

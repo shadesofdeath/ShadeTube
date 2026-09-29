@@ -4,7 +4,7 @@
 //   spotify     : open.spotify.com URLs (intl-xx, embed, legacy user playlists, query / fragment, http, no scheme,
 //                 play.spotify.com) and spotify: URIs; invalid ids; podcasts, users and short links as Unsupported
 //   youtube     : watch?v= (any parameter order, &list= / &t=), youtu.be, shorts, embed, live, m. / music. hosts,
-//                 youtube-nocookie; playlists / channels as Unsupported; invalid ids
+//                 youtube-nocookie; /playlist?list= (YouTube and YouTube Music); channels as Unsupported; invalid ids
 //   musicbrainz : release-group, release, artist, recording (+ sub pages); upper-case MBIDs normalized
 //   not links   : plain text, text around a link, other hosts, empty input, the UTF-16 overload
 //   video song  : "Artist - Title (Official Video)" + channel -> artist / title
@@ -108,8 +108,13 @@ static void testYouTube() {
     expect("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ", Kind::YouTubeVideo, id);
     expect("https://www.youtube.com/watch?v=a-b_c-D_e1F", Kind::YouTubeVideo, "a-b_c-D_e1F");
     expect("https://www.youtube.com/watch?v=dQw4w9WgXcQ#t=30", Kind::YouTubeVideo, id);
+    // Playlists (imported as local playlists).
+    expect("https://www.youtube.com/playlist?list=PL1234567890", Kind::YouTubePlaylist, "PL1234567890");
+    expect("https://music.youtube.com/playlist?list=OLAK5uy_kIhNTSEGnAyPZqWKFy0Li1Jrk0tyk0yAo&si=x",
+           Kind::YouTubePlaylist, "OLAK5uy_kIhNTSEGnAyPZqWKFy0Li1Jrk0tyk0yAo");
+    CHECK(links::isPlaylistId("PL1234567890") && !links::isPlaylistId("PL12") && !links::isPlaylistId("PL12345678!0"));
     // Known service, nothing to open.
-    expect("https://www.youtube.com/playlist?list=PL1234567890", Kind::Unsupported);
+    expect("https://www.youtube.com/playlist?list=PL1", Kind::Unsupported);
     expect("https://www.youtube.com/@someone", Kind::Unsupported);
     expect("https://www.youtube.com/channel/UC1234567890", Kind::Unsupported);
     expect("https://www.youtube.com/", Kind::Unsupported);

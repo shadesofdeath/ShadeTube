@@ -10,6 +10,8 @@
 //   progress  : done / active / failed counts of a rule
 //   schedule  : ruleDue (never listed, backoff, change debounce + least gap, pending relist, periodic intervals per
 //               kind, clock going back), backoff steps (429: at least 10 min)
+//   exclude   : songs taken out of a rule (once, left out of listings / plans / progress, round trip, an old file,
+//               tolerant parsing), letting them back in
 //
 // Runs in a temp folder: the user's profile is never touched.
 #include "app/SyncRules.h"
@@ -333,11 +335,62 @@ static void testSchedule() {
     CHECK(backoffSeconds(1, true) == 600 && backoffSeconds(4, true) == 3600);
 }
 
+static void testExclude(const fs::path& dir) {
+    std::printf("exclude\n");
+    Rule r;
+    r.id = "spotify:playlist:x";
+    r.trackIds = {"a", "b", "c"};
+    CHECK(!isExcluded(r, "b"));
+    CHECK(exclude(r, track("b"), 1700000000));
+    CHECK(isExcluded(r, "b") && r.trackIds == std::vector<std::string>({"a", "c"}));
+    CHECK(r.excluded.size() == 1 && r.excluded[0].name == "Song b" && r.excluded[0].artists == "Artist" &&
+          r.excluded[0].at == 1700000000);
+    CHECK(!exclude(r, track("b"), 1700000001));   // once
+    CHECK(r.excluded.size() == 1);
+    CHECK(!exclude(r, track(""), 1));               // no id
+    // A listing leaves excluded songs out (so they are never planned, never counted as missing).
+    const auto listed = withoutExcluded(r, {track("a"), track("b"), track("c"), track("d")});
+    CHECK(ids(listed) == std::vector<std::string>({"a", "c", "d"}));
+    CHECK(ruleTrackIds(listed) == std::vector<std::string>({"a", "c", "d"}));
+    const Plan p = plan(listed, lookupOf({}), {}, {}, Limits{}, 1700000000);
+    CHECK(ids(p.toQueue) == std::vector<std::string>({"a", "c", "d"}));
+    // Progress counts only what the rule keeps.
+    Rule counted = r;
+    counted.trackIds = ruleTrackIds(listed);
+    const Progress pr = progress(counted, lookupOf({{"a", info(ItemInfo::St::Done)}, {"b", info(ItemInfo::St::Done)}}));
+    CHECK(pr.total == 3 && pr.done == 1);
+    // Round trip; an old file (no "ex") loads without exclusions; an excluded id listed in "tracks" is dropped.
+    State s;
+    s.rules.push_back(r);
+    const fs::path file = dir / "exclude.json";
+    CHECK(saveState(s, file));
+    const State back = loadState(file);
+    CHECK(back.rules.size() == 1 && back.rules[0].excluded.size() == 1 && back.rules[0].excluded[0].id == "b");
+    CHECK(back.rules[0].excluded[0].name == "Song b" && back.rules[0].excluded[0].at == 1700000000);
+    CHECK(back.rules[0].trackIds == std::vector<std::string>({"a", "c"}));
+    auto j = toJson(s);
+    j["rules"][0]["tracks"] = {"a", "b", "c"};
+    j["rules"][0]["ex"].push_back({"", "x", "y", 1});      // no id: skipped
+    j["rules"][0]["ex"].push_back({"b", "again", "", 2});  // duplicate: skipped
+    j["rules"][0]["ex"].push_back("junk");
+    const State tol = stateFromJson(j);
+    CHECK(tol.rules.size() == 1 && tol.rules[0].excluded.size() == 1);
+    CHECK(tol.rules[0].trackIds == std::vector<std::string>({"a", "c"}));
+    auto old = toJson(s);
+    old["rules"][0].erase("ex");
+    CHECK(stateFromJson(old).rules[0].excluded.empty());
+    // Letting it back in.
+    CHECK(include(r, "b") && !isExcluded(r, "b") && r.excluded.empty());
+    CHECK(!include(r, "b"));
+    CHECK(ids(withoutExcluded(r, {track("a"), track("b")})) == std::vector<std::string>({"a", "b"}));
+}
+
 int main() {
     SetConsoleOutputCP(CP_UTF8);
     wchar_t tmp[MAX_PATH];
     GetTempPathW(MAX_PATH, tmp);
-    const fs::path dir = fs::path(tmp) / L"shadetube_sync_test";
+    // Per process: parallel runs (several checkouts) must not delete each other's files.
+    const fs::path dir = fs::path(tmp) / (L"shadetube_sync_test_" + std::to_wstring(GetCurrentProcessId()));
     std::error_code ec;
     fs::remove_all(dir, ec);
     fs::create_directories(dir, ec);
@@ -348,6 +401,7 @@ int main() {
     testDrop();
     testProgress();
     testSchedule();
+    testExclude(dir);
 
     fs::remove_all(dir, ec);
     if (g_failures) {

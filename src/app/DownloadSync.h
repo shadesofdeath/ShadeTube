@@ -62,6 +62,20 @@ void subscribe(Lifetime::Ref owner, std::function<void()> fn);
 // "Çevrimdışı kullanılabilir yap" / "Çevrimdışı senkronu kapat" for context menus.
 ui::MenuItem menuItem(const Target& t);
 
+// ---- Songs taken out of synced collections --------------------------------------------------------------------------
+bool isWanted(const std::string& trackId);             // some rule keeps it offline
+bool isExcludedAnywhere(const std::string& trackId);   // some rule has it excluded
+// "Senkrondan çıkar": the songs leave every rule that keeps them (never downloaded again by them); their sync downloads
+// go (queued ones dropped, files deleted) unless another rule still wants them. The user's own downloads stay.
+void excludeTracks(const std::vector<catalog::Track>& tracks);
+// "Senkrona geri al": back into the rules they were taken out of (downloaded with the next listing).
+void includeTracks(const std::vector<std::string>& trackIds);
+// Deletes the downloads of the songs (file + record, or drops them from the queue). Songs a synced collection keeps are
+// excluded from it first, so they are not downloaded again.
+void deleteDownloads(const std::vector<catalog::Track>& tracks);
+// Track context menu entries: "Senkrondan çıkar", "Senkrona geri al", "İndirileni sil" (as they apply; may be empty).
+std::vector<ui::MenuItem> trackMenuItems(const std::vector<catalog::Track>& tracks);
+
 // Collection header toggle: the download icon in a hairline circle, with an accent ring of the download progress
 // while syncing and the accent check once everything is there. Click = enable / confirmDisable.
 class SyncButton : public ui::Button {

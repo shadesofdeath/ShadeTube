@@ -297,11 +297,12 @@ void onListed(const std::string& id, Listing l, int64_t startedAt) {
     auto& e = engine();
     e.listing.clear();
     if (Rule* r = findRule(e.state, id)) {
-        // Blocked tracks are not part of what the rule keeps (and so never count as missing).
+        // Blocked tracks and the songs the user took out are not part of what the rule keeps (and so never count as
+        // missing).
         std::vector<Track> tracks;
         tracks.reserve(l.tracks.size());
         for (auto& t : l.tracks)
-            if (!blacklist::isBlocked(t)) tracks.push_back(std::move(t));
+            if (!blacklist::isBlocked(t) && !isExcluded(*r, t.id)) tracks.push_back(std::move(t));
         auto ids = ruleTrackIds(tracks);
         std::vector<std::string> protect;
         if (suspiciousShrink(r->trackIds.size(), ids.size())) {
@@ -495,7 +496,7 @@ void onLibraryChanged() {
     bool changed = std::any_of(liked->trackIds.begin(), liked->trackIds.end(), [&](const std::string& id) { return !ids.contains(id); });
     if (!changed)
         for (const auto& id : ids)
-            if (!have.contains(id) && !blacklist::isTrackBlocked(id)) {
+            if (!have.contains(id) && !blacklist::isTrackBlocked(id) && !isExcluded(*liked, id)) {
                 changed = true;
                 break;
             }
@@ -588,11 +589,71 @@ std::wstring statusLine(const Rule& r, const Status& st) {
     std::wstring s = i18n::plural(L"{} / {} şarkı", p.total, {i18n::number(p.done), i18n::number(p.total)});
     if (p.active > 0) s += L" · " + i18n::plural(L"{} indirilecek", p.active);
     if (p.failed > 0) s += L" · " + i18n::plural(L"{} hata", p.failed);
+    if (!r.excluded.empty()) s += L" · " + i18n::plural(L"{} hariç", static_cast<long long>(r.excluded.size()));
     if (st.listing) s += L" · " + std::wstring(tr(L"güncelleniyor…"));
     else if (st.error != ListError::None) s += L" · " + errorText(st.error);
     else s += L" · " + relativeTime(r.lastSync);
     return s;
 }
+
+// ---- Excluded songs ---------------------------------------------------------------------------------------------------
+
+// Sync downloads of `ids` no rule wants any more: queued / downloading ones are dropped, downloaded files deleted (the
+// user asked for them to go). The user's own downloads are left alone.
+void dropSyncDownloads(const std::vector<std::string>& ids) {
+    auto& e = engine();
+    const auto wanted = wantedIds(e.state.rules);
+    auto& dm = ctx().downloads;
+    for (const auto& id : ids) {
+        e.state.attempts.erase(id);
+        const auto* it = dm.item(id);
+        if (!it || !it->synced || wanted.contains(id)) continue;
+        if (it->state == DlState::Queued || it->state == DlState::Downloading) dm.cancel(id);
+        else dm.remove(id);
+    }
+}
+
+// Takes the songs out of every rule that keeps them. Returns how many songs that concerned.
+int excludeEverywhere(const std::vector<Track>& tracks) {
+    auto& e = engine();
+    const int64_t now = nowUnix();
+    std::vector<std::string> ids;
+    for (const auto& t : tracks) {
+        bool any = false;
+        for (auto& r : e.state.rules)
+            if (std::find(r.trackIds.begin(), r.trackIds.end(), t.id) != r.trackIds.end()) any = exclude(r, t, now) || any;
+        if (any) ids.push_back(t.id);
+    }
+    if (ids.empty()) return 0;
+    dropSyncDownloads(ids);
+    ST_LOG_INFO("sync", "{} song(s) excluded", ids.size());
+    save();
+    notify();
+    return static_cast<int>(ids.size());
+}
+
+// Lets songs back into the rules they were taken out of (all rules, or `onlyRule`); those rules are listed again soon.
+// Returns how many rules changed.
+int includeEverywhere(const std::vector<std::string>& ids, const std::string& onlyRule = {}) {
+    auto& e = engine();
+    int n = 0;
+    const int64_t now = nowUnix();
+    for (auto& r : e.state.rules) {
+        if (!onlyRule.empty() && r.id != onlyRule) continue;
+        bool any = false;
+        for (const auto& id : ids) any = include(r, id) || any;
+        if (any) {
+            r.changedAt = now;   // the next listing puts them back in their place (and queues them)
+            ++n;
+        }
+    }
+    if (n == 0) return 0;
+    save();
+    notify();
+    return n;
+}
+
+void showExcluded(const std::string& ruleId);
 
 // ---- Downloads page row -----------------------------------------------------------------------------------------------
 
@@ -685,6 +746,9 @@ private:
                                         {tr(L"Şimdi senkronize et"), "refresh", L"", [id] { syncNow(id); }}};
         if (st_.progress.failed > 0)
             items.push_back({tr(L"Hataları yeniden dene"), "refresh", L"", [id] { retryFailed(id); }});
+        if (!rule_.excluded.empty())
+            items.push_back({i18n::format(tr(L"Hariç tutulanlar ({})"), {i18n::number(static_cast<long long>(rule_.excluded.size()))}),
+                             "list", L"", [id] { Dispatcher::post([id] { showExcluded(id); }); }});
         items.push_back(ui::MenuItem::sep());
         ui::MenuItem off{tr(L"Senkronu kapat"), "close", L"", [id] { confirmDisable(id); }};
         off.destructive = true;
@@ -708,6 +772,45 @@ Status statusOf(const Rule& r, const Snapshot& snap) {
     st.error = r.error;
     st.lastSync = r.lastSync;
     return st;
+}
+
+// The songs taken out of a rule, newest first, each with "Geri al"; at most kShown of them (the rest are counted), and
+// "Hepsini geri al" for all of them.
+void showExcluded(const std::string& ruleId) {
+    constexpr size_t kShown = 12;
+    const Rule* r = findRule(engine().state, ruleId);
+    if (!r || r->excluded.empty()) return;
+    auto* d = ui::Dialog::open(
+        ctx().window, tr(L"Hariç tutulan şarkılar"),
+        i18n::format(tr(L"\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki "
+                        L"senkronda iner."),
+                     {displayName(*r)}),
+        560);
+    if (!d) return;
+    auto* body = d->body();
+    const auto& ex = r->excluded;
+    for (size_t shown = 0; shown < kShown && shown < ex.size(); ++shown) {
+        const Excluded& x = ex[ex.size() - 1 - shown];
+        auto* row = body->add<SettingRow>(toWide(x.name.empty() ? x.id : x.name), toWide(x.artists));
+        auto* back = row->control<ui::Button>(110.f, ui::ButtonKind::Secondary, tr(L"Geri al"), "refresh");
+        back->onClick = [d, ruleId, id = x.id] {
+            includeEverywhere({id}, ruleId);
+            toast(tr(L"Şarkı yeniden senkronize edilecek"));
+            d->close();
+            Dispatcher::post([ruleId] { showExcluded(ruleId); });   // the others, if any
+        };
+    }
+    if (ex.size() > kShown)
+        body->add<ui::Label>(i18n::plural(L"ve {} şarkı daha", static_cast<long long>(ex.size() - kShown)),
+                             type::secondary, ui::Tone::Tertiary);
+    d->addButton(tr(L"Kapat"), ui::ButtonKind::Ghost, {});
+    d->addButton(tr(L"Hepsini geri al"), ui::ButtonKind::Primary, [ruleId] {
+        std::vector<std::string> ids;
+        if (const Rule* rr = findRule(engine().state, ruleId))
+            for (const auto& x : rr->excluded) ids.push_back(x.id);
+        includeEverywhere(ids, ruleId);
+        toast(i18n::plural(L"{} şarkı yeniden senkronize edilecek", static_cast<long long>(ids.size())));
+    });
 }
 
 } // namespace
@@ -833,6 +936,81 @@ void subscribe(Lifetime::Ref owner, std::function<void()> fn) { engine().listene
 ui::MenuItem menuItem(const Target& t) {
     if (isSynced(t.id)) return {tr(L"Çevrimdışı senkronu kapat"), "downloaded", L"", [id = t.id] { confirmDisable(id); }};
     return {tr(L"Çevrimdışı kullanılabilir yap"), "download", L"", [t] { enable(t); }};
+}
+
+bool isWanted(const std::string& trackId) {
+    for (const auto& r : engine().state.rules)
+        if (std::find(r.trackIds.begin(), r.trackIds.end(), trackId) != r.trackIds.end()) return true;
+    return false;
+}
+
+bool isExcludedAnywhere(const std::string& trackId) {
+    for (const auto& r : engine().state.rules)
+        if (isExcluded(r, trackId)) return true;
+    return false;
+}
+
+void excludeTracks(const std::vector<Track>& tracks) {
+    const int n = excludeEverywhere(tracks);
+    if (n > 0)
+        toast(n == 1 ? std::wstring(tr(L"Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek"))
+                     : i18n::plural(L"{} şarkı senkrondan çıkarıldı", n));
+}
+
+void includeTracks(const std::vector<std::string>& ids) {
+    if (includeEverywhere(ids) > 0) toast(tr(L"Şarkı yeniden senkronize edilecek"));
+}
+
+void deleteDownloads(const std::vector<Track>& tracks) {
+    auto& dm = ctx().downloads;
+    std::vector<Track> had;
+    for (const auto& t : tracks)
+        if (dm.item(t.id)) had.push_back(t);
+    if (had.empty()) return;
+    // Songs a synced collection keeps would come back with its next listing: take them out of it first.
+    const int excluded = excludeEverywhere(had);
+    for (const auto& t : had) {
+        const auto* it = dm.item(t.id);
+        if (!it) continue;   // a sync download excludeEverywhere already dropped
+        if (it->state == DlState::Queued || it->state == DlState::Downloading) dm.cancel(t.id);
+        else dm.remove(t.id);
+    }
+    std::wstring msg = had.size() == 1 ? std::wstring(tr(L"İndirilen şarkı silindi"))
+                                       : i18n::plural(L"{} indirilen şarkı silindi", static_cast<long long>(had.size()));
+    if (excluded > 0) msg += L" · " + std::wstring(tr(L"senkrondan da çıkarıldı"));
+    toast(msg);
+}
+
+std::vector<ui::MenuItem> trackMenuItems(const std::vector<Track>& tracks) {
+    std::vector<ui::MenuItem> items;
+    auto& dm = ctx().downloads;
+    std::vector<Track> downloaded, wanted;
+    std::vector<std::string> excluded;
+    for (const auto& t : tracks) {
+        if (const auto* it = dm.item(t.id); it && it->state == DlState::Done) downloaded.push_back(t);
+        if (isWanted(t.id)) wanted.push_back(t);
+        else if (isExcludedAnywhere(t.id)) excluded.push_back(t.id);
+    }
+    if (!wanted.empty()) items.push_back({tr(L"Senkrondan çıkar"), "minus", L"", [wanted] { excludeTracks(wanted); }});
+    if (!excluded.empty())
+        items.push_back({tr(L"Senkrona geri al"), "refresh", L"", [excluded] { includeTracks(excluded); }});
+    if (!downloaded.empty()) {
+        ui::MenuItem del{downloaded.size() == 1
+                             ? std::wstring(tr(L"İndirileni sil"))
+                             : i18n::plural(L"{} indirileni sil", static_cast<long long>(downloaded.size())),
+                         "trash", L"", [downloaded] {
+                             if (downloaded.size() == 1) return deleteDownloads(downloaded);
+                             ui::Dialog::confirm(
+                                 ctx().window, tr(L"İndirilenler silinsin mi?"),
+                                 i18n::plural(L"{} şarkının dosyası bu bilgisayardan silinecek. İstediğinde yeniden "
+                                              L"indirebilirsin.",
+                                              static_cast<long long>(downloaded.size())),
+                                 tr(L"Sil"), [downloaded] { deleteDownloads(downloaded); }, true);
+                         }};
+        del.destructive = true;
+        items.push_back(std::move(del));
+    }
+    return items;
 }
 
 // ---- Collection header toggle ---------------------------------------------------------------------------------------

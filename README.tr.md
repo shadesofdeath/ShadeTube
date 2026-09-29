@@ -37,6 +37,9 @@ kalır.
   kaydetme, takip ve liste düzenleme doğrudan hesabına yazılır.
 - 🖱️ **Sürükle bırak** — şarkıları bir listeye, Beğenilen Şarkılar'a ya da sıraya sürükle; Explorer'dan müzik
   dosyası ve klasör bırak, hemen çalsın.
+- 🔄 **Liste içe / dışa aktarma** — her listeyi, Beğenilen Şarkılar'ı, bir albümü ya da sırayı M3U8, CSV (Excel),
+  XSPF veya JSON olarak kaydet; M3U, XSPF, Exportify / TuneMyMusic / Soundiiz CSV'si ya da bir YouTube / YouTube
+  Music listesi bağlantısı kendi listen olarak içe aktarılır.
 - 🚫 **Reklam ve Premium yok** — ses YouTube'dan, otomatik eşleşmeyle gelir; yanlışsa "Yanlış eşleşme?" ile başka
   bir video seçersin.
 - ✨ **Akıllı karıştırma ve Geliştir** — Spotify Premium'un önerileri ücretsiz: akıllı karıştırma sıraya uyan şarkıları
@@ -50,7 +53,7 @@ kalır.
 - ⛔ **Kara liste** — engellediğin şarkı ve sanatçılar kendiliğinden hiç çalmaz.
 - ⬇️ **Gerçek MP3 indirme** — etiketli ve kapaklı 320 kbps MP3 (ya da orijinal m4a), Sanatçı/Albüm klasörlerine;
   videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar; Beğenilen Şarkılar,
-  çalma listeleri ve albümler kendiliğinden indirilip güncel tutulabilir.
+  çalma listeleri ve albümler kendiliğinden indirilip güncel tutulabilir; senkrondan çıkardığın şarkılar geri gelmez.
 - 📁 **Yerel dosyalar** — kendi klasörlerin: MP3, FLAC, M4A/ALAC, AAC, WAV ve WMA, etiket ve kapaklarıyla.
 - 🎙️ **Podcastler** — Apple Podcasts dizininde ara ya da herhangi bir RSS beslemesini ekle; abone ol, yeni bölümleri
   gör, kaldığın yerden devam et, bölüm notlarını oku ve bölümleri çevrimdışı dinlemek için indir.

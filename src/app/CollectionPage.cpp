@@ -4,6 +4,7 @@
 #include "app/DownloadSync.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/PlaylistTransfer.h"
 #include "app/Radio.h"
 #include "app/SmartMix.h"
 #include "app/SmartShuffle.h"
@@ -685,6 +686,13 @@ private:
                                      copyText(url);
                                      toast(tr(L"Bağlantı kopyalandı"));
                                  }});
+            }
+            // A playlist file of the whole list (M3U8 / CSV / XSPF / JSON).
+            {
+                using transfer::What;
+                const What what = kind_ == Kind::Album ? What::Album : kind_ == Kind::Liked ? What::Liked : What::Playlist;
+                const std::string lid = kind_ != Kind::Liked ? id_ : spotifyMode_ ? sync::kSpotifyLikedId : sync::kLocalLikedId;
+                items.push_back(transfer::exportMenuItem(what, lid, toUtf8(header_->meta().title)));
             }
             // Local playlists, and Spotify playlists the user may edit (rename: owner only). Others: no edit actions.
             const bool local = kind_ == Kind::Playlist && !spotifyMode_;

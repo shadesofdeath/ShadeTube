@@ -67,6 +67,8 @@ add_executable(ShadeTube WIN32
     PageWidgets.cpp PageWidgets.h
     Pages.h
     PlaybackSettings.cpp
+    PlaylistIO.cpp PlaylistIO.h
+    PlaylistTransfer.cpp PlaylistTransfer.h
     Radio.cpp Radio.h
     RadioPage.cpp
     PodcastsPage.cpp PodcastUi.h

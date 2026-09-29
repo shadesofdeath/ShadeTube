@@ -38,6 +38,9 @@ starts instantly and stays light.
   following and playlist edits are written back to your account.
 - 🖱️ **Drag and drop** — drag songs onto a playlist, Liked Songs or into the queue; drop music files and folders
   from Explorer to play them.
+- 🔄 **Import & export playlists** — save any playlist, Liked Songs, an album or the queue as M3U8, CSV (Excel),
+  XSPF or JSON; import M3U, XSPF, CSV from Exportify / TuneMyMusic / Soundiiz, or a YouTube / YouTube Music
+  playlist link, as a playlist of your own.
 - 🚫 **No ads, no Premium** — audio comes from YouTube, matched automatically; pick another video with
   "Wrong match?" if one is off.
 - ✨ **Smart shuffle & Enhance** — Spotify Premium's recommendations for free: smart shuffle mixes songs that fit into
@@ -52,7 +55,7 @@ starts instantly and stays light.
 - ⛔ **Blocklist** — block songs or artists and they are never picked automatically.
 - ⬇️ **Real MP3 downloads** — 320 kbps MP3 (or the original m4a) with tags and cover art, sorted into
   Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline, and
-  Liked Songs, playlists and albums can be kept offline and in sync automatically.
+  Liked Songs, playlists and albums can be kept offline and in sync automatically, minus the songs you exclude.
 - 📁 **Local files** — add your own folders: MP3, FLAC, M4A/ALAC, AAC, WAV and WMA with tags and covers.
 - 🎙️ **Podcasts** — search Apple's podcast directory or add any RSS feed; subscribe, get new episodes, continue
   where you left off, read the show notes and download episodes for offline listening.

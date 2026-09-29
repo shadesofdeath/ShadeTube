@@ -1131,5 +1131,104 @@
   "Otomatik listeler dinledikçe oluşur ve her gün yenilenir; bu liste için yeterli dinleme kalmamış olabilir.": "자동 플레이리스트는 듣는 기록으로 만들어지고 매일 업데이트됩니다. 지금은 이 리스트를 만들 만큼 기록이 충분하지 않을 수 있습니다.",
   "Kitaplığa dön": "내 라이브러리로 돌아가기",
   "Listenin tamamı": "전체 리스트",
-  "Çalma listesi olarak kaydet": "플레이리스트로 저장"
+  "Çalma listesi olarak kaydet": "플레이리스트로 저장",
+  "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "\"{}\"을(를) 동기화할 때 이 곡들은 다운로드되지 않습니다. 되돌린 곡은 다음 동기화 때 다운로드됩니다.",
+  "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "YouTube 또는 YouTube Music 재생목록 링크를 붙여 넣으세요. 동영상들이 바로 그 녹음을 재생하는 로컬 재생목록이 됩니다.",
+  "Bu bir YouTube oynatma listesi bağlantısı değil": "YouTube 재생목록 링크가 아닙니다",
+  "CSV tablosu (Excel)": "CSV 표 (Excel)",
+  "Dosyadan içe aktar…": "파일에서 가져오기…",
+  "Dosyayı göster": "파일 보기",
+  "Dışa aktar": "내보내기",
+  "Dışa aktarılacak şarkı yok": "내보낼 곡이 없습니다",
+  "Dışa aktar…": "내보내기…",
+  "Geri al": "되돌리기",
+  "Hariç tutulan şarkılar": "제외한 곡",
+  "Hariç tutulanlar ({})": "제외한 곡 ({})",
+  "Hepsini geri al": "모두 되돌리기",
+  "Liste alınamadı": "목록을 가져올 수 없습니다",
+  "Liste dışa aktarılamadı": "목록을 내보낼 수 없습니다",
+  "Liste hazırlanıyor…": "목록을 준비하는 중…",
+  "Liste okunamadı": "목록을 읽을 수 없습니다",
+  "Liste okunuyor…": "목록을 읽는 중…",
+  "Listede şarkı bulunamadı": "목록에서 곡을 찾지 못했습니다",
+  "Listede şarkı bulunamadı; {} satır okunamadı": {
+    "other": "곡을 찾지 못했습니다. {}개 행을 읽을 수 없습니다"
+  },
+  "M3U8 çalma listesi (VLC, foobar2000, Winamp…)": "M3U8 재생목록 (VLC, foobar2000, Winamp…)",
+  "Satır {}: {}": "{}행: {}",
+  "Senkrona geri al": "동기화에 다시 포함",
+  "Senkrondan çıkar": "동기화에서 제외",
+  "ShadeTube listesi (JSON)": "ShadeTube 목록 (JSON)",
+  "Spotify listesi oluşturulamadı": "Spotify 재생목록을 만들 수 없습니다",
+  "Spotify listesine yalnızca {} şarkı eklenebildi": {
+    "other": "Spotify 재생목록에 {}곡만 추가했습니다"
+  },
+  "Spotify'a bağlı değilsin": "Spotify에 연결되어 있지 않습니다",
+  "Spotify'da da oluştur": "Spotify에도 만들기",
+  "Spotify'da da oluşturuldu: {} şarkı": {
+    "other": "Spotify에도 만들었습니다: {}곡"
+  },
+  "Sırayı dışa aktar…": "대기열 내보내기…",
+  "XSPF çalma listesi": "XSPF 재생목록",
+  "Yerel listeye aktar": "로컬 재생목록으로 가져오기",
+  "YouTube listesinden içe aktar": "YouTube 재생목록 가져오기",
+  "YouTube listesinden içe aktar…": "YouTube 재생목록 가져오기…",
+  "YouTube oynatma listesi": "YouTube 재생목록",
+  "senkrondan da çıkarıldı": "동기화에서도 제외됨",
+  "ve {} satır daha": {
+    "other": "외 {}개 행"
+  },
+  "ve {} şarkı daha": {
+    "other": "외 {}곡"
+  },
+  "{} Spotify şarkısıyla hesabında da bir liste oluşturulur.": {
+    "other": "Spotify 곡 {}곡으로 계정에도 재생목록이 만들어집니다."
+  },
+  "{} YouTube videosu": {
+    "other": "YouTube 동영상 {}개"
+  },
+  "{} hariç": {
+    "other": "{}곡 제외"
+  },
+  "{} indirilen şarkı silindi": {
+    "other": "다운로드한 곡 {}곡을 삭제했습니다"
+  },
+  "{} indirileni sil": {
+    "other": "다운로드 {}개 삭제"
+  },
+  "{} satır okunamadı": {
+    "other": "{}개 행을 읽을 수 없습니다"
+  },
+  "{} yerel dosya": {
+    "other": "로컬 파일 {}개"
+  },
+  "{} şarkı bulundu": {
+    "other": "{}곡을 찾았습니다"
+  },
+  "{} şarkı dışa aktarıldı": {
+    "other": "{}곡을 내보냈습니다"
+  },
+  "{} şarkı içe aktarıldı": {
+    "other": "{}곡을 가져왔습니다"
+  },
+  "{} şarkı senkrondan çıkarıldı": {
+    "other": "{}곡을 동기화에서 제외했습니다"
+  },
+  "{} şarkı yeniden senkronize edilecek": {
+    "other": "{}곡을 다시 동기화합니다"
+  },
+  "{} şarkının dosyası bu bilgisayardan silinecek. İstediğinde yeniden indirebilirsin.": {
+    "other": "{}곡의 파일이 이 PC에서 삭제됩니다. 언제든 다시 다운로드할 수 있습니다."
+  },
+  "Çalma listeleri (M3U, CSV, XSPF, JSON)": "재생목록 (M3U, CSV, XSPF, JSON)",
+  "Çalma listesi içe aktar": "재생목록 가져오기",
+  "Çalma listesini dışa aktar": "재생목록 내보내기",
+  "Çalma listesini içe aktar": "재생목록 가져오기",
+  "Çalma sırası": "대기열",
+  "İndirilen şarkı silindi": "다운로드한 곡을 삭제했습니다",
+  "İndirilenler silinsin mi?": "이 다운로드를 삭제할까요?",
+  "İçe aktarılan liste": "가져온 재생목록",
+  "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "곡을 동기화에서 제외했습니다. 다시 다운로드되지 않습니다",
+  "Şarkı yeniden senkronize edilecek": "곡을 다시 동기화합니다",
+  "Listeyi içe aktar": "재생목록 가져오기"
 }

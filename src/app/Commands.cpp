@@ -6,6 +6,7 @@
 #include "app/CommandPalette.h"
 #include "app/Installer.h"
 #include "app/InternetRadio.h"
+#include "app/PlaylistTransfer.h"
 #include "app/Router.h"
 #include "app/SmartShuffle.h"
 #include "core/I18n.h"
@@ -117,6 +118,10 @@ bool builtin(std::string_view id) {
     if (id == "go-radio") return navigate(RouteKind::Radio);
     if (id == "go-stats") return navigate(RouteKind::Stats);
     if (id == "settings") return navigate(RouteKind::Settings);
+    if (id == "import-playlist") {
+        transfer::importFromFile();
+        return true;
+    }
 
     if (id == "queue") return ctx().toggleQueue && (ctx().toggleQueue(true), true);
     if (id == "lyrics-fullscreen") return ctx().toggleLyricsFullscreen && (ctx().toggleLyricsFullscreen(), true);

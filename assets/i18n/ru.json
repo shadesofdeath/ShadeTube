@@ -1368,5 +1368,158 @@
   "Otomatik listeler dinledikçe oluşur ve her gün yenilenir; bu liste için yeterli dinleme kalmamış olabilir.": "Автоматические плейлисты складываются из ваших прослушиваний и обновляются каждый день; для этого сейчас может не хватать прослушиваний.",
   "Kitaplığa dön": "Назад в медиатеку",
   "Listenin tamamı": "Весь плейлист",
-  "Çalma listesi olarak kaydet": "Сохранить как плейлист"
+  "Çalma listesi olarak kaydet": "Сохранить как плейлист",
+  "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "Эти треки не скачиваются при синхронизации «{}». Возвращённый трек скачается при следующей синхронизации.",
+  "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "Вставьте ссылку на плейлист YouTube или YouTube Music. Его видео станут локальным плейлистом, который играет именно эти записи.",
+  "Bu bir YouTube oynatma listesi bağlantısı değil": "Это не ссылка на плейлист YouTube",
+  "CSV tablosu (Excel)": "Таблица CSV (Excel)",
+  "Dosyadan içe aktar…": "Импорт из файла…",
+  "Dosyayı göster": "Показать файл",
+  "Dışa aktar": "Экспортировать",
+  "Dışa aktarılacak şarkı yok": "Нет треков для экспорта",
+  "Dışa aktar…": "Экспорт…",
+  "Geri al": "Вернуть",
+  "Hariç tutulan şarkılar": "Исключённые треки",
+  "Hariç tutulanlar ({})": "Исключённые ({})",
+  "Hepsini geri al": "Вернуть все",
+  "Liste alınamadı": "Не удалось получить список",
+  "Liste dışa aktarılamadı": "Не удалось экспортировать список",
+  "Liste hazırlanıyor…": "Список готовится…",
+  "Liste okunamadı": "Не удалось прочитать список",
+  "Liste okunuyor…": "Чтение списка…",
+  "Listede şarkı bulunamadı": "В списке не найдено треков",
+  "Listede şarkı bulunamadı; {} satır okunamadı": {
+    "one": "Треки не найдены; не прочитана {} строка",
+    "few": "Треки не найдены; не прочитаны {} строки",
+    "many": "Треки не найдены; не прочитано {} строк",
+    "other": "Треки не найдены; не прочитано {} строки"
+  },
+  "M3U8 çalma listesi (VLC, foobar2000, Winamp…)": "Плейлист M3U8 (VLC, foobar2000, Winamp…)",
+  "Satır {}: {}": "Строка {}: {}",
+  "Senkrona geri al": "Вернуть в синхронизацию",
+  "Senkrondan çıkar": "Исключить из синхронизации",
+  "ShadeTube listesi (JSON)": "Список ShadeTube (JSON)",
+  "Spotify listesi oluşturulamadı": "Не удалось создать плейлист в Spotify",
+  "Spotify listesine yalnızca {} şarkı eklenebildi": {
+    "one": "В плейлист Spotify удалось добавить только {} трек",
+    "few": "В плейлист Spotify удалось добавить только {} трека",
+    "many": "В плейлист Spotify удалось добавить только {} треков",
+    "other": "В плейлист Spotify удалось добавить только {} трека"
+  },
+  "Spotify'a bağlı değilsin": "Вы не подключены к Spotify",
+  "Spotify'da da oluştur": "Создать и в Spotify",
+  "Spotify'da da oluşturuldu: {} şarkı": {
+    "one": "Создан и в Spotify: {} трек",
+    "few": "Создан и в Spotify: {} трека",
+    "many": "Создан и в Spotify: {} треков",
+    "other": "Создан и в Spotify: {} трека"
+  },
+  "Sırayı dışa aktar…": "Экспортировать очередь…",
+  "XSPF çalma listesi": "Плейлист XSPF",
+  "Yerel listeye aktar": "Импортировать в локальный плейлист",
+  "YouTube listesinden içe aktar": "Импорт плейлиста YouTube",
+  "YouTube listesinden içe aktar…": "Импорт плейлиста YouTube…",
+  "YouTube oynatma listesi": "Плейлист YouTube",
+  "senkrondan da çıkarıldı": "также исключены из синхронизации",
+  "ve {} satır daha": {
+    "one": "и ещё {} строка",
+    "few": "и ещё {} строки",
+    "many": "и ещё {} строк",
+    "other": "и ещё {} строки"
+  },
+  "ve {} şarkı daha": {
+    "one": "и ещё {} трек",
+    "few": "и ещё {} трека",
+    "many": "и ещё {} треков",
+    "other": "и ещё {} трека"
+  },
+  "{} Spotify şarkısıyla hesabında da bir liste oluşturulur.": {
+    "one": "В вашем аккаунте также будет создан плейлист с {} треком из Spotify.",
+    "few": "В вашем аккаунте также будет создан плейлист с {} треками из Spotify.",
+    "many": "В вашем аккаунте также будет создан плейлист с {} треками из Spotify.",
+    "other": "В вашем аккаунте также будет создан плейлист с {} трека из Spotify."
+  },
+  "{} YouTube videosu": {
+    "one": "{} видео YouTube",
+    "few": "{} видео YouTube",
+    "many": "{} видео YouTube",
+    "other": "{} видео YouTube"
+  },
+  "{} hariç": {
+    "one": "{} исключён",
+    "few": "{} исключено",
+    "many": "{} исключено",
+    "other": "{} исключено"
+  },
+  "{} indirilen şarkı silindi": {
+    "one": "Удалён {} скачанный трек",
+    "few": "Удалено {} скачанных трека",
+    "many": "Удалено {} скачанных треков",
+    "other": "Удалено {} скачанного трека"
+  },
+  "{} indirileni sil": {
+    "one": "Удалить {} загрузку",
+    "few": "Удалить {} загрузки",
+    "many": "Удалить {} загрузок",
+    "other": "Удалить {} загрузки"
+  },
+  "{} satır okunamadı": {
+    "one": "не прочитана {} строка",
+    "few": "не прочитаны {} строки",
+    "many": "не прочитано {} строк",
+    "other": "не прочитано {} строки"
+  },
+  "{} yerel dosya": {
+    "one": "{} локальный файл",
+    "few": "{} локальных файла",
+    "many": "{} локальных файлов",
+    "other": "{} локального файла"
+  },
+  "{} şarkı bulundu": {
+    "one": "Найден {} трек",
+    "few": "Найдено {} трека",
+    "many": "Найдено {} треков",
+    "other": "Найдено {} трека"
+  },
+  "{} şarkı dışa aktarıldı": {
+    "one": "Экспортирован {} трек",
+    "few": "Экспортировано {} трека",
+    "many": "Экспортировано {} треков",
+    "other": "Экспортировано {} трека"
+  },
+  "{} şarkı içe aktarıldı": {
+    "one": "Импортирован {} трек",
+    "few": "Импортировано {} трека",
+    "many": "Импортировано {} треков",
+    "other": "Импортировано {} трека"
+  },
+  "{} şarkı senkrondan çıkarıldı": {
+    "one": "{} трек исключён из синхронизации",
+    "few": "{} трека исключены из синхронизации",
+    "many": "{} треков исключено из синхронизации",
+    "other": "{} трека исключено из синхронизации"
+  },
+  "{} şarkı yeniden senkronize edilecek": {
+    "one": "{} трек снова будет синхронизироваться",
+    "few": "{} трека снова будут синхронизироваться",
+    "many": "{} треков снова будут синхронизироваться",
+    "other": "{} трека снова будут синхронизироваться"
+  },
+  "{} şarkının dosyası bu bilgisayardan silinecek. İstediğinde yeniden indirebilirsin.": {
+    "one": "Файл {} трека будет удалён с этого компьютера. Его можно скачать снова в любой момент.",
+    "few": "Файлы {} треков будут удалены с этого компьютера. Их можно скачать снова в любой момент.",
+    "many": "Файлы {} треков будут удалены с этого компьютера. Их можно скачать снова в любой момент.",
+    "other": "Файлы {} трека будут удалены с этого компьютера. Их можно скачать снова в любой момент."
+  },
+  "Çalma listeleri (M3U, CSV, XSPF, JSON)": "Плейлисты (M3U, CSV, XSPF, JSON)",
+  "Çalma listesi içe aktar": "Импорт плейлиста",
+  "Çalma listesini dışa aktar": "Экспорт плейлиста",
+  "Çalma listesini içe aktar": "Импорт плейлиста",
+  "Çalma sırası": "Очередь",
+  "İndirilen şarkı silindi": "Скачанный трек удалён",
+  "İndirilenler silinsin mi?": "Удалить эти загрузки?",
+  "İçe aktarılan liste": "Импортированный плейлист",
+  "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Трек исключён из синхронизации; он не будет скачан снова",
+  "Şarkı yeniden senkronize edilecek": "Трек снова будет синхронизироваться",
+  "Listeyi içe aktar": "Импортировать плейлист"
 }
