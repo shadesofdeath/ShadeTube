@@ -2,6 +2,16 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.6.1 — 2026-09-29
+
+- **Much less memory in the background**: once no ShadeTube window has been on screen for 30 seconds (minimized, in
+  the tray), the whole graphics stack is handed back to Windows and rebuilt on the first frame when you come back.
+  Measured on an Intel laptop: about 13 MB instead of 63 MB.
+- **Less memory on screen too**: the graphics driver runs without its worker threads, songs are buffered in temporary
+  files Windows manages instead of the app's own memory, and the artwork cache is smaller (64 MB): about 45 MB instead
+  of 63 MB when idle.
+- **Low memory**: when Windows reports low memory, ShadeTube frees its caches at once.
+
 ## 0.6.0 — 2026-09-29
 
 - **Smart playlists** ("Made for you" on Home and in the Library): up to three daily mixes of the artists you play
