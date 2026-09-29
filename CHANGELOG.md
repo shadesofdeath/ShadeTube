@@ -4,6 +4,14 @@ All notable changes to ShadeTube, newest first.
 
 ## 0.6.0 — unreleased
 
+- **Playback speed**: 0.5× to 3× without changing the pitch, from the speed button in the player bar (always there for
+  podcast episodes) or the new speed shortcuts; songs and podcast episodes each remember their own speed.
+- **Long episodes and big files stay out of memory**: streams over 32 MB (podcast episodes, DJ mixes) are buffered in
+  a temporary file and your local files are read in place, so a three-hour episode or a large FLAC no longer costs its
+  size in RAM.
+- **Smarter crossfade**: a song that has gone silent hands over right away instead of playing its silence, and the next
+  song starts at its first sound. Songs of different sample rates (44.1 / 48 kHz) now crossfade and play gaplessly
+  too.
 - **Smart shuffle**: press the shuffle button a second time (or turn it on in Settings › Playback) and recommended
   songs that fit the list you're playing are mixed into the queue, one every 3–4 songs, marked "Recommended". They come
   from Spotify's song radios when connected, ListenBrainz's similar artists and your local files; turning smart shuffle
