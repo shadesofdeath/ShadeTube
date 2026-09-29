@@ -4,6 +4,7 @@
 #include "app/LinkOpener.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/SmartListsPage.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -749,6 +750,7 @@ private:
         auto& lib = ctx().library;
         const bool sp = source::loggedIn();
         if (tab_ == 0) {
+            smart::addSection(c, 1);   // "Senin için listeler" (hidden while there is none)
             auto* grid = addCardRow(c, 170, 0);
             if (sp) {
                 // Top level of the library: folders sit where their most recent playlist would be.

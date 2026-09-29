@@ -61,6 +61,9 @@ starts instantly and stays light.
 - 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time,
   a year in review, a heatmap of your listening hours, and your Spotify history imported from Spotify's data
   download.
+- ✨ **Made for you** — daily mixes of the artists you play together (with new songs mixed in), this month's
+  favorites, new discoveries, forgotten likes, all-time and yearly bests: playlists built on your PC from your own
+  listening, refreshed every day.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
 - 🪟 **Made for Windows** — media keys and lock-screen controls, taskbar buttons and progress, always-on-top mini
   player, system tray, dark / light / system theme, start with Windows (optionally in the tray).

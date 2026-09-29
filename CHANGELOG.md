@@ -10,6 +10,11 @@ All notable changes to ShadeTube, newest first.
   off takes the ones that haven't played out of the queue.
 - **Enhance**: an "Enhance" button on playlists and Liked Songs mixes recommended songs into the list itself. Add one
   to the list for real with "+", hide it with "×"; playing the list plays them in order. It is remembered per list.
+- **Smart playlists** ("Made for you" on Home and in the Library): up to three daily mixes of the artists you play
+  together, with new songs mixed in (from Spotify's radio when connected, else ListenBrainz), plus This month's
+  favorites, Your new discoveries, Rediscover, Forgotten likes, All-time best and a Best of <year> for each year with
+  enough listening. Built on this PC from your own listening, refreshed every day, blocked songs left out; play,
+  shuffle, queue or save any of them as a playlist. The Stats year view links to its year's full list.
 
 ## 0.5.0 — 2026-09-29
 

@@ -80,6 +80,8 @@ add_executable(ShadeTube WIN32
     Shell.cpp Shell.h
     SmartMix.cpp SmartMix.h
     SmartShuffle.cpp SmartShuffle.h
+    SmartLists.cpp SmartLists.h
+    SmartListsPage.cpp SmartListsPage.h
     Smtc.cpp Smtc.h
     Source.cpp Source.h
     Tray.cpp Tray.h

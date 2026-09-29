@@ -59,6 +59,9 @@ kalır.
   görünümünü aç. İndirilenlerin etiketine sözler yazılır, yanlarına `.lrc` kaydedilir.
 - 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri,
   yıl özeti, dinleme saatlerin (ısı haritası) ve Spotify'ın veri indirmesinden içe aktarılan geçmişin.
+- ✨ **Senin için listeler** — birlikte dinlediğin sanatçılardan günün karışımları (araya yeni şarkılar katılır), bu
+  ayın favorileri, yeni keşiflerin, unutulan beğeniler, tüm zamanların ve her yılın en iyileri: kendi dinlediklerinden
+  bilgisayarında oluşan, her gün yenilenen listeler.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
 - 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, görev çubuğu düğmeleri ve ilerlemesi,
   her zaman üstte mini oynatıcı, sistem tepsisi, koyu / açık / sistem teması, Windows ile başlatma (istersen tepside).

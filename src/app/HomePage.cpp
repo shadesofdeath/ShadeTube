@@ -3,6 +3,7 @@
 // ListenBrainz, fresh releases, your playlists, artists similar to what you play most.
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/SmartListsPage.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -326,6 +327,9 @@ private:
             }
         }
 
+        // --- Senin için listeler (built on this PC from the listening history; hidden while there is none).
+        smart::addSection(c, 1);
+
         // --- Çalma listelerin (Spotify).
         if (!snap.playlists.empty()) {
             auto* h = c->add<SectionHeader>(tr(L"Çalma listelerin"), std::to_wstring(snap.playlists.size()),
@@ -470,6 +474,9 @@ private:
                 card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
             }
         }
+
+        // --- Senin için listeler.
+        smart::addSection(c, 1);
 
         // --- Bu hafta popüler (tiles) + Yeni çıkanlar (list).
         if (!d.trendingAlbums.empty() || !d.fresh.empty()) {

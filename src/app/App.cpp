@@ -496,6 +496,7 @@ void App::showShell() {
     else if (options_.route.rfind("radio:", 0) == 0) start = {RouteKind::Radio, options_.route.substr(6)};
     else if (options_.route == "podcasts") start = {RouteKind::Podcasts};
     else if (options_.route.rfind("podcasts:", 0) == 0) start = {RouteKind::Podcasts, options_.route.substr(9)};
+    else if (options_.route.rfind("smart:", 0) == 0) start = {RouteKind::SmartList, options_.route.substr(6)};
     else if (options_.route == "settings") start = {RouteKind::Settings};
     else if (options_.route.rfind("settings:", 0) == 0) start = {RouteKind::Settings, options_.route.substr(9)};
     startRoute_ = start;
