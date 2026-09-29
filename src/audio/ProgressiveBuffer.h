@@ -20,10 +20,12 @@
 //   - any thread: cancel(), fraction(), failed(), hasWaiters().
 //   - owner: release() joins the download thread and frees the memory (call after cancel()).
 //
-// Backing store: a heap block for a typical song. A stream longer than kMapThreshold (a podcast episode, a DJ mix) is
-// written into a memory-mapped temporary file instead (deleted on close), and a local file is mapped read-only as it is:
-// their pages belong to the file cache, so a three-hour episode or a large FLAC costs no private memory. A read from a
-// mapping that fails (a network share went away, a full disk) fails the buffer instead of crashing.
+// Backing store: a download is written into a memory-mapped temporary file (FILE_ATTRIBUTE_TEMPORARY: kept in memory
+// while there is room, deleted on close) and a local file is mapped read-only as it is. Their pages belong to the file
+// cache, not to the process: the current song, the preloaded next one and the one fading out cost no private memory,
+// a three-hour episode or a large FLAC neither, and Windows can drop them under memory pressure (they are reread from
+// the file). Only a tiny stream, or a temporary file that cannot be created, uses a heap block. A read from a mapping
+// that fails (a network share went away, a full disk) fails the buffer instead of crashing.
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -39,7 +41,7 @@ namespace st::audio {
 class ProgressiveBuffer {
 public:
     enum class ReadStatus { Ok, Interrupted, Cancelled, Failed };
-    static constexpr int64_t kMapThreshold = 32ll << 20;   // streams above this go to a memory-mapped temporary file
+    static constexpr int64_t kMapThreshold = 1ll << 20;   // streams above this go to a memory-mapped temporary file
 
     bool mapped() const { return mapped_; }   // valid once the length is known
 
@@ -99,7 +101,8 @@ private:
 
     const std::string url_;
     const std::wstring localPath_;
-    std::atomic<int64_t>* memCounter_;
+    std::atomic<int64_t>* memCounter_;     // downloaded stream bytes held (heap block or temporary file)
+    bool counted_ = false;                 // allocated_ is in *memCounter_ (not a local file's mapping)
 
     mutable std::mutex mutex_;
     std::condition_variable cv_;           // readers: data / length / failure / interrupt

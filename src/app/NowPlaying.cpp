@@ -242,14 +242,17 @@ void NowPlayingView::paintBackdrop(Canvas& c, const Rect& r) {
             dc->SetTarget(old.Get());
             dc->SetDpi(dx, dy);
             dc->SetTransform(oldT);
+            const bool newArt = url != backdropUrl_;   // not a rebuild after a device / size / theme change
             backdrop_ = bmp;
             backdropUrl_ = url;
             backdropGen_ = gen;
             backdropTheme_ = themeGen;
             backdropW_ = r.w;
             backdropH_ = r.h;
-            backdropFade_.snap(0);
-            backdropFade_.to(1, 600);
+            if (newArt) {
+                backdropFade_.snap(0);
+                backdropFade_.to(1, 600);
+            }
             // The blur's cached intermediates are released by the settle trim in paint(), not here: clearing D2D's
             // caches while the view is still building up only made private bytes grow (measured).
         }

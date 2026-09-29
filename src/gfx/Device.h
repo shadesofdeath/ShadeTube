@@ -5,6 +5,11 @@
 //
 // Device loss: when EndDraw/Present reports D2DERR_RECREATE_TARGET / DXGI_ERROR_DEVICE_REMOVED the
 // device is recreated and `generation()` increments; caches compare generations and drop stale resources.
+//
+// Idle release: while no window is on screen the app calls release(), which drops the device and everything created
+// on it, so the driver hands back its memory (command buffers, shader and pipeline caches, swap chains, textures:
+// tens of MB). Every holder of a device-dependent object therefore registers a release hook (DeviceHook) that resets
+// it: one object left behind would keep the whole device alive. The next frame's ensure() creates a new device.
 #include <d2d1_3.h>
 #include <d3d11_1.h>
 #include <dwrite_3.h>
@@ -14,6 +19,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <utility>
+#include <vector>
 
 namespace st::gfx {
 
@@ -25,7 +32,22 @@ public:
 
     void init();           // factories + device (call once on the UI thread)
     void recreate();       // after device loss
+    void release();        // idle: drop the device and every device-dependent object (release hooks)
+    void ensure();         // (re)create the device after release(); no-op while it exists
+    bool ready() const { return d3d_ != nullptr; }
     void trim();           // release driver/D2D caches (window minimized)
+
+    // Runs on the UI thread right before the device goes (release() or device loss). Returns a token for
+    // removeReleaseHook(); objects that live shorter than the process use DeviceHook instead.
+    int addReleaseHook(std::function<void()> hook);
+    void removeReleaseHook(int token);
+
+    // This process's use of the adapter's memory segments (IDXGIAdapter3::QueryVideoMemoryInfo): local = dedicated
+    // video memory on a discrete GPU (on an integrated one, the shared system memory it treats as local).
+    struct GpuMemory {
+        uint64_t local = 0, nonLocal = 0;
+    };
+    GpuMemory gpuMemory() const;
     void shutdown();
 
     ID2D1Factory6* d2dFactory() const { return d2dFactory_.Get(); }
@@ -42,6 +64,7 @@ public:
 
 private:
     void createDevice();
+    void dropDevice();   // runs the release hooks, then releases the D3D / D2D devices
 
     ComPtr<ID2D1Factory6> d2dFactory_;
     ComPtr<IDWriteFactory7> dwrite_;
@@ -51,6 +74,20 @@ private:
     ComPtr<ID2D1Device5> d2dDevice_;
     ComPtr<ID2D1DeviceContext5> resourceDc_;
     uint64_t generation_ = 0;
+    std::vector<std::pair<int, std::function<void()>>> releaseHooks_;
+    int nextHook_ = 0;
+};
+
+// A release hook for the lifetime of its owner (a view holding a baked bitmap, a window's swap chain).
+class DeviceHook {
+public:
+    explicit DeviceHook(std::function<void()> onRelease) : token_(Device::get().addReleaseHook(std::move(onRelease))) {}
+    ~DeviceHook() { Device::get().removeReleaseHook(token_); }
+    DeviceHook(const DeviceHook&) = delete;
+    DeviceHook& operator=(const DeviceHook&) = delete;
+
+private:
+    int token_;
 };
 
 class WindowTarget {
@@ -58,10 +95,12 @@ public:
     explicit WindowTarget(HWND hwnd);
     ~WindowTarget();
 
-    // Physical pixel size + DPI. Recreates the swap chain buffers when changed.
+    // Physical pixel size + DPI. Resizes the swap chain buffers when changed; the swap chain itself is created by the
+    // first begin(), so a window that is never shown (autostart into the tray) never costs one.
     void resize(UINT widthPx, UINT heightPx, float dpi);
 
-    // Returns nullptr when the window has no area (minimized). Must be paired with end().
+    // Returns nullptr when the window has no area (minimized). Must be paired with end(). Recreates the device
+    // after an idle release.
     ID2D1DeviceContext5* begin();
     // Presents (vsync). Returns false if the device was lost (caller should redraw next frame).
     bool end();
@@ -69,6 +108,7 @@ public:
     // Blocks until the swap chain can accept a new frame (low-latency pacing). Handle for MsgWait.
     HANDLE frameLatencyWaitable() const { return waitable_; }
 
+    bool hasSwapChain() const { return swapChain_ != nullptr; }
     float dpi() const { return dpi_; }
     float scale() const { return dpi_ / 96.f; }
     UINT widthPx() const { return width_; }
@@ -87,6 +127,7 @@ private:
     UINT width_ = 0, height_ = 0;
     float dpi_ = 96.f;
     uint64_t generation_ = 0;
+    DeviceHook hook_{[this] { releaseDeviceResources(); }};
 };
 
 } // namespace st::gfx

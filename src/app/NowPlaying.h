@@ -76,6 +76,10 @@ private:
     bool trimmed_ = true;                // the settle trim ran for this opening (see paint)
     gfx::Text title_, subtitle_, meta_;
     gfx::Text liveNow_;                  // internet radio: the song on air in the heard-titles list
+    gfx::DeviceHook deviceHook_{[this] {   // idle release: the baked bitmaps must not keep the device alive
+        backdrop_.Reset();
+        shadow_.Reset();
+    }};
 };
 
 } // namespace st::app

@@ -10,16 +10,28 @@ namespace st::gfx {
 
 namespace {
 
-// Device-dependent objects shared by all canvases; rebuilt after device loss.
+// Device-dependent objects shared by all canvases; rebuilt after device loss or an idle release.
 struct Shared {
     uint64_t generation = 0;
     ComPtr<ID2D1BitmapBrush1> bitmapBrush;
     ComPtr<ID2D1Effect> shadow, blur, saturation, scale;
     ComPtr<ID2D1StrokeStyle1> roundCaps;
 
+    void reset() {
+        generation = 0;
+        bitmapBrush.Reset();
+        shadow.Reset();
+        blur.Reset();
+        saturation.Reset();
+        scale.Reset();
+        roundCaps.Reset();
+    }
+
     void ensure(ID2D1DeviceContext5* dc) {
         const uint64_t gen = Device::get().generation();
         if (gen == generation) return;
+        static const int hook = Device::get().addReleaseHook([this] { reset(); });
+        (void)hook;
         generation = gen;
         bitmapBrush.Reset();
         dc->CreateBitmapBrush(nullptr, D2D1::BitmapBrushProperties1(), D2D1::BrushProperties(), &bitmapBrush);

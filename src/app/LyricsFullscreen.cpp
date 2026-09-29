@@ -289,7 +289,7 @@ void LyricsFullscreen::paintBackdrop(Canvas& c, const Rect& r) {
             dc->SetTarget(old.Get());
             dc->SetDpi(dx, dy);
             dc->SetTransform(oldT);
-            const bool newArt = !backdrop_ || url != backdropUrl_;
+            const bool newArt = url != backdropUrl_;   // not a rebuild after a device / size / theme change
             backdrop_ = bmp;
             backdropUrl_ = url;
             backdropGen_ = gen;

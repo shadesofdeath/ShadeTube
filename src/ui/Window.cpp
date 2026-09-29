@@ -470,6 +470,7 @@ void Window::render() {
 bool Window::renderToPng(const std::wstring& path) {
     if (!target_) return false;
     auto& dev = gfx::Device::get();
+    dev.ensure();
     auto* dc = dev.resourceContext();
     const float s = scale();
     const UINT w = static_cast<UINT>(widthDip_ * s), h = static_cast<UINT>(heightDip_ * s);
@@ -909,6 +910,15 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
     case WM_ERASEBKGND: return 1;
+    case WM_SHOWWINDOW:
+        // Shown without a swap chain (never drawn, or the graphics were released while nothing was on screen): draw
+        // the first frame now, before the window appears, rather than show an empty frame first. Restoring from the
+        // taskbar needs no help: WM_SIZE draws synchronously.
+        if (wp && lp == 0 && target_ && !target_->hasSwapChain() && !isMinimized()) {
+            dirty_ = true;
+            render();
+        }
+        break;
     case WM_ACTIVATE:
         active_ = LOWORD(wp) != WA_INACTIVE;
         if (!active_) consumedVk_ = 0;   // its key-up goes to another window

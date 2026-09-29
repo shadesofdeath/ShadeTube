@@ -93,6 +93,8 @@ private:
     void restart();              // quit + start a new instance (it waits for this process: --restart-after <pid>)
     void saveMainPlacement();
     void trimMemory();           // nobody sees the main window: hand back rebuildable GPU / working-set memory
+    void manageMemory();         // housekeeping: idle graphics release, low-memory response
+    void logMemory();            // SHADETUBE_MEMLOG=1: where the memory is, every housekeeping tick
     void syncTray();             // tooltip = "ShadeTube" + current track
     void syncThumbBar();         // player state -> taskbar thumbnail buttons + progress
     void runCommand(winshell::Command c);   // thumbnail button / jump-list task / --command
@@ -122,6 +124,9 @@ private:
     Lifetime life_;
     bool running_ = true;
     bool startupTrimmed_ = false;
+    double offScreenSince_ = -1;         // ui::frame::realNow() since no window of ours is on screen (-1: one is)
+    HANDLE lowMemory_ = nullptr;         // CreateMemoryResourceNotification(LowMemoryResourceNotification)
+    bool lowMemoryHandled_ = false;      // responded to the current low-memory period
     bool wasLoggedIn_ = false;
     double startedAt_ = 0;
     bool startHidden_ = false;           // --autostart into the tray: the main window was never shown yet

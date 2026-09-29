@@ -151,7 +151,7 @@ public:
     // The live stream being played (LiveInfo::active false otherwise). Any thread; takes a short lock.
     LiveInfo liveInfo() const;
 
-    // Bytes currently held in media buffers (current + preloaded).
+    // Bytes of downloaded stream currently held (current + preloaded), in memory or in temporary files.
     size_t bufferedBytes() const;
 
 private:

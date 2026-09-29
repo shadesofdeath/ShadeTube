@@ -25,6 +25,12 @@ ComPtr<ID2D1SolidColorBrush> g_brush;
 uint64_t g_brushGeneration = 0;
 size_t g_bytes = 0;
 
+// The masks and the brush die with the device (idle release / device loss): registered on first use.
+void hookRelease() {
+    static const int hook = Device::get().addReleaseHook([] { Icons::clear(); });
+    (void)hook;
+}
+
 std::wstring resolvePath(std::string_view name, int px) {
     std::string path;
     if (name.find('/') != std::string_view::npos) {
@@ -100,6 +106,7 @@ ID2D1Bitmap1* lookup(ID2D1DeviceContext5* dc, std::string_view name, int px) {
     const uint64_t gen = Device::get().generation();
     auto it = g_cache.find(key);
     if (it != g_cache.end() && it->second.generation == gen) return it->second.bitmap.Get();
+    hookRelease();
     auto bmp = rasterize(dc, name, px);
     if (!bmp) return nullptr;
     const auto size = bmp->GetPixelSize();
@@ -135,6 +142,7 @@ void Icons::draw(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, 
 void Icons::draw(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, const Color& color, float scale) {
     if (color.a <= 0.001f) return;
     if (!g_brush || g_brushGeneration != Device::get().generation()) {
+        hookRelease();
         dc->CreateSolidColorBrush(color.d2d(), g_brush.ReleaseAndGetAddressOf());
         g_brushGeneration = Device::get().generation();
     }

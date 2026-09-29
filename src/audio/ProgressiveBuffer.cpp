@@ -199,7 +199,8 @@ void ProgressiveBuffer::cancel() {
 void ProgressiveBuffer::release() {
     if (thread_.joinable()) thread_.join();
     std::lock_guard lock(mutex_);
-    if (memCounter_ && allocated_ && !mapped_) memCounter_->fetch_sub(allocated_);
+    if (memCounter_ && counted_) memCounter_->fetch_sub(allocated_);
+    counted_ = false;
     heap_.reset();
     unmap();
     data_ = nullptr;
@@ -368,6 +369,7 @@ bool ProgressiveBuffer::allocate(int64_t length) {
     allocated_ = length;
     length_.store(length, std::memory_order_release);
     if (memCounter_) memCounter_->fetch_add(length);
+    counted_ = true;
     cv_.notify_all();
     return true;
 }
@@ -399,7 +401,9 @@ bool ProgressiveBuffer::mapTemporary(int64_t length) {
     mapped_ = true;
     allocated_ = length;
     length_.store(length, std::memory_order_release);
-    ST_LOG_INFO("audio", "long stream ({} MB): buffered in a temporary file", length >> 20);
+    if (memCounter_) memCounter_->fetch_add(length);
+    counted_ = true;
+    ST_LOG_DEBUG("audio", "stream ({} KB) buffered in a temporary file", length >> 10);
     cv_.notify_all();
     return true;
 }

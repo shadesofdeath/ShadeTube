@@ -119,15 +119,31 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 
 - Track lists are **virtualized**: rows are painted from the model, with no per-row widgets.
 - Images: `gfx::ImageCache` downloads to a disk cache (`cache\images`, pruned to 400 MB), WIC-decodes **at the
-  requested pixel size** and keeps D2D bitmaps in a GPU LRU with a byte budget (96 MB). D2D's texture cache is
+  requested pixel size** and keeps D2D bitmaps in a GPU LRU with a byte budget (64 MB; eviction stops at bitmaps
+  painted in the last two frames, so a screen needing more goes over it instead of thrashing). D2D's texture cache is
   capped at 24 MB. Requests from widgets that went off-screen are skipped.
-- Audio: only the current and the preloaded next track are held in RAM (a few MB each). A stream above 32 MB (a
-  podcast episode, a DJ mix) is buffered in a memory-mapped temporary file (`FILE_FLAG_DELETE_ON_CLOSE`) and a local
-  file is mapped read-only as it is, so their pages belong to the file cache, not the private commit.
+- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held. Every download
+  above 1 MB is buffered in a memory-mapped temporary file (`FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE`)
+  and a local file is mapped read-only as it is, so their pages belong to the file cache, not the private commit, and
+  Windows can drop them under pressure. A heap block is the fallback when no temporary file can be created.
+- GPU device: created with `D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS` (no driver worker threads:
+  ~20 MB less commit on Intel UHD). A window's swap chain is created by its first frame, never for a hidden window.
 - Pages are destroyed on navigation; history keeps the route and scroll offset, never widgets. Now Playing drops its
   blurred backdrop, lyrics and display-size text layouts when it closes.
 - When no one sees the main window (minimized, in the tray, mini player), `App::trimMemory()` trims the image cache
   to 25 %, clears icon masks, calls `Device::trim()` and trims the working set; 6 s after startup the last two run once.
+- **Idle graphics release** (`App::manageMemory()`): when no window of ours has been on screen for 30 s,
+  `Device::release()` drops the D3D/D2D device and everything created on it, and the driver hands back its memory.
+  Every holder of a device-dependent object registers a release hook (`gfx::DeviceHook`, or `addReleaseHook` for the
+  static caches: `ImageCache`, `Icons`, `Canvas`'s shared effects, each `WindowTarget`'s swap chain, Now Playing's
+  and the lyrics view's baked bitmaps): one object left behind keeps the whole device alive, which the release logs
+  as a warning. The next frame recreates the device (`WindowTarget::begin()` → `Device::ensure()`); a window shown
+  from the tray draws its first frame in `WM_SHOWWINDOW`, before it appears, and a restore draws in `WM_SIZE`. A new
+  device object must get a hook too.
+- Low memory (`CreateMemoryResourceNotification`): off screen the graphics are released at once; on screen the image
+  cache drops what is not painted and D2D / driver caches are trimmed.
+- `SHADETUBE_MEMLOG=1` logs a breakdown every 2 s (`core/MemoryStats`: commit, private working set, heap, mapped,
+  image, GPU segments, image cache, icons, audio buffers).
 
 ### 3.3 Rendering, theme and keyboard focus
 
@@ -758,6 +774,7 @@ apps*).
 | `SHADETUBE_IMPORT_HISTORY` | `<file>[;<file>…]`: import these Spotify history files (JSON / ZIP) once the stats are loaded |
 | `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
+| `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
 
 ## 6. Release process
 
@@ -801,6 +818,8 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   are scanned and played only when one is installed. Passthrough `.m4a` downloads are not SponsorBlock-trimmed.
 - **Playback speed** uses time-domain stretching (WSOLA): transparent for speech and fine for music around 0.75-1.5x,
   with some phasing on dense music at extreme speeds.
-- **Memory** (Release, Intel iGPU): about 75 MB private commit when idle, roughly 42 MB of it the GPU driver's shader
-  compiler (WARP software rendering gets to ~33 MB but costs ~24 % CPU in Now Playing, so hardware rendering stays).
-  Now Playing needs noticeably more while open (effects, large glyph atlases). Mitigations: the caps and trims in 3.2.
+- **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
+  of the rest the GPU driver; about 13 MB once nothing has been on screen for 30 s (0.6.0 stayed at 63 MB). WARP
+  software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now
+  Playing needs noticeably more while open (effects, large glyph atlases). After an idle release the first frame
+  recreates the device (tens of ms) and covers reload from the disk cache.

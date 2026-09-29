@@ -18,6 +18,7 @@
 #include "core/Http.h"
 #include "core/I18n.h"
 #include "core/Log.h"
+#include "core/MemoryStats.h"
 #include "core/Paths.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
@@ -410,6 +411,7 @@ App::~App() {
     if (mini_) winshell::clearWindowIdentity(mini_->hwnd());
     mini_.reset();
     tray_.reset();   // NIM_DELETE: no ghost icon left in the notification area
+    if (lowMemory_) CloseHandle(lowMemory_);
     if (mediaHotkeys_)
         for (int id : {kHotkeyPlay, kHotkeyNext, kHotkeyPrev, kHotkeyStop}) UnregisterHotKey(window_->hwnd(), id);
     c.router = nullptr;
@@ -766,7 +768,57 @@ bool App::handleKey(const ui::KeyEvent& e) {
     return commands::dispatchKey(e, commands::Scope::Main, inText);
 }
 
+// Dev: SHADETUBE_MEMLOG=1 logs where the memory is every housekeeping tick (see core/MemoryStats).
+void App::logMemory() {
+    static const bool enabled = [] {
+        wchar_t v[8] = {};
+        return GetEnvironmentVariableW(L"SHADETUBE_MEMLOG", v, 8) > 0 && v[0] != L'0';
+    }();
+    if (!enabled) return;
+    const auto gpu = gfx::Device::get().gpuMemory();
+    auto mb = [](uint64_t b) { return static_cast<double>(b) / (1024.0 * 1024.0); };
+    ST_LOG_INFO("mem", "{} | gpu {:.1f} + {:.1f} MB | images {:.1f} MB, icons {:.1f} MB, streams {:.1f} MB",
+                mem::describe(mem::take()), mb(gpu.local), mb(gpu.nonLocal), mb(gfx::ImageCache::get().memoryBytes()),
+                mb(gfx::Icons::memoryBytes()), mb(player_ ? player_->bufferedBytes() : 0));
+}
+
+// Memory at rest. Nothing of ours on screen (tray, minimized, the main window hidden while the mini player was closed)
+// for kGraphicsIdleMs: release the whole graphics stack (device, swap chains, artwork and icon bitmaps, Direct2D and
+// driver caches), which is most of what the process holds while it only plays music. The first frame after a restore
+// rebuilds it (tens of ms; covers come back from the disk cache). Windows reporting low memory: hand back what can be
+// rebuilt right away, whatever is on screen.
+void App::manageMemory() {
+    constexpr double kGraphicsIdleMs = 30'000;
+    const double now = ui::frame::realNow();
+    const bool onScreen = window_->isShown() || (mini_ && mini_->window()->isShown());
+    if (onScreen) offScreenSince_ = -1;
+    else if (offScreenSince_ < 0) offScreenSince_ = now;
+
+    if (!lowMemory_) lowMemory_ = CreateMemoryResourceNotification(LowMemoryResourceNotification);
+    BOOL low = FALSE;
+    if (lowMemory_ && !QueryMemoryResourceNotification(lowMemory_, &low)) low = FALSE;
+    const bool respondToLow = low && !lowMemoryHandled_;
+    lowMemoryHandled_ = low;
+
+    auto& device = gfx::Device::get();
+    if (device.ready() && offScreenSince_ >= 0 && (now - offScreenSince_ >= kGraphicsIdleMs || respondToLow)) {
+        const uint64_t before = mem::take().privateCommit;
+        device.release();
+        HeapCompact(GetProcessHeap(), 0);
+        SetProcessWorkingSetSize(GetCurrentProcess(), static_cast<SIZE_T>(-1), static_cast<SIZE_T>(-1));
+        ST_LOG_INFO("mem", "graphics released{}: commit {} -> {} MB", respondToLow ? " (low memory)" : "", before >> 20,
+                    mem::take().privateCommit >> 20);
+    } else if (respondToLow) {
+        gfx::ImageCache::get().trim(0.f, true);   // keeps what is on screen
+        device.trim();
+        HeapCompact(GetProcessHeap(), 0);
+        ST_LOG_INFO("mem", "low memory: caches trimmed");
+    }
+}
+
 void App::housekeeping() {
+    logMemory();
+    manageMemory();
     // Once the first screens are up, hand back the driver's startup scratch memory (shader compiler etc.).
     if (!startupTrimmed_ && ui::frame::realNow() > startedAt_ + 6000) {
         startupTrimmed_ = true;

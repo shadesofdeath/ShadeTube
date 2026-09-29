@@ -74,6 +74,7 @@ private:
     float backdropW_ = 0, backdropH_ = 0;
     ui::Anim backdropFade_;
     gfx::Text title_, artist_, time_, label_;
+    gfx::DeviceHook deviceHook_{[this] { backdrop_.Reset(); }};   // idle release: must not keep the device alive
 };
 
 } // namespace st::app

@@ -5,6 +5,7 @@
 #include <dxgi1_4.h>
 
 #include <stdexcept>
+#include <vector>
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "d3d11.lib")
@@ -52,7 +53,10 @@ void Device::init() {
 void Device::createDevice() {
     const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1,
                                         D3D_FEATURE_LEVEL_10_0};
-    UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    // PREVENT_INTERNAL_THREADING_OPTIMIZATIONS: no driver worker threads. They exist to take CPU work off games' render
+    // threads; a UI submitting a few hundred draws per frame gains nothing, and their command buffers and stacks cost
+    // ~20 MB of commit (measured on Intel UHD: device creation +33 MB -> +14 MB).
+    UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS;
     HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, levels, ARRAYSIZE(levels),
                                    D3D11_SDK_VERSION, d3d_.ReleaseAndGetAddressOf(), nullptr, nullptr);
     if (FAILED(hr)) {
@@ -74,18 +78,55 @@ void Device::createDevice() {
     ST_LOG_INFO("gfx", "graphics device created (generation {})", generation_);
 }
 
+Device::GpuMemory Device::gpuMemory() const {
+    GpuMemory m;
+    ComPtr<IDXGIAdapter> adapter;
+    ComPtr<IDXGIAdapter3> adapter3;
+    if (!dxgi_ || FAILED(dxgi_->GetAdapter(&adapter)) || FAILED(adapter.As(&adapter3))) return m;
+    DXGI_QUERY_VIDEO_MEMORY_INFO info{};
+    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) m.local = info.CurrentUsage;
+    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &info))) m.nonLocal = info.CurrentUsage;
+    return m;
+}
+
 void Device::trim() {
     if (d2dDevice_) d2dDevice_->ClearResources(0);
     ComPtr<IDXGIDevice3> dxgi3;
     if (dxgi_ && SUCCEEDED(dxgi_.As(&dxgi3))) dxgi3->Trim();
 }
 
-void Device::recreate() {
+int Device::addReleaseHook(std::function<void()> hook) {
+    releaseHooks_.emplace_back(++nextHook_, std::move(hook));
+    return nextHook_;
+}
+
+void Device::removeReleaseHook(int token) {
+    std::erase_if(releaseHooks_, [token](const auto& h) { return h.first == token; });
+}
+
+void Device::dropDevice() {
+    for (size_t i = 0; i < releaseHooks_.size(); ++i) releaseHooks_[i].second();
     resourceDc_.Reset();
     d2dDevice_.Reset();
     dxgi_.Reset();
-    d3d_.Reset();
+    // The D3D device goes with its last reference; anything still holding one keeps all of its memory.
+    if (const unsigned long left = d3d_.Reset())
+        ST_LOG_WARN("gfx", "released device still has {} references", left);
+}
+
+void Device::recreate() {
+    dropDevice();
     createDevice();
+}
+
+void Device::release() {
+    if (!d3d_) return;
+    dropDevice();
+    ST_LOG_INFO("gfx", "graphics device released (idle)");
+}
+
+void Device::ensure() {
+    if (!d3d_) createDevice();
 }
 
 void Device::shutdown() {
@@ -159,29 +200,28 @@ void WindowTarget::createTargetBitmap() {
 }
 
 void WindowTarget::resize(UINT w, UINT h, float dpi) {
-    if (w == width_ && h == height_ && dpi == dpi_ && swapChain_) return;
+    if (w == width_ && h == height_ && dpi == dpi_) return;
     width_ = w;
     height_ = h;
     dpi_ = dpi;
-    if (w == 0 || h == 0) return;
-    if (!swapChain_ || generation_ != Device::get().generation()) {
+    if (w == 0 || h == 0 || !swapChain_) return;   // no swap chain yet: begin() creates it at this size
+    if (generation_ != Device::get().generation()) {
         releaseDeviceResources();
-        createSwapChain();
-    } else {
-        dc_->SetTarget(nullptr);
-        target_.Reset();
-        HRESULT hr = swapChain_->ResizeBuffers(0, w, h, DXGI_FORMAT_UNKNOWN,
-                                               DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
-        if (FAILED(hr)) {
-            releaseDeviceResources();
-            createSwapChain();
-        }
+        return;
+    }
+    dc_->SetTarget(nullptr);
+    target_.Reset();
+    HRESULT hr = swapChain_->ResizeBuffers(0, w, h, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
+    if (FAILED(hr)) {
+        releaseDeviceResources();
+        return;
     }
     createTargetBitmap();
 }
 
 ID2D1DeviceContext5* WindowTarget::begin() {
     if (width_ == 0 || height_ == 0) return nullptr;
+    Device::get().ensure();
     if (!swapChain_ || generation_ != Device::get().generation()) {
         releaseDeviceResources();
         createSwapChain();

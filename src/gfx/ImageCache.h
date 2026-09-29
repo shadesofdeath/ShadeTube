@@ -35,7 +35,9 @@ public:
     void fetchAccent(const std::string& url, std::function<void(std::optional<Color>)> done);
 
     void setBudget(size_t bytes);
-    void trim(float keepFraction);   // e.g. 0.25 when minimized
+    // Evicts least recently used bitmaps down to keepFraction of the current use (e.g. 0.25 when minimized);
+    // keepVisible stops at the ones painted in the last frames.
+    void trim(float keepFraction, bool keepVisible = false);
     void clear();
     size_t memoryBytes() const;
 

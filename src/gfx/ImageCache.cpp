@@ -175,8 +175,20 @@ struct ImageCache::Impl {
     std::unordered_map<std::string, Color> accents;
     std::unordered_map<std::string, std::vector<std::function<void(std::optional<Color>)>>> accentWaiters;
     std::shared_ptr<std::atomic<uint64_t>> frame = std::make_shared<std::atomic<uint64_t>>(0);
-    size_t budget = 96ull * 1024 * 1024;
+    // Enough for the covers on screen plus a page or two of scroll-back at 150 % scaling (a 512 px bucket is 1 MB).
+    // On an integrated GPU these bitmaps are system memory charged to the process.
+    size_t budget = 64ull * 1024 * 1024;
     size_t used = 0;
+
+    // Bitmaps die with the device (idle release / device loss); pending loads carry on and, while the device is
+    // released, only deliver their accent color.
+    Impl() {
+        Device::get().addReleaseHook([this] {
+            std::erase_if(entries, [](const auto& kv) { return kv.second.state == State::Ready; });
+            lru.clear();
+            used = 0;
+        });
+    }
 
     void touch(const std::string& key, Entry& e) {
         if (e.inLru) lru.erase(e.lruIt);
@@ -185,9 +197,16 @@ struct ImageCache::Impl {
         e.inLru = true;
     }
 
-    void evictTo(size_t target) {
+    // keepVisible: stop at a bitmap painted in the last two frames. A screen needing more than the budget then goes
+    // over it for a while instead of evicting what it draws and loading it again every frame.
+    void evictTo(size_t target, bool keepVisible = true) {
+        const uint64_t now = frame->load();
         while (used > target && !lru.empty()) {
             const std::string key = lru.back();
+            if (auto it = entries.find(key); keepVisible && it != entries.end()) {
+                const uint64_t painted = it->second.stamp->load();   // an accent fetch stamps the future: not painted
+                if (painted <= now && now - painted <= 2) break;
+            }
             lru.pop_back();
             auto it = entries.find(key);
             if (it != entries.end()) {
@@ -228,6 +247,11 @@ struct ImageCache::Impl {
                     if (!decoded) {
                         e.state = State::Failed;
                         finishAccent(url, std::nullopt);
+                        return;
+                    }
+                    if (!Device::get().ready()) {   // nothing on screen: re-requested when painted again
+                        entries.erase(it);
+                        finishAccent(url, decoded->accent);
                         return;
                     }
                     const auto props = D2D1::BitmapProperties1(
@@ -329,9 +353,9 @@ void ImageCache::setBudget(size_t bytes) {
     impl().evictTo(bytes);
 }
 
-void ImageCache::trim(float keepFraction) {
+void ImageCache::trim(float keepFraction, bool keepVisible) {
     auto& im = impl();
-    im.evictTo(static_cast<size_t>(static_cast<double>(im.used) * keepFraction));
+    im.evictTo(static_cast<size_t>(static_cast<double>(im.used) * keepFraction), keepVisible);
 }
 
 void ImageCache::clear() {
