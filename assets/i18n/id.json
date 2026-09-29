@@ -1081,5 +1081,17 @@
   "İçe aktar": "Impor",
   "İçe aktarılan geçmiş kaldırıldı": "Riwayat impor dihapus",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Hapus riwayat impor?",
-  "İçe aktarılan geçmişi kaldır": "Hapus riwayat impor"
+  "İçe aktarılan geçmişi kaldır": "Hapus riwayat impor",
+  "Akıllı karıştırma": "Acak pintar",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "Acak pintar aktif: lagu rekomendasi yang cocok dengan daftarmu diselipkan",
+  "Akıllı karıştırma kapalı": "Acak pintar nonaktif",
+  "Akıllı karıştırmayı aç / kapat": "Nyalakan / matikan acak pintar",
+  "Bu liste için öneri bulunamadı": "Tidak ada rekomendasi untuk daftar ini",
+  "Bu öneriyi listeye ekle": "Tambahkan rekomendasi ini ke daftar",
+  "Geliştir": "Tingkatkan",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "Saat acak aktif, lagu rekomendasi yang cocok dengan daftar yang diputar diselipkan setiap 3–4 lagu dan ditandai \"Rekomendasi\". Menekan tombol acak untuk kedua kalinya juga menyalakannya. Rekomendasi berasal dari radio Spotify (saat terhubung), artis serupa dari ListenBrainz, dan file lokalmu.",
+  "Listeye uyan önerilen şarkıları aralara ekle": "Selipkan lagu rekomendasi yang cocok ke daftar ini",
+  "Önerilen": "Rekomendasi",
+  "Öneriler kapatıldı": "Rekomendasi dimatikan",
+  "Önerileri gösterme": "Jangan tampilkan rekomendasi"
 }

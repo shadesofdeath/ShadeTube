@@ -39,6 +39,8 @@ kalır.
   dosyası ve klasör bırak, hemen çalsın.
 - 🚫 **Reklam ve Premium yok** — ses YouTube'dan, otomatik eşleşmeyle gelir; yanlışsa "Yanlış eşleşme?" ile başka
   bir video seçersin.
+- ✨ **Akıllı karıştırma ve Geliştir** — Spotify Premium'un önerileri ücretsiz: akıllı karıştırma sıraya uyan şarkıları
+  karıştırır, Geliştir onları çalma listesinin arasına ekler; beğendiğini tek tıkla listeye kat.
 - 📻 **Radyo ve sonsuz çalma** — şarkıdan, sanatçıdan, albümden ya da listeden radyo başlat; sıra bitince benzer
   şarkılarla devam eder.
 - 📡 **İnternet radyosu** — radio-browser.info'dan türe, ülkeye ya da ada göre binlerce canlı istasyon; favoriler ve o

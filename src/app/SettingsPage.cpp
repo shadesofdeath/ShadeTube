@@ -212,6 +212,7 @@ private:
                       L"sunucuya gönderilmez."),
                    s.sponsorBlockEnabled, [](bool v) { Settings::get().sponsorBlockEnabled = v; });
             buildEndlessPlaybackRows(c, rebuilder());
+            buildSmartShuffleRows(c, rebuilder());
             buildAltSourceRows(c, rebuilder());
         }
 

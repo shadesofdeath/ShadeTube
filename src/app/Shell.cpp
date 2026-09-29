@@ -7,6 +7,7 @@
 #include "app/InternetRadio.h"
 #include "app/NowPlaying.h"
 #include "app/PodcastUi.h"
+#include "app/SmartShuffle.h"
 #include "app/Source.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
@@ -550,7 +551,7 @@ PlayerBar::PlayerBar()
     expand_->setTooltip(tr(L"Tam ekran"));
     heart_->setTooltip(tr(L"Beğen"));
 
-    shuffle_->onClick = [] { ctx().player->setShuffle(!ctx().player->shuffle()); };
+    shuffle_->onClick = [] { smartshuffle::cycleMode(); };   // off -> shuffle -> smart shuffle
     prev_->onClick = [] { ctx().player->previous(); };
     next_->onClick = [] { ctx().player->next(); };
     play_->onClick = [] { ctx().player->togglePause(); };
@@ -592,7 +593,10 @@ void PlayerBar::sync() {
     artist_.setText(!t ? std::wstring() : live_ && !p->liveTitle().empty() ? p->liveTitle() : toWide(t->artistLine()));
     play_->setPlaying(p && p->isPlaying());
     play_->setLoading(p && p->status() == player::Status::Resolving);
-    shuffle_->setActive(p && p->shuffle());
+    const auto shuffleMode = smartshuffle::mode();
+    shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
+    shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart" : "shuffle");
+    shuffle_->setTooltip(smartshuffle::modeLabel(shuffleMode));
     const auto rep = p ? p->repeat() : RepeatMode::Off;
     repeat_->setActive(rep != RepeatMode::Off);
     repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
@@ -721,6 +725,8 @@ void PlayerBar::paint(Canvas& c) {
         const Color titleCol = infoHover_ ? col.fgPrimary : col.fgPrimary;
         c.text(title_, {infoRect_.x, infoRect_.y + 1, heart_->rect().x - infoRect_.x - 4, 20}, titleCol, gfx::VAlign::Center);
         c.text(artist_, {infoRect_.x, infoRect_.y + 21, 320, 18}, infoHover_ ? col.fgPrimary : col.fgSecondary, gfx::VAlign::Center);
+        if (t->recommended)   // smart shuffle / "Geliştir"
+            smartshuffle::drawBadge(c, infoRect_.x + std::min(320.f, std::ceil(artist_.measure().w)) + 8, infoRect_.y + 30);
     }
 
     // Time label "01:24 / 03:42"; a live stream has no times: the "CANLI" badge instead.
@@ -835,11 +841,17 @@ bool QueuePanel::onMouseDown(const ui::MouseEvent& e) {
     if (e.button == ui::MouseButton::Right) {
         const auto track = p->items()[p->order()[i]];
         const int idx = i;
-        ui::Menu::open(ctx().window, e.windowPos,
-                       {{tr(L"Şimdi çal"), "play", L"", [idx] { ctx().player->jumpTo(idx); }},
-                        {tr(L"Sıradan kaldır"), "minus", L"", [idx] { ctx().player->removeAt(idx); }},
-                        ui::MenuItem::sep(),
-                        {tr(L"Sırayı temizle"), "trash", L"", [] { ctx().player->clearQueue(); }}});
+        std::vector<ui::MenuItem> items{{tr(L"Şimdi çal"), "play", L"", [idx] { ctx().player->jumpTo(idx); }},
+                                        {tr(L"Sıradan kaldır"), "minus", L"", [idx] { ctx().player->removeAt(idx); }}};
+        if (track.recommended) {   // smart shuffle / "Geliştir": into the list it was recommended for, or stop them
+            items.push_back(ui::MenuItem::sep());
+            if (smartshuffle::canAdd({}, track))
+                items.push_back({tr(L"Bu öneriyi listeye ekle"), "plus", L"", [track] { smartshuffle::add({}, track); }});
+            items.push_back({tr(L"Önerileri gösterme"), "close", L"", [] { smartshuffle::stop({}); }});
+        }
+        items.push_back(ui::MenuItem::sep());
+        items.push_back({tr(L"Sırayı temizle"), "trash", L"", [] { ctx().player->clearQueue(); }});
+        ui::Menu::open(ctx().window, e.windowPos, std::move(items));
         return false;
     }
     if (e.button != ui::MouseButton::Left) return false;
@@ -970,6 +982,11 @@ void QueuePanel::paint(Canvas& c) {
         if (alpha < 1) c.fillRect(artR, col.bgBase.withAlpha(0.6f));
         x += art + 12;
         float rightW = current ? 24.f : 52.f;
+        if (t.recommended) {   // smart shuffle / "Geliştir"
+            const float bw = smartshuffle::badgeWidth();
+            smartshuffle::drawBadge(c, r.w - padX - rightW - 8 - bw, rr.cy());
+            rightW += bw + 8;
+        }
         if (blocked) {
             const float bw = std::ceil(blockedBadge_.measure().w) + 10;
             const Rect badge{r.w - padX - rightW - 8 - bw, rr.cy() - 7, bw, 14};

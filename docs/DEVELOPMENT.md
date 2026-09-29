@@ -534,6 +534,34 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
   closes after a minute; resuming plays live again. Every request goes to public hosts only (tests may allow the local
   network).
 
+### 3.19 Smart shuffle and "Geliştir"
+
+`app/SmartMix` (standalone planning; `smartshuffle_test`) and `app/SmartShuffle` (recommendations, the player hook, the
+menus and the settings row). Recommendations are ordinary `catalog::Track`s with `recommended` set; the player keeps
+the flag (session.json `"rec"`), the badges (`smartshuffle::drawBadge`) and menus read it.
+
+- **Placement** (`smartmix`): a recommendation comes after 3-4 of the collection's own songs (seeded, so the same seed
+  places them the same way), never two in a row, never right after the playing song (that slot may be prepared for a
+  gapless handoff / crossfade), only within the next `kWindow` (24) queue slots, and a stretch whose recommendations
+  are already close enough gets nothing new, so planning again is a no-op. A recommendation is never a song of the
+  collection (same id, or the same folded title + first artist: `trackKey` drops "(...)", "[...]" and " - ..."
+  suffixes and folds any script and the Turkish I), never already queued, never blocked, always playable.
+- **Smart shuffle** (`Settings.smartShuffle` with shuffle on; the shuffle button cycles off → shuffle → smart shuffle,
+  the `smart-shuffle` command toggles it): a `playerChangedHooks` entry posts one planning pass per event, which asks
+  for the queue collection's recommendations and inserts them with `Player::insertAt` (from the last point, so the
+  indices stay valid). Leaving smart shuffle calls `Player::dropRecommendations()`, which removes the upcoming ones
+  from both the order and `items_` (a reshuffle doesn't bring them back).
+- **"Geliştir"** (`Settings.enhancedCollections`: "liked" or a playlist id): the collection page interleaves up to 30
+  recommendations into its own songs (`smartmix::interleave`); recommended rows are tinted, badged and get "+" (add to
+  the list: Liked Songs, a local playlist or an editable Spotify playlist) and "×" (hide for this session) in place of
+  the heart. Playing the list plays them in order. The track menus (table, queue, player bar) offer "Bu öneriyi listeye
+  ekle" and "Önerileri gösterme"; anything else the menu does with a recommendation (queue, playlist, download, drag)
+  makes it an ordinary song.
+- **Sources** (`recommend()`, a worker per collection, cached 30 minutes, at most 12 collections): Spotify's song radios
+  of up to 3 of the collection's Spotify songs (logged in; a 429 pauses them for 10 minutes); below 20 candidates the
+  popular recordings of ListenBrainz's similar artists for its 2 most frequent MusicBrainz artists; then local-library
+  songs by its artists.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -600,6 +628,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `radio_test` | radio-browser.info parsing (fixtures), codec filter, station -> track mapping, genre labels, `radio.json` store | offline; `live` (discovery, lists, failover; never counts a click) |
 | `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
+| `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the Run value (in a test key) | offline |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`

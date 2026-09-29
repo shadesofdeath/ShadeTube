@@ -1315,5 +1315,17 @@
   "İçe aktar": "Імпорт",
   "İçe aktarılan geçmiş kaldırıldı": "Імпортовану історію видалено",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Видалити імпортовану історію?",
-  "İçe aktarılan geçmişi kaldır": "Видалити імпортовану історію"
+  "İçe aktarılan geçmişi kaldır": "Видалити імпортовану історію",
+  "Akıllı karıştırma": "Розумне перемішування",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "Розумне перемішування ввімкнено: відповідні рекомендовані треки вставлятимуться між піснями",
+  "Akıllı karıştırma kapalı": "Розумне перемішування вимкнено",
+  "Akıllı karıştırmayı aç / kapat": "Увімкнути / вимкнути розумне перемішування",
+  "Bu liste için öneri bulunamadı": "Для цього списку рекомендацій не знайдено",
+  "Bu öneriyi listeye ekle": "Додати рекомендацію до списку",
+  "Geliştir": "Покращити",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "Коли перемішування ввімкнено, кожні 3–4 пісні вставляються рекомендовані треки, що пасують до списку, з позначкою «Рекомендовано». Друге натискання кнопки перемішування теж вмикає цю функцію. Рекомендації надходять з радіо Spotify (якщо підключено), схожих виконавців ListenBrainz і ваших локальних файлів.",
+  "Listeye uyan önerilen şarkıları aralara ekle": "Вставити до списку відповідні рекомендовані треки",
+  "Önerilen": "Рекомендовано",
+  "Öneriler kapatıldı": "Рекомендації вимкнено",
+  "Önerileri gösterme": "Не показувати рекомендації"
 }

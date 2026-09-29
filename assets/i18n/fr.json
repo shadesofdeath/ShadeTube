@@ -1219,5 +1219,17 @@
   "İçe aktar": "Importer",
   "İçe aktarılan geçmiş kaldırıldı": "Historique importé retiré",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Retirer l'historique importé ?",
-  "İçe aktarılan geçmişi kaldır": "Retirer l'historique importé"
+  "İçe aktarılan geçmişi kaldır": "Retirer l'historique importé",
+  "Akıllı karıştırma": "Lecture aléatoire intelligente",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "Lecture aléatoire intelligente activée : des titres recommandés assortis à ta liste s'intercalent",
+  "Akıllı karıştırma kapalı": "Lecture aléatoire intelligente désactivée",
+  "Akıllı karıştırmayı aç / kapat": "Activer / désactiver la lecture aléatoire intelligente",
+  "Bu liste için öneri bulunamadı": "Aucune recommandation trouvée pour cette liste",
+  "Bu öneriyi listeye ekle": "Ajouter cette recommandation à la liste",
+  "Geliştir": "Enrichir",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "Quand la lecture aléatoire est active, des titres recommandés assortis à la liste en cours s'intercalent tous les 3 à 4 titres, marqués « Recommandé ». Un second appui sur le bouton aléatoire l'active aussi. Les recommandations viennent de la radio Spotify (si connecté), des artistes similaires de ListenBrainz et de tes fichiers locaux.",
+  "Listeye uyan önerilen şarkıları aralara ekle": "Intercaler des titres recommandés assortis à cette liste",
+  "Önerilen": "Recommandé",
+  "Öneriler kapatıldı": "Recommandations désactivées",
+  "Önerileri gösterme": "Ne pas afficher de recommandations"
 }

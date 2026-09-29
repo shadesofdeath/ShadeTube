@@ -2,6 +2,7 @@
 
 #include "app/Blacklist.h"
 #include "app/DragDrop.h"
+#include "app/SmartShuffle.h"
 #include "app/Router.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -408,6 +409,8 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
         c.fillRect({r.x, r.y, 2, r.h}, acc.base);
     } else if (hot) {
         c.fillRounded(r, 2, col.overlayHover);
+    } else if (t.recommended) {   // "Geliştir": a recommendation, not the list's own song
+        c.fillRounded(r, 2, acc.tint06);
     }
     // Index / play glyph / equalizer.
     const Rect numR{cl.num, r.y, gfx::metrics::numCol, r.h};
@@ -435,6 +438,7 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     const float blockedW = tx.blocked ? std::ceil(blockedBadge_.measure().w) + 10 : 0.f;
     if (t.explicitContent) titleTextW -= 22;
     if (tx.blocked) titleTextW -= blockedW + 8;
+    if (t.recommended) titleTextW -= smartshuffle::badgeWidth() + 8;
     c.text(tx.title, {tx0, r.y + 9, titleTextW, 20}, (isCurrent ? acc.base : col.fgPrimary).mulAlpha(alpha), gfx::VAlign::Center);
     float badgeX = tx0 + std::min(titleTextW, std::ceil(tx.title.measure().w)) + 8;
     if (t.explicitContent) {
@@ -447,7 +451,9 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
         const Rect badge{badgeX, r.y + 12, blockedW, 14};
         c.fillRounded(badge, 2, col.fgPrimary.withAlpha(0.14f));
         c.text(blockedBadge_, badge.inset(5, 0), col.fgSecondary, gfx::VAlign::Center);
+        badgeX += blockedW + 6;
     }
+    if (t.recommended) smartshuffle::drawBadge(c, badgeX, r.y + 19);
     const Color artistCol = (hot && hoverArtist_) ? col.fgPrimary : col.fgSecondary;
     c.text(tx.artist, {tx0, r.y + 29, titleW, 16}, artistCol.mulAlpha(alpha), gfx::VAlign::Center);
     if (!t.playable)
@@ -456,6 +462,14 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
                gfx::TextAlign::Leading, gfx::VAlign::Center);
     if (cl.albumW > 0) c.text(tx.album, {cl.album, r.y, cl.albumW, r.h}, col.fgSecondary.mulAlpha(alpha), gfx::VAlign::Center);
     if (cl.addedW > 0) c.text(tx.added, {cl.added, r.y, cl.addedW, r.h}, col.fgTertiary.mulAlpha(alpha), gfx::VAlign::Center);
+    // A recommendation of a "Geliştir" list: "+" (always) and "×" (on hover) instead of the heart.
+    if (t.recommended && onAddRecommended) {
+        c.icon("plus", {cl.heart, r.cy() - 8, 16, 16}, hot && hoverRecAdd_ ? acc.base : col.fgPrimary);
+        if (hot && onHideRecommended)
+            c.icon("close", {cl.heart - 28, r.cy() - 7, 14, 14}, hoverRecHide_ ? col.fgPrimary : col.fgSecondary);
+        c.text(tx.dur, {cl.dur, r.y, gfx::metrics::durCol, r.h}, col.fgSecondary.mulAlpha(alpha), gfx::VAlign::Center);
+        return;
+    }
     // Heart (visible when liked, or on hover for a track that can be hearted) + duration.
     const bool liked = ctx().library.isLiked(t.id);
     if (liked || (hot && ctx().library.canLike(t.id))) {
@@ -497,8 +511,23 @@ void TrackTable::paint(Canvas& c) {
     }
 }
 
+bool TrackTable::recAddHit(int i, gfx::Point p) const {
+    if (i < 0 || !onAddRecommended || !tracks_[view_[i]].recommended) return false;
+    const Columns cl = columns();
+    const Rect rr = rowRect(i);
+    return Rect{cl.heart - 6, rr.cy() - 14, 28, 28}.contains(p);
+}
+
+bool TrackTable::recHideHit(int i, gfx::Point p) const {
+    if (i < 0 || !onHideRecommended || !tracks_[view_[i]].recommended) return false;
+    const Columns cl = columns();
+    const Rect rr = rowRect(i);
+    return Rect{cl.heart - 34, rr.cy() - 13, 26, 26}.contains(p);
+}
+
 bool TrackTable::heartHit(int i, gfx::Point p) const {
     if (i < 0 || !ctx().library.canLike(tracks_[view_[i]].id)) return false;
+    if (tracks_[view_[i]].recommended && onAddRecommended) return false;   // "+" takes its place
     const Columns cl = columns();
     const Rect rr = rowRect(i);
     return Rect{cl.heart - 6, rr.cy() - 14, 28, 28}.contains(p);
@@ -526,11 +555,13 @@ void TrackTable::onMouseMove(const ui::MouseEvent& e) {
     }
     if (dragging_) dragdrop::move(e.windowPos);
     const int i = rowAt(e.pos.y);
-    const bool hh = heartHit(i, e.pos), ha = artistHit(i, e.pos);
-    if (i != hover_ || hh != hoverHeart_ || ha != hoverArtist_) {
+    const bool hh = heartHit(i, e.pos), ha = artistHit(i, e.pos), ra = recAddHit(i, e.pos), rh = recHideHit(i, e.pos);
+    if (i != hover_ || hh != hoverHeart_ || ha != hoverArtist_ || ra != hoverRecAdd_ || rh != hoverRecHide_) {
         hover_ = i;
         hoverHeart_ = hh;
         hoverArtist_ = ha;
+        hoverRecAdd_ = ra;
+        hoverRecHide_ = rh;
         invalidate();
     }
 }
@@ -540,7 +571,9 @@ void TrackTable::onMouseLeave() {
     invalidate();
 }
 
-LPCWSTR TrackTable::cursor() const { return (hoverHeart_ || hoverArtist_) ? IDC_HAND : IDC_ARROW; }
+LPCWSTR TrackTable::cursor() const {
+    return (hoverHeart_ || hoverArtist_ || hoverRecAdd_ || hoverRecHide_) ? IDC_HAND : IDC_ARROW;
+}
 
 void TrackTable::headerClick(float x) {
     const Columns cl = columns();
@@ -573,11 +606,21 @@ bool TrackTable::onMouseDown(const ui::MouseEvent& e) {
         std::vector<catalog::Track> sel;
         for (int k : view_)
             if (selected_.contains(k)) sel.push_back(tracks_[k]);
-        showTrackMenu(sel, e.windowPos, playlistId_);
+        showTrackMenu(sel, e.windowPos, playlistId_, recommendKey_);
         invalidate();
         return false;
     }
     if (e.button != ui::MouseButton::Left) return false;
+    if (recAddHit(i, e.pos)) {
+        const auto add = onAddRecommended;   // the page may rebuild the table
+        add(t);
+        return true;
+    }
+    if (recHideHit(i, e.pos)) {
+        const auto hide = onHideRecommended;
+        hide(t);
+        return true;
+    }
     if (heartHit(i, e.pos)) {
         ctx().library.toggleLiked(t);
         return true;
@@ -633,10 +676,11 @@ std::vector<catalog::Track> TrackTable::dragTracks() const {
     const int pressed = view_[pressRow_];
     if (!selected_.contains(pressed)) {   // a ctrl-click just took it out of the selection: drag it alone
         if (!tracks_[pressed].id.empty()) out.push_back(tracks_[pressed]);
-        return out;
+    } else {
+        for (int k : view_)   // display order
+            if (selected_.contains(k) && !tracks_[k].id.empty()) out.push_back(tracks_[k]);
     }
-    for (int k : view_)   // display order
-        if (selected_.contains(k) && !tracks_[k].id.empty()) out.push_back(tracks_[k]);
+    for (auto& t : out) t.recommended = false;   // dropped somewhere, a recommendation becomes the user's song
     return out;
 }
 
@@ -681,7 +725,7 @@ bool TrackTable::onKeyDown(const ui::KeyEvent& e) {
         for (int k : view_)
             if (selected_.contains(k)) sel.push_back(tracks_[k]);
         const Rect rr = toWindow(rowRect(i));
-        showTrackMenu(sel, {rr.x + 48, rr.bottom()}, playlistId_);
+        showTrackMenu(sel, {rr.x + 48, rr.bottom()}, playlistId_, recommendKey_);
         invalidate();
         return true;
     }

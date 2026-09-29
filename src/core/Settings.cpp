@@ -72,6 +72,8 @@ void Settings::load() {
     read(j, "discordAppId", discordAppId);
     read(j, "sponsorBlockEnabled", sponsorBlockEnabled);
     read(j, "endlessPlayback", endlessPlayback);
+    read(j, "smartShuffle", smartShuffle);
+    read(j, "enhancedCollections", enhancedCollections);
     read(j, "altSource", altSource);
     read(j, "altSourceInstance", altSourceInstance);
     read(j, "localFolders", localFolders);
@@ -134,6 +136,8 @@ void Settings::save() const {
         {"discordAppId", discordAppId},
         {"sponsorBlockEnabled", sponsorBlockEnabled},
         {"endlessPlayback", endlessPlayback},
+        {"smartShuffle", smartShuffle},
+        {"enhancedCollections", enhancedCollections},
         {"altSource", altSource},
         {"altSourceInstance", altSourceInstance},
         {"localFolders", localFolders},

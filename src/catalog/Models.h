@@ -46,6 +46,8 @@ struct Track {
     int64_t listenCount = 0;        // ListenBrainz popularity (0 = unknown)
     std::string uid;                // Spotify playlist row uid (fetchPlaylist items), needed to remove that row;
                                     // empty everywhere else (not persisted)
+    bool recommended = false;       // mixed in by smart shuffle / "Geliştir" (app/SmartShuffle): not part of the
+                                    // list it plays with (the player's session keeps it; catalogs never set it)
 
     std::string artistLine() const; // "Artist A, Artist B"
 };

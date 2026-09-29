@@ -4,6 +4,7 @@
 #include "app/LyricsService.h"
 #include "app/PodcastUi.h"
 #include "app/Shell.h"
+#include "app/SmartShuffle.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -472,6 +473,8 @@ void NowPlayingView::paint(Canvas& c) {
         } else {
             // Like Spotube, no stream / source wording (bitrate, YouTube / Piped / Invidious): the duration and how
             // sure the match is, next to "Yanlış eşleşme?".
+            // A smart shuffle / "Geliştir" recommendation says so first.
+            const float mx = t->recommended ? artRect_.x + smartshuffle::drawBadge(c, artRect_.x, y + 8) + 10 : artRect_.x;
             std::wstring meta = ui::formatDuration(p->durationMs());
             if (auto m = p->currentMatch()) {
                 const int pct = static_cast<int>(std::round(std::clamp(m->score, 0.0, 100.0)));
@@ -479,12 +482,12 @@ void NowPlayingView::paint(Canvas& c) {
             }
             meta_.setText(meta);
             const float mw = std::ceil(meta_.measure().w);
-            c.text(meta_, {artRect_.x, y, mw + 1, 16}, col.fgTertiary, gfx::VAlign::Center);
+            c.text(meta_, {mx, y, mw + 1, 16}, col.fgTertiary, gfx::VAlign::Center);
             const std::wstring wrongMatch = tr(L"Yanlış eşleşme?");
             auto wl = gfx::makeLayout(wrongMatch, type::caption, 400);
             DWRITE_TEXT_METRICS wm{};
             wl->GetMetrics(&wm);
-            matchRect_ = {artRect_.x + mw + 14, y - 2, std::ceil(wm.widthIncludingTrailingWhitespace) + 4, 20};
+            matchRect_ = {mx + mw + 14, y - 2, std::ceil(wm.widthIncludingTrailingWhitespace) + 4, 20};
             c.text(wrongMatch, type::caption, matchRect_, matchHover_ ? accent().base : col.fgSecondary,
                    gfx::TextAlign::Leading, gfx::VAlign::Center);
         }

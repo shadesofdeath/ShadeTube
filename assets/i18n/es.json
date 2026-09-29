@@ -1219,5 +1219,17 @@
   "İçe aktar": "Importar",
   "İçe aktarılan geçmiş kaldırıldı": "Historial importado quitado",
   "İçe aktarılan geçmiş kaldırılsın mı?": "¿Quitar el historial importado?",
-  "İçe aktarılan geçmişi kaldır": "Quitar historial importado"
+  "İçe aktarılan geçmişi kaldır": "Quitar historial importado",
+  "Akıllı karıştırma": "Aleatorio inteligente",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "Aleatorio inteligente activado: se mezclan canciones recomendadas que encajan con tu lista",
+  "Akıllı karıştırma kapalı": "Aleatorio inteligente desactivado",
+  "Akıllı karıştırmayı aç / kapat": "Activar / desactivar el aleatorio inteligente",
+  "Bu liste için öneri bulunamadı": "No se encontraron recomendaciones para esta lista",
+  "Bu öneriyi listeye ekle": "Añadir esta recomendación a la lista",
+  "Geliştir": "Mejorar",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "Con el aleatorio activado, cada 3–4 canciones se mezclan canciones recomendadas que encajan con la lista que suena, marcadas como «Recomendada». Pulsar el botón de aleatorio por segunda vez también lo activa. Las recomendaciones vienen de la radio de Spotify (si estás conectado), los artistas similares de ListenBrainz y tus archivos locales.",
+  "Listeye uyan önerilen şarkıları aralara ekle": "Intercalar canciones recomendadas que encajan con esta lista",
+  "Önerilen": "Recomendada",
+  "Öneriler kapatıldı": "Recomendaciones desactivadas",
+  "Önerileri gösterme": "No mostrar recomendaciones"
 }
