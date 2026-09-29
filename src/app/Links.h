@@ -6,9 +6,10 @@
 //   open.spotify.com/[intl-xx/][embed/]{track,album,playlist,artist}/<22-char base62 id>, the legacy
 //   /user/<name>/playlist/<id>, and spotify:{track,album,playlist,artist}:<id> (also spotify:user:<name>:playlist:<id>);
 //   youtube.com / m. / music. / youtube-nocookie.com: /watch?v=<id>, /shorts/<id>, /embed/<id>, /live/<id>, /v/<id>,
-//   and youtu.be/<id> (11-char video ids);
+//   and youtu.be/<id> (11-char video ids); youtube.com / music.youtube.com /playlist?list=<id> (imported as a local
+//   playlist: app/PlaylistTransfer);
 //   musicbrainz.org/{release-group,release,artist,recording}/<mbid>[/...].
-// Links of those services to things ShadeTube can't open (podcasts, users, YouTube playlists or channels,
+// Links of those services to things ShadeTube can't open (podcasts, users, YouTube channels,
 // spotify.link short links...) parse as Kind::Unsupported, so the caller can say so instead of searching for a URL.
 //
 // Standalone (tests/links compiles it): the standard library only.
@@ -26,6 +27,7 @@ enum class Kind {
     SpotifyPlaylist,
     SpotifyArtist,
     YouTubeVideo,
+    YouTubePlaylist,    // imported as a local playlist
     MbReleaseGroup,     // what ShadeTube calls an album in MusicBrainz mode
     MbRelease,          // one edition: opened as its release group
     MbArtist,
@@ -36,7 +38,8 @@ enum class Kind {
 struct Link {
     Kind kind = Kind::None;
     Service service = Service::None;
-    std::string id;     // base62 (Spotify), 11-char video id (YouTube), lower-case MBID (MusicBrainz); "" for Unsupported
+    std::string id;     // base62 (Spotify), 11-char video id / playlist id (YouTube), lower-case MBID (MusicBrainz);
+                        // "" for Unsupported
     explicit operator bool() const { return kind != Kind::None; }
     // "spotify:album:<id>" for the Spotify kinds (the catalog id the app uses), "" otherwise.
     std::string spotifyUri() const;
@@ -47,6 +50,7 @@ Link parse(std::wstring_view text);   // UTF-16 text from the search box / clipb
 
 bool isSpotifyId(std::string_view s);   // 22 base62 characters
 bool isVideoId(std::string_view s);     // 11 characters of [A-Za-z0-9_-]
+bool isPlaylistId(std::string_view s);  // 12..64 characters of [A-Za-z0-9_-] (PL..., OLAK5uy_..., RD...)
 bool isMbid(std::string_view s);        // 8-4-4-4-12 hex (either case)
 
 // A YouTube video shown as a song: "Artist - Title (Official Video)" by "ArtistVEVO" -> {"Artist", "Title"}.

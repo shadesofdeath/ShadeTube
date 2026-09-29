@@ -218,7 +218,10 @@ private:
                 for (const auto* i : active) {
                     auto* row = c->add<DownloadRow>(*i);
                     const std::string id = i->track.id;
-                    row->onCancel = [id] { ctx().downloads.cancel(id); };
+                    // Cancelling a sync download takes the song out of its synced collection (else the next pass
+                    // would queue it again).
+                    if (i->synced) row->onCancel = [t = i->track] { sync::excludeTracks({t}); };
+                    else row->onCancel = [id] { ctx().downloads.cancel(id); };
                     row->onRetry = [i2 = *i] { ctx().downloads.enqueue(i2.track); };
                 }
             }

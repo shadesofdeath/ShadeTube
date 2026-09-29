@@ -1081,5 +1081,104 @@
   "İçe aktar": "インポート",
   "İçe aktarılan geçmiş kaldırıldı": "インポートした履歴を削除しました",
   "İçe aktarılan geçmiş kaldırılsın mı?": "インポートした履歴を削除しますか？",
-  "İçe aktarılan geçmişi kaldır": "インポートした履歴を削除"
+  "İçe aktarılan geçmişi kaldır": "インポートした履歴を削除",
+  "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "「{}」を同期するとき、これらの曲はダウンロードされません。戻した曲は次の同期でダウンロードされます。",
+  "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "YouTube または YouTube Music の再生リストのリンクを貼り付けてください。動画はそのままの音源を再生するローカルの再生リストになります。",
+  "Bu bir YouTube oynatma listesi bağlantısı değil": "YouTube の再生リストのリンクではありません",
+  "CSV tablosu (Excel)": "CSV 表 (Excel)",
+  "Dosyadan içe aktar…": "ファイルから読み込む…",
+  "Dosyayı göster": "ファイルを表示",
+  "Dışa aktar": "書き出す",
+  "Dışa aktarılacak şarkı yok": "書き出す曲がありません",
+  "Dışa aktar…": "書き出す…",
+  "Geri al": "戻す",
+  "Hariç tutulan şarkılar": "除外した曲",
+  "Hariç tutulanlar ({})": "除外した曲 ({})",
+  "Hepsini geri al": "すべて戻す",
+  "Liste alınamadı": "リストを取得できませんでした",
+  "Liste dışa aktarılamadı": "リストを書き出せませんでした",
+  "Liste hazırlanıyor…": "リストを準備しています…",
+  "Liste okunamadı": "リストを読み込めませんでした",
+  "Liste okunuyor…": "リストを読み込んでいます…",
+  "Listede şarkı bulunamadı": "リストに曲が見つかりません",
+  "Listede şarkı bulunamadı; {} satır okunamadı": {
+    "other": "曲が見つかりません。{} 行を読み取れませんでした"
+  },
+  "M3U8 çalma listesi (VLC, foobar2000, Winamp…)": "M3U8 再生リスト (VLC、foobar2000、Winamp…)",
+  "Satır {}: {}": "{} 行目: {}",
+  "Senkrona geri al": "同期に戻す",
+  "Senkrondan çıkar": "同期から除外",
+  "ShadeTube listesi (JSON)": "ShadeTube リスト (JSON)",
+  "Spotify listesi oluşturulamadı": "Spotify の再生リストを作成できませんでした",
+  "Spotify listesine yalnızca {} şarkı eklenebildi": {
+    "other": "Spotify の再生リストに追加できたのは {} 曲だけです"
+  },
+  "Spotify'a bağlı değilsin": "Spotify に接続していません",
+  "Spotify'da da oluştur": "Spotify にも作成する",
+  "Spotify'da da oluşturuldu: {} şarkı": {
+    "other": "Spotify にも作成しました: {} 曲"
+  },
+  "Sırayı dışa aktar…": "キューを書き出す…",
+  "XSPF çalma listesi": "XSPF 再生リスト",
+  "Yerel listeye aktar": "ローカルの再生リストに読み込む",
+  "YouTube listesinden içe aktar": "YouTube の再生リストを読み込む",
+  "YouTube listesinden içe aktar…": "YouTube の再生リストを読み込む…",
+  "YouTube oynatma listesi": "YouTube の再生リスト",
+  "senkrondan da çıkarıldı": "同期からも除外しました",
+  "ve {} satır daha": {
+    "other": "ほか {} 行"
+  },
+  "ve {} şarkı daha": {
+    "other": "ほか {} 曲"
+  },
+  "{} Spotify şarkısıyla hesabında da bir liste oluşturulur.": {
+    "other": "Spotify の曲 {} 曲の再生リストがアカウントにも作成されます。"
+  },
+  "{} YouTube videosu": {
+    "other": "YouTube 動画 {} 本"
+  },
+  "{} hariç": {
+    "other": "{} 曲を除外"
+  },
+  "{} indirilen şarkı silindi": {
+    "other": "ダウンロードした {} 曲を削除しました"
+  },
+  "{} indirileni sil": {
+    "other": "ダウンロード {} 件を削除"
+  },
+  "{} satır okunamadı": {
+    "other": "{} 行を読み取れませんでした"
+  },
+  "{} yerel dosya": {
+    "other": "ローカルファイル {} 件"
+  },
+  "{} şarkı bulundu": {
+    "other": "{} 曲が見つかりました"
+  },
+  "{} şarkı dışa aktarıldı": {
+    "other": "{} 曲を書き出しました"
+  },
+  "{} şarkı içe aktarıldı": {
+    "other": "{} 曲を読み込みました"
+  },
+  "{} şarkı senkrondan çıkarıldı": {
+    "other": "{} 曲を同期から除外しました"
+  },
+  "{} şarkı yeniden senkronize edilecek": {
+    "other": "{} 曲を再び同期します"
+  },
+  "{} şarkının dosyası bu bilgisayardan silinecek. İstediğinde yeniden indirebilirsin.": {
+    "other": "{} 曲のファイルをこの PC から削除します。いつでも再ダウンロードできます。"
+  },
+  "Çalma listeleri (M3U, CSV, XSPF, JSON)": "再生リスト (M3U、CSV、XSPF、JSON)",
+  "Çalma listesi içe aktar": "再生リストを読み込む",
+  "Çalma listesini dışa aktar": "再生リストを書き出す",
+  "Çalma listesini içe aktar": "再生リストを読み込む",
+  "Çalma sırası": "キュー",
+  "İndirilen şarkı silindi": "ダウンロードした曲を削除しました",
+  "İndirilenler silinsin mi?": "これらのダウンロードを削除しますか?",
+  "İçe aktarılan liste": "読み込んだ再生リスト",
+  "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "曲を同期から除外しました。再ダウンロードされません",
+  "Şarkı yeniden senkronize edilecek": "曲を再び同期します",
+  "Listeyi içe aktar": "再生リストを読み込む"
 }

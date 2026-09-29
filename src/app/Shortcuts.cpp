@@ -45,6 +45,7 @@ constexpr Action kActions[] = {
     {"go-radio", [] { return tr(L"Radyo"); }, Category::Navigation, "", 0, "radio"},
     {"go-stats", [] { return tr(L"İstatistikler"); }, Category::Navigation, "", 0, "stats"},
     {"settings", [] { return tr(L"Ayarlar"); }, Category::Navigation, "Ctrl+Comma", 0, "settings"},
+    {"import-playlist", [] { return tr(L"Çalma listesi içe aktar"); }, Category::Navigation, "", 0, "list"},
 
     {"now-playing", [] { return tr(L"Şimdi Çalıyor ekranı"); }, Category::View, "F11", 0, "expand"},
     {"queue", [] { return tr(L"Çalma sırası paneli"); }, Category::View, "", 0, "queue"},

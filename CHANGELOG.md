@@ -2,6 +2,21 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.6.0 — unreleased
+
+- **Playlist export**: save Liked Songs, any playlist, an album or the queue as M3U8 (VLC, foobar2000, Winamp…), a
+  CSV table that opens in Excel as is, XSPF, or ShadeTube's own JSON. "Dışa aktar…" in the list's menu, the sidebar,
+  Library cards and the queue. Downloaded songs and local files are written with their files.
+- **Playlist import**: turn an M3U / M3U8, XSPF, ShadeTube JSON or CSV file (from Exportify, TuneMyMusic, Soundiiz or
+  a plain "Artist - Title" list) into a local playlist: "İçe aktar" in the Library, the sidebar "+", the command
+  palette, or drop the file on the window. A preview shows what was found and which rows couldn't be read; logged in,
+  you can create it on Spotify too.
+- **YouTube playlists**: paste a YouTube or YouTube Music playlist link (or use "YouTube listesinden içe aktar…") and
+  it becomes a local playlist that plays exactly those videos.
+- **Exclude from sync**: take a song out of an offline collection ("Senkrondan çıkar" in its menu, or cancel its sync
+  download) and it stays out, even after the next sync. "İndirileni sil" deletes a downloaded song and keeps it from
+  coming back. Each synced collection lists its excluded songs, with a way to put them back.
+
 ## 0.5.0 — 2026-09-29
 
 - **Sound settings** (Settings › Sound): a 10-band equalizer with presets, a preamp and a response graph you drag

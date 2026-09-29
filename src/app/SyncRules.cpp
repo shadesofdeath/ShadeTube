@@ -44,6 +44,29 @@ Rule* findRule(State& s, const std::string& id) {
     return nullptr;
 }
 
+// ---- Excluded songs ------------------------------------------------------------------------------------------------
+
+bool isExcluded(const Rule& r, const std::string& trackId) {
+    return std::any_of(r.excluded.begin(), r.excluded.end(), [&](const Excluded& x) { return x.id == trackId; });
+}
+
+bool exclude(Rule& r, const Track& t, int64_t now) {
+    if (t.id.empty() || isExcluded(r, t.id)) return false;
+    r.excluded.push_back({t.id, t.name, t.artistLine(), now});
+    std::erase(r.trackIds, t.id);
+    return true;
+}
+
+bool include(Rule& r, const std::string& trackId) {
+    const auto n = std::erase_if(r.excluded, [&](const Excluded& x) { return x.id == trackId; });
+    return n > 0;
+}
+
+std::vector<Track> withoutExcluded(const Rule& r, std::vector<Track> tracks) {
+    if (!r.excluded.empty()) std::erase_if(tracks, [&r](const Track& t) { return isExcluded(r, t.id); });
+    return tracks;
+}
+
 // ---- Persistence ---------------------------------------------------------------------------------------------------
 
 json toJson(const State& s) {
@@ -53,6 +76,11 @@ json toJson(const State& s) {
         for (const auto& i : r.images) imgs.push_back({{"u", i.url}, {"w", i.width}, {"h", i.height}});
         json e{{"id", r.id},   {"k", kindName(r.kind)}, {"n", r.name},       {"img", std::move(imgs)},
                {"at", r.addedAt}, {"ls", r.lastSync},   {"tracks", r.trackIds}};
+        if (!r.excluded.empty()) {
+            json ex = json::array();
+            for (const auto& x : r.excluded) ex.push_back(json::array({x.id, x.name, x.artists, x.at}));
+            e["ex"] = std::move(ex);
+        }
         if (r.error != ListError::None) {
             e["err"] = static_cast<int>(r.error);
             e["ed"] = r.errorDetail;
@@ -91,6 +119,17 @@ State stateFromJson(const json& j) {
             r.errorDetail = e.value("ed", "");
             r.failures = std::max(0, e.value("fails", 0));
             r.retryAt = e.value("retry", int64_t{0});
+            if (auto ex = e.find("ex"); ex != e.end() && ex->is_array())   // absent before 0.6
+                for (const auto& x : *ex) {
+                    if (!x.is_array() || x.size() != 4 || !x[0].is_string() || x[0].get<std::string>().empty()) continue;
+                    Excluded ed;
+                    ed.id = x[0].get<std::string>();
+                    ed.name = x[1].is_string() ? x[1].get<std::string>() : std::string{};
+                    ed.artists = x[2].is_string() ? x[2].get<std::string>() : std::string{};
+                    ed.at = x[3].is_number_integer() ? x[3].get<int64_t>() : 0;
+                    if (!isExcluded(r, ed.id)) r.excluded.push_back(std::move(ed));
+                }
+            std::erase_if(r.trackIds, [&r](const std::string& id) { return isExcluded(r, id); });
             s.rules.push_back(std::move(r));
         }
     }

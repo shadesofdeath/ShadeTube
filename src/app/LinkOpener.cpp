@@ -1,6 +1,7 @@
 #include "app/LinkOpener.h"
 
 #include "app/AppContext.h"
+#include "app/PlaylistTransfer.h"
 #include "app/Router.h"
 #include "app/Source.h"
 #include "core/I18n.h"
@@ -197,6 +198,7 @@ std::wstring linkLabel(const Link& link) {
     case Kind::SpotifyPlaylist: return tr(L"Spotify çalma listesi");
     case Kind::SpotifyArtist: return tr(L"Spotify sanatçısı");
     case Kind::YouTubeVideo: return tr(L"YouTube videosu");
+    case Kind::YouTubePlaylist: return tr(L"YouTube oynatma listesi");
     case Kind::MbReleaseGroup:
     case Kind::MbRelease: return tr(L"MusicBrainz albümü");
     case Kind::MbArtist: return tr(L"MusicBrainz sanatçısı");
@@ -211,6 +213,7 @@ std::wstring linkAction(const Link& link) {
     case Kind::SpotifyTrack:
     case Kind::MbRecording: return tr(L"Şarkıyı çal");
     case Kind::YouTubeVideo: return tr(L"Videoyu şarkı olarak çal");
+    case Kind::YouTubePlaylist: return tr(L"Yerel listeye aktar");
     case Kind::SpotifyAlbum:
     case Kind::MbReleaseGroup:
     case Kind::MbRelease: return tr(L"Albümü aç");
@@ -260,6 +263,7 @@ bool openLink(const Link& link) {
         break;
     case Kind::SpotifyTrack: openSpotifyTrack(link.spotifyUri()); break;
     case Kind::YouTubeVideo: openYouTubeVideo(link.id); break;
+    case Kind::YouTubePlaylist: transfer::importYouTubePlaylist(link.id); break;
     case Kind::MbReleaseGroup:
         if (router) router->navigate({RouteKind::Album, link.id});
         break;

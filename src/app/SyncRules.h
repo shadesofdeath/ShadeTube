@@ -33,6 +33,15 @@ enum class ListError { None, NotFound, RateLimited, Network };
 inline constexpr const char* kLocalLikedId = "liked";
 inline constexpr const char* kSpotifyLikedId = "spotify:collection:tracks";
 
+// A song the user took out of a rule ("Senkrondan çıkar", or deleting its download): the rule's listings leave it out,
+// so it is not downloaded again, until the user lets it back in. Name and artists are kept for the list in Downloads.
+struct Excluded {
+    std::string id;
+    std::string name;
+    std::string artists;
+    int64_t at = 0;                        // unix seconds
+};
+
 struct Rule {
     std::string id;                        // kSpotifyLikedId | kLocalLikedId | playlist id | album id (spotify: URI / MBID)
     Kind kind = Kind::Playlist;
@@ -47,6 +56,7 @@ struct Rule {
     int failures = 0;                      // consecutive failed listings
     int64_t retryAt = 0;                   // backoff: no listing before this (unix seconds)
     int64_t changedAt = 0;                 // the collection changed here after lastSync (not persisted)
+    std::vector<Excluded> excluded;        // songs the user took out (never in trackIds), oldest first
 };
 
 // Automatic download attempts of one track by sync (the retry policy for failures).
@@ -63,6 +73,15 @@ struct State {
 bool isSpotifyRule(const Rule& r);         // needs a Spotify session to list
 const Rule* findRule(const State& s, const std::string& id);
 Rule* findRule(State& s, const std::string& id);
+
+// ---- Excluded songs ------------------------------------------------------------------------------------------------
+bool isExcluded(const Rule& r, const std::string& trackId);
+// Takes `t` out of the rule: listed in `excluded` (once) and dropped from its track ids. False when it already was.
+bool exclude(Rule& r, const catalog::Track& t, int64_t now);
+// Lets a song back in (the next listing puts it in its place). False when it wasn't excluded.
+bool include(Rule& r, const std::string& trackId);
+// A listing without the rule's excluded songs.
+std::vector<catalog::Track> withoutExcluded(const Rule& r, std::vector<catalog::Track> tracks);
 
 // ---- Persistence ---------------------------------------------------------------------------------------------------
 nlohmann::json toJson(const State& s);

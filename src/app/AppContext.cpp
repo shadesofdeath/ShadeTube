@@ -1,6 +1,7 @@
 #include "app/AppContext.h"
 
 #include "app/Blacklist.h"
+#include "app/DownloadSync.h"
 #include "app/InternetRadio.h"
 #include "app/LocalLibrary.h"
 #include "app/PodcastUi.h"
@@ -408,9 +409,11 @@ int Library::addToPlaylist(const std::string& id, const std::vector<Track>& trac
     auto it = playlistTracks_.find(id);
     if (it == playlistTracks_.end()) return 0;
     int added = 0;
+    std::unordered_set<std::string> have;   // linear for large imports (thousands of songs)
+    have.reserve(it->second.size() + tracks.size());
+    for (const auto& x : it->second) have.insert(x.id);
     for (const auto& t : tracks) {
-        if (t.id.empty()) continue;
-        if (std::any_of(it->second.begin(), it->second.end(), [&](const Track& x) { return x.id == t.id; })) continue;
+        if (t.id.empty() || !have.insert(t.id).second) continue;
         Track copy = t;
         copy.addedAt = nowUnix();
         it->second.push_back(std::move(copy));
@@ -934,6 +937,8 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
         items.push_back({tr(L"Klasöre indir…"), "folder", L"", [downloadable, windowPos] {
                              Dispatcher::post([downloadable, windowPos] { showDownloadFolderMenu(downloadable, windowPos); });
                          }});
+        // Delete the download; take songs out of (or back into) the synced collections that keep them offline.
+        for (auto& it : sync::trackMenuItems(downloadable)) items.push_back(std::move(it));
         items.push_back(ui::MenuItem::sep());
     }
     if (!many) {

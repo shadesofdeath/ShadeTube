@@ -2,6 +2,7 @@
 
 #include "app/DroppedFiles.h"
 #include "app/LocalLibrary.h"
+#include "app/PlaylistTransfer.h"
 #include "app/Shell.h"
 #include "app/Source.h"
 #include "core/I18n.h"
@@ -53,6 +54,13 @@ bool primaryButtonDown() {
 void cancelDrag();
 void updateDrag(gfx::Point p);
 
+// Explorer files that include a playlist file (M3U, CSV, XSPF, JSON): the drop imports it, wherever it lands.
+const std::wstring* playlistFile(const DragPayload& p) {
+    for (const auto& f : p.files)
+        if (transfer::isPlaylistFile(f)) return &f;
+    return nullptr;
+}
+
 // Follows the pointer: count + first title for songs, what the drop does for files. Never hit-testable.
 class DragGhost : public ui::Widget {
 public:
@@ -73,15 +81,16 @@ public:
         const gfx::Point p = g_drag.pos;
         float x = std::round(p.x + 16), y = std::round(p.y + 12);
         if (g_drag.explorer) {
-            // Over the queue: "Sıraya ekle"; anywhere else the files play at once.
-            const bool queue = g_drag.accepted;
-            label_.setText(queue ? tr(L"Sıraya ekle") : tr(L"Şimdi çal"));
+            // A playlist file: "Listeyi içe aktar". Over the queue: "Sıraya ekle"; anywhere else the files play at once.
+            const bool list = playlistFile(g_drag.payload) != nullptr;
+            const bool queue = !list && g_drag.accepted;
+            label_.setText(list ? tr(L"Listeyi içe aktar") : queue ? tr(L"Sıraya ekle") : tr(L"Şimdi çal"));
             const float w = std::ceil(label_.measure().w) + 16 + 8 + 14 + 14;
             const Rect r{x, y, w, 32};
             c.shadow(r, 2, 24, 8, col.shadowToast);
             c.fillRounded(r, 2, col.bgElevated);
             c.strokeRounded(r, 2, acc.base);
-            c.icon(queue ? "queue" : "play", {r.x + 12, r.cy() - 7, 14, 14}, acc.base);
+            c.icon(list ? "list" : queue ? "queue" : "play", {r.x + 12, r.cy() - 7, 14, 14}, acc.base);
             c.text(label_, {r.x + 12 + 14 + 8, r.y, w, r.h}, col.fgPrimary, gfx::VAlign::Center);
         } else {
             const float bw = std::max(18.f, std::ceil(count_.measure().w) + 10);
@@ -125,7 +134,7 @@ DropTarget* targetAt(gfx::Point p) {
 
 void updateDrag(gfx::Point p) {
     g_drag.pos = p;
-    DropTarget* t = targetAt(p);
+    DropTarget* t = playlistFile(g_drag.payload) ? nullptr : targetAt(p);
     if (g_drag.target && g_drag.target != t) g_drag.target->dragLeave();
     g_drag.target = t;
     g_drag.accepted = t && t->dragOver(g_drag.payload, p);
@@ -233,7 +242,9 @@ public:
     STDMETHODIMP DragEnter(IDataObject* data, DWORD, POINTL pt, DWORD* effect) override {
         valid_ = false;
         auto files = filesOf(data);
-        if (usable() && std::any_of(files.begin(), files.end(), dropped::droppable)) {
+        if (usable() && std::any_of(files.begin(), files.end(), [](const std::wstring& f) {
+                return dropped::droppable(f) || transfer::isPlaylistFile(f);
+            })) {
             valid_ = true;
             DragPayload payload;
             payload.files = std::move(files);
@@ -302,7 +313,8 @@ void finish(gfx::Point windowPos) {
     const DragPayload payload = std::move(g_drag.payload);
     const bool explorer = g_drag.explorer;
     endDrag();
-    if (target) target->drop(payload, windowPos);
+    if (const std::wstring* list = explorer ? playlistFile(payload) : nullptr) transfer::importFile(*list);
+    else if (target) target->drop(payload, windowPos);
     else if (explorer) playDropped(payload.files, -1);   // files dropped anywhere else play at once
 }
 

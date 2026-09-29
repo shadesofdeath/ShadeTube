@@ -1081,5 +1081,104 @@
   "İçe aktar": "Impor",
   "İçe aktarılan geçmiş kaldırıldı": "Riwayat impor dihapus",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Hapus riwayat impor?",
-  "İçe aktarılan geçmişi kaldır": "Hapus riwayat impor"
+  "İçe aktarılan geçmişi kaldır": "Hapus riwayat impor",
+  "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "Lagu-lagu ini tidak diunduh saat \"{}\" disinkronkan. Lagu yang kamu kembalikan diunduh pada sinkronisasi berikutnya.",
+  "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "Tempel tautan playlist YouTube atau YouTube Music. Videonya menjadi playlist lokal yang memutar persis rekaman itu.",
+  "Bu bir YouTube oynatma listesi bağlantısı değil": "Itu bukan tautan playlist YouTube",
+  "CSV tablosu (Excel)": "Tabel CSV (Excel)",
+  "Dosyadan içe aktar…": "Impor dari file…",
+  "Dosyayı göster": "Tampilkan file",
+  "Dışa aktar": "Ekspor",
+  "Dışa aktarılacak şarkı yok": "Tidak ada lagu untuk diekspor",
+  "Dışa aktar…": "Ekspor…",
+  "Geri al": "Kembalikan",
+  "Hariç tutulan şarkılar": "Lagu yang dikecualikan",
+  "Hariç tutulanlar ({})": "Dikecualikan ({})",
+  "Hepsini geri al": "Kembalikan semua",
+  "Liste alınamadı": "Daftar tidak bisa diambil",
+  "Liste dışa aktarılamadı": "Daftar tidak bisa diekspor",
+  "Liste hazırlanıyor…": "Menyiapkan daftar…",
+  "Liste okunamadı": "Daftar tidak bisa dibaca",
+  "Liste okunuyor…": "Membaca daftar…",
+  "Listede şarkı bulunamadı": "Tidak ada lagu di daftar",
+  "Listede şarkı bulunamadı; {} satır okunamadı": {
+    "other": "Tidak ada lagu; {} baris tidak bisa dibaca"
+  },
+  "M3U8 çalma listesi (VLC, foobar2000, Winamp…)": "Playlist M3U8 (VLC, foobar2000, Winamp…)",
+  "Satır {}: {}": "Baris {}: {}",
+  "Senkrona geri al": "Sinkronkan lagi",
+  "Senkrondan çıkar": "Kecualikan dari sinkronisasi",
+  "ShadeTube listesi (JSON)": "Daftar ShadeTube (JSON)",
+  "Spotify listesi oluşturulamadı": "Playlist Spotify tidak bisa dibuat",
+  "Spotify listesine yalnızca {} şarkı eklenebildi": {
+    "other": "Hanya {} lagu yang bisa ditambahkan ke playlist Spotify"
+  },
+  "Spotify'a bağlı değilsin": "Kamu tidak terhubung ke Spotify",
+  "Spotify'da da oluştur": "Buat juga di Spotify",
+  "Spotify'da da oluşturuldu: {} şarkı": {
+    "other": "Juga dibuat di Spotify: {} lagu"
+  },
+  "Sırayı dışa aktar…": "Ekspor antrean…",
+  "XSPF çalma listesi": "Playlist XSPF",
+  "Yerel listeye aktar": "Impor sebagai playlist lokal",
+  "YouTube listesinden içe aktar": "Impor playlist YouTube",
+  "YouTube listesinden içe aktar…": "Impor playlist YouTube…",
+  "YouTube oynatma listesi": "Playlist YouTube",
+  "senkrondan da çıkarıldı": "juga dikecualikan dari sinkronisasi",
+  "ve {} satır daha": {
+    "other": "dan {} baris lagi"
+  },
+  "ve {} şarkı daha": {
+    "other": "dan {} lagu lagi"
+  },
+  "{} Spotify şarkısıyla hesabında da bir liste oluşturulur.": {
+    "other": "Playlist berisi {} lagu Spotify juga dibuat di akunmu."
+  },
+  "{} YouTube videosu": {
+    "other": "{} video YouTube"
+  },
+  "{} hariç": {
+    "other": "{} dikecualikan"
+  },
+  "{} indirilen şarkı silindi": {
+    "other": "{} lagu unduhan dihapus"
+  },
+  "{} indirileni sil": {
+    "other": "Hapus {} unduhan"
+  },
+  "{} satır okunamadı": {
+    "other": "{} baris tidak bisa dibaca"
+  },
+  "{} yerel dosya": {
+    "other": "{} file lokal"
+  },
+  "{} şarkı bulundu": {
+    "other": "{} lagu ditemukan"
+  },
+  "{} şarkı dışa aktarıldı": {
+    "other": "{} lagu diekspor"
+  },
+  "{} şarkı içe aktarıldı": {
+    "other": "{} lagu diimpor"
+  },
+  "{} şarkı senkrondan çıkarıldı": {
+    "other": "{} lagu dikecualikan dari sinkronisasi"
+  },
+  "{} şarkı yeniden senkronize edilecek": {
+    "other": "{} lagu akan disinkronkan lagi"
+  },
+  "{} şarkının dosyası bu bilgisayardan silinecek. İstediğinde yeniden indirebilirsin.": {
+    "other": "File {} lagu akan dihapus dari PC ini. Kamu bisa mengunduhnya lagi kapan saja."
+  },
+  "Çalma listeleri (M3U, CSV, XSPF, JSON)": "Playlist (M3U, CSV, XSPF, JSON)",
+  "Çalma listesi içe aktar": "Impor playlist",
+  "Çalma listesini dışa aktar": "Ekspor playlist",
+  "Çalma listesini içe aktar": "Impor playlist",
+  "Çalma sırası": "Antrean",
+  "İndirilen şarkı silindi": "Lagu unduhan dihapus",
+  "İndirilenler silinsin mi?": "Hapus unduhan ini?",
+  "İçe aktarılan liste": "Playlist impor",
+  "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Lagu dikecualikan dari sinkronisasi; tidak akan diunduh lagi",
+  "Şarkı yeniden senkronize edilecek": "Lagu akan disinkronkan lagi",
+  "Listeyi içe aktar": "Impor playlist"
 }

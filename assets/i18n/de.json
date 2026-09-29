@@ -1219,5 +1219,122 @@
   "İçe aktar": "Importieren",
   "İçe aktarılan geçmiş kaldırıldı": "Importierter Verlauf entfernt",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Importierten Verlauf entfernen?",
-  "İçe aktarılan geçmişi kaldır": "Importierten Verlauf entfernen"
+  "İçe aktarılan geçmişi kaldır": "Importierten Verlauf entfernen",
+  "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "Diese Songs werden beim Synchronisieren von „{}“ nicht heruntergeladen. Ein zurückgeholter Song wird beim nächsten Sync geladen.",
+  "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "Füge den Link einer YouTube- oder YouTube-Music-Playlist ein. Ihre Videos werden zu einer lokalen Playlist, die genau diese Aufnahmen abspielt.",
+  "Bu bir YouTube oynatma listesi bağlantısı değil": "Das ist kein Link zu einer YouTube-Playlist",
+  "CSV tablosu (Excel)": "CSV-Tabelle (Excel)",
+  "Dosyadan içe aktar…": "Aus Datei importieren…",
+  "Dosyayı göster": "Datei anzeigen",
+  "Dışa aktar": "Exportieren",
+  "Dışa aktarılacak şarkı yok": "Keine Songs zum Exportieren",
+  "Dışa aktar…": "Exportieren…",
+  "Geri al": "Zurückholen",
+  "Hariç tutulan şarkılar": "Ausgeschlossene Songs",
+  "Hariç tutulanlar ({})": "Ausgeschlossen ({})",
+  "Hepsini geri al": "Alle zurückholen",
+  "Liste alınamadı": "Liste konnte nicht geladen werden",
+  "Liste dışa aktarılamadı": "Liste konnte nicht exportiert werden",
+  "Liste hazırlanıyor…": "Liste wird vorbereitet…",
+  "Liste okunamadı": "Liste konnte nicht gelesen werden",
+  "Liste okunuyor…": "Liste wird gelesen…",
+  "Listede şarkı bulunamadı": "Keine Songs in der Liste gefunden",
+  "Listede şarkı bulunamadı; {} satır okunamadı": {
+    "one": "Keine Songs gefunden; {} Zeile war nicht lesbar",
+    "other": "Keine Songs gefunden; {} Zeilen waren nicht lesbar"
+  },
+  "M3U8 çalma listesi (VLC, foobar2000, Winamp…)": "M3U8-Playlist (VLC, foobar2000, Winamp…)",
+  "Satır {}: {}": "Zeile {}: {}",
+  "Senkrona geri al": "Wieder synchronisieren",
+  "Senkrondan çıkar": "Von der Synchronisierung ausnehmen",
+  "ShadeTube listesi (JSON)": "ShadeTube-Liste (JSON)",
+  "Spotify listesi oluşturulamadı": "Spotify-Playlist konnte nicht erstellt werden",
+  "Spotify listesine yalnızca {} şarkı eklenebildi": {
+    "one": "Nur {} Song konnte zur Spotify-Playlist hinzugefügt werden",
+    "other": "Nur {} Songs konnten zur Spotify-Playlist hinzugefügt werden"
+  },
+  "Spotify'a bağlı değilsin": "Du bist nicht mit Spotify verbunden",
+  "Spotify'da da oluştur": "Auch bei Spotify erstellen",
+  "Spotify'da da oluşturuldu: {} şarkı": {
+    "one": "Auch bei Spotify erstellt: {} Song",
+    "other": "Auch bei Spotify erstellt: {} Songs"
+  },
+  "Sırayı dışa aktar…": "Warteschlange exportieren…",
+  "XSPF çalma listesi": "XSPF-Playlist",
+  "Yerel listeye aktar": "Als lokale Playlist importieren",
+  "YouTube listesinden içe aktar": "YouTube-Playlist importieren",
+  "YouTube listesinden içe aktar…": "YouTube-Playlist importieren…",
+  "YouTube oynatma listesi": "YouTube-Playlist",
+  "senkrondan da çıkarıldı": "auch von der Synchronisierung ausgenommen",
+  "ve {} satır daha": {
+    "one": "und {} weitere Zeile",
+    "other": "und {} weitere Zeilen"
+  },
+  "ve {} şarkı daha": {
+    "one": "und {} weiterer Song",
+    "other": "und {} weitere Songs"
+  },
+  "{} Spotify şarkısıyla hesabında da bir liste oluşturulur.": {
+    "one": "In deinem Konto wird zusätzlich eine Playlist mit {} Spotify-Song erstellt.",
+    "other": "In deinem Konto wird zusätzlich eine Playlist mit {} Spotify-Songs erstellt."
+  },
+  "{} YouTube videosu": {
+    "one": "{} YouTube-Video",
+    "other": "{} YouTube-Videos"
+  },
+  "{} hariç": {
+    "one": "{} ausgenommen",
+    "other": "{} ausgenommen"
+  },
+  "{} indirilen şarkı silindi": {
+    "one": "{} heruntergeladener Song gelöscht",
+    "other": "{} heruntergeladene Songs gelöscht"
+  },
+  "{} indirileni sil": {
+    "one": "{} Download löschen",
+    "other": "{} Downloads löschen"
+  },
+  "{} satır okunamadı": {
+    "one": "{} Zeile nicht lesbar",
+    "other": "{} Zeilen nicht lesbar"
+  },
+  "{} yerel dosya": {
+    "one": "{} lokale Datei",
+    "other": "{} lokale Dateien"
+  },
+  "{} şarkı bulundu": {
+    "one": "{} Song gefunden",
+    "other": "{} Songs gefunden"
+  },
+  "{} şarkı dışa aktarıldı": {
+    "one": "{} Song exportiert",
+    "other": "{} Songs exportiert"
+  },
+  "{} şarkı içe aktarıldı": {
+    "one": "{} Song importiert",
+    "other": "{} Songs importiert"
+  },
+  "{} şarkı senkrondan çıkarıldı": {
+    "one": "{} Song von der Synchronisierung ausgenommen",
+    "other": "{} Songs von der Synchronisierung ausgenommen"
+  },
+  "{} şarkı yeniden senkronize edilecek": {
+    "one": "{} Song wird wieder synchronisiert",
+    "other": "{} Songs werden wieder synchronisiert"
+  },
+  "{} şarkının dosyası bu bilgisayardan silinecek. İstediğinde yeniden indirebilirsin.": {
+    "one": "Die Datei von {} Song wird von diesem PC gelöscht. Du kannst ihn jederzeit erneut herunterladen.",
+    "other": "Die Dateien von {} Songs werden von diesem PC gelöscht. Du kannst sie jederzeit erneut herunterladen."
+  },
+  "Çalma listeleri (M3U, CSV, XSPF, JSON)": "Playlists (M3U, CSV, XSPF, JSON)",
+  "Çalma listesi içe aktar": "Playlist importieren",
+  "Çalma listesini dışa aktar": "Playlist exportieren",
+  "Çalma listesini içe aktar": "Playlist importieren",
+  "Çalma sırası": "Warteschlange",
+  "İndirilen şarkı silindi": "Heruntergeladener Song gelöscht",
+  "İndirilenler silinsin mi?": "Diese Downloads löschen?",
+  "İçe aktarılan liste": "Importierte Playlist",
+  "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Song von der Synchronisierung ausgenommen; er wird nicht erneut geladen",
+  "Şarkı yeniden senkronize edilecek": "Der Song wird wieder synchronisiert",
+  "Listeyi içe aktar": "Playlist importieren"
 }

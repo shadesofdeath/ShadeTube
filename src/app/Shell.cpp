@@ -6,6 +6,7 @@
 #include "app/DroppedFiles.h"
 #include "app/InternetRadio.h"
 #include "app/NowPlaying.h"
+#include "app/PlaylistTransfer.h"
 #include "app/PodcastUi.h"
 #include "app/Source.h"
 #include "catalog/TrackKind.h"
@@ -266,9 +267,15 @@ Sidebar::Sidebar() {
     newPlaylist_ = add<Button>(ButtonKind::Icon, L"", "plus");
     newPlaylist_->setIconSize(14);
     newPlaylist_->setTooltip(tr(L"Yeni çalma listesi"));
-    newPlaylist_->onClick = [] {
-        // Logged in this creates the playlist on Spotify (then opens it); logged out, a local playlist.
-        promptNewPlaylist([](const std::string& id) { ctx().router->navigate({RouteKind::Playlist, id}); });
+    newPlaylist_->onClick = [this] {
+        const Rect br = newPlaylist_->toWindow(newPlaylist_->rect());
+        ui::Menu::open(ctx().window, {br.x, br.bottom() + 6},
+                       {// Logged in this creates the playlist on Spotify (then opens it); logged out, a local playlist.
+                        {tr(L"Yeni çalma listesi"), "plus", L"",
+                         [] { promptNewPlaylist([](const std::string& id) { ctx().router->navigate({RouteKind::Playlist, id}); }); }},
+                        ui::MenuItem::sep(),
+                        {tr(L"Dosyadan içe aktar…"), "folder", L"", [] { transfer::importFromFile(); }},
+                        {tr(L"YouTube listesinden içe aktar…"), "youtube-source", L"", [] { transfer::importFromLink(); }}});
     };
     list_ = add<ui::ScrollView>();
     listCol_ = list_->setContent<ui::Column>(0.f);
@@ -327,9 +334,11 @@ void Sidebar::refresh() {
                 const Route r = liked ? Route{RouteKind::Liked} : Route{RouteKind::Playlist, id};
                 Route rp = r;
                 rp.id += "#play";
-                std::vector<ui::MenuItem> items{{tr(L"Aç"), "arrow-up-right", L"", [r] { ctx().router->navigate(r); }},
-                                                {tr(L"Çal"), "play", L"", [rp] { ctx().router->navigate(rp); }},
-                                                sync::menuItem(offline)};
+                std::vector<ui::MenuItem> items{
+                    {tr(L"Aç"), "arrow-up-right", L"", [r] { ctx().router->navigate(r); }},
+                    {tr(L"Çal"), "play", L"", [rp] { ctx().router->navigate(rp); }},
+                    sync::menuItem(offline),
+                    transfer::exportMenuItem(liked ? transfer::What::Liked : transfer::What::Playlist, id, toUtf8(name))};
                 // Editable Spotify playlists (owned or collaborative): rename (owner only) / delete (unfollow).
                 if (editable) {
                     items.push_back(ui::MenuItem::sep());
@@ -350,7 +359,9 @@ void Sidebar::refresh() {
             ui::Menu::open(ctx().window, e.windowPos,
                            {{tr(L"Aç"), "arrow-up-right", L"", [] { ctx().router->navigate({RouteKind::Liked}); }},
                             {tr(L"Çal"), "play", L"", [] { ctx().router->navigate({RouteKind::Liked, "#play"}); }},
-                            sync::menuItem(sync::likedTarget())});
+                            sync::menuItem(sync::likedTarget()),
+                            transfer::exportMenuItem(transfer::What::Liked, sync::kLocalLikedId,
+                                                     toUtf8(tr(L"Beğenilen Şarkılar")))});
         };
         for (const auto& p : lib.playlists()) {
             auto* b = addItem(toWide(p.name), p.totalTracks, {RouteKind::Playlist, p.id});
@@ -361,6 +372,7 @@ void Sidebar::refresh() {
                                {{tr(L"Aç"), "arrow-up-right", L"", [id] { ctx().router->navigate({RouteKind::Playlist, id}); }},
                                 {tr(L"Çal"), "play", L"", [id] { ctx().router->navigate({RouteKind::Playlist, id + "#play"}); }},
                                 sync::menuItem(offline),
+                                transfer::exportMenuItem(transfer::What::Playlist, id, offline.name),
                                 ui::MenuItem::sep(),
                                 {tr(L"Sil"), "trash", L"", [id] {
                                      ui::Dialog::confirm(ctx().window, tr(L"Çalma listesi silinsin mi?"),
@@ -839,6 +851,7 @@ bool QueuePanel::onMouseDown(const ui::MouseEvent& e) {
                        {{tr(L"Şimdi çal"), "play", L"", [idx] { ctx().player->jumpTo(idx); }},
                         {tr(L"Sıradan kaldır"), "minus", L"", [idx] { ctx().player->removeAt(idx); }},
                         ui::MenuItem::sep(),
+                        {tr(L"Sırayı dışa aktar…"), "share", L"", [] { transfer::exportList(transfer::What::Queue, {}, {}); }},
                         {tr(L"Sırayı temizle"), "trash", L"", [] { ctx().player->clearQueue(); }}});
         return false;
     }

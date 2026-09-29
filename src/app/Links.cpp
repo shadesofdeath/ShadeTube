@@ -107,7 +107,11 @@ Link parseYouTube(const std::vector<std::string_view>& seg, std::string_view que
     if (first == "watch") return video(queryValue(query, "v"));
     if ((first == "shorts" || first == "embed" || first == "live" || first == "v" || first == "e") && seg.size() >= 2)
         return video(seg[1]);
-    return unsupported(Service::YouTube);   // playlists, channels, @handles, search results...
+    if (first == "playlist" && seg.size() == 1) {   // /playlist?list=<id> (a watch URL with &list= plays its video)
+        const auto list = queryValue(query, "list");
+        if (isPlaylistId(list)) return make(Kind::YouTubePlaylist, Service::YouTube, std::string(list));
+    }
+    return unsupported(Service::YouTube);   // channels, @handles, search results...
 }
 
 Link parseMusicBrainz(const std::vector<std::string_view>& seg) {
@@ -137,6 +141,11 @@ bool isSpotifyId(std::string_view s) { return s.size() == 22 && std::all_of(s.be
 
 bool isVideoId(std::string_view s) {
     return s.size() == 11 && std::all_of(s.begin(), s.end(), [](char c) { return isAlnum(c) || c == '_' || c == '-'; });
+}
+
+bool isPlaylistId(std::string_view s) {
+    return s.size() >= 12 && s.size() <= 64 &&
+           std::all_of(s.begin(), s.end(), [](char c) { return isAlnum(c) || c == '_' || c == '-'; });
 }
 
 bool isMbid(std::string_view s) {

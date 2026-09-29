@@ -273,6 +273,14 @@ error and backoff, plus per-track download attempts.
   comes back empty after holding tracks never deletes anything. A manual download or a folder add makes a sync
   download the user's own (`synced = false`): sync never cancels or deletes those. Removing a rule asks whether to
   keep its songs (they become the user's own downloads) or delete them (unless another rule wants them).
+- **Excluded songs**: "Senkrondan çıkar" in a song's menu, cancelling a sync download on the Downloads page and
+  "İndirileni sil" take the song out of every rule that keeps it: it is recorded in the rule's `"ex"` list in
+  `sync.json` (`[id, title, artists, unix time]`, newest last; absent before 0.6, so older files load as they are),
+  its sync download is dropped (queued ones cancelled, files deleted; the user's own downloads are left alone) and
+  later listings skip it, so it is never downloaded again for that collection. A song excluded from Liked Songs does
+  not count as a new like. The rule's status line counts them ("2 hariç") and its menu has "Hariç tutulanlar (n)": the
+  newest 12 with "Geri al" each, and "Hepsini geri al"; putting a song back (also "Senkrona geri al" in the song's
+  menu) marks the rule changed so the next pass downloads it.
 - **UI**: the header toggle shows the progress as an arc around the icon (accent while working, tertiary while
   waiting) and a check when complete; the Downloads page lists the rules ("Senkronize edilenler": done / total,
   queued, errors, last sync, why sync waits) instead of one row per queued sync download; Ayarlar › İNDİRME has the
@@ -454,7 +462,8 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
   `local::readFile`, at most 2 000 per drop, sorted like the library. Their ids are the local library's
   (`local:<hash>`); `dropped-files.json` (the local index format, newest 5 000) and a player resolver asked before
   the local library's keep them playable after a restart (restored queue, history). A single dropped folder the
-  library doesn't cover yet gets an "add to Yerel dosyalar" toast action.
+  library doesn't cover yet gets an "add to Yerel dosyalar" toast action. A drop that includes a playlist file (M3U,
+  CSV, XSPF, JSON) imports it instead, wherever it lands (the ghost says "Listeyi içe aktar"; 3.19).
 
 ### 3.16 Lyrics
 
@@ -534,6 +543,33 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
   closes after a minute; resuming plays live again. Every request goes to public hosts only (tests may allow the local
   network).
 
+### 3.19 Playlist import and export
+
+`app/PlaylistIO` (standalone: the four formats, CSV dialects, text decoding; `collections_test`) and
+`app/PlaylistTransfer` (the flows, dialogs and lookups; UI thread with workers).
+
+- **Export** ("Dışa aktar…" in a collection header's menu, the sidebar and Library card menus, "Sırayı dışa aktar…" in
+  the queue): Liked Songs (Spotify's or the local ones), Spotify and local playlists, albums (Spotify or MusicBrainz)
+  and the queue. Spotify lists are paged on a worker 250 ms apart; stations and podcast episodes are left out. Each
+  song gets its file when there is one (a download, a local or dropped file) and its matched YouTube video when the
+  match cache knows it. An `IFileSaveDialog` (Music folder, the list's name, the last format used) picks the file and
+  the format: **M3U8** (players such as VLC / foobar2000; a location per song: the file, else a Spotify / MusicBrainz /
+  YouTube URL, else a YouTube Music search URL), **CSV** (UTF-8 BOM, CRLF, one column per field; cells starting with
+  `= + - @` get a `'` so spreadsheets don't run them), **XSPF**, or **ShadeTube JSON** (`"shadetube.playlist"` v1,
+  every field, round-trips exactly). A toast offers "Dosyayı göster".
+- **Import** ("İçe aktar" in the Library header, the sidebar "+" menu, the palette's "Çalma listesi içe aktar", a
+  pasted YouTube playlist link, a playlist file dropped on the window): files in those four formats plus the CSV of
+  Exportify, TuneMyMusic and Soundiiz (header mapped by name, delimiter and encoding detected; a headerless file is
+  read as "Artist - Title" lines), and YouTube / YouTube Music playlists (`links::Kind::YouTubePlaylist`; the videos
+  through YoutubeExplode, at most 5 000). Every row becomes a song with the best id it names (Spotify, MusicBrainz,
+  `yt:<video>` with that video pinned as its source, a local file read through the local library's tag reader and
+  remembered like a dropped file, else `import:<hash>` matched by name like the history import); songs named only by
+  an id get their title from Spotify / YouTube / MusicBrainz (at most 300 lookups). A preview names the playlist and
+  counts the songs, local files, videos and the rows that name no song (the first 6 with their line numbers); "İçe
+  aktar" creates a **local** playlist and opens it. Logged in, "Spotify'da da oluştur" also creates a Spotify playlist
+  with the songs that have Spotify ids (100 per request). Reading and resolving run on a worker (`collections_test`
+  times 10 000 songs per format: about 0.25 - 1.2 s written and read back in a Debug build).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -593,10 +629,11 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads) |
 | `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), timings with 300 000 imported plays | offline |
-| `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff | offline |
+| `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files) | offline |
+| `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
-| `links_test` | pasted Spotify / YouTube / MusicBrainz links, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
+| `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
 | `radio_test` | radio-browser.info parsing (fixtures), codec filter, station -> track mapping, genre labels, `radio.json` store | offline; `live` (discovery, lists, failover; never counts a click) |
 | `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
@@ -644,7 +681,7 @@ apps*).
 | `SHADETUBE_DISCORD_APPID` | Discord application id for `scrobble_test`'s live presence |
 | `SHADETUBE_RUN_KEY` | HKCU key used instead of `…\CurrentVersion\Run` for *Start with Windows* (its `StartupApproved` stand-in is a subkey); without it a sandbox profile never touches the real value |
 | `SHADETUBE_DRAG_DEMO` | `x,y[,queue][,drop]`: 2.5 s after startup drags the first Liked Songs to window DIPs x,y and holds (for `--screenshot`) or drops them a second later; `queue` opens the queue panel first |
-| `SHADETUBE_DRAG_DEMO_FILES` | `path\|path`: with `SHADETUBE_DRAG_DEMO`, drags these files / folders as if from Explorer |
+| `SHADETUBE_DRAG_DEMO_FILES` | `path\|path`: with `SHADETUBE_DRAG_DEMO`, drags these files / folders as if from Explorer (a playlist file opens the import preview) |
 | `SHADETUBE_IMPORT_HISTORY` | `<file>[;<file>…]`: import these Spotify history files (JSON / ZIP) once the stats are loaded |
 | `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
