@@ -64,6 +64,10 @@ struct Settings {
     std::string discordAppId;            // the user's Discord application id (required by Discord RPC)
     bool sponsorBlockEnabled = true;     // skip non-music / sponsor segments of the matched YouTube video
     bool endlessPlayback = true;         // queue ended: continue with Spotify's radio of the last tracks (logged in)
+    // Smart shuffle / "Geliştir" (app/SmartShuffle): with shuffle on, recommended songs mixed into the queue; and the
+    // collections ("liked" or a playlist id) whose page shows recommendations in the list.
+    bool smartShuffle = false;
+    std::vector<std::string> enhancedCollections;
     // Backup audio source used when YouTube itself fails: "off" | "piped" | "invidious".
     // altSourceInstance: API base URL of the instance ("" = the built-in list, tried in order).
     std::string altSource = "off";

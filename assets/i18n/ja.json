@@ -1086,5 +1086,17 @@
   "Çalma hızı: {}": "再生速度: {}",
   "Daha hızlı çal": "速く再生",
   "Daha yavaş çal": "遅く再生",
-  "Normal hızda çal": "通常の速度で再生"
+  "Normal hızda çal": "通常の速度で再生",
+  "Akıllı karıştırma": "スマートシャッフル",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "スマートシャッフル オン: リストに合うおすすめ曲が間に入ります",
+  "Akıllı karıştırma kapalı": "スマートシャッフル オフ",
+  "Akıllı karıştırmayı aç / kapat": "スマートシャッフルのオン / オフ",
+  "Bu liste için öneri bulunamadı": "このリストのおすすめは見つかりませんでした",
+  "Bu öneriyi listeye ekle": "このおすすめをリストに追加",
+  "Geliştir": "エンハンス",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "シャッフル中、再生中のリストに合うおすすめ曲が 3〜4 曲ごとに入り、「おすすめ」と表示されます。シャッフルボタンをもう一度押してもオンになります。おすすめは Spotify のラジオ(接続時)、ListenBrainz の似たアーティスト、ローカルファイルから選ばれます。",
+  "Listeye uyan önerilen şarkıları aralara ekle": "このリストに合うおすすめ曲を間に入れる",
+  "Önerilen": "おすすめ",
+  "Öneriler kapatıldı": "おすすめをオフにしました",
+  "Önerileri gösterme": "おすすめを表示しない"
 }

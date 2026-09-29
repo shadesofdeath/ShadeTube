@@ -31,6 +31,7 @@ constexpr Action kActions[] = {
     {"mute", [] { return tr(L"Sesi kapat / aç"); }, Category::Playback, "Ctrl+M", kGlobal | kMini, "mute"},
     {"like", [] { return tr(L"Çalan şarkıyı beğen"); }, Category::Playback, "Ctrl+L", kGlobal | kMini, "heart"},
     {"shuffle", [] { return tr(L"Karışık çalmayı aç / kapat"); }, Category::Playback, "Ctrl+S", kMini, "shuffle"},
+    {"smart-shuffle", [] { return tr(L"Akıllı karıştırmayı aç / kapat"); }, Category::Playback, "", kMini, "shuffle-smart"},
     {"repeat", [] { return tr(L"Tekrar modunu değiştir"); }, Category::Playback, "Ctrl+R", kMini, "repeat"},
     {"speed-up", [] { return tr(L"Daha hızlı çal"); }, Category::Playback, "Ctrl+Shift+Period", kMini | kRepeat, "chevron-up"},
     {"speed-down", [] { return tr(L"Daha yavaş çal"); }, Category::Playback, "Ctrl+Shift+Comma", kMini | kRepeat,

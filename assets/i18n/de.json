@@ -1224,5 +1224,17 @@
   "Çalma hızı: {}": "Wiedergabegeschwindigkeit: {}",
   "Daha hızlı çal": "Schneller abspielen",
   "Daha yavaş çal": "Langsamer abspielen",
-  "Normal hızda çal": "Mit normaler Geschwindigkeit abspielen"
+  "Normal hızda çal": "Mit normaler Geschwindigkeit abspielen",
+  "Akıllı karıştırma": "Intelligente Zufallswiedergabe",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "Intelligente Zufallswiedergabe an: passende empfohlene Songs werden eingestreut",
+  "Akıllı karıştırma kapalı": "Intelligente Zufallswiedergabe aus",
+  "Akıllı karıştırmayı aç / kapat": "Intelligente Zufallswiedergabe an / aus",
+  "Bu liste için öneri bulunamadı": "Für diese Liste wurden keine Empfehlungen gefunden",
+  "Bu öneriyi listeye ekle": "Diese Empfehlung zur Liste hinzufügen",
+  "Geliştir": "Erweitern",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "Bei aktiver Zufallswiedergabe werden alle 3–4 Songs empfohlene Titel eingestreut, die zur laufenden Liste passen, markiert mit „Empfohlen“. Ein zweiter Druck auf die Zufallstaste schaltet es ebenfalls ein. Die Empfehlungen stammen aus dem Spotify-Radio (wenn verbunden), den ähnlichen Künstlern von ListenBrainz und deinen lokalen Dateien.",
+  "Listeye uyan önerilen şarkıları aralara ekle": "Passende empfohlene Songs in die Liste einstreuen",
+  "Önerilen": "Empfohlen",
+  "Öneriler kapatıldı": "Empfehlungen ausgeschaltet",
+  "Önerileri gösterme": "Keine Empfehlungen zeigen"
 }

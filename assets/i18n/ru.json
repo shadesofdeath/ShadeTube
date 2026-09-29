@@ -1320,5 +1320,17 @@
   "Çalma hızı: {}": "Скорость воспроизведения: {}",
   "Daha hızlı çal": "Воспроизводить быстрее",
   "Daha yavaş çal": "Воспроизводить медленнее",
-  "Normal hızda çal": "Обычная скорость"
+  "Normal hızda çal": "Обычная скорость",
+  "Akıllı karıştırma": "Умное перемешивание",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "Умное перемешивание включено: подходящие рекомендованные треки будут вставляться между песнями",
+  "Akıllı karıştırma kapalı": "Умное перемешивание выключено",
+  "Akıllı karıştırmayı aç / kapat": "Включить / выключить умное перемешивание",
+  "Bu liste için öneri bulunamadı": "Для этого списка рекомендаций не нашлось",
+  "Bu öneriyi listeye ekle": "Добавить рекомендацию в список",
+  "Geliştir": "Улучшить",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "При включённом перемешивании каждые 3–4 песни вставляются рекомендованные треки, подходящие к играющему списку, с пометкой «Рекомендуется». Второе нажатие кнопки перемешивания тоже включает эту функцию. Рекомендации берутся из радио Spotify (при подключении), похожих исполнителей ListenBrainz и ваших локальных файлов.",
+  "Listeye uyan önerilen şarkıları aralara ekle": "Вставить в список подходящие рекомендованные треки",
+  "Önerilen": "Рекомендуется",
+  "Öneriler kapatıldı": "Рекомендации отключены",
+  "Önerileri gösterme": "Не показывать рекомендации"
 }

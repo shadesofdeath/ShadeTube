@@ -165,6 +165,7 @@ inline ui::Toggle* settingsToggle(ui::Column* c, const std::wstring& title, cons
 // ---- Feature rows (each defined in its feature's file) ------------------------------------------------
 // `rebuild` re-runs the whole page build (posted, safe to call from a click handler that deletes the row).
 void buildEndlessPlaybackRows(ui::Column* c, const std::function<void()>& rebuild);   // OYNATMA   (app/PlaybackSettings.cpp)
+void buildSmartShuffleRows(ui::Column* c, const std::function<void()>& rebuild);      // OYNATMA   (app/SmartShuffle.cpp)
 void buildAltSourceRows(ui::Column* c, const std::function<void()>& rebuild);         // OYNATMA   (app/AltSourceSettings.cpp)
 void buildBlacklistSection(ui::Column* c, const std::function<void()>& rebuild);      // KARA LİSTE (app/PlaybackSettings.cpp)
 void buildLocalFilesSection(ui::Column* c, const std::function<void()>& rebuild);     // YEREL MÜZİK (app/LocalFilesPage.cpp)

@@ -113,6 +113,10 @@ public:
 
     std::function<void(int displayIndex)> onPlay;   // index into displayedTracks()
     std::function<void()> onNearEnd;                 // request next page
+    // "Geliştir" (app/SmartShuffle): recommended rows get "+" (add it to the list) and "×" (hide it) in place of the
+    // heart when these are set; `key` is the collection they were recommended for (the track menu's entries).
+    std::function<void(const catalog::Track&)> onAddRecommended, onHideRecommended;
+    void setRecommendKey(std::string key) { recommendKey_ = std::move(key); }
 
     static constexpr float kHeaderH = 28;
     float headerHeight() const { return opts_.showHeader ? kHeaderH + 8 : 0; }
@@ -146,6 +150,8 @@ private:
     void rebuildView();
     void paintRow(Canvas& c, int i, const Rect& r, const Columns& col);
     bool heartHit(int i, gfx::Point p) const;
+    bool recAddHit(int i, gfx::Point p) const;       // "+" of a recommended row (onAddRecommended set)
+    bool recHideHit(int i, gfx::Point p) const;      // "×" of a recommended row (onHideRecommended set)
     bool artistHit(int i, gfx::Point p);
     void headerClick(float x);
     std::vector<catalog::Track> dragTracks() const;   // what a drag from pressRow_ carries
@@ -159,7 +165,8 @@ private:
     std::unordered_set<int> selected_;   // tracks_ indices
     int anchor_ = -1;
     int hover_ = -1;
-    bool hoverHeart_ = false, hoverArtist_ = false;
+    bool hoverHeart_ = false, hoverArtist_ = false, hoverRecAdd_ = false, hoverRecHide_ = false;
+    std::string recommendKey_;
     int pressRow_ = -1;
     gfx::Point pressPos_{};          // window DIPs of the press (drag threshold)
     bool dragging_ = false;          // rows are being dragged (app/DragDrop)

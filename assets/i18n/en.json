@@ -1224,5 +1224,17 @@
   "Çalma hızı: {}": "Playback speed: {}",
   "Daha hızlı çal": "Play faster",
   "Daha yavaş çal": "Play slower",
-  "Normal hızda çal": "Play at normal speed"
+  "Normal hızda çal": "Play at normal speed",
+  "Akıllı karıştırma": "Smart shuffle",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "Smart shuffle is on: recommended songs that fit your list are mixed in",
+  "Akıllı karıştırma kapalı": "Smart shuffle is off",
+  "Akıllı karıştırmayı aç / kapat": "Turn smart shuffle on / off",
+  "Bu liste için öneri bulunamadı": "No recommendations found for this list",
+  "Bu öneriyi listeye ekle": "Add this recommendation to the list",
+  "Geliştir": "Enhance",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "While shuffle is on, recommended songs that fit the list you're playing are mixed in every 3–4 songs and marked \"Recommended\". Pressing the shuffle button a second time turns it on too. Recommendations come from Spotify's radio (when connected), ListenBrainz's similar artists and your local files.",
+  "Listeye uyan önerilen şarkıları aralara ekle": "Mix recommended songs that fit this list into it",
+  "Önerilen": "Recommended",
+  "Öneriler kapatıldı": "Recommendations turned off",
+  "Önerileri gösterme": "Don't show recommendations"
 }

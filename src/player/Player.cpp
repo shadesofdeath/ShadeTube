@@ -168,6 +168,47 @@ void Player::skipRulesChanged() {
     notify();
 }
 
+int Player::dropRecommendations() {
+    std::vector<char> drop(items_.size(), 0);
+    int dropped = 0;
+    for (int i = pos_ + 1; i < static_cast<int>(order_.size()); ++i) {
+        if (items_[order_[i]].recommended && !drop[order_[i]]) {
+            drop[order_[i]] = 1;
+            ++dropped;
+        }
+    }
+    if (dropped == 0) return 0;
+    // Compact items_ too (the slots before the current one never hold a dropped item: only upcoming ones go).
+    std::vector<int> newIndex(items_.size(), -1);
+    std::vector<Track> kept;
+    kept.reserve(items_.size() - dropped);
+    for (size_t i = 0; i < items_.size(); ++i) {
+        if (drop[i]) continue;
+        newIndex[i] = static_cast<int>(kept.size());
+        kept.push_back(std::move(items_[i]));
+    }
+    std::vector<int> order;
+    order.reserve(order_.size());
+    for (int item : order_)
+        if (!drop[item]) order.push_back(newIndex[item]);
+    items_ = std::move(kept);
+    order_ = std::move(order);   // pos_ is unchanged: everything removed lay after it
+    dropPrepared();
+    notify();
+    return dropped;
+}
+
+void Player::clearRecommended(const std::string& trackId) {
+    bool changed = false;
+    for (auto& t : items_) {
+        if (t.recommended && t.id == trackId) {
+            t.recommended = false;
+            changed = true;
+        }
+    }
+    if (changed) notify();
+}
+
 bool Player::skipped(int orderIndex) const {
     return shouldSkip && shouldSkip(items_[order_[orderIndex]]);
 }
@@ -988,8 +1029,10 @@ void Player::saveSession() const {
         for (const auto& ar : t.artists) a.push_back({{"id", ar.id}, {"n", ar.name}});
         json imgs = json::array();
         if (const auto* img = catalog::pickImage(t.album.images, 300)) imgs.push_back({{"u", img->url}, {"w", img->width}});
-        items.push_back({{"id", t.id}, {"n", t.name}, {"d", t.durationMs}, {"a", a}, {"al", t.album.name},
-                         {"ali", t.album.id}, {"img", imgs}, {"e", t.explicitContent}});
+        json item{{"id", t.id}, {"n", t.name}, {"d", t.durationMs}, {"a", a}, {"al", t.album.name},
+                  {"ali", t.album.id}, {"img", imgs}, {"e", t.explicitContent}};
+        if (t.recommended) item["rec"] = true;
+        items.push_back(std::move(item));
     }
     j["items"] = std::move(items);
     std::ofstream f(paths::appData() / L"session.json", std::ios::trunc);
@@ -1022,6 +1065,7 @@ void Player::restoreSessionFile() {
         t.album.name = it.value("al", "");
         t.album.id = it.value("ali", "");
         t.explicitContent = it.value("e", false);
+        t.recommended = it.value("rec", false);
         for (const auto& a : it.value("a", json::array())) t.artists.push_back({a.value("id", ""), a.value("n", "")});
         for (const auto& im : it.value("img", json::array())) t.album.images.push_back({im.value("u", ""), im.value("w", 0), im.value("w", 0)});
         if (!t.name.empty()) tracks.push_back(std::move(t));

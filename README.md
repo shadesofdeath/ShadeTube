@@ -40,6 +40,8 @@ starts instantly and stays light.
   from Explorer to play them.
 - 🚫 **No ads, no Premium** — audio comes from YouTube, matched automatically; pick another video with
   "Wrong match?" if one is off.
+- ✨ **Smart shuffle & Enhance** — Spotify Premium's recommendations for free: smart shuffle mixes songs that fit into
+  the queue, Enhance mixes them into a playlist; add one for real with a click.
 - 📻 **Radio & autoplay** — start a radio from a song, artist, album or playlist; when the queue ends, similar songs
   keep playing.
 - 📡 **Internet radio** — thousands of live stations from radio-browser.info by genre, country or name, with

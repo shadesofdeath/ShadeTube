@@ -2,6 +2,15 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.6.0 — unreleased
+
+- **Smart shuffle**: press the shuffle button a second time (or turn it on in Settings › Playback) and recommended
+  songs that fit the list you're playing are mixed into the queue, one every 3–4 songs, marked "Recommended". They come
+  from Spotify's song radios when connected, ListenBrainz's similar artists and your local files; turning smart shuffle
+  off takes the ones that haven't played out of the queue.
+- **Enhance**: an "Enhance" button on playlists and Liked Songs mixes recommended songs into the list itself. Add one
+  to the list for real with "+", hide it with "×"; playing the list plays them in order. It is remembered per list.
+
 ## 0.5.0 — 2026-09-29
 
 - **Sound settings** (Settings › Sound): a 10-band equalizer with presets, a preamp and a response graph you drag

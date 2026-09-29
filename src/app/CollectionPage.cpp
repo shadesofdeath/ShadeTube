@@ -5,6 +5,8 @@
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Radio.h"
+#include "app/SmartMix.h"
+#include "app/SmartShuffle.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -47,6 +49,9 @@ public:
     explicit DetailHeader(Kind kind) : kind_(kind) {
         play_ = add<ui::PlayButton>(ui::PlayButton::Look::Accent);
         shuffle_ = add<Button>(ButtonKind::Secondary, tr(L"Karıştır"), "shuffle");
+        enhance_ = add<Button>(ButtonKind::Secondary, tr(L"Geliştir"), "sparkle");   // app/SmartShuffle
+        enhance_->setTooltip(tr(L"Listeye uyan önerilen şarkıları aralara ekle"));
+        enhance_->setVisible(kind != Kind::Album);
         save_ = add<Button>(ButtonKind::IconOutline, L"", "heart");
         add_ = add<Button>(ButtonKind::IconOutline, L"", "plus");
         offline_ = add<sync::SyncButton>();   // "Çevrimdışı kullanılabilir" (download sync)
@@ -93,6 +98,11 @@ public:
         const float sw = shuffle_->naturalWidth();
         shuffle_->setRect({56 + 16, y + 8, sw, 40});
         float x = 56 + 16 + sw + 14;
+        if (enhance_->visible()) {
+            const float ew = enhance_->naturalWidth();
+            enhance_->setRect({x, y + 8, ew, 40});
+            x += ew + 14;
+        }
         for (auto* b : {save_, static_cast<Button*>(offline_), add_, more_}) {
             if (!b->visible()) continue;
             b->setRect({x, y + 8, 40, 40});
@@ -182,7 +192,7 @@ public:
     }
 
     ui::PlayButton* play_;
-    Button *shuffle_, *save_, *add_, *more_, *sort_, *filter_;
+    Button *shuffle_, *enhance_, *save_, *add_, *more_, *sort_, *filter_;
     sync::SyncButton* offline_;
     ui::TextBox* filterBox_;
 
@@ -218,6 +228,8 @@ public:
             // Local collections follow library edits live (removals, renames, likes).
             ctx().library.subscribe(libLife_.ref(), [this] { refreshLocal(); });
         }
+        // "Geliştir" on / off (also from a track menu), hidden and added recommendations.
+        if (kind_ != Kind::Album) smartshuffle::subscribe(enhanceSub_.ref(), [this] { onEnhanceChanged(); });
     }
 
     Widget* hitTest(gfx::Point p) override {
@@ -360,6 +372,7 @@ private:
                   build(m);
                   if (editable_) table_->setPlaylistId(uri_);   // enables "Bu çalma listesinden kaldır"
                   table_->setTracks(r->page.items);
+                  showEnhanced();
                   table_->onNearEnd = [this] { loadMore(); };
                   if (loadedOffset_ < total_) table_->setLoadingRows(std::min(8, total_ - loadedOffset_));
                   empty_ = nullptr;
@@ -391,7 +404,8 @@ private:
                   table_->appendTracks(std::move(r->items));
                   table_->setLoadingRows(loadedOffset_ < total_ ? std::min(8, total_ - loadedOffset_) : 0);
                   int64_t ms = 0;
-                  for (const auto& t : table_->tracks()) ms += t.durationMs;
+                  for (const auto& t : table_->tracks())
+                      if (!t.recommended) ms += t.durationMs;
                   header_->setTotalMs(ms);
                   scroll_->contentChanged();
                   if (none && table_->tracks().empty() && loadedOffset_ < total_) loadMore();   // see the first page
@@ -437,6 +451,7 @@ private:
         build(localMeta());
         if (kind_ == Kind::Playlist) table_->setPlaylistId(id_);
         table_->setTracks(tracks);
+        showEnhanced();
         if (tracks.empty()) {
             const bool liked = kind_ == Kind::Liked;
             empty_ = col_->add<MessagePanel>(
@@ -453,7 +468,7 @@ private:
             return;
         }
         const auto tracks = localTracks();
-        if (tracks.size() != table_->tracks().size() || (empty_ && !tracks.empty())) {
+        if (tracks.size() != ownTracks().size() || (empty_ && !tracks.empty())) {
             const float y = scroll_->scrollY();
             empty_ = nullptr;
             buildLocal();
@@ -467,7 +482,8 @@ private:
 
     void finishLoading() {
         int64_t ms = 0;
-        for (const auto& t : table_->tracks()) ms += t.durationMs;
+        for (const auto& t : table_->tracks())
+            if (!t.recommended) ms += t.durationMs;
         header_->setTotalMs(ms);
         if (autoplay_) {
             autoplay_ = false;
@@ -494,6 +510,61 @@ private:
         p->playContext(std::move(tracks), displayIndex, {contextUri(), header_->meta().title});
     }
 
+    // ---- "Geliştir" (app/SmartShuffle) --------------------------------------------------------------------------
+    static constexpr size_t kEnhanceMax = 30;   // recommendations shown in a list (one every 3-4 songs)
+
+    std::string enhanceKey() const { return kind_ == Kind::Liked ? std::string("liked") : id_; }
+
+    std::vector<Track> ownTracks() const {
+        std::vector<Track> own;
+        if (!table_) return own;
+        for (const auto& t : table_->tracks())
+            if (!t.recommended) own.push_back(t);
+        return own;
+    }
+
+    // The list's own songs, with the recommendations between them while "Geliştir" is on.
+    void applyEnhance() {
+        if (!table_ || kind_ == Kind::Album) return;
+        const std::string key = enhanceKey();
+        const bool on = smartshuffle::enhanced(key);
+        auto own = ownTracks();
+        smartmix::Exclusions ownSongs;
+        for (const auto& t : own) ownSongs.add(t);
+        std::erase_if(recs_, [&](const Track& t) { return ownSongs.contains(t) || smartshuffle::isHidden(key, t); });
+        const bool shown = own.size() != table_->tracks().size();
+        if (header_) header_->enhance_->setActive(on);
+        if (!on && !shown) return;
+        table_->setTracks(on ? smartmix::interleave(own, recs_, smartmix::hash(key)) : std::move(own));
+        scroll_->contentChanged();
+    }
+
+    // After the list (re)loaded: its recommendations, fetched once per page (cached per collection).
+    void showEnhanced() {
+        if (kind_ == Kind::Album || !smartshuffle::enhanced(enhanceKey())) return;
+        if (!recs_.empty() || enhanceLoading_) {
+            applyEnhance();
+            return;
+        }
+        enhanceLoading_ = true;
+        enhanceLife_.renew();
+        smartshuffle::recommend(enhanceKey(), ownTracks(), enhanceLife_.ref(), [this](std::vector<Track> recs) {
+            enhanceLoading_ = false;
+            if (recs.size() > kEnhanceMax) recs.resize(kEnhanceMax);
+            recs_ = std::move(recs);
+            if (recs_.empty() && announce_) toast(tr(L"Bu liste için öneri bulunamadı"));
+            announce_ = false;
+            applyEnhance();
+        });
+    }
+
+    void onEnhanceChanged() {
+        if (!table_) return;
+        if (header_) header_->enhance_->setActive(smartshuffle::enhanced(enhanceKey()));
+        if (smartshuffle::enhanced(enhanceKey()) && recs_.empty()) showEnhanced();
+        else applyEnhance();
+    }
+
     void build(const Meta& m) {
         auto* c = resetContent(28.f);
         header_ = c->add<DetailHeader>(kind_);
@@ -516,6 +587,17 @@ private:
         opts.albumNumbering = kind_ == Kind::Album;
         table_ = c->add<TrackTable>(opts);
         table_->onPlay = [this](int i) { playFrom(i, false); };
+        if (kind_ != Kind::Album) {   // "Geliştir": the recommended rows' "+" / "×" and menu entries
+            table_->setRecommendKey(enhanceKey());
+            table_->onAddRecommended = [this](const Track& t) { smartshuffle::add(enhanceKey(), t); };
+            table_->onHideRecommended = [this](const Track& t) { smartshuffle::hide(enhanceKey(), t); };
+            header_->enhance_->setActive(smartshuffle::enhanced(enhanceKey()));
+            header_->enhance_->onClick = [this] {
+                const bool on = !smartshuffle::enhanced(enhanceKey());
+                if (on) announce_ = true;   // say so when nothing fits
+                smartshuffle::setEnhanced(enhanceKey(), on);
+            };
+        }
 
         header_->play_->onClick = [this] { playFrom(-1, false); };
         header_->shuffle_->onClick = [this] { playFrom(-1, true); };
@@ -696,6 +778,11 @@ private:
     bool editable_ = false;   // the user may add/remove items (owner or collaborator)
     bool owned_ = false;      // the user owns it (rename / delete)
     Lifetime editLife_;
+    // "Geliştir".
+    std::vector<Track> recs_;     // this list's recommendations (shown while it is on)
+    bool enhanceLoading_ = false;
+    bool announce_ = false;       // turned on just now: a toast when nothing fits
+    Lifetime enhanceLife_, enhanceSub_;
 };
 
 } // namespace

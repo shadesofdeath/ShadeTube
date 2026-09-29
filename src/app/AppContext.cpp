@@ -7,6 +7,7 @@
 #include "app/Radio.h"
 #include "app/Router.h"
 #include "app/Shell.h"
+#include "app/SmartShuffle.h"
 #include "app/Source.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
@@ -870,7 +871,8 @@ void showDownloadFolderMenu(const std::vector<Track>& tracks, gfx::Point windowP
     ui::Menu::open(ctx().window, windowPos, std::move(items));
 }
 
-void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const std::string& playlistId) {
+void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const std::string& playlistId,
+                   const std::string& recommendKey) {
     if (picked.empty()) return;
     // Internet radio stations and podcast episodes are no songs: nothing to download here, match on YouTube, like,
     // block or add to a playlist. A station or an episode gets its own menu; in a mixed selection they are left out.
@@ -882,9 +884,25 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
         else if (picked.size() == 1) showStationMenu(picked.front(), windowPos);
         return;
     }
+    // Smart shuffle / "Geliştir": a recommendation can go into the list it was recommended for, or the suggestions can
+    // stop. Whatever the menu does below with the songs makes them the user's own (no badge).
+    const Track recommendation = tracks.front();
+    const bool recommended = tracks.size() == 1 && recommendation.recommended;
+    std::vector<Track> ownRows;   // "Bu çalma listesinden kaldır": the list's own rows only
+    for (auto& t : tracks) {
+        if (!t.recommended) ownRows.push_back(t);
+        t.recommended = false;
+    }
     const Track track = tracks.front();
     const bool many = tracks.size() > 1;
     std::vector<ui::MenuItem> items;
+    if (recommended) {
+        if (smartshuffle::canAdd(recommendKey, recommendation))
+            items.push_back({tr(L"Bu öneriyi listeye ekle"), "plus", L"",
+                             [recommendKey, recommendation] { smartshuffle::add(recommendKey, recommendation); }});
+        items.push_back({tr(L"Önerileri gösterme"), "close", L"", [recommendKey] { smartshuffle::stop(recommendKey); }});
+        items.push_back(ui::MenuItem::sep());
+    }
     items.push_back({tr(L"Sonra çal"), "queue", L"", [tracks] {
                          for (auto it = tracks.rbegin(); it != tracks.rend(); ++it) ctx().player->playNext(*it);
                          toast(tr(L"Sıradaki olarak eklendi"));
@@ -999,10 +1017,10 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
                              }});
         }
     }
-    if (!playlistId.empty()) {
+    if (!playlistId.empty() && !ownRows.empty()) {
         items.push_back(ui::MenuItem::sep());
-        ui::MenuItem rm{many ? tr(L"Seçilenleri listeden kaldır") : tr(L"Bu çalma listesinden kaldır"), "trash", L"",
-                        [tracks, playlistId] {
+        ui::MenuItem rm{ownRows.size() > 1 ? tr(L"Seçilenleri listeden kaldır") : tr(L"Bu çalma listesinden kaldır"),
+                        "trash", L"", [tracks = ownRows, playlistId] {
                             if (source::isSpotifyId(playlistId)) {
                                 // Spotify removes playlist ROWS (uids), so a duplicate elsewhere in the list stays.
                                 std::vector<std::string> uids;

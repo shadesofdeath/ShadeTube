@@ -156,6 +156,7 @@ void initDownloadSync();       // app/DownloadSync.cpp   (collections kept offli
 void initDragDrop();           // app/DragDrop.cpp       (files dropped from Explorer, resolver for dropped files)
 void initLyrics();             // app/LyricsService.cpp  (lyrics offset, full-screen lyrics)
 void initPodcasts();           // app/PodcastsPage.cpp   (Podcastler: RSS feeds, progress, downloads)
+void initSmartShuffle();       // app/SmartShuffle.cpp   (smart shuffle: recommendations mixed into the queue)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -167,6 +168,7 @@ inline void initFeatures() {
     initDragDrop();
     initLyrics();
     initPodcasts();
+    initSmartShuffle();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the
@@ -175,7 +177,10 @@ bool radioAvailable();
 void startRadio(const std::string& seedUri, const std::wstring& seedName);
 
 // Shared helpers used by many pages.
-void showTrackMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos, const std::string& playlistId = {});
+// `recommendKey`: the "Geliştir" collection ("liked" / a playlist id) of a table that shows recommendations; its
+// recommended rows get "add to this list" / "hide" (app/SmartShuffle). Recommended rows elsewhere refer to the queue.
+void showTrackMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos, const std::string& playlistId = {},
+                   const std::string& recommendKey = {});
 void showAddToPlaylistMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos);
 // Adds songs to the playlist `id` and reports with a toast: an editable Spotify playlist (logged in; only its Spotify
 // songs, the others are noted) or a local playlist. Used by the menu above and by drag and drop.

@@ -120,6 +120,12 @@ public:
     int extend(const std::vector<Track>& tracks);
     // The skip rule changed (kara liste edit): drops a prepared next track that is now skipped and notifies.
     void skipRulesChanged();
+    // Smart shuffle / "Geliştir" (Track::recommended): removes the recommended items that haven't played yet (after
+    // the current slot) from the queue for good, so a later reshuffle doesn't bring them back. The user's own items and
+    // the playing item stay. Returns how many went.
+    int dropRecommendations();
+    // A recommendation the user added to the collection: its queue items become ordinary ones.
+    void clearRecommended(const std::string& trackId);
 
     // Internet radio: asked (UI thread) before each resolve, like localFileFor. A returned stream makes the item a
     // live, endless stream: no duration, no seeking, no prefetch / gapless handoff; the engine reconnects when the

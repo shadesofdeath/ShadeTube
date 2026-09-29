@@ -1086,5 +1086,17 @@
   "Çalma hızı: {}": "재생 속도: {}",
   "Daha hızlı çal": "더 빠르게 재생",
   "Daha yavaş çal": "더 느리게 재생",
-  "Normal hızda çal": "보통 속도로 재생"
+  "Normal hızda çal": "보통 속도로 재생",
+  "Akıllı karıştırma": "스마트 셔플",
+  "Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır": "스마트 셔플 켜짐: 목록에 어울리는 추천 곡이 사이사이에 섞입니다",
+  "Akıllı karıştırma kapalı": "스마트 셔플 꺼짐",
+  "Akıllı karıştırmayı aç / kapat": "스마트 셔플 켜기 / 끄기",
+  "Bu liste için öneri bulunamadı": "이 목록에 맞는 추천을 찾지 못했습니다",
+  "Bu öneriyi listeye ekle": "이 추천을 목록에 추가",
+  "Geliştir": "향상",
+  "Karıştırma açıkken çalan listeye uyan önerilen şarkılar her 3-4 şarkıda bir araya karışır ve \"Önerilen\" işaretiyle görünür. Karıştır düğmesine ikinci kez basarak da açılır. Öneriler Spotify radyosundan (bağlıyken), ListenBrainz'in benzer sanatçılarından ve yerel dosyalarından gelir.": "셔플이 켜져 있으면 재생 중인 목록에 어울리는 추천 곡이 3~4곡마다 섞이고 \"추천\" 표시가 붙습니다. 셔플 버튼을 한 번 더 눌러도 켜집니다. 추천은 Spotify 라디오(연결 시), ListenBrainz의 비슷한 아티스트, 로컬 파일에서 가져옵니다.",
+  "Listeye uyan önerilen şarkıları aralara ekle": "이 목록에 어울리는 추천 곡을 사이사이에 넣기",
+  "Önerilen": "추천",
+  "Öneriler kapatıldı": "추천을 껐습니다",
+  "Önerileri gösterme": "추천 표시 안 함"
 }

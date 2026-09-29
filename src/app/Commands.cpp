@@ -7,6 +7,7 @@
 #include "app/Installer.h"
 #include "app/InternetRadio.h"
 #include "app/Router.h"
+#include "app/SmartShuffle.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Settings.h"
@@ -87,7 +88,18 @@ bool builtin(std::string_view id) {
         toast(i18n::format(tr(L"Çalma hızı: {}"), {speedLabel(v)}));
         return true;
     }
-    if (id == "shuffle") return p && (p->setShuffle(!p->shuffle()), true);
+    if (id == "shuffle") {   // on / off (smart shuffle turns off too)
+        if (!p) return false;
+        smartshuffle::setMode(p->shuffle() ? smartshuffle::Mode::Off : smartshuffle::Mode::Shuffle);
+        return true;
+    }
+    if (id == "smart-shuffle") {
+        if (!p) return false;
+        const bool smart = smartshuffle::mode() == smartshuffle::Mode::Smart;
+        smartshuffle::setMode(smart ? smartshuffle::Mode::Shuffle : smartshuffle::Mode::Smart);
+        toast(smart ? tr(L"Akıllı karıştırma kapalı") : tr(L"Akıllı karıştırma açık: listene uyan önerilen şarkılar araya karışır"));
+        return true;
+    }
     if (id == "repeat") return p && (p->cycleRepeat(), true);
 
     if (id == "command-palette") {
