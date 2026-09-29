@@ -60,6 +60,10 @@ public:
     // Pushes Ayarlar > SES to the engine (equalizer, output device). Crossfade and loudness normalisation are read
     // from Settings for every track as it is loaded / preloaded.
     void applyAudioSettings();
+    // Playback speed (0.5 .. 3, pitch kept) of the current kind of item: songs and podcast episodes each remember their
+    // own (Settings::musicSpeed / podcastSpeed). Applies at once; live radio always plays at 1.
+    void setSpeed(float speed);
+    float speed() const;
     void setShuffle(bool on);
     void setRepeat(RepeatMode mode);
     void cycleRepeat();
@@ -192,6 +196,7 @@ private:
     audio::StreamSource sourceFor(const youtube::Resolved& r, uint64_t tag, int64_t durationHint) const;
     audio::StreamSource localSource(const std::wstring& path, uint64_t tag, int64_t durationHint) const;
     int crossfadeInto(int orderIndex) const;   // crossfade length (ms) from the current item into that slot, 0 = gapless
+    static float speedFor(const Track& t);     // the remembered speed of its kind
 
     youtube::MatchService& matcher_;
     std::unique_ptr<audio::AudioEngine> engine_;

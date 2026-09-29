@@ -1219,5 +1219,10 @@
   "İçe aktar": "Importer",
   "İçe aktarılan geçmiş kaldırıldı": "Historique importé retiré",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Retirer l'historique importé ?",
-  "İçe aktarılan geçmişi kaldır": "Retirer l'historique importé"
+  "İçe aktarılan geçmişi kaldır": "Retirer l'historique importé",
+  "Çalma hızı": "Vitesse de lecture",
+  "Çalma hızı: {}": "Vitesse de lecture : {}",
+  "Daha hızlı çal": "Lire plus vite",
+  "Daha yavaş çal": "Lire plus lentement",
+  "Normal hızda çal": "Lire à vitesse normale"
 }

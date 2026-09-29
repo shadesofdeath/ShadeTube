@@ -1081,5 +1081,10 @@
   "İçe aktar": "Impor",
   "İçe aktarılan geçmiş kaldırıldı": "Riwayat impor dihapus",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Hapus riwayat impor?",
-  "İçe aktarılan geçmişi kaldır": "Hapus riwayat impor"
+  "İçe aktarılan geçmişi kaldır": "Hapus riwayat impor",
+  "Çalma hızı": "Kecepatan putar",
+  "Çalma hızı: {}": "Kecepatan putar: {}",
+  "Daha hızlı çal": "Putar lebih cepat",
+  "Daha yavaş çal": "Putar lebih lambat",
+  "Normal hızda çal": "Putar dengan kecepatan normal"
 }

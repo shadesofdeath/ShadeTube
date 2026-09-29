@@ -1219,5 +1219,10 @@
   "İçe aktar": "Importieren",
   "İçe aktarılan geçmiş kaldırıldı": "Importierter Verlauf entfernt",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Importierten Verlauf entfernen?",
-  "İçe aktarılan geçmişi kaldır": "Importierten Verlauf entfernen"
+  "İçe aktarılan geçmişi kaldır": "Importierten Verlauf entfernen",
+  "Çalma hızı": "Wiedergabegeschwindigkeit",
+  "Çalma hızı: {}": "Wiedergabegeschwindigkeit: {}",
+  "Daha hızlı çal": "Schneller abspielen",
+  "Daha yavaş çal": "Langsamer abspielen",
+  "Normal hızda çal": "Mit normaler Geschwindigkeit abspielen"
 }

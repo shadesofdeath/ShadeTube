@@ -34,6 +34,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -249,7 +250,7 @@ void writeWav(const fs::path& path, uint32_t ms = 500) {
 }
 
 // Opens `file` the way the engine does for a local source and decodes a few blocks.
-bool decodes(const fs::path& file, std::string& info) {
+bool decodes(const fs::path& file, std::string& info, uint32_t targetRate = 0, uint32_t* rateOut = nullptr) {
     const std::string mime = st::player::Player::localMimeType(file.wstring());
     auto buffer = std::make_shared<st::audio::ProgressiveBuffer>(std::string{}, file.wstring(), 0, nullptr);
     buffer->start();
@@ -261,7 +262,7 @@ bool decodes(const fs::path& file, std::string& info) {
     }
     st::audio::Decoder decoder;
     bool unsupported = false;
-    const HRESULT hr = decoder.open(buffer, mime, unsupported);
+    const HRESULT hr = decoder.open(buffer, mime, unsupported, targetRate);
     if (FAILED(hr)) {
         std::snprintf(msg, sizeof msg, "%s: open hr=0x%08X%s", mime.c_str(), static_cast<unsigned>(hr),
                       unsupported ? " (unsupported)" : "");
@@ -279,6 +280,7 @@ bool decodes(const fs::path& file, std::string& info) {
     std::snprintf(msg, sizeof msg, "%s: %u Hz, %u ch, %zu samples", mime.empty() ? "(sniffed)" : mime.c_str(),
                   decoder.sampleRate(), decoder.channels(), pcm.size());
     info = msg;
+    if (rateOut) *rateOut = decoder.sampleRate();
     decoder.close();
     buffer->cancel();
     return !pcm.empty();
@@ -294,6 +296,11 @@ void testDecode(const fs::path& tmp, const fs::path& samples) {
     const bool ok = decodes(wav, info);
     std::printf("        %s\n", info.c_str());
     CHECK(ok);
+    // The engine decodes every track to the device's mix rate: 44.1 kHz -> 48 kHz through the Source Reader.
+    uint32_t rate = 0;
+    const bool resampled = decodes(wav, info, 48000, &rate);
+    std::printf("        to 48 kHz: %s\n", info.c_str());
+    CHECK(resampled && rate == 48000);
     if (!samples.empty()) {
         // Per file (a sample folder may hold deliberately broken files), then per type: at least one file of every
         // type decodes. Ogg has no Media Foundation handler in a stock Windows: reported, not required.
@@ -461,6 +468,26 @@ void testPlayer(const fs::path& tmp) {
             std::printf("        same album: g audible %ld ms after f started\n", album);
             CHECK(album > 4700);
             st::Settings::get().crossfadeSec = 0;
+
+            // Playback speed: a 5 s song at 2x hands over after ~2.5 s, and its position runs at the same pace.
+            st::Settings::get().musicSpeed = 2.f;
+            std::optional<int64_t> midPos;
+            changes.clear();
+            player.playContext({T5("f"), T5("g")}, 0, {"speed", L"Test"});
+            const DWORD t0 = GetTickCount();
+            pumpUntil([&] { return player.status() == Status::Playing; }, 5000);
+            const DWORD playingAt = GetTickCount();
+            pumpUntil([&] { return GetTickCount() - playingAt >= 1000; }, 3000);
+            midPos = player.positionMs();
+            const bool handed = pumpUntil([&] { return changes.size() >= 2; }, 15000);
+            const long fast = handed ? static_cast<long>(changes[1].second - t0) : -1;
+            std::printf("        2x speed: g audible %ld ms after f started, f at %lld ms after 1 s\n", fast,
+                        static_cast<long long>(midPos.value_or(-1)));
+            CHECK(handed && fast > 1800 && fast < 3600);
+            CHECK(midPos && *midPos > 1600 && *midPos < 2600);
+            CHECK(player.speed() == 2.f);
+            player.setSpeed(1.f);
+            CHECK(st::Settings::get().musicSpeed == 1.f);
             player.onTrackChanged = [&](const Track& t) { started.push_back(t.id); };
             player.pause();
         }

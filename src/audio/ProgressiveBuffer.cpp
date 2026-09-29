@@ -126,6 +126,25 @@ int64_t contentLengthFromUrl(const std::string& url) {
     return -1;
 }
 
+// Copies out of a mapped view: a vanished network file or an unwritable temporary file surfaces as an in-page error,
+// which must fail the read, not the process.
+bool guardedCopy(void* dst, const void* src, size_t n) {
+    __try {
+        std::memcpy(dst, src, n);
+        return true;
+    } __except (GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
+        return false;
+    }
+}
+
+std::wstring temporaryPath() {
+    static std::atomic<uint32_t> counter{0};
+    wchar_t dir[MAX_PATH + 1] = {};
+    const DWORD n = GetTempPathW(MAX_PATH, dir);
+    if (n == 0 || n > MAX_PATH) return {};
+    return std::format(L"{}ShadeTube-stream-{}-{}.tmp", dir, GetCurrentProcessId(), counter.fetch_add(1));
+}
+
 std::wstring queryHeader(HINTERNET req, DWORD info) {
     DWORD size = 0;
     WinHttpQueryHeaders(req, info, WINHTTP_HEADER_NAME_BY_INDEX, WINHTTP_NO_OUTPUT_BUFFER, &size,
@@ -180,9 +199,19 @@ void ProgressiveBuffer::cancel() {
 void ProgressiveBuffer::release() {
     if (thread_.joinable()) thread_.join();
     std::lock_guard lock(mutex_);
-    data_.reset();
-    if (memCounter_ && allocated_) memCounter_->fetch_sub(allocated_);
+    if (memCounter_ && allocated_ && !mapped_) memCounter_->fetch_sub(allocated_);
+    heap_.reset();
+    unmap();
+    data_ = nullptr;
     allocated_ = 0;
+}
+
+void ProgressiveBuffer::unmap() {
+    if (mapped_ && data_) UnmapViewOfFile(data_);
+    if (mapping_) CloseHandle(static_cast<HANDLE>(mapping_));
+    if (file_) CloseHandle(static_cast<HANDLE>(file_));
+    mapping_ = file_ = nullptr;
+    mapped_ = false;
 }
 
 int64_t ProgressiveBuffer::waitForLength() {
@@ -199,8 +228,15 @@ ProgressiveBuffer::ReadStatus ProgressiveBuffer::read(int64_t offset, void* dst,
         if (cancelled_.load()) return ReadStatus::Cancelled;
         const int64_t end = offset + static_cast<int64_t>(size);
         if (data_ && end <= allocated_ && availableLocked(offset, end)) {
-            std::memcpy(dst, data_.get() + offset, size);
-            return ReadStatus::Ok;
+            if (!mapped_) {
+                std::memcpy(dst, data_ + offset, size);
+                return ReadStatus::Ok;
+            }
+            if (guardedCopy(dst, data_ + offset, size)) return ReadStatus::Ok;
+            error_ = "read error (file no longer readable)";
+            failed_.store(true, std::memory_order_release);
+            cv_.notify_all();
+            return ReadStatus::Failed;
         }
         if (failed_.load()) return ReadStatus::Failed;
         if (interruptGen_ != gen) return ReadStatus::Interrupted;
@@ -312,8 +348,13 @@ void ProgressiveBuffer::run() {
 }
 
 bool ProgressiveBuffer::allocate(int64_t length) {
-    if (length <= 0 || length > (int64_t(1) << 31)) {
+    if (length <= 0 || length > (int64_t(1) << 32)) {
         fail(std::format("invalid content length {}", length), false);
+        return false;
+    }
+    if (length > kMapThreshold && mapTemporary(length)) return true;
+    if (length > (int64_t(1) << 31)) {   // only a mapping holds more than 2 GB
+        fail(std::format("content too large for memory ({} bytes)", length), false);
         return false;
     }
     std::unique_ptr<uint8_t[]> block(new (std::nothrow) uint8_t[static_cast<size_t>(length)]);
@@ -322,10 +363,64 @@ bool ProgressiveBuffer::allocate(int64_t length) {
         return false;
     }
     std::lock_guard lock(mutex_);
-    data_ = std::move(block);
+    heap_ = std::move(block);
+    data_ = heap_.get();
     allocated_ = length;
     length_.store(length, std::memory_order_release);
     if (memCounter_) memCounter_->fetch_add(length);
+    cv_.notify_all();
+    return true;
+}
+
+bool ProgressiveBuffer::mapTemporary(int64_t length) {
+    const std::wstring path = temporaryPath();
+    if (path.empty()) return false;
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_NEW,
+                              FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return false;
+    LARGE_INTEGER size;
+    size.QuadPart = length;
+    HANDLE mapping = nullptr;
+    void* view = nullptr;
+    if (SetFilePointerEx(file, size, nullptr, FILE_BEGIN) && SetEndOfFile(file)) {
+        mapping = CreateFileMappingW(file, nullptr, PAGE_READWRITE, size.HighPart, size.LowPart, nullptr);
+        if (mapping) view = MapViewOfFile(mapping, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, static_cast<SIZE_T>(length));
+    }
+    if (!view) {
+        ST_LOG_WARN("audio", "temporary file mapping failed (error {}): buffering in memory", GetLastError());
+        if (mapping) CloseHandle(mapping);
+        CloseHandle(file);   // deleted on close
+        return false;
+    }
+    std::lock_guard lock(mutex_);
+    file_ = file;
+    mapping_ = mapping;
+    data_ = static_cast<uint8_t*>(view);
+    mapped_ = true;
+    allocated_ = length;
+    length_.store(length, std::memory_order_release);
+    ST_LOG_INFO("audio", "long stream ({} MB): buffered in a temporary file", length >> 20);
+    cv_.notify_all();
+    return true;
+}
+
+bool ProgressiveBuffer::mapLocal(void* file, int64_t length) {
+    if (length <= 0) return false;
+    HANDLE mapping = CreateFileMappingW(static_cast<HANDLE>(file), nullptr, PAGE_READONLY, 0, 0, nullptr);
+    void* view = mapping ? MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0) : nullptr;
+    if (!view) {
+        if (mapping) CloseHandle(mapping);
+        return false;
+    }
+    std::lock_guard lock(mutex_);
+    file_ = file;
+    mapping_ = mapping;
+    data_ = static_cast<uint8_t*>(const_cast<void*>(view));
+    mapped_ = true;
+    allocated_ = length;
+    length_.store(length, std::memory_order_release);
+    addRangeLocked(0, length);
+    downloaded_.store(length);
     cv_.notify_all();
     return true;
 }
@@ -350,20 +445,23 @@ bool ProgressiveBuffer::backoff(int attempt) {
 }
 
 void ProgressiveBuffer::runLocal() {
-    HANDLE file = CreateFileW(localPath_.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                              FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    // Shared for deletion too: a synced or downloaded file may be removed while it plays (the mapping stays valid).
+    HANDLE file = CreateFileW(localPath_.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr,
+                              OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
     if (file == INVALID_HANDLE_VALUE) {
         fail("cannot open " + toUtf8(localPath_), false);
         return;
     }
     LARGE_INTEGER size{};
     GetFileSizeEx(file, &size);
+    // The file cache holds the pages: no copy, no private memory (and instant availability).
+    if (mapLocal(file, size.QuadPart)) return;
     if (allocate(size.QuadPart)) {
         int64_t pos = 0;
         while (pos < size.QuadPart && !cancelled_.load()) {
             const DWORD want = static_cast<DWORD>(std::min<int64_t>(kChunk, size.QuadPart - pos));
             DWORD got = 0;
-            if (!ReadFile(file, data_.get() + pos, want, &got, nullptr) || got == 0) {
+            if (!ReadFile(file, data_ + pos, want, &got, nullptr) || got == 0) {
                 fail("read error: " + toUtf8(localPath_), false);
                 break;
             }
@@ -631,7 +729,7 @@ ProgressiveBuffer::Fetch ProgressiveBuffer::fetch(HttpState& http, int64_t start
         if (pos >= stop) break;
         const DWORD want = static_cast<DWORD>(std::min<int64_t>(kPiece, stop - pos));
         ctx.bytes = 0;
-        if (!WinHttpReadData(req, data_.get() + pos, want, nullptr)) {
+        if (!WinHttpReadData(req, data_ + pos, want, nullptr)) {
             error = winHttpError("WinHttpReadData", GetLastError());
             result = Fetch::Retry;
             break;

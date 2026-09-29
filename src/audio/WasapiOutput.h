@@ -34,6 +34,8 @@ public:
     void close();
     // "" = the Windows default device. Takes effect at the next open().
     void setPreferredDevice(std::wstring id);
+    // The shared-mode mix rate of the device open() would use now (the preferred one when present); 0 if unknown.
+    uint32_t mixRate();
     const std::wstring& preferredDevice() const { return preferred_; }
     bool isOpen() const { return client_ != nullptr; }
     bool running() const { return running_; }

@@ -12,6 +12,7 @@ add_library(st_audio STATIC
     Equalizer.cpp Equalizer.h                   # 10-band peaking biquads + presets (also drawn by Ayarlar > SES)
     ReplayGain.cpp ReplayGain.h                 # ReplayGain track gain from ID3 / FLAC / MP4 tags (local files)
     Limiter.cpp Limiter.h                       # look-ahead output limiter (-0.3 dBFS ceiling)
+    TimeStretch.cpp TimeStretch.h               # playback speed without a pitch change (WSOLA)
     Downloader.cpp Downloader.h                 # offline download + MF PCM->MP3 transcode + ID3
     LiveStream.cpp LiveStream.h                 # live radio: playlists, ICY / HLS, rolling buffer, reconnects
     LiveParsers.cpp LiveParsers.h               # MPEG / ADTS / Ogg framing, ICY, playlists, HLS, TS, fMP4

@@ -7,11 +7,14 @@
 //      MP4 freeform atom, and a real temporary file; files without a gain give none.
 //   3. Limiter (audio/Limiter): quiet audio passes unchanged, only delayed by the look-ahead; a +6 dB sine and a lone
 //      spike never exceed the ceiling; the gain comes back after the loud part.
-//   4. Output devices: AudioEngine::outputDevices() enumerates without failing (names are printed).
+//   4. Time stretch (audio/TimeStretch): at 0.75x / 1.5x / 2x the output lasts 1 / tempo of the input, a sine keeps its
+//      pitch, reported positions move forward at the tempo and the end of the input is flushed completely.
+//   5. Output devices: AudioEngine::outputDevices() enumerates without failing (names are printed).
 //   audiodsp_test
 #include "audio/AudioEngine.h"
 #include "audio/Equalizer.h"
 #include "audio/Limiter.h"
+#include "audio/TimeStretch.h"
 #include "audio/ReplayGain.h"
 
 #include <windows.h>
@@ -404,6 +407,59 @@ void testLimiter() {
     CHECK(lim.gainReduction() < 0.01f);
 }
 
+// Frequency of a (stereo) sine from its zero crossings, skipping the first `skip` frames.
+double zeroCrossingHz(const std::vector<float>& buf, size_t frames, uint32_t rate, size_t skip) {
+    size_t crossings = 0;
+    for (size_t i = skip + 1; i < frames; ++i)
+        if ((buf[(i - 1) * 2] < 0) != (buf[i * 2] < 0)) ++crossings;
+    return crossings / 2.0 / (static_cast<double>(frames - skip - 1) / rate);
+}
+
+void testTimeStretch() {
+    std::printf("time stretch\n");
+    constexpr uint32_t kRate = 48000;
+    const size_t inFrames = kRate * 4;
+    const auto input = sine(440, kRate, inFrames, 0.5f);
+    for (double tempo : {0.75, 1.5, 2.0}) {
+        TimeStretch ts;
+        ts.configure(kRate, 2);
+        ts.setTempo(tempo);
+        size_t readPos = 0;
+        auto pull = [&](float* d, size_t n, int64_t& first) {
+            first = static_cast<int64_t>(readPos);
+            const size_t k = std::min(n, inFrames - readPos);
+            std::memcpy(d, input.data() + readPos * 2, k * 2 * sizeof(float));
+            readPos += k;
+            return k;
+        };
+        std::vector<float> out;
+        std::vector<float> block(1024 * 2);
+        int64_t lastPos = -1;
+        bool monotonic = true;
+        for (int guard = 0; guard < 100000; ++guard) {
+            int64_t pos = -1;
+            const size_t got = ts.process(block.data(), 1024, pos, pull, [&] { return readPos >= inFrames; });
+            if (got == 0) {
+                if (readPos >= inFrames) break;
+                continue;
+            }
+            if (pos < lastPos) monotonic = false;
+            lastPos = pos;
+            out.insert(out.end(), block.begin(), block.begin() + static_cast<std::ptrdiff_t>(got * 2));
+        }
+        const size_t outFrames = out.size() / 2;
+        const double expected = inFrames / tempo;
+        const double hz = zeroCrossingHz(out, outFrames, kRate, kRate / 10);
+        std::printf("        tempo %.2f: %zu -> %zu frames (expected ~%.0f), %.1f Hz, last pos %lld\n", tempo, inFrames, outFrames,
+                    expected, hz, static_cast<long long>(lastPos));
+        CHECK(std::fabs(outFrames - expected) < kRate * 0.1);   // within 100 ms
+        CHECK(std::fabs(hz - 440) < 6);                          // pitch kept
+        CHECK(monotonic);
+        CHECK(lastPos > static_cast<int64_t>(inFrames * 0.9));    // positions follow the input to its end
+        CHECK(ts.empty());
+    }
+}
+
 void testDevices() {
     std::printf("output devices\n");
     const auto devices = AudioEngine::outputDevices();
@@ -423,6 +479,7 @@ int main() {
     testEqualizer();
     testReplayGain();
     testLimiter();
+    testTimeStretch();
     testDevices();
     std::printf(g_failures ? "\n%d FAILED\n" : "\nall passed\n", g_failures);
     return g_failures ? 1 : 0;

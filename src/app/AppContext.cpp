@@ -1070,6 +1070,32 @@ std::wstring trDate(int64_t unixSeconds, bool withYear) {
     return toUpperTr(out);
 }
 
+std::wstring speedLabel(float speed) {
+    wchar_t b[16];
+    const float r = std::round(speed * 100.f) / 100.f;
+    swprintf(b, 16, r == std::floor(r) ? L"%.0f" : (r * 10.f == std::floor(r * 10.f) ? L"%.1f" : L"%.2f"), r);
+    std::wstring s = b;
+    std::replace(s.begin(), s.end(), L'.', i18n::decimalSeparator());
+    return s + L"\u00D7";
+}
+
+const std::vector<float>& speedSteps() {
+    static const std::vector<float> steps{0.5f, 0.75f, 1.f, 1.25f, 1.5f, 1.75f, 2.f, 2.5f, 3.f};
+    return steps;
+}
+
+float speedStep(float speed, int direction) {
+    const auto& steps = speedSteps();
+    if (direction > 0) {
+        for (float s : steps)
+            if (s > speed + 0.01f) return s;
+        return steps.back();
+    }
+    for (auto it = steps.rbegin(); it != steps.rend(); ++it)
+        if (*it < speed - 0.01f) return *it;
+    return steps.front();
+}
+
 std::wstring relativeTime(int64_t unixSeconds) {
     if (unixSeconds <= 0) return L"";
     const int64_t d = std::max<int64_t>(0, nowUnix() - unixSeconds);

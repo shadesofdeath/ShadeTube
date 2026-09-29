@@ -38,6 +38,7 @@
 #include "audio/LiveStream.h"
 #include "audio/ProgressiveBuffer.h"
 #include "audio/Spectrum.h"
+#include "audio/TimeStretch.h"
 #include "audio/Track.h"
 #include "audio/WasapiOutput.h"
 #include "core/Log.h"
@@ -72,6 +73,13 @@ constexpr double kRebufferSeconds = 0.75;     // ... after a mid-track stall (av
 constexpr int64_t kLivePrebufferMs = 2000;    // live: audio buffered ahead before starting (jitter margin)
 constexpr int64_t kLiveRebufferMs = 3000;     // ... after a stall (the network just proved to be slow)
 constexpr ULONGLONG kLiveMaxWaitMs = 10000;   // ... but never wait longer than this once something is decoded
+// Smart crossfade: under this peak level (-50 dBFS) audio counts as silence. A song whose last seconds went silent hands
+// over at once (after kSilentTailMs of it, within kSilentTailWindowMs of its end), and the incoming song starts at its
+// first sound (up to kSkipLeadMs of leading silence dropped).
+constexpr float kSilence = 0.00316f;
+constexpr int64_t kSilentTailMs = 1500;
+constexpr int64_t kSilentTailWindowMs = 20000;
+constexpr int64_t kSkipLeadMs = 5000;
 
 // MFAudioFormat_Opus (WAVE_FORMAT_OPUS = 0x704F); defined locally for older SDKs.
 constexpr GUID kAudioFormatOpus = {0x0000704F, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
@@ -85,11 +93,12 @@ float perceptualGain(float linear) {
 float dbToGain(float db) { return db == 0.f ? 1.f : std::pow(10.f, std::clamp(db, -30.f, 15.f) / 20.f); }
 
 struct Command {
-    enum class Type { Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek, SetDevice } type;
+    enum class Type { Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek, SetDevice, SetSpeed } type;
     StreamSource source;
     int64_t ms = 0;
     bool autoplay = true;
     std::wstring device;   // SetDevice
+    float speed = 1;       // SetSpeed
 };
 
 // A contiguous block of frames written to the device.
@@ -101,6 +110,7 @@ struct Run {
     uint32_t rate = 0;
     uint32_t serial = 0;       // position epoch (bumped by seek/open/stop)
     uint64_t finishedTag = 0;  // != 0: first run after a natural transition from this tag
+    float speed = 1;           // track frames per device frame (playback speed)
 };
 
 enum class Phase { None, Active, Ended, Failed };
@@ -163,10 +173,14 @@ struct AudioEngine::Impl {
     uint32_t serial = 0;
     float fade = 0.f, vol = 0.f;
     int64_t curEndFrame = -1;         // track frame after the last one read from cur (-1: none since open / seek)
+    int64_t silentRun = 0;            // frames of cur read in a row that stayed under kSilence
+    uint32_t outputRate = 0;          // the device's mix rate: every track decodes to it (0 = native rates)
 
     Equalizer eq;
     uint32_t eqApplied = 0, eqRate = 0, eqChannels = 0;
     Limiter limiter;
+    TimeStretch stretch;              // playback speed of cur (see readCur)
+    float curSpeed = 1;               // cur's speed: its StreamSource::speed, then setSpeed()
 
     // Crossfade (see the header comment).
     std::unique_ptr<Track> fading;    // the outgoing track, mixed under cur
@@ -180,6 +194,7 @@ struct AudioEngine::Impl {
     size_t tailDone = 0;
     uint64_t tailTag = 0;
     int64_t tailPos = 0;
+    float tailSpeed = 1;
     uint32_t tailSerial = 0;
 
     uint64_t written = 0;      // frames written since the client was started
@@ -203,11 +218,14 @@ struct AudioEngine::Impl {
         HANDLE mmcss = AvSetMmThreadCharacteristicsW(L"Audio", &taskIndex);
         out = std::make_unique<WasapiOutput>(wake);
         vol = perceptualGain(volume.load());
+        // Tracks decode to the device's mix rate (Decoder: the Source Reader's resampler), so songs of different
+        // rates never need a device reopen between them: gapless handoffs and crossfades always line up.
+        outputRate = out->mixRate();
         // Warm-up: the first IAudioClient initialisation in a process can take ~0.5-1 s (audio
-        // engine / APO loading). Do it now, while nothing plays, with YouTube's usual AAC format
-        // (44.1 kHz stereo). The client stays initialised but stopped (no CPU); a different track
-        // format simply reopens it, which is fast once warm. Failures are ignored here.
-        if (FAILED(out->open(44100, 2))) out->close();
+        // engine / APO loading). Do it now, while nothing plays, in the format tracks will have. The client stays
+        // initialised but stopped (no CPU); another format simply reopens it, which is fast once warm. Failures are
+        // ignored here.
+        if (FAILED(out->open(outputRate ? outputRate : 44100, 2))) out->close();
 
         while (!quit.load()) {
             HANDLE handles[2] = {wake, static_cast<HANDLE>(out->event())};
@@ -282,12 +300,13 @@ struct AudioEngine::Impl {
             case Command::Type::Stop: cmdStop(); break;
             case Command::Type::Seek: cmdSeek(c.ms); break;
             case Command::Type::SetDevice: cmdSetDevice(c.device); break;
+            case Command::Type::SetSpeed: curSpeed = std::clamp(c.speed, 0.5f, 3.f); break;
             }
         }
     }
 
     std::unique_ptr<Track> makeTrack(const StreamSource& s, int64_t startMs) {
-        return std::make_unique<Track>(s, startMs, &memBytes, wake);
+        return std::make_unique<Track>(s, startMs, &memBytes, wake, outputRate);
     }
 
     void cmdOpen(const StreamSource& s, int64_t startMs, bool autoplay) {
@@ -311,6 +330,9 @@ struct AudioEngine::Impl {
         endPending = false;
         clearTransitions();
         curEndFrame = -1;
+        silentRun = 0;
+        stretch.clear();
+        curSpeed = cur->live() ? 1.f : std::clamp(cur->source().speed, 0.5f, 3.f);
         beginRebuffer(Rebuffer::Open);
         publishTrack(s.tag, std::max<int64_t>(0, startMs), cur->durationMs(), cur.get());
     }
@@ -340,6 +362,7 @@ struct AudioEngine::Impl {
     void cmdStop() {
         captureTail();
         endCrossfade();
+        stretch.clear();
         ++serial;
         retire(cur);
         retire(next);
@@ -360,6 +383,8 @@ struct AudioEngine::Impl {
         ++serial;
         cur->seek(ms);
         curEndFrame = -1;
+        silentRun = 0;
+        stretch.clear();
         phase = Phase::Active;
         endPending = false;
         beginRebuffer(Rebuffer::Seek);
@@ -377,6 +402,7 @@ struct AudioEngine::Impl {
         tail.clear();
         out->close();
         fade = 0.f;
+        outputRate = out->mixRate();   // tracks opened from now on decode to the new device's rate
     }
 
     void publishTrack(uint64_t t, int64_t pos, int64_t dur, const Track* track) {
@@ -475,6 +501,7 @@ struct AudioEngine::Impl {
         const uint64_t finished = cur->tag();
         endCrossfade();   // the incoming track of a mix ended already (shorter than the fade)
         curEndFrame = -1;
+        silentRun = 0;
         if (next && next->failed()) retire(next);
         if (!next) {
             phase = Phase::Ended;
@@ -483,6 +510,8 @@ struct AudioEngine::Impl {
         }
         retire(cur);
         cur = std::move(next);
+        stretch.clear();   // the finished track's input has all been played (readCur flushed it)
+        curSpeed = std::clamp(cur->source().speed, 0.5f, 3.f);
         pendingFinishedTag = finished;
         if (cur->formatReady() && formatMatches(*cur)) return true;  // gapless, same format
         beginRebuffer(Rebuffer::Seek);  // not decoded yet, or needs a device reopen
@@ -529,6 +558,7 @@ struct AudioEngine::Impl {
         out->close();  // reopened lazily by maybeStartOrStop() on the new default device
         fade = 0.f;
         deviceLost = false;
+        outputRate = out->mixRate();
     }
 
     // Treats everything written as heard (fires pending transitions) and forgets the runs.
@@ -600,9 +630,11 @@ struct AudioEngine::Impl {
         const size_t n = static_cast<size_t>(out->sampleRate() * kFadeSeconds);
         tail.resize(n * ch);
         int64_t pos = 0;
-        const size_t got = cur->read(tail.data(), n, pos, ch, out->sampleRate());
+        const float speed = stretching() ? curSpeed : 1.f;
+        const size_t got = readCur(tail.data(), n, pos, ch, out->sampleRate());
         tail.resize(got * ch);
         if (got == 0) return;
+        tailSpeed = speed;
         float gain = gainOf(*cur);
         if (xfading) {   // the outgoing track of a running mix fades out with it
             mixCrossfade(tail.data(), got, ch, out->sampleRate());
@@ -622,7 +654,7 @@ struct AudioEngine::Impl {
     }
 
     void addRun(uint64_t start, size_t frames, uint64_t runTag, int64_t pos, uint32_t rate, uint32_t runSerial,
-                uint64_t finishedTag) {
+                uint64_t finishedTag, float speed = 1.f) {
         if (pos < 0 && !runs.empty()) {  // merge consecutive silence
             Run& last = runs.back();
             if (last.pos < 0 && last.start + last.frames == start && last.serial == runSerial) {
@@ -630,7 +662,7 @@ struct AudioEngine::Impl {
                 return;
             }
         }
-        runs.push_back({start, static_cast<uint32_t>(frames), runTag, pos, rate, runSerial, finishedTag});
+        runs.push_back({start, static_cast<uint32_t>(frames), runTag, pos, rate, runSerial, finishedTag, speed});
     }
 
     void applyGain(float* p, size_t frames, uint32_t ch, uint32_t rate, float volTarget, bool withFade, float gain) {
@@ -654,6 +686,31 @@ struct AudioEngine::Impl {
 
     float gainOf(const Track& t) const { return dbToGain(t.gainDb()); }
 
+    // cur plays through the time-stretcher: at another speed than 1, or while it still holds audio after a change back.
+    bool stretching() const { return cur && !cur->live() && (curSpeed != 1.f || !stretch.empty()); }
+
+    // Reads cur's next frames, at its speed. Back at 1x the stretcher first hands out what it still holds, then reads go
+    // straight to the track again (seamless: the stretcher only ever buffers the track's next frames).
+    size_t readCur(float* dst, size_t n, int64_t& pos, uint32_t ch, uint32_t rate) {
+        Track* t = cur.get();
+        if (!stretching()) return t->read(dst, n, pos, ch, rate);
+        stretch.configure(rate, ch);
+        if (curSpeed != 1.f) {
+            stretch.setTempo(curSpeed);
+            return stretch.process(dst, n, pos,
+                                   [t, ch, rate](float* d, size_t k, int64_t& fp) { return t->read(d, k, fp, ch, rate); },
+                                   [t] { return t->decoderEnded(); });
+        }
+        size_t got = stretch.process(dst, n, pos, nullptr, [] { return true; });
+        if (got < n && stretch.empty()) {
+            int64_t p2 = 0;
+            const size_t more = t->read(dst + got * ch, n - got, p2, ch, rate);
+            if (got == 0) pos = p2;
+            got += more;
+        }
+        return got;
+    }
+
     // Picks up equalizer changes and output format changes (engine thread, before processing a block).
     void syncEq() {
         if (!out->isOpen()) return;
@@ -673,25 +730,32 @@ struct AudioEngine::Impl {
     // Starts a crossfade into the preloaded track once the current one is within its fade length of the end.
     void maybeStartCrossfade(uint32_t rate) {
         if (xfading || !next || !cur || cur->live() || next->live() || next->failed()) return;
+        if (curSpeed != 1.f || !stretch.empty() || next->source().speed != 1.f) return;
         const int ms = next->source().crossfadeMs;
         if (ms <= 0 || !next->formatReady() || !formatMatches(*next)) return;
         const int64_t dur = cur->durationMs();
         if (dur <= 0 || curEndFrame < 0) return;
         const int64_t remaining = dur * rate / 1000 - curEndFrame;
-        const int64_t length = int64_t(ms) * rate / 1000;
-        if (remaining > length || remaining < rate / 5) return;   // not yet, or too late to be worth it: gapless
+        int64_t length = int64_t(ms) * rate / 1000;
+        // A silent ending (a fade-out that is over, a video's quiet outro) needn't be sat through: hand over now.
+        const bool silentEnd = silentRun >= kSilentTailMs * rate / 1000 && remaining <= kSilentTailWindowMs * rate / 1000;
+        if (silentEnd) length = std::min<int64_t>(remaining, rate / 2);
+        else if (remaining > length || remaining < rate / 5) return;   // not yet, or too late to be worth it: gapless
         // The incoming track must be decoded ahead, or the mix would stall right away.
         if (next->available() < std::min<size_t>(next->capacity() / 2, rate / 4) && !next->decoderEnded()) return;
         fading = std::move(cur);
         fadingGain = gainOf(*fading);
         cur = std::move(next);
+        cur->skipSilence(kSilence, static_cast<size_t>(kSkipLeadMs * rate / 1000));   // start at its first sound
+        silentRun = 0;
         xfading = true;
-        xfadeTotal = remaining;
+        xfadeTotal = silentEnd ? length : remaining;
         xfadeDone = 0;
         xfadeIn = 0.f;
         pendingFinishedTag = fading->tag();
         curEndFrame = -1;
-        ST_LOG_DEBUG("audio", "crossfade {} -> {} over {} ms", fading->tag(), cur->tag(), remaining * 1000 / rate);
+        ST_LOG_DEBUG("audio", "crossfade {} -> {} over {} ms{}", fading->tag(), cur->tag(), xfadeTotal * 1000 / rate,
+                     silentEnd ? " (silent ending)" : "");
     }
 
     // Mixes the outgoing track under `p` (frames of the incoming one) with equal-power curves, both loudness gains
@@ -749,7 +813,7 @@ struct AudioEngine::Impl {
             std::memcpy(dst, tail.data() + tailDone * ch, size_t(k) * ch * sizeof(float));
             spectrum.push(dst, k, ch);
             applyGain(dst, k, ch, rate, volTarget, false, 1.f);
-            addRun(written, k, tailTag, tailPos + static_cast<int64_t>(tailDone), rate, tailSerial, 0);
+            addRun(written, k, tailTag, tailPos + static_cast<int64_t>(tailDone * tailSpeed), rate, tailSerial, 0, tailSpeed);
             tailDone += k;
             done += k;
             lastRealEnd = written + done + limiter.latencyFrames();   // it leaves the limiter that much later
@@ -764,9 +828,13 @@ struct AudioEngine::Impl {
             Track& t = *cur;
             float* p = dst + size_t(done) * ch;
             int64_t pos = 0;
-            const size_t got = t.read(p, n - done, pos, ch, rate);
+            const float speed = stretching() ? curSpeed : 1.f;
+            const size_t got = readCur(p, n - done, pos, ch, rate);
             if (got > 0) {
                 curEndFrame = pos + static_cast<int64_t>(got);
+                float peak = 0;
+                for (size_t i = 0; i < got * ch; ++i) peak = std::max(peak, std::fabs(p[i]));
+                silentRun = peak < kSilence ? silentRun + static_cast<int64_t>(got) : 0;
                 float gain = gainOf(t);
                 if (xfading) {
                     mixCrossfade(p, got, ch, rate);
@@ -775,13 +843,13 @@ struct AudioEngine::Impl {
                 eq.process(p, got);
                 spectrum.push(p, got, ch);
                 applyGain(p, got, ch, rate, volTarget, true, gain);
-                addRun(written + done, got, t.tag(), pos, rate, serial, pendingFinishedTag);
+                addRun(written + done, got, t.tag(), pos, rate, serial, pendingFinishedTag, speed);
                 pendingFinishedTag = 0;
                 done += static_cast<uint32_t>(got);
                 lastRealEnd = written + done + limiter.latencyFrames();   // it leaves the limiter that much later
                 continue;
             }
-            if (t.ended()) {
+            if (t.ended() && stretch.empty()) {
                 if (advance()) continue;
                 break;
             }
@@ -812,7 +880,7 @@ struct AudioEngine::Impl {
             }
             if (r.pos >= 0 && r.serial == serial) {
                 const uint64_t into = std::min<uint64_t>(played - r.start, r.frames);
-                posMs.store((r.pos + static_cast<int64_t>(into)) * 1000 / r.rate);
+                posMs.store((r.pos + static_cast<int64_t>(static_cast<double>(into) * r.speed)) * 1000 / r.rate);
             }
             if (played >= r.start + r.frames) runs.pop_front();
             else break;
@@ -877,6 +945,12 @@ void AudioEngine::setEqualizer(const EqSettings& eq) {
     }
     impl_->eqVersion.fetch_add(1, std::memory_order_release);
     SetEvent(impl_->wake);
+}
+
+void AudioEngine::setSpeed(float speed) {
+    Command c{Command::Type::SetSpeed, {}};
+    c.speed = speed;
+    impl_->post(std::move(c));
 }
 
 void AudioEngine::setOutputDevice(const std::wstring& id) {

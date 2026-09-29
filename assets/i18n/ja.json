@@ -1081,5 +1081,10 @@
   "İçe aktar": "インポート",
   "İçe aktarılan geçmiş kaldırıldı": "インポートした履歴を削除しました",
   "İçe aktarılan geçmiş kaldırılsın mı?": "インポートした履歴を削除しますか？",
-  "İçe aktarılan geçmişi kaldır": "インポートした履歴を削除"
+  "İçe aktarılan geçmişi kaldır": "インポートした履歴を削除",
+  "Çalma hızı": "再生速度",
+  "Çalma hızı: {}": "再生速度: {}",
+  "Daha hızlı çal": "速く再生",
+  "Daha yavaş çal": "遅く再生",
+  "Normal hızda çal": "通常の速度で再生"
 }

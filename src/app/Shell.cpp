@@ -533,6 +533,23 @@ PlayerBar::PlayerBar()
     knob_ = add<ui::Knob>();
     mini_ = add<Button>(ButtonKind::Icon, L"", "mini-player");
     expand_ = add<Button>(ButtonKind::Icon, L"", "expand");
+    // Playback speed: always offered for podcast episodes, for songs only once it isn't 1x (keys / palette set it).
+    speed_ = add<Button>(ButtonKind::Ghost, speedLabel(1.f));
+    speed_->setTooltip(tr(L"Çalma hızı"));
+    speed_->onClick = [this] {
+        auto* p = ctx().player;
+        if (!p || !p->current()) return;
+        std::vector<ui::MenuItem> items;
+        for (float s : speedSteps()) {
+            ui::MenuItem it{speedLabel(s), "", s == 1.f ? std::wstring(tr(L"Normal")) : std::wstring{}, [s] {
+                                if (ctx().player) ctx().player->setSpeed(s);
+                            }};
+            it.checked = std::fabs(p->speed() - s) < 0.01f;
+            items.push_back(std::move(it));
+        }
+        const Rect br = speed_->toWindow(speed_->rect());
+        ui::Menu::open(ctx().window, {br.x, br.y - 6}, std::move(items));
+    };
     sleep_ = add<Button>(ButtonKind::Icon, L"", "clock");
     sleep_->setTooltip(tr(L"Uyku zamanlayıcı"));
     sleep_->onClick = [this] {
@@ -603,6 +620,13 @@ void PlayerBar::sync() {
     // Live: no seeking (the bar stays a hairline).
     seek_->setEnabled(!live_);
     queue_->setActive(false);
+    {
+        const float sp = p ? p->speed() : 1.f;
+        const bool episode = t && catalog::isPodcastId(t->id);
+        speed_->setVisible(t && !live_ && (episode || std::fabs(sp - 1.f) > 0.01f));
+        speed_->setLabel(speedLabel(sp));
+        speed_->setActive(std::fabs(sp - 1.f) > 0.01f);
+    }
     sleep_->setActive(sleepTimerActive());
     sleep_->setTooltip(sleepTimerActive() ? i18n::format(tr(L"Uyku zamanlayıcı · {}"), {sleepTimerLabel()})
                                           : std::wstring(tr(L"Uyku zamanlayıcı")));
@@ -642,6 +666,12 @@ void PlayerBar::layout() {
     place(queue_, 32, 6);
     place(lyrics_, 32, 6);
     place(sleep_, 32, 10);
+    if (speed_->visible()) {
+        const float w = std::max(40.f, std::ceil(speed_->naturalWidth()));
+        rx -= w;
+        speed_->setRect({rx, cy - 16, w, 32});
+        rx -= 6;
+    }
     // Left: art + title/artist + heart.
     artRect_ = {20, cy - 28, 56, 56};
     const float textX = artRect_.right() + 14;

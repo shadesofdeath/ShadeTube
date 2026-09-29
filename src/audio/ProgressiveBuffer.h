@@ -1,7 +1,7 @@
 #pragma once
-// In-memory progressive media buffer with random access (internal to st_audio).
+// Progressive media buffer with random access (internal to st_audio).
 //
-// One contiguous allocation of `length` bytes is filled by a private download thread using ~1 MB
+// One contiguous block of `length` bytes is filled by a private download thread using ~1 MB
 // range requests (YouTube's googlevideo servers throttle long single connections; short ranged
 // requests are served at full speed). Downloaded byte ranges are tracked, so the buffer can be
 // read at ANY offset: a read far beyond the download frontier (e.g. the user seeks to 80% right
@@ -20,7 +20,10 @@
 //   - any thread: cancel(), fraction(), failed(), hasWaiters().
 //   - owner: release() joins the download thread and frees the memory (call after cancel()).
 //
-// Local files (`localPath`) use the same machinery: the thread reads the file into memory.
+// Backing store: a heap block for a typical song. A stream longer than kMapThreshold (a podcast episode, a DJ mix) is
+// written into a memory-mapped temporary file instead (deleted on close), and a local file is mapped read-only as it is:
+// their pages belong to the file cache, so a three-hour episode or a large FLAC costs no private memory. A read from a
+// mapping that fails (a network share went away, a full disk) fails the buffer instead of crashing.
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -36,6 +39,9 @@ namespace st::audio {
 class ProgressiveBuffer {
 public:
     enum class ReadStatus { Ok, Interrupted, Cancelled, Failed };
+    static constexpr int64_t kMapThreshold = 32ll << 20;   // streams above this go to a memory-mapped temporary file
+
+    bool mapped() const { return mapped_; }   // valid once the length is known
 
     // `memCounter` (optional) tracks the bytes held by all buffers of one engine.
     ProgressiveBuffer(std::string url, std::wstring localPath, int64_t contentLength,
@@ -78,6 +84,9 @@ private:
     Fetch fetch(HttpState& http, int64_t start, int64_t end, bool side, int64_t& got, std::string& error);
     int waitOp(void* doneEvent, bool side);  // 0 = completed, 1 = cancelled, 2 = restart requested
     bool allocate(int64_t length);
+    bool mapTemporary(int64_t length);     // a writable mapping of a new temporary file (false: use the heap)
+    bool mapLocal(void* file, int64_t length);   // maps the whole local file read-only; takes ownership on success
+    void unmap();
     void fail(std::string message, bool expired);
     bool backoff(int attempt);  // false if cancelled while waiting
 
@@ -94,7 +103,12 @@ private:
 
     mutable std::mutex mutex_;
     std::condition_variable cv_;           // readers: data / length / failure / interrupt
-    std::unique_ptr<uint8_t[]> data_;      // guarded by mutex_ for reads; written outside it by the thread
+    uint8_t* data_ = nullptr;              // heap block or mapped view; guarded by mutex_ for reads, written outside
+                                           // it by the thread
+    std::unique_ptr<uint8_t[]> heap_;      // owns data_ unless mapped
+    void* file_ = nullptr;                 // HANDLE behind a mapping (the local file, or the temporary file)
+    void* mapping_ = nullptr;              // HANDLE of the file mapping
+    bool mapped_ = false;
     int64_t allocated_ = 0;
     std::vector<std::pair<int64_t, int64_t>> ranges_;  // sorted, merged [begin, end)
     int64_t priority_ = 0;                 // where readers want data next

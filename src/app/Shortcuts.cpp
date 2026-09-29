@@ -32,6 +32,10 @@ constexpr Action kActions[] = {
     {"like", [] { return tr(L"Çalan şarkıyı beğen"); }, Category::Playback, "Ctrl+L", kGlobal | kMini, "heart"},
     {"shuffle", [] { return tr(L"Karışık çalmayı aç / kapat"); }, Category::Playback, "Ctrl+S", kMini, "shuffle"},
     {"repeat", [] { return tr(L"Tekrar modunu değiştir"); }, Category::Playback, "Ctrl+R", kMini, "repeat"},
+    {"speed-up", [] { return tr(L"Daha hızlı çal"); }, Category::Playback, "Ctrl+Shift+Period", kMini | kRepeat, "chevron-up"},
+    {"speed-down", [] { return tr(L"Daha yavaş çal"); }, Category::Playback, "Ctrl+Shift+Comma", kMini | kRepeat,
+     "chevron-down"},
+    {"speed-normal", [] { return tr(L"Normal hızda çal"); }, Category::Playback, "", kMini, "refresh"},
 
     {"command-palette", [] { return tr(L"Komut paleti"); }, Category::Navigation, "Ctrl+K", kInText, "search"},
     {"search", [] { return tr(L"Ara"); }, Category::Navigation, "Ctrl+F", 0, "search"},

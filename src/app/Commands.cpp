@@ -7,6 +7,7 @@
 #include "app/Installer.h"
 #include "app/InternetRadio.h"
 #include "app/Router.h"
+#include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
@@ -77,6 +78,13 @@ bool builtin(std::string_view id) {
         // A station: the like is the radio favorite (like the player bar's heart).
         if (!radio::isStationId(t->id)) ctx().library.toggleLiked(*t);
         else if (const auto* s = radio::store().find(radio::uuidOf(t->id))) radio::store().toggleFavorite(*s);
+        return true;
+    }
+    if (id == "speed-up" || id == "speed-down" || id == "speed-normal") {
+        if (!p || !p->current() || p->isLive()) return p != nullptr;
+        const float v = id == "speed-normal" ? 1.f : speedStep(p->speed(), id == "speed-up" ? 1 : -1);
+        p->setSpeed(v);
+        toast(i18n::format(tr(L"Çalma hızı: {}"), {speedLabel(v)}));
         return true;
     }
     if (id == "shuffle") return p && (p->setShuffle(!p->shuffle()), true);

@@ -89,7 +89,7 @@ private:
     ui::Slider* seek_;
     ui::Button *shuffle_, *prev_, *next_, *repeat_, *heart_;
     ui::PlayButton* play_;
-    ui::Button *lyrics_, *queue_, *mini_, *expand_, *sleep_;
+    ui::Button *lyrics_, *queue_, *mini_, *expand_, *sleep_, *speed_;
     ui::Knob* knob_;
     gfx::Text title_, artist_, time_;
     Rect infoRect_{}, artRect_{}, timeRect_{};

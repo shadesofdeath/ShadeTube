@@ -1081,5 +1081,10 @@
   "İçe aktar": "가져오기",
   "İçe aktarılan geçmiş kaldırıldı": "가져온 기록을 삭제했어요",
   "İçe aktarılan geçmiş kaldırılsın mı?": "가져온 기록을 삭제할까요?",
-  "İçe aktarılan geçmişi kaldır": "가져온 기록 삭제"
+  "İçe aktarılan geçmişi kaldır": "가져온 기록 삭제",
+  "Çalma hızı": "재생 속도",
+  "Çalma hızı: {}": "재생 속도: {}",
+  "Daha hızlı çal": "더 빠르게 재생",
+  "Daha yavaş çal": "더 느리게 재생",
+  "Normal hızda çal": "보통 속도로 재생"
 }

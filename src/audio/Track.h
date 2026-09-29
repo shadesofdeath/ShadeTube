@@ -40,8 +40,10 @@ class ProgressiveBuffer;
 class Track {
 public:
     // `wakeEvent` (HANDLE) is signalled when the engine should look at this track again (format
-    // known, data after requestWake(), end of stream, error).
-    Track(const StreamSource& source, int64_t startMs, std::atomic<int64_t>* memCounter, void* wakeEvent);
+    // known, data after requestWake(), end of stream, error). `outputRate` (0 = native): the sample rate to decode
+    // to, the engine's output rate (live streams keep their own).
+    Track(const StreamSource& source, int64_t startMs, std::atomic<int64_t>* memCounter, void* wakeEvent,
+          uint32_t outputRate = 0);
     ~Track();
     Track(const Track&) = delete;
     Track& operator=(const Track&) = delete;
@@ -68,6 +70,9 @@ public:
     bool ended() const;           // decoder reached the end AND the ring is drained
     bool decoderEnded() const;    // decoder reached the end (ring may still hold frames)
     void seek(int64_t ms);        // flushes the ring; the decode thread repositions
+    // Drops leading frames of the ring whose samples all stay under `threshold` (at most `maxFrames`, and never more
+    // than the ring holds now). Returns the frames skipped. Crossfades use it to start the incoming song at its music.
+    size_t skipSilence(float threshold, size_t maxFrames);
     void requestWake() { wakeRequested_.store(true, std::memory_order_release); }
 
     bool failed() const { return failed_.load(std::memory_order_acquire); }
@@ -99,6 +104,7 @@ private:
     std::shared_ptr<ProgressiveBuffer> buffer_;
     std::shared_ptr<LiveStream> live_;
     const int64_t liveStartMs_ = 0;   // live: position the clock starts at
+    const uint32_t outputRate_ = 0;   // decode to this rate (0 = native)
     void* wakeEvent_;
 
     mutable std::mutex mutex_;

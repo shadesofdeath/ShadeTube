@@ -1,6 +1,7 @@
 #pragma once
 // Media Foundation Source Reader wrapper: compressed audio (AAC/MP4, Opus/WebM) -> interleaved
-// 32-bit float PCM at the stream's native sample rate (internal to st_audio).
+// 32-bit float PCM, stereo, at a requested sample rate (the Source Reader's resampler, Windows 8+) or else the stream's
+// native one (internal to st_audio).
 //
 // Not thread-safe: owned and used by exactly one Track decode thread (which must have COM
 // initialised and MFStartup called by the engine).
@@ -28,7 +29,9 @@ public:
 
     // Creates media source + source reader over the buffer. On failure returns the HRESULT and sets
     // `unsupported` when the failure means "no byte-stream handler / decoder for this format".
-    HRESULT open(const std::shared_ptr<ProgressiveBuffer>& buffer, const std::string& mimeType, bool& unsupported);
+    // `targetRate` (0 = native): the sample rate to decode to, so tracks of different rates share one output format.
+    HRESULT open(const std::shared_ptr<ProgressiveBuffer>& buffer, const std::string& mimeType, bool& unsupported,
+                 uint32_t targetRate = 0);
     void close();
     bool isOpen() const { return reader_ != nullptr; }
 
@@ -51,6 +54,7 @@ private:
     Microsoft::WRL::ComPtr<IMFByteStream> stream_;
     uint32_t sampleRate_ = 0;
     uint32_t channels_ = 0;
+    uint32_t targetRate_ = 0;
     int64_t durationHns_ = 0;
 };
 

@@ -120,6 +120,26 @@ bool WasapiOutput::isDeviceLost(HRESULT hr) {
 
 void WasapiOutput::setPreferredDevice(std::wstring id) { preferred_ = std::move(id); }
 
+uint32_t WasapiOutput::mixRate() {
+    if (!enumerator_) return 0;
+    ComPtr<IMMDevice> device;
+    if (!preferred_.empty()) {
+        DWORD state = 0;
+        if (FAILED(enumerator_->GetDevice(preferred_.c_str(), &device)) || FAILED(device->GetState(&state)) ||
+            state != DEVICE_STATE_ACTIVE)
+            device.Reset();
+    }
+    if (!device && FAILED(enumerator_->GetDefaultAudioEndpoint(eRender, eConsole, &device))) return 0;
+    ComPtr<IAudioClient> client;
+    if (FAILED(device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(client.GetAddressOf()))))
+        return 0;
+    WAVEFORMATEX* mix = nullptr;
+    if (FAILED(client->GetMixFormat(&mix)) || !mix) return 0;
+    const uint32_t rate = mix->nSamplesPerSec;
+    CoTaskMemFree(mix);
+    return rate;
+}
+
 HRESULT WasapiOutput::open(uint32_t sampleRate, uint32_t channels) {
     close();
     if (!enumerator_) return E_NOINTERFACE;

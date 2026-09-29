@@ -20,9 +20,10 @@ bool isWebm(const std::string& mime) { return mime.find("webm") != std::string::
 } // namespace
 
 HRESULT Decoder::open(const std::shared_ptr<ProgressiveBuffer>& buffer, const std::string& mimeType,
-                      bool& unsupported) {
+                      bool& unsupported, uint32_t targetRate) {
     close();
     unsupported = false;
+    targetRate_ = targetRate;
     // "audio/mp4; codecs=..." -> "audio/mp4"
     std::string mime = mimeType.substr(0, mimeType.find(';'));
     while (!mime.empty() && mime.back() == ' ') mime.pop_back();
@@ -77,19 +78,27 @@ HRESULT Decoder::configureOutput() {
     if (FAILED(hr)) return hr;
     const UINT32 nativeChannels = MFGetAttributeUINT32(native.Get(), MF_MT_AUDIO_NUM_CHANNELS, 2);
 
-    // Float PCM, native rate. Multichannel sources are downmixed to stereo by the decoder when it
-    // supports it; otherwise we keep the native layout and WASAPI (AUTOCONVERTPCM) mixes it down.
-    auto trySet = [&](UINT32 channels) {
+    const UINT32 nativeRate = MFGetAttributeUINT32(native.Get(), MF_MT_AUDIO_SAMPLES_PER_SECOND, 0);
+
+    // Float PCM, stereo (mono is spread, multichannel downmixed), at the requested rate: every track then shares the
+    // engine's output format, so gapless handoffs and crossfades work across 44.1 / 48 kHz sources without reopening
+    // the device. Whatever the reader can't convert falls back step by step to the native layout and rate (WASAPI's
+    // AUTOCONVERTPCM mixes and resamples those).
+    auto trySet = [&](UINT32 channels, UINT32 rate) {
         ComPtr<IMFMediaType> type;
         HRESULT h = MFCreateMediaType(&type);
         if (SUCCEEDED(h)) h = type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
         if (SUCCEEDED(h)) h = type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_Float);
         if (SUCCEEDED(h) && channels) h = type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, channels);
+        if (SUCCEEDED(h) && rate) h = type->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, rate);
         if (SUCCEEDED(h)) h = reader_->SetCurrentMediaType(kAudio, nullptr, type.Get());
         return h;
     };
-    hr = nativeChannels > 2 ? trySet(2) : E_FAIL;
-    if (FAILED(hr)) hr = trySet(0);
+    const UINT32 rate = targetRate_ && targetRate_ != nativeRate ? targetRate_ : 0;
+    hr = E_FAIL;
+    if (rate) hr = trySet(2, rate);
+    if (FAILED(hr) && nativeChannels != 2) hr = trySet(2, 0);
+    if (FAILED(hr)) hr = trySet(0, 0);
     if (FAILED(hr)) return hr;
 
     ComPtr<IMFMediaType> current;

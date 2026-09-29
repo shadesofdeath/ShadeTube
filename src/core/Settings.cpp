@@ -88,6 +88,10 @@ void Settings::load() {
     crossfadeSec = std::clamp(crossfadeSec, 0, 12);
     read(j, "outputDeviceId", outputDeviceId);
     read(j, "outputDeviceName", outputDeviceName);
+    read(j, "musicSpeed", musicSpeed);
+    read(j, "podcastSpeed", podcastSpeed);
+    musicSpeed = std::clamp(musicSpeed, 0.5f, 3.f);
+    podcastSpeed = std::clamp(podcastSpeed, 0.5f, 3.f);
     read(j, "startWithWindows", startWithWindows);
     read(j, "startInTray", startInTray);
     read(j, "shortcuts", shortcuts);
@@ -148,6 +152,8 @@ void Settings::save() const {
         {"crossfadeSec", crossfadeSec},
         {"outputDeviceId", outputDeviceId},
         {"outputDeviceName", outputDeviceName},
+        {"musicSpeed", musicSpeed},
+        {"podcastSpeed", podcastSpeed},
         {"startWithWindows", startWithWindows},
         {"startInTray", startInTray},
         {"shortcuts", shortcuts},

@@ -21,7 +21,8 @@
 //
 // Crossfade: a preloaded track whose StreamSource::crossfadeMs > 0 starts that long before the current one ends and the
 // two are mixed with equal-power curves (the caller decides per transition: e.g. none within an album). It needs the
-// next track decoded in time and the same output format; otherwise the handoff stays gapless.
+// next track decoded in time and the same output format; otherwise the handoff stays gapless. Every track decodes to the
+// device's mix rate, so formats normally match. Not while either plays at another speed than 1.
 #include "audio/Equalizer.h"
 
 #include <cstdint>
@@ -43,6 +44,7 @@ struct StreamSource {
     bool replayGain = false;      // local file: gainDb is added to the file's ReplayGain track gain; no tag = no gain
     float maxBoostDb = 8;         // replayGain: the most the sum may raise the level
     int crossfadeMs = 0;          // as a preloaded next track: crossfade into it over this long (0 = gapless)
+    float speed = 1;              // playback speed, pitch kept (audio/TimeStretch, 0.5 .. 3); live streams play at 1
     uint64_t tag = 0;             // opaque caller id, echoed back in events
     bool live = false;            // endless internet-radio stream (url = station / playlist / HLS URL)
     bool allowLocalNetwork = false;   // live: may reach this machine / its network (a test server); else public only
@@ -114,6 +116,10 @@ public:
 
     void setVolume(float linear); // 0..1; engine applies a perceptual curve and a 30 ms ramp (no clicks)
     float volume() const;
+
+    // Speed of the current track (0.5 .. 3, pitch kept); the next one starts at its own StreamSource::speed. Ignored
+    // for live streams. Positions and durations stay in track time.
+    void setSpeed(float speed);
 
     // Equalizer for everything played (applied within ~10 ms, no restart).
     void setEqualizer(const EqSettings& eq);

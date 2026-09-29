@@ -121,7 +121,9 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 - Images: `gfx::ImageCache` downloads to a disk cache (`cache\images`, pruned to 400 MB), WIC-decodes **at the
   requested pixel size** and keeps D2D bitmaps in a GPU LRU with a byte budget (96 MB). D2D's texture cache is
   capped at 24 MB. Requests from widgets that went off-screen are skipped.
-- Audio: only the current and the preloaded next track are held in RAM (a few MB each).
+- Audio: only the current and the preloaded next track are held in RAM (a few MB each). A stream above 32 MB (a
+  podcast episode, a DJ mix) is buffered in a memory-mapped temporary file (`FILE_FLAG_DELETE_ON_CLOSE`) and a local
+  file is mapped read-only as it is, so their pages belong to the file cache, not the private commit.
 - Pages are destroyed on navigation; history keeps the route and scroll offset, never widgets. Now Playing drops its
   blurred backdrop, lyrics and display-size text layouts when it closes.
 - When no one sees the main window (minimized, in the tray, mini player), `App::trimMemory()` trims the image cache
@@ -180,10 +182,20 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   a versioned snapshot (`setEqualizer`) at the next block; coefficients follow the output format. Presets live in
   `eqPresets()` (ids in `Settings.eqPreset`, names in the settings page).
 - **Crossfade** (`Settings.crossfadeSec`, 0-12): `Player::crossfadeInto()` puts the length on the preloaded track's
-  `StreamSource::crossfadeMs` (0 inside an album playing in order, for podcast episodes and repeat-one). The engine
-  starts the mix when the current track has that much left and the next one is decoded in the same output format,
-  moves the old track to `fading` and mixes it under the new one with equal-power curves; the transition event and
-  positions follow the new track from the first mixed block. Pause / seek / open / stop during a mix fade both out.
+  `StreamSource::crossfadeMs` (0 inside an album playing in order, for podcast episodes, repeat-one and any speed but
+  1x). The engine starts the mix when the current track has that much left and the next one is decoded in the same
+  output format, moves the old track to `fading` and mixes it under the new one with equal-power curves; the
+  transition event and positions follow the new track from the first mixed block. Pause / seek / open / stop during a
+  mix fade both out. *Smart* parts: a song whose last 20 s went silent (under -50 dBFS for 1.5 s) hands over at once
+  with a 0.5 s fade, and the incoming song's leading silence (up to 5 s) is skipped (`Track::skipSilence`).
+- **One output rate**: the engine asks the device for its shared-mode mix rate (`WasapiOutput::mixRate`) and every
+  track decodes to it (`Decoder` requests that rate from the Source Reader, whose resampler converts; live streams
+  keep theirs). Songs of 44.1 and 48 kHz therefore hand over gaplessly or crossfade without reopening the device.
+- **Playback speed** (`Settings.musicSpeed` / `podcastSpeed`, 0.5-3x, `Player::setSpeed`, the player bar's speed
+  button, the speed shortcuts): `StreamSource::speed` starts a track at its kind's speed and `AudioEngine::setSpeed`
+  changes the current one. `audio/TimeStretch` is a WSOLA stretcher (SoundTouch's method: sequences joined where the
+  cross-correlation of their overlap is highest; sequence and seek lengths follow the tempo) between the track and the
+  mix; runs record the speed, so positions stay in track time. Back at 1x it hands out what it holds and steps aside.
 - **Output device** (`Settings.outputDeviceId` / `outputDeviceName`): `WasapiOutput` opens that endpoint while it is
   active, else the default, and its notifier reopens on the preferred device when it comes back.
 
@@ -586,8 +598,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
-| `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album) | offline; `[<audio dir>]`; needs an audio device |
-| `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), limiter (ceiling, latency, release), output-device enumeration | offline |
+| `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album, 2x speed), decoding to 48 kHz | offline; `[<audio dir>]`; needs an audio device |
+| `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), limiter (ceiling, latency, release), time stretch (length, pitch, positions, flush), output-device enumeration | offline |
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
@@ -689,8 +701,8 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   code signature.
 - **Ogg / Opus local files**: stock Windows has no Media Foundation Ogg handler, so `.ogg` / `.oga` / `.opus` files
   are scanned and played only when one is installed. Passthrough `.m4a` downloads are not SponsorBlock-trimmed.
-- **Podcast episodes are buffered whole**, like songs: the progressive buffer holds the entire file while it plays
-  (a three-hour episode can take 150+ MB). There is no playback speed control (the engine has no time stretching).
+- **Playback speed** uses time-domain stretching (WSOLA): transparent for speech and fine for music around 0.75-1.5x,
+  with some phasing on dense music at extreme speeds.
 - **Memory** (Release, Intel iGPU): about 75 MB private commit when idle, roughly 42 MB of it the GPU driver's shader
   compiler (WARP software rendering gets to ~33 MB but costs ~24 % CPU in Now Playing, so hardware rendering stays).
   Now Playing needs noticeably more while open (effects, large glyph atlases). Mitigations: the caps and trims in 3.2.

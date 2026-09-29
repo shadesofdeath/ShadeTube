@@ -216,6 +216,11 @@ void copyText(const std::wstring& s);
 std::wstring greeting();                         // "Günaydın,\nne dinliyoruz?" (by time of day; two lines)
 std::wstring trDate(int64_t unixSeconds, bool withYear = false);   // "27 EYL"
 std::wstring relativeTime(int64_t unixSeconds);  // "3 gün önce"
+// Playback speed: "1,25×" (the UI language's decimal separator), the steps the speed menus offer, and one step up /
+// down from `speed` (clamped to the ends).
+std::wstring speedLabel(float speed);
+const std::vector<float>& speedSteps();
+float speedStep(float speed, int direction);
 std::wstring totalDuration(int64_t ms);          // "3 sa 12 dk"
 std::wstring thousands(int64_t n);               // "1.234.567"
 std::wstring compactCount(int64_t n);            // "12,4 B" / "1,2 Mn"

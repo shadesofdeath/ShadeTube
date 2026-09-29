@@ -379,6 +379,29 @@ void Player::applyAudioSettings() {
     engine_->setOutputDevice(toWide(s.outputDeviceId));
 }
 
+float Player::speedFor(const Track& t) {
+    const auto& s = Settings::get();
+    return catalog::isPodcastId(t.id) ? s.podcastSpeed : s.musicSpeed;
+}
+
+float Player::speed() const {
+    const Track* t = current();
+    return !t || live_ ? 1.f : speedFor(*t);
+}
+
+void Player::setSpeed(float speed) {
+    const Track* t = current();
+    if (!t || live_) return;
+    speed = std::clamp(speed, 0.5f, 3.f);
+    auto& s = Settings::get();
+    (catalog::isPodcastId(t->id) ? s.podcastSpeed : s.musicSpeed) = speed;
+    s.markDirty();
+    engine_->setSpeed(speed);
+    // A prepared next item carries the old speed (and a crossfade that only works at 1x): prepare it again.
+    if (prepared_) dropPrepared();
+    notify();
+}
+
 void Player::togglePause() {
     if (status_ == Status::Playing || status_ == Status::Buffering) pause();
     else play();
@@ -553,8 +576,9 @@ int Player::crossfadeInto(int orderIndex) const {
     if (!a->album.id.empty() && a->album.id == b.album.id &&
         (a->trackNumber <= 0 || b.trackNumber <= 0 || b.trackNumber == a->trackNumber + 1))
         return 0;
-    // Spoken word never fades into music or the next episode.
+    // Spoken word never fades into music or the next episode; nor does anything play faster or slower.
     if (catalog::isPodcastId(a->id) || catalog::isPodcastId(b.id)) return 0;
+    if (speedFor(*a) != 1.f || speedFor(b) != 1.f) return 0;
     return sec * 1000;
 }
 
@@ -649,7 +673,9 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
         match_.reset();
         stream_ = {};
         status_ = Status::Buffering;
-        engine_->open(localSource(localPath, tag, track.durationMs), startMs, autoplay);
+        audio::StreamSource s = localSource(localPath, tag, track.durationMs);
+        s.speed = speedFor(track);
+        engine_->open(s, startMs, autoplay);
         notify();
         return;
     }
@@ -659,7 +685,7 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
         direct_ = true;
         match_.reset();
         stream_ = {};
-        auto open = [this, tag, startMs, autoplay, durationMs = track.durationMs](const DirectStream& d) {
+        auto open = [this, tag, startMs, autoplay, durationMs = track.durationMs, speed = speedFor(track)](const DirectStream& d) {
             status_ = Status::Buffering;
             audio::StreamSource s;
             s.url = d.url;
@@ -667,6 +693,7 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
             s.contentLength = d.contentLength;
             s.durationMsHint = durationMs;
             s.tag = tag;
+            s.speed = speed;
             engine_->open(s, startMs, autoplay);
             notify();
         };
@@ -729,7 +756,9 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
             match_ = r->match;
             stream_ = r->stream;
             status_ = Status::Buffering;
-            engine_->open(sourceFor(*r, tag, track.durationMs), startMs, autoplay);
+            audio::StreamSource s = sourceFor(*r, tag, track.durationMs);
+            s.speed = speedFor(track);
+            engine_->open(s, startMs, autoplay);
             notify();
         });
 }
@@ -752,6 +781,7 @@ void Player::maybePrefetch() {
         Prepared p{++tagCounter_, nextPos, track.id, {}};
         p.source = localSource(path, p.tag, track.durationMs);
         p.source.crossfadeMs = crossfadeInto(nextPos);
+        p.source.speed = speedFor(track);
         prepared_ = std::move(p);
         engine_->preload(prepared_->source);
         return;
@@ -780,6 +810,7 @@ void Player::maybePrefetch() {
             Prepared p{tag, nextPos, track.id, *r};
             p.source = sourceFor(*r, tag, track.durationMs);
             p.source.crossfadeMs = crossfadeInto(nextPos);
+            p.source.speed = speedFor(track);
             prepared_ = std::move(p);
             engine_->preload(prepared_->source);
             ST_LOG_DEBUG("player", "preloaded next: {}", track.name);

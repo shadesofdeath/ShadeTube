@@ -28,8 +28,10 @@ int64_t hnsToFrames(int64_t hns, uint32_t rate) {
 }
 } // namespace
 
-Track::Track(const StreamSource& source, int64_t startMs, std::atomic<int64_t>* memCounter, void* wakeEvent)
-    : source_(source), liveStartMs_(source.live ? std::max<int64_t>(0, startMs) : 0), wakeEvent_(wakeEvent) {
+Track::Track(const StreamSource& source, int64_t startMs, std::atomic<int64_t>* memCounter, void* wakeEvent,
+             uint32_t outputRate)
+    : source_(source), liveStartMs_(source.live ? std::max<int64_t>(0, startMs) : 0), outputRate_(outputRate),
+      wakeEvent_(wakeEvent) {
     if (source.live) {   // endless: no duration, no seeking; startMs only starts the clock
         live_ = std::make_shared<LiveStream>(source.url, source.mimeType, memCounter, source.allowLocalNetwork);
         live_->start();
@@ -118,6 +120,27 @@ size_t Track::read(float* dst, size_t frames, int64_t& firstFrame, uint32_t chan
     return n;
 }
 
+size_t Track::skipSilence(float threshold, size_t maxFrames) {
+    std::unique_lock lock(mutex_);
+    const size_t ch = channels_;
+    if (ch == 0 || capFrames_ == 0) return 0;
+    size_t skipped = 0;
+    while (skipped < count_ && skipped < maxFrames) {
+        const float* f = ring_.data() + ((readIdx_ + skipped) % capFrames_) * ch;
+        bool quiet = true;
+        for (size_t c = 0; c < ch && quiet; ++c) quiet = std::fabs(f[c]) < threshold;
+        if (!quiet) break;
+        ++skipped;
+    }
+    readIdx_ = (readIdx_ + skipped) % capFrames_;
+    count_ -= skipped;
+    readPos_ += static_cast<int64_t>(skipped);
+    const bool notify = skipped > 0 && producerWaiting_;
+    lock.unlock();
+    if (notify) cv_.notify_one();
+    return skipped;
+}
+
 size_t Track::available() const {
     std::lock_guard lock(mutex_);
     return count_;
@@ -180,7 +203,7 @@ bool Track::openDecoder(Decoder& decoder) {
     for (int attempt = 0;; ++attempt) {
         bool unsupported = false;
         inDecoder_.store(true);
-        const HRESULT hr = decoder.open(buffer_, source_.mimeType, unsupported);
+        const HRESULT hr = decoder.open(buffer_, source_.mimeType, unsupported, outputRate_);
         inDecoder_.store(false);
         if (SUCCEEDED(hr)) return true;
         {
