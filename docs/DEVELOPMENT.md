@@ -598,7 +598,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
-| `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album, 2x speed), decoding to 48 kHz | offline; `[<audio dir>]`; needs an audio device |
+| `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album, silent ending, 2x speed), decoding to 48 kHz | offline; `[<audio dir>]`; needs an audio device |
 | `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), limiter (ceiling, latency, release), time stretch (length, pitch, positions, flush), output-device enumeration | offline |
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |

@@ -224,11 +224,13 @@ void testMime() {
     CHECK(Player::localMimeType(L"").empty());
 }
 
-void writeWav(const fs::path& path, uint32_t ms = 500) {
+// A 440 Hz tone of `ms`, silent from `silentFromMs` on (0 = never).
+void writeWav(const fs::path& path, uint32_t ms = 500, uint32_t silentFromMs = 0) {
     constexpr uint32_t rate = 44100, channels = 2;
     const uint32_t frames = rate * ms / 1000;
+    const uint32_t silentFrom = silentFromMs ? rate * silentFromMs / 1000 : frames;
     std::vector<int16_t> pcm(frames * channels);
-    for (uint32_t i = 0; i < frames; ++i)
+    for (uint32_t i = 0; i < frames && i < silentFrom; ++i)
         pcm[i * 2] = pcm[i * 2 + 1] = static_cast<int16_t>(8000 * std::sin(2 * 3.14159265358979 * 440 * i / rate));
     const uint32_t data = static_cast<uint32_t>(pcm.size() * 2);
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
@@ -467,6 +469,15 @@ void testPlayer(const fs::path& tmp) {
             const long album = handoffMs({a, b});
             std::printf("        same album: g audible %ld ms after f started\n", album);
             CHECK(album > 4700);
+            // Smart crossfade: a song that went silent (2 s of tone, then 6 s of silence) hands over ~1.5 s into the
+            // silence instead of 2 s before its end.
+            files["s"] = tmp / L"s.wav";
+            writeWav(files["s"], 8000, 2000);
+            Track quiet = T5("s");
+            quiet.durationMs = 8000;
+            const long silent = handoffMs({quiet, T5("g")});
+            std::printf("        silent ending: g audible %ld ms after s started\n", silent);
+            CHECK(silent > 3000 && silent < 5000);
             st::Settings::get().crossfadeSec = 0;
 
             // Playback speed: a 5 s song at 2x hands over after ~2.5 s, and its position runs at the same pace.
