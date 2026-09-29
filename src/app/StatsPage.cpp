@@ -10,6 +10,7 @@
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/SettingsWidgets.h"
+#include "app/SmartListsPage.h"
 #include "app/Source.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
@@ -1032,6 +1033,10 @@ public:
     StatsPage() {
         applyDevView();
         store().subscribe(life_.ref(), [this] { scheduleRebuild(); });
+        // The year's smart list ("Listenin tamamı") may land after the page was built.
+        smart::subscribe(life_.ref(), [this] {
+            if (g_view == View::Year) scheduleRebuild();
+        });
         // Logging in / out changes which artist / album ids can open their page (and which photos can be looked up).
         if (ctx().session)
             ctx().session->subscribe(life_.ref(), [this] {
@@ -1294,21 +1299,29 @@ private:
             row->onClick = [first] { ctx().player->playContext({first}, 0, {"stats", tr(L"Yılın ilk şarkısı")}); };
             row->onContext = [first](gfx::Point wp) { showTrackMenu({first}, wp); };
         }
-        addTopTracks(c, y.topTracks, 5, wants);
+        // The whole top list of the year as a playable list ("Senin için listeler"), when there is one.
+        smart::ensure();
+        const std::string yearList = "year:" + std::to_string(y.year);
+        std::function<void()> openAll;
+        if (smart::find(yearList)) openAll = [yearList] { ctx().router->navigate({RouteKind::SmartList, yearList}); };
+        addTopTracks(c, y.topTracks, 5, wants, std::move(openAll));
         addTopArtists(c, y.topArtists, wants);
         addTopAlbums(c, y.topAlbums, wants);
         addHeatmap(c, y.heatmap);
     }
 
     // --- En çok dinlenen şarkılar (click plays the list from there).
-    void addTopTracks(ui::Column* c, std::vector<StatsTrack>& tops, size_t limit, std::vector<ArtWant>& wants) {
+    void addTopTracks(ui::Column* c, std::vector<StatsTrack>& tops, size_t limit, std::vector<ArtWant>& wants,
+                      std::function<void()> openAll = {}) {
         std::vector<Track> topTracks;
         for (size_t i = 0; i < tops.size() && i < limit; ++i) {
             enrich(tops[i].track, wants);
             topTracks.push_back(tops[i].track);
         }
         if (topTracks.empty()) return;
-        c->add<SectionHeader>(tr(L"En çok dinlenen şarkılar"), twoDigits(topTracks.size()));
+        auto* head = c->add<SectionHeader>(tr(L"En çok dinlenen şarkılar"), twoDigits(topTracks.size()),
+                                           openAll ? std::wstring(tr(L"Listenin tamamı")) : std::wstring{});
+        head->onLink = std::move(openAll);
         auto* rows = c->add<RowColumns>();
         c->setSpacingBefore(rows, 12);
         const int best = std::max(1, tops[0].streams);
@@ -1505,6 +1518,13 @@ private:
 } // namespace
 
 ListenStats& listenStats() { return store(); }
+
+void enrichTrackArtwork(std::vector<Track>& tracks, size_t lookups, Lifetime::Ref owner, std::function<void()> landed) {
+    std::vector<ArtWant> wants;
+    for (auto& t : tracks) enrich(t, wants);
+    if (wants.size() > lookups) wants.resize(lookups);
+    fetchArt(std::move(wants), std::move(owner), std::move(landed));
+}
 
 void initListenStats() {
     auto& c = ctx();

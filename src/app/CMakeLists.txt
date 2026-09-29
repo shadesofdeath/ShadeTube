@@ -78,6 +78,8 @@ add_executable(ShadeTube WIN32
     SettingsWidgets.h
     Shortcuts.cpp Shortcuts.h
     Shell.cpp Shell.h
+    SmartLists.cpp SmartLists.h
+    SmartListsPage.cpp SmartListsPage.h
     Smtc.cpp Smtc.h
     Source.cpp Source.h
     Tray.cpp Tray.h

@@ -2,6 +2,14 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.6.0 — unreleased
+
+- **Smart playlists** ("Made for you" on Home and in the Library): up to three daily mixes of the artists you play
+  together, with new songs mixed in (from Spotify's radio when connected, else ListenBrainz), plus This month's
+  favorites, Your new discoveries, Rediscover, Forgotten likes, All-time best and a Best of <year> for each year with
+  enough listening. Built on this PC from your own listening, refreshed every day, blocked songs left out; play,
+  shuffle, queue or save any of them as a playlist. The Stats year view links to its year's full list.
+
 ## 0.5.0 — 2026-09-29
 
 - **Sound settings** (Settings › Sound): a 10-band equalizer with presets, a preamp and a response graph you drag

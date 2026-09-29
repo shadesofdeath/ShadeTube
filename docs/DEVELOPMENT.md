@@ -81,14 +81,14 @@ ShadeTube/
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
-│                                LocalFiles, Podcasts, Stats, Settings (+ About/AltSource/Playback), ConnectScreen,
-│                                MiniPlayer
+│                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
+│                                ConnectScreen, MiniPlayer
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, ListenStats, Radio, Blacklist,
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
                                  links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts, radio, scrobble,
-                                 shortcuts, smtc, sponsorblock, spotify, stats, sync, updater, winshell
+                                 shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -431,7 +431,8 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
 `listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
-`radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `spotify-hashes.json`,
+`radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`,
+`spotify-hashes.json`,
 `update-leftovers.txt`, `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
 go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
@@ -534,6 +535,36 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
   closes after a minute; resuming plays live again. Every request goes to public hosts only (tests may allow the local
   network).
 
+### 3.19 Smart lists
+
+`app/SmartLists` (standalone, pure: the rules; `smartlists_test`) and `app/SmartListsPage` (the app side: schedule,
+recommendations, cache, covers, the rows and the page). "Senin için listeler" are built on this PC from the listening
+history (`ListenStats`: this PC's plays and the imported Spotify history, streams only) and the liked songs:
+
+- **Lists**: *Günün karışımı 1–3* (a lead artist the user plays now + the artists heard with it in the same listening
+  sessions of the last two years — pairs within a 30-minute session and 5 distinct artists, normalised by plays —,
+  their familiar songs by a day-seeded weighted pick, at most 12 per artist, spread so one artist rarely plays twice in
+  a row), *Bu ayın favorileri* (2+ streams in 30 days), *Yeni keşiflerin* (first heard in 30 days, streamed again),
+  *Tekrar keşfet* (4+ streams, none in 90 days; a daily weighted pick), *Unutulan beğeniler* (liked, at most one
+  stream and none in 60 days; daily order), *Tüm zamanların en iyileri* (every stream, half-life one year) and
+  *<year> en iyileri* for the six newest years with 10+ songs. A list below its minimum is hidden. Podcast and radio
+  ids never appear; songs are the history's distinct tracks (merged by name + first artist).
+- **Freshness**: orders that are not rankings are seeded with the local day, so a list is stable for the day. A build
+  runs on a worker from a copy of the history on the first use of the day (Home / Library / the page / the Stats year
+  view call `smart::ensure()`), after a login / logout, and when the history changed at most every 20 minutes; the
+  blocklist is applied (and re-applied on change) on the UI thread. Build time: ~0.6 s for 300 000 plays in Debug.
+- **Fresh songs** in the mixes (one after every two familiar ones, up to 15): logged in, Spotify's radio of the mix's
+  lead song (`radioPlaylist` + its first 50 tracks); logged out, ListenBrainz's similar artists of an MBID lead and
+  their popular songs. Logged in, the liked songs are Spotify's newest 500 (5 pages). Both are fetched once a day
+  (per lead) and kept, with the lists, in `smart-lists.json`, so a restart the same day shows them at once.
+- **UI**: a generated cover (up to four distinct covers of the list's songs above a band in the list's tile color with
+  an accent rule, the kind in mono and a short name), the "Senin için listeler" row on Home and on the Library page's
+  playlists tab (a self-updating section, hidden while there is none), the list page `Route{RouteKind::SmartList, id}`
+  (`#play` appended starts it; play / shuffle / add to playlist / queue / "Çalma listesi olarak kaydet" through
+  `promptNewPlaylist`, i.e. a Spotify playlist when logged in), command palette entries and a "Listenin tamamı" link on
+  the Stats year view. Songs without covers (imported history) take them from the Stats page's artwork cache
+  (`enrichTrackArtwork`, defined in `StatsPage.cpp`).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -592,6 +623,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads) |
+| `smartlists_test` | smart lists on synthetic histories: each list's rules and minimums, streams only, podcast / radio ids out, session-based mixes, day seeds, year lists, fresh-song blending, trim, timing with 300 000 plays | offline |
 | `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), timings with 300 000 imported plays | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
@@ -615,7 +647,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>` |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...) |
 | `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |

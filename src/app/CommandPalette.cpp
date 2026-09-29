@@ -5,6 +5,7 @@
 #include "app/Commands.h"
 #include "app/Router.h"
 #include "app/Shortcuts.h"
+#include "app/SmartListsPage.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -255,6 +256,14 @@ std::vector<Item> staticItems() {
         for (const auto& a : lib.albums())
             items.push_back(albumItem(a.id, toWide(a.name), artistsOf(a.artists), imageOf(a.images), Group::Library));
         for (const auto& a : lib.artists()) items.push_back(artistItem(a.id, toWide(a.name), imageOf(a.images), Group::Library));
+    }
+    // "Senin için listeler" (built on this PC).
+    for (const auto& l : smart::lists()) {
+        Item it = makeItem(Group::Library, "smart:" + l.id, smart::title(l),
+                           i18n::format(tr(L"Otomatik liste · {}"), {smart::subtitle(l)}));
+        it.icon = "playlist";
+        it.run = [id = l.id](bool alt) { ctx().router->navigate({RouteKind::SmartList, alt ? id + "#play" : id}); };
+        items.push_back(std::move(it));
     }
     return items;
 }
