@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
 PackageIdentifier: shadesofdeath.ShadeTube
-PackageVersion: 0.6.1
+PackageVersion: 0.7.0
 MinimumOSVersion: 10.0.17763.0
 InstallerType: zip
 NestedInstallerType: portable
@@ -8,10 +8,10 @@ NestedInstallerFiles:
 - RelativeFilePath: ShadeTube.exe
   PortableCommandAlias: shadetube
 Scope: user
-ReleaseDate: 2026-09-29
+ReleaseDate: 2026-10-06
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/shadesofdeath/ShadeTube/releases/download/v0.6.1/ShadeTube-0.6.1-win64.zip
-  InstallerSha256: C718809285131808C33EFB51E238536BAB1794BEB22E0FEDE0D3CD83B3C2A2C0
+  InstallerUrl: https://github.com/shadesofdeath/ShadeTube/releases/download/v0.7.0/ShadeTube-0.7.0-win64.zip
+  InstallerSha256: 415233A70E59A8767363B705D366A6A98A24B840BB2A2BDC0C7ECFB798ADCF59
 ManifestType: installer
 ManifestVersion: 1.10.0
