@@ -2,6 +2,33 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.7.0 — 2026-10-06
+
+- **YouTube playback recovers by itself**: when YouTube suddenly refuses its own stream links (HTTP 403), ShadeTube
+  now notices before playing, starts a fresh YouTube session and tries again, instead of failing song after song until
+  a restart.
+- **Smarter backup source**: Piped and Invidious servers are tried together; ShadeTube remembers which ones work and
+  skips dead ones for a while. SoundCloud can serve as a last resort (Settings › Playback), playing only full-length
+  uploads whose length matches.
+- **Friend Activity**: see what the people you follow on Spotify are listening to, in a side panel (title bar button,
+  command palette or Ctrl+Shift+A). Click a track to play it in the playlist or album they're playing it from, or jump
+  to the artist or that playlist. It refreshes every minute, only while the panel is on screen.
+- **New releases**: new albums, singles and EPs from the artists you follow (and the ones you play most) on their own
+  page, grouped by this week, last week and this month, with an Albums / Singles & EPs filter, a shelf at the top of
+  Home and an unseen count in the sidebar. Optional Windows notifications (Settings › Spotify).
+- **Edit playlist details**: click a playlist's cover or title (or "Edit details" in its menu or the sidebar) to change
+  its name, description and cover picture. Any JPEG, PNG or WebP is cropped to a square for you; works for local
+  playlists and Spotify playlists you own.
+- **Reorder by dragging**: drag songs (one or a whole selection) within a playlist to put them in your own order;
+  Spotify playlists update on your account.
+- **Remove with undo**: press Delete to take the selected songs out of a playlist; "Undo" in the toast puts them back
+  where they were.
+- **Lyrics translation**: a "Translation" button in the lyrics of Now Playing and the full-screen view shows each
+  line's translation right under it, still in sync and clickable. Spotify's own translation is used when it has one,
+  otherwise Google Translate; it only appears for lyrics in another language, and translations are cached. Pick the
+  language in Settings › Playback (default: the app language).
+- Fixed: clicking the artist's name in an album header (or in a song list) could crash the app.
+
 ## 0.6.1 — 2026-09-29
 
 - **Much less memory in the background**: once no ShadeTube window has been on screen for 30 seconds (minimized, in
