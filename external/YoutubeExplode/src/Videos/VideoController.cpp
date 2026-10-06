@@ -11,7 +11,15 @@ namespace YoutubeExplode::detail {
 // Innertube client profiles. FRAGILE: YouTube regularly starts rejecting specific client
 // names/versions (or requires PO tokens for them). When stream extraction starts failing with
 // "unplayable" errors for every video, updating these profiles is usually the fix. The values
-// below match the reference implementation (YoutubeExplode for .NET).
+// below match the reference implementation (YoutubeExplode for .NET) and yt-dlp (2026-10).
+//
+// State of the clients on 2026-10-06 (tests/ytstreams and a byte-range probe of every format):
+//   VISIONOS        plain URLs, no PO token: yt-dlp's only default client without a JS runtime. Its URLs
+//                   are occasionally refused (HTTP 403) for a whole session; a new session (fresh visitor
+//                   data and cookies, YoutubeClient::resetSession) gets working ones again.
+//   ANDROID         ciphered URLs whose n-parameter needs the player JS, and a GVS PO token: 403.
+//   ANDROID_VR/IOS  403 without a PO token (ANDROID_VR: the first MB plays, later ranges are refused).
+//   TVHTML5_SIMPLY_EMBEDDED_PLAYER  "YouTube is no longer supported in this application".
 // ------------------------------------------------------------------------------------------------
 namespace {
 

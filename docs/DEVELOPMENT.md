@@ -350,14 +350,27 @@ error and backoff, plus per-track download attempts.
   once through the catalog search (Spotify while logged in, else MusicBrainz, one request at a time) and remembered in
   `cache\stats-artwork.json` (misses for 30 days).
 
-### 3.9 Backup audio source (Piped / Invidious)
+### 3.9 Backup audio source (Piped / Invidious, SoundCloud)
+
+Every YouTube stream URL `MatchService` picks is tried first (1 KB from the middle with googlevideo's `range=`). YouTube
+now and then refuses a session's URLs (HTTP 403, every song of a run, seen 2026-10-06): a refused URL starts a new
+YouTube session (`YoutubeClient::resetSession`: fresh visitor data and cookies) and resolves once more, at most every
+20 s; so does a fresh URL that failed in the engine. Only then the backup sources are asked.
 
 `youtube/AltSource` is used by `MatchService` only when the user enabled it (`Settings.altSource` = `piped` or
-`invidious`, off by default: the chosen server sees what is played) and the YoutubeExplode path failed. Instances are
-tried in order: the user's own, the last one that worked, then a built-in list; failing instances are demoted for a
-few minutes. Requests use a hard per-request deadline, a 25 s budget per walk and capped bodies. A stream URL must be
-https on the instance's own (or declared proxy) host and is returned only after a 16-byte Range probe proved it
-answers `206` with the expected container. Backup-source stream URLs are cached for 1 h.
+`invidious`, off by default: the servers see what is played) and the YoutubeExplode path failed. The chosen kind is
+asked first, then the other: the user's own instance, then the built-in Piped and Invidious instances by health
+(worked lately > never tried > failed). Health is kept per operation in `cacheltsource-health.json`: two failures in
+a row leave an instance out for 10 minutes, doubling up to 12 hours, after which it is tried again. Requests use a hard
+per-request deadline, a 25 s budget per walk and capped bodies. A stream URL must be https on the instance's own (or
+declared proxy) host or on googlevideo.com, and is returned only after a 16-byte Range probe proved it answers `206`
+with the expected container; when it fails, the same stream through the other route (proxy <-> googlevideo) is
+probed. Backup-source stream URLs are cached for 1 h.
+
+`youtube/SoundCloud` is the last resort (`Settings.altSoundCloud`, with the backup source on; `resolveForPlayback`
+only, not downloads): the public web client's `client_id` (scraped from soundcloud.com's scripts), a track search, and
+only full-length uploads (`policy` ALLOW, a progressive MP3, duration within 3 s, TrackMatcher score >= 70, no other
+songs named in the title) qualify. A SoundCloud stand-in plays for this time only (empty `Match::videoId`).
 
 ### 3.10 Other integrations
 
@@ -712,7 +725,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 |---|---|---|
 | `spotify_test` | TOTP / base32 vectors, home parser and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
 | `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing, cold vs warm cache | `--offline`, `--keep-cache` |
-| `altsource_test` | Piped / Invidious parsing, stream choice, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
+| `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
+| `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, memory) | network; `[videoA] [videoB]` |
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
@@ -820,7 +834,9 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
 - **YouTube** matching can pick the wrong video (*Wrong match?* fixes it per track), and stream access depends on
   YoutubeExplode keeping up with YouTube changes.
 - **Public Piped / Invidious instances are volatile**: the built-in list goes stale, and many instances serve search
-  but no streams. The backup source is off by default and should stay a fallback.
+  but no streams (on 2026-10-06 nearly all of them). Their health is remembered, but the backup source is off by
+  default and should stay a fallback. SoundCloud's `client_id` scraping can break whenever its web client changes;
+  many label releases are only 30 s previews there.
 - **Unsigned exe**: SmartScreen warns on first run. The updater relies on SHA-256 and VERSIONINFO checks, not on a
   code signature.
 - **Ogg / Opus local files**: stock Windows has no Media Foundation Ogg handler, so `.ogg` / `.oga` / `.opus` files

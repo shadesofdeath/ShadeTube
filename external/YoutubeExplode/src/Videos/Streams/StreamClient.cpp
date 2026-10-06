@@ -159,7 +159,13 @@ public:
         try {
             // Try the cipher-less clients first: their URLs are directly playable.
             auto response = getPlayerResponse(videoId, ct);
-            return getStreamInfos(videoId, response, false, ct);
+            // Since mid 2026 the ANDROID fallback answers with ciphered URLs too: those carry an n-parameter that
+            // must be transformed like the TV client's.
+            const auto streams = response.streams();
+            const bool ciphered = std::any_of(streams.begin(), streams.end(), [](const StreamData& s) {
+                return s.signature && !s.signature->empty();
+            });
+            return getStreamInfos(videoId, response, ciphered, ct);
         } catch (const Exceptions::VideoUnavailableException&) {
             throw;
         } catch (const Exceptions::VideoRequiresPurchaseException&) {

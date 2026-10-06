@@ -1,5 +1,6 @@
 // Ayarlar › OYNATMA rows of the backup audio source (youtube/AltSource): Piped / Invidious, used only when
-// YoutubeExplode cannot deliver a stream or a search.
+// YoutubeExplode cannot deliver a stream or a search; the chosen kind is asked first. SoundCloud (youtube/SoundCloud)
+// is the last resort behind them.
 #include "app/SettingsWidgets.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -15,7 +16,9 @@ namespace alt = youtube::alt;
 // The MatchService keeps its own thread-safe copy (worker threads read it); push every saved change to it.
 void applyAltSource() {
     const auto& s = Settings::get();
-    if (ctx().matcher) ctx().matcher->setAltSource(s.altSource, s.altSourceInstance);
+    if (!ctx().matcher) return;
+    ctx().matcher->setAltSource(s.altSource, s.altSourceInstance);
+    ctx().matcher->setSoundCloud(s.altSoundCloud);
 }
 
 // While typing, only addresses that already look complete are applied (a dot or a port in the host); Enter applies
@@ -31,8 +34,8 @@ void buildAltSourceRows(ui::Column* c, const std::function<void()>& rebuild) {
     const auto& s = Settings::get();
     const alt::Kind kind = alt::parseKind(s.altSource);
     auto* row = c->add<SettingRow>(tr(L"Yedek ses kaynağı"),
-                                   tr(L"YouTube'dan ses alınamazsa seçtiğin sunucu kullanılır. Bu sunucu hangi "
-                                      L"videoları dinlediğini görür."));
+                                   tr(L"YouTube'dan ses alınamazsa önce seçtiğin türdeki, sonra diğer yedek sunucular "
+                                      L"denenir. Bu sunucular hangi videoları dinlediğini görür."));
     const std::vector<std::wstring> kinds{tr(L"Kapalı"), L"Piped", L"Invidious"};   // brand names stay as they are
     // The control slot is exactly the pill's width, so it ends flush right like the toggles and the field below.
     const float segW = Segmented(kinds, 0).naturalWidth();
@@ -81,6 +84,14 @@ void buildAltSourceRows(ui::Column* c, const std::function<void()>& rebuild) {
     };
     box->onChange = [apply](const std::wstring& v) { apply(v, false); };
     box->onSubmit = [apply](const std::wstring& v) { apply(v, true); };
+
+    settingsToggle(c, tr(L"Son çare olarak SoundCloud"),
+                   tr(L"YouTube ve yedek sunucular çalamazsa şarkı SoundCloud'da aranır. Yalnızca süresi tutan tam "
+                      L"sürümler çalınır; SoundCloud ne dinlediğini görür."),
+                   s.altSoundCloud, [](bool on) {
+                       Settings::get().altSoundCloud = on;
+                       applyAltSource();
+                   });
 }
 
 } // namespace st::app

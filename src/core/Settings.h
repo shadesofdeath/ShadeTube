@@ -70,10 +70,14 @@ struct Settings {
     // collections ("liked" or a playlist id) whose page shows recommendations in the list.
     bool smartShuffle = false;
     std::vector<std::string> enhancedCollections;
-    // Backup audio source used when YouTube itself fails: "off" | "piped" | "invidious".
+    // Backup audio source used when YouTube itself fails: "off" | "piped" | "invidious" (the kind asked first; the
+    // other kind's built-in servers follow).
     // altSourceInstance: API base URL of the instance ("" = the built-in list, tried in order).
     std::string altSource = "off";
     std::string altSourceInstance;
+    // With the backup source on: when neither YouTube nor a backup server plays a song, look for it on SoundCloud
+    // (full-length uploads whose duration matches; youtube/SoundCloud).
+    bool altSoundCloud = true;
     std::vector<std::string> localFolders;   // "Yerel dosyalar": folders scanned for the user's own music files
     std::vector<std::string> expandedFolders;   // sidebar: Spotify library folders left open (rootlist group ids)
     bool friendActivityOpen = false;     // "Arkadaş etkinliği" panel open (Spotify; app/FriendActivity)

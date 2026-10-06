@@ -54,6 +54,10 @@ struct AltSourceTestAccess {
     static void succeeded(AltSource& s, const AltSource::Snapshot& snap, const std::string& instance) {
         s.noteResult(AltSource::Op::Stream, snap, instance, AltSource::Outcome::Ok);
     }
+    static void failed(AltSource& s, const std::string& instance, bool down = false) {
+        s.noteResult(AltSource::Op::Stream, s.snapshot(AltSource::Op::Stream), instance,
+                     down ? AltSource::Outcome::Down : AltSource::Outcome::Failed, "test failure");
+    }
     static void useBuiltins(AltSource& s, bool on) {
         std::lock_guard lock(s.mutex_);
         s.useBuiltins_ = on;
@@ -148,19 +152,28 @@ void testBasics() {
     CHECK(alt::containerOf("audio/mp4") == alt::Container::Mp4);
     CHECK(alt::containerOf("audio/3gpp") == alt::Container::Unknown);
 
+    // The walk covers both kinds: the chosen one first.
+    auto both = [](alt::Kind first) {
+        auto v = alt::AltSource::builtinInstances(first);
+        const auto& other = alt::AltSource::builtinInstances(first == alt::Kind::Piped ? alt::Kind::Invidious : alt::Kind::Piped);
+        v.insert(v.end(), other.begin(), other.end());
+        return v;
+    };
     alt::AltSource src;
     CHECK(!src.enabled() && src.instanceOrder().empty());
     src.configure(alt::Kind::Piped, "my.piped.example/");
     const auto order = src.instanceOrder();
     CHECK(src.enabled() && !order.empty() && order.front() == "https://my.piped.example");
-    CHECK(order.size() == 1 + alt::AltSource::builtinInstances(alt::Kind::Piped).size());
+    CHECK(order.size() == 1 + both(alt::Kind::Piped).size());
+    CHECK(src.targets().back().kind == alt::Kind::Invidious);
     src.configure(alt::Kind::Invidious, "");
-    CHECK(src.instanceOrder() == alt::AltSource::builtinInstances(alt::Kind::Invidious));
+    CHECK(src.instanceOrder() == both(alt::Kind::Invidious));
+    CHECK(src.targets().front().kind == alt::Kind::Invidious);
     src.configure(alt::Kind::Piped, "not a url");   // ignored (logged): built-in list
-    CHECK(src.instanceOrder() == alt::AltSource::builtinInstances(alt::Kind::Piped));
+    CHECK(src.instanceOrder() == both(alt::Kind::Piped));
 
     std::printf("[a replaced own instance is never contacted again]\n");
-    const auto& builtins = alt::AltSource::builtinInstances(alt::Kind::Piped);
+    const auto builtins = both(alt::Kind::Piped);
     alt::AltSource own;
     own.configure(alt::Kind::Piped, "https://a.example");
     AltSourceTestAccess::succeeded(own, AltSourceTestAccess::snapshot(own), "https://a.example");
@@ -185,6 +198,56 @@ void testBasics() {
     own.configure(alt::Kind::Off, "");
     CHECK(own.generation() == g0 + 2 && !own.enabled());
 
+    std::printf("[instance health: order, backoff, persistence]\n");
+    {
+        const fs::path dir = fs::temp_directory_path() / ("altsource-health-" + std::to_string(GetCurrentProcessId()));
+        fs::create_directories(dir);
+        const fs::path file = dir / "health.json";
+        const auto& inv = alt::AltSource::builtinInstances(alt::Kind::Invidious);
+        const auto& piped = alt::AltSource::builtinInstances(alt::Kind::Piped);
+        alt::AltSource h;
+        h.setHealthFile(file);
+        h.configure(alt::Kind::Invidious, "");
+        CHECK(h.instanceOrder().front() == inv[0]);
+        AltSourceTestAccess::failed(h, inv[0]);   // once: after the untried ones
+        CHECK(h.instanceOrder().front() == inv[1] && h.instanceOrder().back() == inv[0]);
+        AltSourceTestAccess::failed(h, inv[0]);   // twice in a row: left out for a while
+        auto walk = h.instanceOrder();
+        CHECK(std::find(walk.begin(), walk.end(), inv[0]) == walk.end());
+        AltSourceTestAccess::succeeded(h, AltSourceTestAccess::snapshot(h), piped[2]);   // worked: first, whatever its kind
+        CHECK(h.instanceOrder().front() == piped[2]);
+        AltSourceTestAccess::failed(h, inv[1], true);   // unreachable: skipped for a minute
+        walk = h.instanceOrder();
+        CHECK(std::find(walk.begin(), walk.end(), inv[1]) == walk.end());
+        CHECK(fs::exists(file));
+        alt::AltSource again;   // the next run
+        again.setHealthFile(file);
+        again.configure(alt::Kind::Invidious, "");
+        walk = again.instanceOrder();
+        CHECK(walk.front() == piped[2] && std::find(walk.begin(), walk.end(), inv[0]) == walk.end());
+        CHECK(std::find(walk.begin(), walk.end(), inv[1]) != walk.end());   // "down" is not persisted, the failure is
+        CHECK(walk.back() == inv[1]);
+        again.configure(alt::Kind::Invidious, "https://own.example");   // the own instance is never left out
+        AltSourceTestAccess::failed(again, "https://own.example");
+        AltSourceTestAccess::failed(again, "https://own.example");
+        CHECK(again.instanceOrder().front() == "https://own.example");
+        std::error_code ec;
+        fs::remove_all(dir, ec);
+    }
+
+    std::printf("[the other route: instance proxy <-> googlevideo]\n");
+    CHECK(alt::directVariant("https://inv.example.org/companion/videoplayback?expire=1&itag=251&host=rr3---sn-4g5e6nzl.googlevideo.com&c=X") ==
+          "https://rr3---sn-4g5e6nzl.googlevideo.com/videoplayback?expire=1&itag=251&c=X");
+    CHECK(!alt::directVariant("https://inv.example.org/videoplayback?expire=1&host=evil.example"));
+    CHECK(!alt::directVariant("https://inv.example.org/latest_version?id=x&host=rr3---sn-x.googlevideo.com"));
+    CHECK(alt::proxiedVariant("https://rr3---sn-x.googlevideo.com/videoplayback?expire=1&itag=140", "https://inv.example.org/") ==
+          "https://inv.example.org/videoplayback?expire=1&itag=140&host=rr3---sn-x.googlevideo.com");
+    CHECK(!alt::proxiedVariant("https://evil.example/videoplayback?x=1", "https://inv.example.org"));
+    CHECK(alt::sniffContainer("ID3\x04") == alt::Container::Mp3);
+    CHECK(alt::sniffContainer("\xFF\xFB\x90\x64") == alt::Container::Mp3);
+    CHECK(alt::sniffContainer("\xFF\xFF\xFF\xFF") == alt::Container::Unknown);
+    CHECK(alt::containerOf("audio/mpeg") == alt::Container::Mp3);
+
     std::printf("[stream URLs the engine may fetch]\n");
     CHECK(alt::acceptableStreamUrl("https://pipedapi.example.org/videoplayback?x", "https://pipedapi.example.org"));
     CHECK(alt::acceptableStreamUrl("https://proxy.example.org/videoplayback?x", "https://api.example.org", "https://proxy.example.org"));
@@ -193,7 +256,9 @@ void testBasics() {
     CHECK(!alt::acceptableStreamUrl("http://192.168.1.1/apply.cgi", "https://api.example.org", "http://192.168.1.1"));
     CHECK(!alt::acceptableStreamUrl("https://192.168.1.1/x", "https://api.example.org", "https://192.168.1.1"));   // LAN proxy
     CHECK(!alt::acceptableStreamUrl("https://127.0.0.1/x", "https://api.example.org"));
-    CHECK(!alt::acceptableStreamUrl("https://rr3---sn-x.googlevideo.com/videoplayback", "https://inv.example.org"));
+    CHECK(alt::acceptableStreamUrl("https://rr3---sn-x.googlevideo.com/videoplayback", "https://inv.example.org"));   // YouTube
+    CHECK(!alt::acceptableStreamUrl("http://rr3---sn-x.googlevideo.com/videoplayback", "https://inv.example.org"));
+    CHECK(!alt::acceptableStreamUrl("https://googlevideo.com.evil.example/videoplayback", "https://inv.example.org"));
     CHECK(!alt::acceptableStreamUrl("https://api.example.org@evil.example/x", "https://api.example.org"));
     CHECK(!alt::acceptableStreamUrl("ftp://api.example.org/x", "https://api.example.org"));
     CHECK(alt::acceptableStreamUrl("http://127.0.0.1:8765/pmedia/1", "http://127.0.0.1:8765"));   // the user's LAN instance
@@ -794,14 +859,17 @@ void checkMatchService(const char* kind, const std::string& instance, bool stric
     }
 
     // 3. YouTube works, but the stream it just handed out failed in the engine (the Player re-resolves with
-    //    bypassCache minutes later): the backup source is asked first.
+    //    bypassCache minutes later): a new YouTube session first; when the new session's stream fails too, the backup
+    //    source is asked first.
     try {
         st::youtube::MatchService ms(youtubeClient());
         setup(ms, instance);
         const auto first = ms.stream(kVideo, false, false, false);
         const auto retry = ms.stream(kVideo, false, false, true);
-        expect(first.source == "youtube" && retry.source.starts_with(prefix),
-               std::format("re-resolve after a failed YouTube stream: {} -> {}", first.source, retry.source));
+        const auto third = ms.stream(kVideo, false, false, true);
+        expect(first.source == "youtube" && retry.source == "youtube" && third.source.starts_with(prefix),
+               std::format("re-resolve after a failed YouTube stream: {} -> {} (new session) -> {}", first.source, retry.source,
+                           third.source));
     } catch (const std::exception& e) {
         expect(false, std::string("re-resolve: ") + e.what());
     }

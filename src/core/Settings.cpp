@@ -78,6 +78,7 @@ void Settings::load() {
     read(j, "enhancedCollections", enhancedCollections);
     read(j, "altSource", altSource);
     read(j, "altSourceInstance", altSourceInstance);
+    read(j, "altSoundCloud", altSoundCloud);
     read(j, "localFolders", localFolders);
     read(j, "expandedFolders", expandedFolders);
     read(j, "friendActivityOpen", friendActivityOpen);
@@ -150,6 +151,7 @@ void Settings::save() const {
         {"enhancedCollections", enhancedCollections},
         {"altSource", altSource},
         {"altSourceInstance", altSourceInstance},
+        {"altSoundCloud", altSoundCloud},
         {"localFolders", localFolders},
         {"expandedFolders", expandedFolders},
         {"friendActivityOpen", friendActivityOpen},

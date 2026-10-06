@@ -15,6 +15,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <format>
+#include <fstream>
 #include <functional>
 
 #pragma comment(lib, "winhttp.lib")
@@ -28,25 +29,35 @@ using Clock = std::chrono::steady_clock;
 
 namespace {
 
-// Public instances change often (YouTube blocks their IPs, operators shut them down); ~90 known ones were probed on
-// 2026-09-28 (tests/altsource `live`). Search worked on all of these but kavin.rocks; streams only for some videos
-// (dQw4w9WgXcQ yes, kJQP7kiw5Fk "SignInConfirmNotBot" / companion errors everywhere). Hence the user's own
-// instance goes first. Order = most reliable first.
+// Public instances change often (YouTube blocks their IPs, operators shut them down). Probed on 2026-10-06 (tests/altsource
+// `live` + a script over the public lists, ~60 instances): of Piped only private.coffee and ducks.party answered at all
+// (muxed itag 18 or extractor errors), kavin.rocks / leptons / adminforge / reallyaweso.me answered 403 / 502; of
+// Invidious, ducks.party and f5.si delivered streams for some videos (f5.si's proxy serves a bot-check page, its direct
+// googlevideo URLs 403; ducks.party's direct URLs play), the rest refused ("Companion is starting", "Endpoint
+// disabled", 401 / 403). The list keeps the official and long-lived ones: the persisted health (AltSource.h) orders
+// them and leaves the dead ones out until they come back. Order = most reliable first.
 const std::vector<std::string> kPipedInstances{
     "https://api.piped.private.coffee",   // streams: muxed itag 18 only
     "https://pipedapi.ducks.party",       // streams: muxed itag 18 only
-    "https://pipedapi.kavin.rocks",       // official; Cloudflare 403 / 502 on 2026-09-28
+    "https://pipedapi.kavin.rocks",       // official; Cloudflare 403 on 2026-10-06
+    "https://pipedapi.leptons.xyz",       // 502 on 2026-10-06
+    "https://pipedapi.reallyaweso.me",    // 502 on 2026-10-06
+    "https://pipedapi.adminforge.de",     // 403 on 2026-10-06
 };
 const std::vector<std::string> kInvidiousInstances{
-    "https://invidious.ducks.party",      // streams: audio-only via its proxy
-    "https://invidious.f5.si",            // search only (companion errors)
-    "https://invidious.materialio.us",    // search only
+    "https://invidious.ducks.party",      // streams for some videos (direct googlevideo URLs play)
+    "https://invidious.f5.si",            // search; streams listed, but its proxy answers with a bot check
+    "https://yewtu.be",                   // search only
+    "https://inv.vern.cc",                // "Companion is starting" on 2026-10-06
+    "https://invidious.darkness.services",   // "Companion is starting" on 2026-10-06
+    "https://invidious.materialio.us",    // search only ("doesn't support using Invidious like this")
 };
 
 constexpr auto kRequestTimeout = std::chrono::seconds(8);   // wall clock per request, body included
 constexpr auto kBudget = std::chrono::seconds(25);          // a whole walk, the attempt in flight included
-constexpr auto kDemoteFor = std::chrono::minutes(5);        // a failed instance is tried last for a while
 constexpr auto kSkipDownFor = std::chrono::seconds(60);     // an unreachable one is not tried at all
+constexpr int64_t kBackoffFirst = 10 * 60;                  // left out after 2 failures in a row (seconds)...
+constexpr int64_t kBackoffMax = 12 * 60 * 60;               // ...doubling per further failure, up to this
 constexpr size_t kMaxJson = 4u << 20;                       // decompressed API answers
 constexpr size_t kMaxErrorBody = 16u << 10;                 // only the error text is used
 constexpr size_t kProbeBytes = 16;
@@ -208,6 +219,9 @@ std::string lower(std::string s) {
     for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
+
+// YouTube's media servers (rr<n>---sn-<x>.googlevideo.com).
+bool googlevideoHost(const std::string& host) { return host.ends_with(".googlevideo.com"); }
 
 std::string trim(std::string_view s) {
     while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) s.remove_prefix(1);
@@ -371,13 +385,14 @@ void probeRange(AudioStream& s, Clock::time_point walkEnd, const CT& ct) {
     rq.deadline = requestDeadline(walkEnd);
     rq.maxBody = kProbeBytes;
     rq.truncate = true;
-    rq.followRedirects = false;
+    // googlevideo hands requests on to another of its servers (302); the engine follows those too.
+    rq.followRedirects = googlevideoHost(lower(hostOf(s.url)));
     const Response r = perform(rq, ct);
     if (r.status != 206)
         throw AltSourceError(r.status == 200 ? std::string("stream ignores range requests") : std::format("stream answered HTTP {}", r.status));
     const Container want = containerOf(s.mimeType);
     if (sniffContainer(r.body) != want)
-        throw AltSourceError(std::format("stream is not {} data", want == Container::Webm ? "WebM" : "MP4"));
+        throw AltSourceError(std::format("stream is not {} data", want == Container::Webm ? "WebM" : want == Container::Mp3 ? "MP3" : "MP4"));
     if (s.contentLength > 0) return;   // from the API (clen / contentLength)
     long long total = 0;
     if (const auto slash = r.contentRange.rfind(L'/'); slash != std::wstring::npos)   // "bytes 0-15/3433514"
@@ -389,7 +404,7 @@ void probeRange(AudioStream& s, Clock::time_point walkEnd, const CT& ct) {
         head.deadline = requestDeadline(walkEnd);
         head.maxBody = 0;
         head.truncate = true;
-        head.followRedirects = false;
+        head.followRedirects = rq.followRedirects;
         const Response h = perform(head, ct);
         total = h.ok() ? h.contentLength : 0;
     }
@@ -416,10 +431,29 @@ Served fetchStream(Kind kind, const std::string& instance, const std::string& vi
     s.stream = *pick;
     s.kind = kind;
     s.instance = instance;
+    const std::string proxy = v.proxyUrl;
     v.streams.clear();
     s.video = std::move(v);
     if (checkpoint) checkpoint();
-    probeRange(s.stream, walkEnd, ct);
+    try {
+        probeRange(s.stream, walkEnd, ct);
+    } catch (const AltSourceError& first) {
+        // The same stream through the other route: a proxy may serve a bot check while YouTube still accepts the URL
+        // directly, or YouTube refuses the instance's URL from our address while its proxy plays it.
+        auto other = directVariant(s.stream.url);
+        if (!other) other = proxiedVariant(s.stream.url, proxy.empty() ? instance : proxy);
+        if (!other || !acceptableStreamUrl(*other, instance, proxy)) throw;
+        AudioStream retry = s.stream;
+        retry.url = *other;
+        if (checkpoint) checkpoint();
+        try {
+            probeRange(retry, walkEnd, ct);
+        } catch (const AltSourceError& second) {
+            throw AltSourceError(std::format("{}; {} route: {}", first.what(), other->find(".googlevideo.com/") != std::string::npos ? "direct" : "proxy",
+                                             second.what()));
+        }
+        s.stream = std::move(retry);
+    }
     return s;
 }
 
@@ -435,6 +469,47 @@ std::vector<SearchItem> fetchSearch(Kind kind, const std::string& instance, cons
 }
 
 } // namespace
+
+HttpResult fetchText(const std::string& url, Clock::time_point deadline, const CT& ct, size_t maxBytes) {
+    Request rq;
+    rq.url = url;
+    rq.headers = L"Accept: application/json, text/html, */*\r\n";
+    rq.deadline = deadline;
+    rq.maxBody = maxBytes;
+    rq.decompress = true;
+    Response r = perform(rq, ct);
+    return {r.status, std::move(r.body)};
+}
+
+void probeStream(AudioStream& stream, Clock::time_point deadline, const CT& ct) { probeRange(stream, deadline, ct); }
+
+std::optional<std::string> directVariant(const std::string& url) {
+    const auto q = url.find('?');
+    if (q == std::string::npos || url.rfind("/videoplayback", q) == std::string::npos) return std::nullopt;
+    std::string host, query;
+    size_t pos = q + 1;
+    while (pos <= url.size()) {
+        size_t amp = url.find('&', pos);
+        if (amp == std::string::npos) amp = url.size();
+        const std::string param = url.substr(pos, amp - pos);
+        if (param.starts_with("host=")) host = lower(param.substr(5));
+        else if (!param.empty()) query += (query.empty() ? "" : "&") + param;
+        pos = amp + 1;
+    }
+    if (!googlevideoHost(host) || host.find_first_of("/@:%") != std::string::npos) return std::nullopt;
+    return "https://" + host + "/videoplayback?" + query;
+}
+
+std::optional<std::string> proxiedVariant(const std::string& url, const std::string& proxyBase) {
+    if (!lower(url).starts_with("https://")) return std::nullopt;
+    const std::string host = lower(hostOf(url));
+    const auto q = url.find('?');
+    if (!googlevideoHost(host) || q == std::string::npos || url.compare(8 + hostOf(url).size(), 14, "/videoplayback") != 0)
+        return std::nullopt;
+    std::string base = proxyBase;
+    while (base.ends_with("/")) base.pop_back();
+    return base + "/videoplayback" + url.substr(q) + "&host=" + host;
+}
 
 std::string hostOf(const std::string& url) {
     auto p = url.find("://");
@@ -489,6 +564,7 @@ bool acceptableStreamUrl(const std::string& url, const std::string& instance, co
     if (host.empty() || host.find('@') != std::string::npos) return false;
     const std::string instanceHost = lower(hostOf(instance));
     if (host == instanceHost) return true;
+    if (scheme == "https://" && googlevideoHost(host) && host.find(':') == std::string::npos) return true;   // YouTube itself
     if (declaredProxy.empty() || host != lower(hostOf(declaredProxy))) return false;
     return !privateHost(host) || privateHost(instanceHost);
 }
@@ -628,6 +704,7 @@ Container containerOf(const std::string& mimeType) {
     const std::string m = mimeOf(mimeType);
     if (m == "audio/mp4" || m == "video/mp4") return Container::Mp4;
     if (m == "audio/webm" || m == "video/webm") return Container::Webm;
+    if (m == "audio/mpeg" || m == "audio/mp3") return Container::Mp3;
     return Container::Unknown;
 }
 
@@ -636,6 +713,11 @@ Container sniffContainer(std::string_view b) {
     if (b.size() >= 4 && static_cast<unsigned char>(b[0]) == 0x1A && static_cast<unsigned char>(b[1]) == 0x45 &&
         static_cast<unsigned char>(b[2]) == 0xDF && static_cast<unsigned char>(b[3]) == 0xA3)
         return Container::Webm;
+    if (b.size() >= 3 && b.substr(0, 3) == "ID3") return Container::Mp3;
+    // MPEG audio frame header: 11 sync bits, a layer (not "reserved") and a bitrate index that is not "bad".
+    if (b.size() >= 3 && static_cast<unsigned char>(b[0]) == 0xFF && (static_cast<unsigned char>(b[1]) & 0xE0) == 0xE0 &&
+        (static_cast<unsigned char>(b[1]) & 0x06) != 0 && (static_cast<unsigned char>(b[2]) & 0xF0) != 0xF0)
+        return Container::Mp3;
     return Container::Unknown;
 }
 
@@ -671,11 +753,16 @@ void AltSource::configure(Kind kind, std::string customInstance) {
     const std::string next = normalized.value_or(std::string{});
     std::lock_guard lock(mutex_);
     if (kind == kind_ && next == custom_) return;
-    ST_LOG_INFO("altsource", "backup source: {}{}", kindName(kind), next.empty() ? std::string{} : " via " + next);
+    ST_LOG_INFO("altsource", "backup source: {} first{}", kindName(kind), next.empty() ? std::string{} : " via " + next);
     // A replaced own instance must never be contacted again: forget what was learned about it.
     if (!custom_.empty() && next != custom_) {
-        std::erase_if(lastGood_, [&](const auto& kv) { return kv.second == custom_; });
-        std::erase_if(failed_, [&](const auto& kv) { return kv.first.substr(2) == custom_; });
+        const auto& own = custom_;
+        const auto& builtins = builtinInstances(Kind::Piped);
+        const auto& others = builtinInstances(Kind::Invidious);
+        if (std::find(builtins.begin(), builtins.end(), own) == builtins.end() && std::find(others.begin(), others.end(), own) == others.end()) {
+            std::erase_if(health_, [&](const auto& kv) { return kv.first.substr(2) == own; });
+            saveHealthLocked();
+        }
     }
     kind_ = kind;
     custom_ = next;
@@ -697,9 +784,48 @@ std::string AltSource::label() const {
     return kindName(kind_);
 }
 
-std::vector<std::string> AltSource::instanceOrder() const {
+void AltSource::setHealthFile(std::filesystem::path file) {
+    std::lock_guard lock(mutex_);
+    healthFile_ = std::move(file);
+    std::ifstream f(healthFile_);
+    if (!f) return;
+    const json j = json::parse(f, nullptr, false);
+    if (!j.is_object()) return;
+    for (const auto& [key, v] : j.items()) {
+        if (!v.is_object() || key.size() < 3 || key[1] != '|') continue;
+        Health& h = health_[key];
+        h.lastOk = jint(v, "ok");
+        h.lastFail = jint(v, "fail");
+        h.streak = static_cast<int>(std::clamp<int64_t>(jint(v, "streak"), 0, 64));
+        h.error = jstr(v, "err");
+    }
+}
+
+void AltSource::saveHealthLocked() const {
+    if (healthFile_.empty()) return;
+    json j = json::object();
+    for (const auto& [key, h] : health_)
+        if (h.lastOk || h.lastFail) j[key] = {{"ok", h.lastOk}, {"fail", h.lastFail}, {"streak", h.streak}, {"err", h.error}};
+    auto tmp = healthFile_;
+    tmp += L".tmp";
+    {
+        std::ofstream f(tmp, std::ios::trunc);
+        f << j.dump(1);
+        if (!f) return;
+    }
+    std::error_code ec;
+    std::filesystem::rename(tmp, healthFile_, ec);
+}
+
+std::vector<AltSource::Target> AltSource::targets() const {
     std::lock_guard lock(mutex_);
     return orderLocked(Op::Stream);
+}
+
+std::vector<std::string> AltSource::instanceOrder() const {
+    std::vector<std::string> out;
+    for (auto& t : targets()) out.push_back(std::move(t.instance));
+    return out;
 }
 
 AltSource::Snapshot AltSource::snapshot(Op op) const {
@@ -712,44 +838,75 @@ std::string AltSource::healthKey(Op op, const std::string& instance) {
     return (op == Op::Stream ? "s|" : "q|") + instance;
 }
 
-std::vector<std::string> AltSource::orderLocked(Op op) const {
-    std::vector<std::string> order, demoted;
-    auto push = [&order](const std::string& s) {
-        if (!s.empty() && std::find(order.begin(), order.end(), s) == order.end()) order.push_back(s);
+// The user's own instance first, then the built-ins of both kinds by health: worked lately (latest success first),
+// never tried, failed; the chosen kind before the other one within each group, then the list order. Unreachable in the
+// last minute: left out (the own instance too: its timeout would be paid again); two or more failures in a row: left
+// out while the backoff runs (not the own instance).
+std::vector<AltSource::Target> AltSource::orderLocked(Op op) const {
+    std::vector<Target> order;
+    if (kind_ == Kind::Off) return order;
+    const auto steadyNow = Clock::now();
+    const int64_t now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    auto healthOf = [&](const std::string& instance) -> const Health* {
+        const auto it = health_.find(healthKey(op, instance));
+        return it == health_.end() ? nullptr : &it->second;
     };
-    static const std::vector<std::string> none;
-    const auto& builtin = useBuiltins_ ? builtinInstances(kind_) : none;
-    push(custom_);
-    // The last good instance only while it is still a current choice (never a replaced own instance).
-    if (const auto it = lastGood_.find(healthKey(op, kindName(kind_)));
-        it != lastGood_.end() && (it->second == custom_ || std::find(builtin.begin(), builtin.end(), it->second) != builtin.end()))
-        push(it->second);
-    const auto now = Clock::now();
-    for (const auto& b : builtin) {
-        const auto f = failed_.find(healthKey(op, b));
-        if (f == failed_.end() || now - f->second.at >= kDemoteFor) push(b);
-        else if (!f->second.down || now - f->second.at >= kSkipDownFor) demoted.push_back(b);
+    auto down = [&](const Health* h) { return h && h->downAt != Clock::time_point{} && steadyNow - h->downAt < kSkipDownFor; };
+    if (!custom_.empty() && !down(healthOf(custom_))) order.push_back({kind_, custom_});
+    if (!useBuiltins_) return order;
+
+    struct Ranked {
+        Target target;
+        int group;        // 0 worked lately, 1 never tried, 2 failed
+        int64_t lastOk;
+        int kindRank;     // 0 = the chosen kind
+        size_t index;
+    };
+    std::vector<Ranked> ranked;
+    const Kind other = kind_ == Kind::Piped ? Kind::Invidious : Kind::Piped;
+    for (const Kind k : {kind_, other}) {
+        const auto& list = builtinInstances(k);
+        for (size_t i = 0; i < list.size(); ++i) {
+            if (list[i] == custom_) continue;
+            const Health* h = healthOf(list[i]);
+            if (down(h)) continue;
+            if (h && h->streak >= 2) {
+                const int64_t backoff = std::min<int64_t>(kBackoffFirst << std::min(h->streak - 2, 16), kBackoffMax);
+                if (now - h->lastFail < backoff) continue;
+            }
+            const int group = !h || (!h->lastOk && !h->lastFail) ? 1 : h->lastOk > h->lastFail ? 0 : 2;
+            ranked.push_back({{k, list[i]}, group, h ? h->lastOk : 0, k == kind_ ? 0 : 1, i});
+        }
     }
-    for (const auto& d : demoted) push(d);
-    // The user's own / last good instance is skipped too while it is unreachable (its timeout would be paid again).
-    std::erase_if(order, [&](const std::string& s) {
-        const auto f = failed_.find(healthKey(op, s));
-        return f != failed_.end() && f->second.down && now - f->second.at < kSkipDownFor;
+    std::stable_sort(ranked.begin(), ranked.end(), [](const Ranked& a, const Ranked& b) {
+        if (a.group != b.group) return a.group < b.group;
+        if (a.group == 0 && a.lastOk != b.lastOk) return a.lastOk > b.lastOk;
+        if (a.kindRank != b.kindRank) return a.kindRank < b.kindRank;
+        return a.index < b.index;
     });
+    for (auto& r : ranked) order.push_back(std::move(r.target));
     return order;
 }
 
-void AltSource::noteResult(Op op, const Snapshot& snap, const std::string& instance, Outcome outcome) {
+void AltSource::noteResult(Op op, const Snapshot& snap, const std::string& instance, Outcome outcome, const std::string& error) {
     std::lock_guard lock(mutex_);
     if (snap.generation != generation_) return;   // reconfigured meanwhile: this result is about an old choice
-    auto& last = lastGood_[healthKey(op, kindName(snap.kind))];
+    const int64_t now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    Health& h = health_[healthKey(op, instance)];
     if (outcome == Outcome::Ok) {
-        last = instance;
-        failed_.erase(healthKey(op, instance));
+        h.lastOk = std::max(now, h.lastFail + 1);   // "worked lately" even within the same second as a failure
+        h.streak = 0;
+        h.error.clear();
+        h.downAt = {};
     } else {
-        failed_[healthKey(op, instance)] = {Clock::now(), outcome == Outcome::Down};
-        if (last == instance) last.clear();
+        h.lastFail = now;
+        ++h.streak;
+        h.error = error.substr(0, 200);
+        if (outcome == Outcome::Down) h.downAt = Clock::now();
+        if (h.streak == 2)
+            ST_LOG_INFO("altsource", "{} failed twice in a row: left out for {} min", hostOf(instance), kBackoffFirst / 60);
     }
+    saveHealthLocked();
 }
 
 // Transport failures (DNS, refused, timeout) mean the instance is down: HTTP error answers come back as responses.
@@ -777,14 +934,14 @@ Served AltSource::stream(const std::string& videoId, bool allowWebm, bool lowQua
         if (generation() != snap.generation) throw AltSourceError("backup source changed");
     };
     std::string errors;
-    for (const auto& instance : snap.order) {
+    for (const auto& [kind, instance] : snap.order) {
         checkpoint();
         if (!errors.empty() && Clock::now() >= walkEnd) {
             errors += "; out of time";
             break;
         }
         try {
-            Served s = fetchStream(snap.kind, instance, videoId, allowWebm, lowQuality, ct, walkEnd, checkpoint);
+            Served s = fetchStream(kind, instance, videoId, allowWebm, lowQuality, ct, walkEnd, checkpoint);
             s.generation = snap.generation;
             noteResult(Op::Stream, snap, instance, Outcome::Ok);
             return s;
@@ -792,14 +949,14 @@ Served AltSource::stream(const std::string& videoId, bool allowWebm, bool lowQua
             throw;
         } catch (const std::exception& e) {
             if (generation() != snap.generation) throw AltSourceError("backup source changed");
-            ST_LOG_WARN("altsource", "{} stream {} via {}: {}", kindName(snap.kind), videoId, hostOf(instance), e.what());
+            ST_LOG_WARN("altsource", "{} stream {} via {}: {}", kindName(kind), videoId, hostOf(instance), e.what());
             if (videoGone(e.what()))   // about the video, not the instance: no demotion, no other instance
-                throw AltSourceError(std::format("{}: video unavailable ({})", kindName(snap.kind), e.what()));
-            noteResult(Op::Stream, snap, instance, failureOf(e));
+                throw AltSourceError(std::format("{}: video unavailable ({})", kindName(kind), e.what()));
+            noteResult(Op::Stream, snap, instance, failureOf(e), e.what());
             errors += std::format("{}{}: {}", errors.empty() ? "" : "; ", hostOf(instance), e.what());
         }
     }
-    throw AltSourceError(std::format("{}: no instance delivered {} ({})", kindName(snap.kind), videoId, errors.empty() ? "no instances" : errors));
+    throw AltSourceError(std::format("backup servers: none delivered {} ({})", videoId, errors.empty() ? "all left out after recent failures" : errors));
 }
 
 std::vector<SearchItem> AltSource::search(const std::string& query, bool music, const CT& ct) {
@@ -807,7 +964,7 @@ std::vector<SearchItem> AltSource::search(const std::string& query, bool music, 
     if (snap.kind == Kind::Off) throw AltSourceError("backup source is off");
     const auto walkEnd = Clock::now() + kBudget;
     std::string errors;
-    for (const auto& instance : snap.order) {
+    for (const auto& [kind, instance] : snap.order) {
         ct.throwIfCancellationRequested();
         if (generation() != snap.generation) throw AltSourceError("backup source changed");
         if (!errors.empty() && Clock::now() >= walkEnd) {
@@ -815,20 +972,20 @@ std::vector<SearchItem> AltSource::search(const std::string& query, bool music, 
             break;
         }
         try {
-            auto items = fetchSearch(snap.kind, instance, query, music, ct, walkEnd);
+            auto items = fetchSearch(kind, instance, query, music, ct, walkEnd);
             noteResult(Op::Search, snap, instance, Outcome::Ok);
-            ST_LOG_INFO("altsource", "{} search \"{}\" via {}: {} result(s)", kindName(snap.kind), query, hostOf(instance), items.size());
+            ST_LOG_INFO("altsource", "{} search \"{}\" via {}: {} result(s)", kindName(kind), query, hostOf(instance), items.size());
             return items;
         } catch (const yte::Exceptions::OperationCanceledException&) {
             throw;
         } catch (const std::exception& e) {
             if (generation() != snap.generation) throw AltSourceError("backup source changed");
-            noteResult(Op::Search, snap, instance, failureOf(e));
-            ST_LOG_WARN("altsource", "{} search via {}: {}", kindName(snap.kind), hostOf(instance), e.what());
+            noteResult(Op::Search, snap, instance, failureOf(e), e.what());
+            ST_LOG_WARN("altsource", "{} search via {}: {}", kindName(kind), hostOf(instance), e.what());
             errors += std::format("{}{}: {}", errors.empty() ? "" : "; ", hostOf(instance), e.what());
         }
     }
-    throw AltSourceError(std::format("{} search failed ({})", kindName(snap.kind), errors.empty() ? "no instances" : errors));
+    throw AltSourceError(std::format("backup search failed ({})", errors.empty() ? "all servers left out after recent failures" : errors));
 }
 
 } // namespace st::youtube::alt
