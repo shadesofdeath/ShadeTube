@@ -340,11 +340,15 @@ void Sidebar::refresh() {
                     {tr(L"Çal"), "play", L"", [rp] { ctx().router->navigate(rp); }},
                     sync::menuItem(offline),
                     transfer::exportMenuItem(liked ? transfer::What::Liked : transfer::What::Playlist, id, toUtf8(name))};
-                // Editable Spotify playlists (owned or collaborative): rename (owner only) / delete (unfollow).
+                // Editable Spotify playlists (owned or collaborative): details (owner only) / delete (unfollow).
                 if (editable) {
                     items.push_back(ui::MenuItem::sep());
                     if (owned)
-                        items.push_back({tr(L"Yeniden adlandır"), "edit", L"", [id, name] { promptRenamePlaylist(id, name); }});
+                        items.push_back({tr(L"Ayrıntıları düzenle"), "edit", L"", [id] {
+                                             const auto* s = ctx().session;
+                                             if (const auto* pl = s ? s->findPlaylist(id) : nullptr)
+                                                 editPlaylistDetails(id, toWide(pl->name), toWide(pl->description), pl->images);
+                                         }});
                     ui::MenuItem del{owned ? tr(L"Sil") : tr(L"Kitaplıktan kaldır"), "trash", L"",
                                      [id, name] { confirmDeletePlaylist(id, name); }};
                     del.destructive = true;
@@ -375,6 +379,10 @@ void Sidebar::refresh() {
                                 sync::menuItem(offline),
                                 transfer::exportMenuItem(transfer::What::Playlist, id, offline.name),
                                 ui::MenuItem::sep(),
+                                {tr(L"Ayrıntıları düzenle"), "edit", L"", [id] {
+                                     if (const auto* pl = ctx().library.playlist(id))
+                                         editPlaylistDetails(id, toWide(pl->name), toWide(pl->description), pl->images);
+                                 }},
                                 {tr(L"Sil"), "trash", L"", [id] {
                                      ui::Dialog::confirm(ctx().window, tr(L"Çalma listesi silinsin mi?"),
                                                          tr(L"Bu işlem geri alınamaz."), tr(L"Sil"),

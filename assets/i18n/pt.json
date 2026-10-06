@@ -1387,5 +1387,25 @@
   "İçe aktarılan liste": "Playlist importada",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Música excluída da sincronização; não será baixada de novo",
   "Şarkı yeniden senkronize edilecek": "A música será sincronizada de novo",
-  "Listeyi içe aktar": "Importar playlist"
+  "Listeyi içe aktar": "Importar playlist",
+  "Ad": "Nome",
+  "Açıklama": "Descrição",
+  "Açıklama ekle (isteğe bağlı)": "Adicione uma descrição (opcional)",
+  "Ayrıntıları düzenle": "Editar detalhes",
+  "Ayrıntılar kaydedildi": "Detalhes salvos",
+  "Ayrıntılar kaydedilemedi": "Não foi possível salvar os detalhes",
+  "Değişiklikler Spotify hesabına kaydedilir.": "As alterações são salvas na sua conta do Spotify.",
+  "Görsel kaydedilemedi": "Não foi possível salvar a imagem",
+  "Görsel okunamadı": "Não foi possível ler a imagem",
+  "Görsel seç…": "Escolher imagem…",
+  "Görseli kaldır": "Remover imagem",
+  "Görseller (JPEG, PNG, WebP)": "Imagens (JPEG, PNG, WebP)",
+  "Kapak görseli seç": "Escolha uma imagem de capa",
+  "Sıra değiştirilemedi": "Não foi possível mudar a ordem",
+  "Yeni sıra Spotify'a kaydedilemedi": "Não foi possível salvar a nova ordem no Spotify",
+  "{} şarkı listeden kaldırıldı": {
+    "one": "{} música removida da playlist",
+    "other": "{} músicas removidas da playlist"
+  },
+  "Şarkılar listeye geri eklenemedi": "Não foi possível devolver as músicas à playlist"
 }

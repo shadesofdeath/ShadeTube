@@ -1,5 +1,6 @@
 #pragma once
 // Services shared by the shell and pages (owned by App; accessed on the UI thread via app::ctx()).
+#include "app/CatalogJson.h"
 #include "app/Downloads.h"
 #include "catalog/Models.h"
 #include "core/Async.h"
@@ -67,9 +68,21 @@ public:
     const std::vector<catalog::Track>* playlistTracks(const std::string& id) const;
     std::string createPlaylist(const std::wstring& name);          // returns id
     void renamePlaylist(const std::string& id, const std::wstring& name);
+    void setPlaylistDescription(const std::string& id, const std::wstring& description);
+    // Custom cover (a square JPEG, kept in %LOCALAPPDATA%\ShadeTube\playlist-covers); nullptr = back to the songs'
+    // artwork. False when the file could not be written.
+    bool setPlaylistCover(const std::string& id, const std::vector<uint8_t>* jpeg);
+    bool hasCustomCover(const std::string& id) const;
     void deletePlaylist(const std::string& id);
     int addToPlaylist(const std::string& id, const std::vector<catalog::Track>& tracks);   // returns #added
     void removeFromPlaylist(const std::string& id, const std::string& trackId);
+    // Several songs at once; returns them with their old positions (for restoreToPlaylist: undo).
+    std::vector<std::pair<int, catalog::Track>> removeFromPlaylist(const std::string& id,
+                                                                   const std::vector<std::string>& trackIds);
+    void restoreToPlaylist(const std::string& id, std::vector<std::pair<int, catalog::Track>> removed);
+    // The playlist's songs in a new order (their ids, each once). False (nothing changes) unless `trackIds` is exactly
+    // the playlist's songs.
+    bool reorderPlaylist(const std::string& id, const std::vector<std::string>& trackIds);
 
     // Listening history (newest first, capped)
     const std::deque<HistoryItem>& history() const { return history_; }
@@ -91,6 +104,7 @@ private:
     std::vector<catalog::Artist> artists_;
     std::vector<catalog::Playlist> playlists_;
     std::unordered_map<std::string, std::vector<catalog::Track>> playlistTracks_;
+    std::unordered_map<std::string, std::wstring> covers_;   // playlist id -> custom cover file
     std::deque<HistoryItem> history_;
     std::vector<std::pair<Lifetime::Ref, std::function<void()>>> listeners_;
     bool dirty_ = false;
@@ -179,8 +193,11 @@ void startRadio(const std::string& seedUri, const std::wstring& seedName);
 // Shared helpers used by many pages.
 // `recommendKey`: the "Geliştir" collection ("liked" / a playlist id) of a table that shows recommendations; its
 // recommended rows get "add to this list" / "hide" (app/SmartShuffle). Recommended rows elsewhere refer to the queue.
+// `removeRows`: how the open list removes its rows ("Bu çalma listesinden kaldır" with undo, see CollectionPage); unset,
+// the menu removes them from `playlistId` itself.
 void showTrackMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos, const std::string& playlistId = {},
-                   const std::string& recommendKey = {});
+                   const std::string& recommendKey = {},
+                   std::function<void(const std::vector<catalog::Track>&)> removeRows = {});
 void showAddToPlaylistMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos);
 // Adds songs to the playlist `id` and reports with a toast: an editable Spotify playlist (logged in; only its Spotify
 // songs, the others are noted) or a local playlist. Used by the menu above and by drag and drop.
@@ -200,6 +217,10 @@ void showSleepTimerMenu(gfx::Point windowPos);
 // calls `created(id)` (Spotify: once the playlist exists).
 void promptNewPlaylist(std::function<void(const std::string& id)> created = {}, std::vector<catalog::Track> tracks = {});
 void promptRenamePlaylist(const std::string& id, const std::wstring& currentName);
+// "Ayrıntıları düzenle" (app/PlaylistDetails.cpp): name, description and cover of a local playlist or of a Spotify
+// playlist the user owns. `name` / `description` / `images`: what the playlist shows now.
+void editPlaylistDetails(const std::string& id, const std::wstring& name, const std::wstring& description,
+                         const std::vector<catalog::Image>& images);
 // Confirm dialog, then delete (Spotify: removes it from the library — Spotify's "delete" for an owned playlist,
 // unfollow otherwise). Leaves the playlist's page (-> Library) if it is open.
 void confirmDeletePlaylist(const std::string& id, const std::wstring& name);
@@ -230,13 +251,5 @@ std::wstring totalDuration(int64_t ms);          // "3 sa 12 dk"
 std::wstring thousands(int64_t n);               // "1.234.567"
 std::wstring compactCount(int64_t n);            // "12,4 B" / "1,2 Mn"
 int64_t nowUnix();
-
-// JSON (de)serialization of catalog models (library.json / session.json).
-nlohmann::json toJson(const catalog::Track& t);
-nlohmann::json toJson(const catalog::Album& a);
-nlohmann::json toJson(const catalog::Artist& a);
-catalog::Track trackFromJson(const nlohmann::json& j);
-catalog::Album albumFromJson(const nlohmann::json& j);
-catalog::Artist artistFromJson(const nlohmann::json& j);
 
 } // namespace st::app

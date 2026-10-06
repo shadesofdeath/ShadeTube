@@ -1,6 +1,7 @@
 #pragma once
 // App-specific building blocks: artwork, media cards, section headers and the virtualized track table.
 #include "app/AppContext.h"
+#include "app/DragDrop.h"
 #include "gfx/Text.h"
 #include "ui/Anim.h"
 #include "ui/Controls.h"
@@ -85,8 +86,9 @@ private:
 // ---------------------------------------------------------------------------------------------------
 // Virtualized track table (spec: Track row). Rows are painted from the model: no per-row widgets.
 // Rows can be dragged (app/DragDrop): the pressed row, or the whole selection when the pressed row is part of it, onto
-// the sidebar's playlists / Liked Songs or the queue panel. Escape cancels the drag.
-class TrackTable : public ui::Widget {
+// the sidebar's playlists / Liked Songs or the queue panel. Escape cancels the drag. A reorderable table (a playlist the
+// user may edit) also takes its own rows: they move in front of the row under the pointer (a line shows where).
+class TrackTable : public ui::Widget, public DropTarget {
 public:
     ~TrackTable() override;
     struct Options {
@@ -117,6 +119,23 @@ public:
     // heart when these are set; `key` is the collection they were recommended for (the track menu's entries).
     std::function<void(const catalog::Track&)> onAddRecommended, onHideRecommended;
     void setRecommendKey(std::string key) { recommendKey_ = std::move(key); }
+
+    // Reordering by drag (needs onReorder). Only in the list's own order ("Özel sıra"), unfiltered and with no
+    // "Geliştir" recommendations between the rows.
+    void setReorderable(bool on) { reorderable_ = on; }
+    bool canReorder() const;
+    // The moved rows (tracks_ indices, display order) and the tracks_ index they go in front of (size() = the end).
+    // Runs after the drop event (posted): the handler may rebuild the table.
+    std::function<void(std::vector<int> rows, int insertBefore)> onReorder;
+    // Delete key (and the track menu's "remove from this list", see showTrackMenu): the list's own selected rows.
+    // Posted like onReorder.
+    std::function<void(const std::vector<catalog::Track>&)> onRemove;
+    // Selects these tracks_ indices (rows that just moved); the keyboard cursor goes to the first.
+    void selectRows(const std::vector<int>& rows);
+
+    bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
+    void dragLeave() override;
+    void drop(const DragPayload& payload, gfx::Point windowPos) override;
 
     static constexpr float kHeaderH = 28;
     float headerHeight() const { return opts_.showHeader ? kHeaderH + 8 : 0; }
@@ -155,6 +174,12 @@ private:
     bool artistHit(int i, gfx::Point p);
     void headerClick(float x);
     std::vector<catalog::Track> dragTracks() const;   // what a drag from pressRow_ carries
+    std::vector<int> dragRows() const;                // the same rows as tracks_ indices
+    std::vector<catalog::Track> selectedOwnRows() const;   // selection minus recommendations (display order)
+    int dropIndexAt(gfx::Point windowPos) const;      // insertion row under the pointer (0..view_.size())
+    void autoScroll(gfx::Point windowPos);            // scrolls the page while a drag rests near its edge
+    // onRemove for the track menu (dropped once the table is gone).
+    std::function<void(const std::vector<catalog::Track>&)> menuRemove();
 
     Options opts_;
     std::vector<catalog::Track> tracks_;
@@ -179,6 +204,11 @@ private:
     gfx::Text blockedBadge_;         // "ENGELLİ"
     std::vector<ui::Anim> dummy_;
     bool nearEndSignaled_ = false;
+    bool reorderable_ = false;
+    std::vector<int> reorderRows_;   // tracks_ indices this table's own drag moves (empty: it can't reorder)
+    int dropAt_ = -1;                // insertion line while its own rows are dragged over it
+    double lastScrollTick_ = 0;
+    Lifetime life_;                  // posted onReorder / onRemove calls die with the table
 };
 
 } // namespace st::app

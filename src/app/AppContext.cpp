@@ -4,6 +4,7 @@
 #include "app/DownloadSync.h"
 #include "app/InternetRadio.h"
 #include "app/LocalLibrary.h"
+#include "app/PlaylistEditing.h"
 #include "app/PodcastUi.h"
 #include "app/Radio.h"
 #include "app/Router.h"
@@ -49,92 +50,6 @@ int64_t nowUnix() {
 }
 
 // ===================================================================================================
-// JSON
-
-static json imagesToJson(const std::vector<Image>& images) {
-    json a = json::array();
-    for (const auto& i : images) a.push_back({{"u", i.url}, {"w", i.width}, {"h", i.height}});
-    return a;
-}
-
-static std::vector<Image> imagesFromJson(const json& j) {
-    std::vector<Image> out;
-    if (!j.is_array()) return out;
-    for (const auto& i : j) out.push_back({i.value("u", ""), i.value("w", 0), i.value("h", 0)});
-    return out;
-}
-
-static json artistsToJson(const std::vector<ArtistRef>& a) {
-    json arr = json::array();
-    for (const auto& r : a) arr.push_back({{"id", r.id}, {"n", r.name}});
-    return arr;
-}
-
-static std::vector<ArtistRef> artistsFromJson(const json& j) {
-    std::vector<ArtistRef> out;
-    if (!j.is_array()) return out;
-    for (const auto& r : j) out.push_back({r.value("id", ""), r.value("n", "")});
-    return out;
-}
-
-json toJson(const Track& t) {
-    return {{"id", t.id},   {"v", t.videoId},      {"n", t.name},       {"a", artistsToJson(t.artists)},
-            {"al", {{"id", t.album.id}, {"n", t.album.name}, {"img", imagesToJson(t.album.images)}}},
-            {"d", t.durationMs}, {"e", t.explicitContent}, {"t", t.addedAt}, {"no", t.trackNumber}};
-}
-
-Track trackFromJson(const json& j) {
-    Track t;
-    if (!j.is_object()) return t;
-    t.id = j.value("id", "");
-    t.videoId = j.value("v", "");
-    t.name = j.value("n", "");
-    t.artists = artistsFromJson(j.value("a", json::array()));
-    if (auto al = j.find("al"); al != j.end() && al->is_object()) {
-        t.album.id = al->value("id", "");
-        t.album.name = al->value("n", "");
-        t.album.images = imagesFromJson(al->value("img", json::array()));
-    }
-    t.durationMs = j.value("d", 0);
-    t.explicitContent = j.value("e", false);
-    t.addedAt = j.value("t", int64_t{0});
-    t.trackNumber = j.value("no", 0);
-    return t;
-}
-
-json toJson(const Album& a) {
-    return {{"id", a.id}, {"n", a.name}, {"pt", a.primaryType}, {"a", artistsToJson(a.artists)},
-            {"img", imagesToJson(a.images)}, {"date", a.firstReleaseDate}, {"tt", a.totalTracks}};
-}
-
-Album albumFromJson(const json& j) {
-    Album a;
-    if (!j.is_object()) return a;
-    a.id = j.value("id", "");
-    a.name = j.value("n", "");
-    a.primaryType = j.value("pt", "");
-    a.artists = artistsFromJson(j.value("a", json::array()));
-    a.images = imagesFromJson(j.value("img", json::array()));
-    a.firstReleaseDate = j.value("date", "");
-    a.totalTracks = j.value("tt", 0);
-    return a;
-}
-
-json toJson(const Artist& a) {
-    return {{"id", a.id}, {"n", a.name}, {"img", imagesToJson(a.images)}, {"c", a.country}};
-}
-
-Artist artistFromJson(const json& j) {
-    Artist a;
-    if (!j.is_object()) return a;
-    a.id = j.value("id", "");
-    a.name = j.value("n", "");
-    a.images = imagesFromJson(j.value("img", json::array()));
-    a.country = j.value("c", "");
-    return a;
-}
-
-// ===================================================================================================
 // Library
 
 static std::filesystem::path libraryFile() { return paths::appData() / L"library.json"; }
@@ -159,16 +74,12 @@ void Library::load() {
     for (const auto& a : j.value("albums", json::array())) albums_.push_back(albumFromJson(a));
     for (const auto& a : j.value("artists", json::array())) artists_.push_back(artistFromJson(a));
     for (const auto& p : j.value("playlists", json::array())) {
-        Playlist pl;
-        pl.id = p.value("id", "");
-        pl.name = p.value("n", "");
-        pl.description = p.value("desc", "");
-        pl.createdAt = p.value("c", int64_t{0});
-        if (pl.id.empty()) continue;
-        auto& tracks = playlistTracks_[pl.id];
-        for (const auto& t : p.value("tracks", json::array())) tracks.push_back(trackFromJson(t));
-        refreshPlaylistMeta(pl);
-        playlists_.push_back(std::move(pl));
+        pledit::LocalPlaylist pl;
+        if (!pledit::fromJson(p, pl)) continue;
+        playlistTracks_[pl.meta.id] = std::move(pl.tracks);
+        if (!pl.cover.empty()) covers_[pl.meta.id] = pl.cover;
+        refreshPlaylistMeta(pl.meta);
+        playlists_.push_back(std::move(pl.meta));
     }
     for (const auto& h : j.value("history", json::array()))
         history_.push_back({trackFromJson(h.value("t", json::object())), h.value("at", int64_t{0})});
@@ -192,10 +103,11 @@ void Library::saveIfDirty() {
     j["artists"] = std::move(artists);
     json pls = json::array();
     for (const auto& p : playlists_) {
-        json tracks = json::array();
-        if (auto it = playlistTracks_.find(p.id); it != playlistTracks_.end())
-            for (const auto& t : it->second) tracks.push_back(toJson(t));
-        pls.push_back({{"id", p.id}, {"n", p.name}, {"desc", p.description}, {"c", p.createdAt}, {"tracks", std::move(tracks)}});
+        pledit::LocalPlaylist pl;
+        pl.meta = p;
+        if (auto it = playlistTracks_.find(p.id); it != playlistTracks_.end()) pl.tracks = it->second;
+        if (auto it = covers_.find(p.id); it != covers_.end()) pl.cover = it->second;
+        pls.push_back(pledit::toJson(pl));
     }
     j["playlists"] = std::move(pls);
     json hist = json::array();
@@ -368,10 +280,16 @@ const std::vector<Track>* Library::playlistTracks(const std::string& id) const {
     return it == playlistTracks_.end() ? nullptr : &it->second;
 }
 
+static std::filesystem::path coverDir() { return paths::appData() / L"playlist-covers"; }
+
 void Library::refreshPlaylistMeta(Playlist& p) {
     const auto& tracks = playlistTracks_[p.id];
     p.totalTracks = static_cast<int>(tracks.size());
     p.images.clear();
+    if (auto c = covers_.find(p.id); c != covers_.end()) {   // the user's own picture
+        p.images.push_back({local::fileUrl(c->second), 0, 0});
+        return;
+    }
     for (const auto& t : tracks) {
         if (!t.album.images.empty()) {
             p.images = t.album.images;
@@ -400,9 +318,42 @@ void Library::renamePlaylist(const std::string& id, const std::wstring& name) {
     touch();
 }
 
+void Library::setPlaylistDescription(const std::string& id, const std::wstring& description) {
+    for (auto& p : playlists_)
+        if (p.id == id) p.description = toUtf8(description);
+    touch();
+}
+
+bool Library::setPlaylistCover(const std::string& id, const std::vector<uint8_t>* jpeg) {
+    auto p = std::find_if(playlists_.begin(), playlists_.end(), [&](const Playlist& x) { return x.id == id; });
+    if (p == playlists_.end()) return false;
+    std::wstring file;
+    if (jpeg) {
+        file = pledit::saveCover(coverDir(), id, *jpeg);
+        if (file.empty()) {
+            ST_LOG_WARN("library", "could not write the cover of playlist {}", id);
+            return false;
+        }
+    }
+    if (auto old = covers_.find(id); old != covers_.end()) {
+        pledit::deleteCover(coverDir(), old->second);
+        covers_.erase(old);
+    }
+    if (!file.empty()) covers_[id] = file;
+    refreshPlaylistMeta(*p);
+    touch();
+    return true;
+}
+
+bool Library::hasCustomCover(const std::string& id) const { return covers_.contains(id); }
+
 void Library::deletePlaylist(const std::string& id) {
     std::erase_if(playlists_, [&](const Playlist& p) { return p.id == id; });
     playlistTracks_.erase(id);
+    if (auto c = covers_.find(id); c != covers_.end()) {
+        pledit::deleteCover(coverDir(), c->second);
+        covers_.erase(c);
+    }
     touch();
 }
 
@@ -433,6 +384,60 @@ void Library::removeFromPlaylist(const std::string& id, const std::string& track
     for (auto& p : playlists_)
         if (p.id == id) refreshPlaylistMeta(p);
     touch();
+}
+
+std::vector<std::pair<int, Track>> Library::removeFromPlaylist(const std::string& id,
+                                                              const std::vector<std::string>& trackIds) {
+    std::vector<std::pair<int, Track>> removed;
+    auto it = playlistTracks_.find(id);
+    if (it == playlistTracks_.end() || trackIds.empty()) return removed;
+    const std::unordered_set<std::string> gone(trackIds.begin(), trackIds.end());
+    std::vector<Track> kept;
+    kept.reserve(it->second.size());
+    for (size_t i = 0; i < it->second.size(); ++i) {
+        if (gone.contains(it->second[i].id)) removed.emplace_back(static_cast<int>(i), std::move(it->second[i]));
+        else kept.push_back(std::move(it->second[i]));
+    }
+    it->second = std::move(kept);
+    if (removed.empty()) return removed;
+    for (auto& p : playlists_)
+        if (p.id == id) refreshPlaylistMeta(p);
+    touch();
+    return removed;
+}
+
+void Library::restoreToPlaylist(const std::string& id, std::vector<std::pair<int, Track>> removed) {
+    auto it = playlistTracks_.find(id);
+    if (it == playlistTracks_.end() || removed.empty()) return;
+    // A song that came back some other way meanwhile stays where it is now (a playlist holds each song once).
+    std::unordered_set<std::string> have;
+    for (const auto& t : it->second) have.insert(t.id);
+    std::erase_if(removed, [&](const auto& r) { return !have.insert(r.second.id).second; });
+    pledit::reinsert(it->second, std::move(removed));
+    for (auto& p : playlists_)
+        if (p.id == id) refreshPlaylistMeta(p);
+    touch();
+}
+
+bool Library::reorderPlaylist(const std::string& id, const std::vector<std::string>& trackIds) {
+    auto it = playlistTracks_.find(id);
+    if (it == playlistTracks_.end() || trackIds.size() != it->second.size()) return false;
+    std::unordered_map<std::string, size_t> at;
+    for (size_t i = 0; i < it->second.size(); ++i) at.emplace(it->second[i].id, i);
+    std::vector<Track> next;
+    next.reserve(trackIds.size());
+    std::vector<char> used(it->second.size(), 0);
+    for (const auto& tid : trackIds) {
+        const auto f = at.find(tid);
+        if (f == at.end() || used[f->second]) return false;
+        used[f->second] = 1;
+        next.push_back(it->second[f->second]);
+    }
+    it->second = std::move(next);
+    for (auto& p : playlists_)
+        if (p.id == id) refreshPlaylistMeta(p);   // the artwork comes from the first songs
+    touch();
+    return true;
 }
 
 void Library::recordPlay(const Track& t) {
@@ -875,7 +880,7 @@ void showDownloadFolderMenu(const std::vector<Track>& tracks, gfx::Point windowP
 }
 
 void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const std::string& playlistId,
-                   const std::string& recommendKey) {
+                   const std::string& recommendKey, std::function<void(const std::vector<Track>&)> removeRows) {
     if (picked.empty()) return;
     // Internet radio stations and podcast episodes are no songs: nothing to download here, match on YouTube, like,
     // block or add to a playlist. A station or an episode gets its own menu; in a mixed selection they are left out.
@@ -1025,7 +1030,11 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
     if (!playlistId.empty() && !ownRows.empty()) {
         items.push_back(ui::MenuItem::sep());
         ui::MenuItem rm{ownRows.size() > 1 ? tr(L"Seçilenleri listeden kaldır") : tr(L"Bu çalma listesinden kaldır"),
-                        "trash", L"", [tracks = ownRows, playlistId] {
+                        "trash", L"", [tracks = ownRows, playlistId, removeRows] {
+                            if (removeRows) {   // the open list removes them (with undo)
+                                removeRows(tracks);
+                                return;
+                            }
                             if (source::isSpotifyId(playlistId)) {
                                 // Spotify removes playlist ROWS (uids), so a duplicate elsewhere in the list stays.
                                 std::vector<std::string> uids;

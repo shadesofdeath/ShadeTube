@@ -1230,5 +1230,24 @@
   "İçe aktarılan liste": "読み込んだ再生リスト",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "曲を同期から除外しました。再ダウンロードされません",
   "Şarkı yeniden senkronize edilecek": "曲を再び同期します",
-  "Listeyi içe aktar": "再生リストを読み込む"
+  "Listeyi içe aktar": "再生リストを読み込む",
+  "Ad": "名前",
+  "Açıklama": "説明",
+  "Açıklama ekle (isteğe bağlı)": "説明を追加（任意）",
+  "Ayrıntıları düzenle": "詳細を編集",
+  "Ayrıntılar kaydedildi": "詳細を保存しました",
+  "Ayrıntılar kaydedilemedi": "詳細を保存できませんでした",
+  "Değişiklikler Spotify hesabına kaydedilir.": "変更はSpotifyアカウントに保存されます。",
+  "Görsel kaydedilemedi": "画像を保存できませんでした",
+  "Görsel okunamadı": "画像を読み込めませんでした",
+  "Görsel seç…": "画像を選択…",
+  "Görseli kaldır": "画像を削除",
+  "Görseller (JPEG, PNG, WebP)": "画像 (JPEG、PNG、WebP)",
+  "Kapak görseli seç": "カバー画像を選択",
+  "Sıra değiştirilemedi": "並び順を変更できませんでした",
+  "Yeni sıra Spotify'a kaydedilemedi": "新しい並び順をSpotifyに保存できませんでした",
+  "{} şarkı listeden kaldırıldı": {
+    "other": "{}曲をプレイリストから削除しました"
+  },
+  "Şarkılar listeye geri eklenemedi": "曲をプレイリストに戻せませんでした"
 }

@@ -4,6 +4,7 @@
 #include "app/DownloadSync.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/PlaylistEditing.h"
 #include "app/PlaylistTransfer.h"
 #include "app/Radio.h"
 #include "app/SmartMix.h"
@@ -19,6 +20,7 @@
 #include "ui/TextBox.h"
 #include "ui/Window.h"
 
+#include <algorithm>
 #include <cmath>
 #include <unordered_set>
 
@@ -116,23 +118,40 @@ public:
         sortLabelX_ = r.w - 32 - 8 - sortW - 8;
     }
 
-    // Navigate on release: navigating replaces this page, and the window still touches the pressed widget after
+    // A playlist the user may edit: its cover and title open "Ayrıntıları düzenle".
+    std::function<void()> onEditDetails;
+
+    // Navigate / open on release: navigating replaces this page, and the window still touches the pressed widget after
     // onMouseDown returns.
     bool onMouseDown(const ui::MouseEvent& e) override {
-        return e.button == ui::MouseButton::Left && ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty();
+        if (e.button != ui::MouseButton::Left) return false;
+        return (ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty()) || editHit(e.pos);
     }
     void onMouseUp(const ui::MouseEvent& e) override {
-        if (ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty())
+        if (ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty()) {
             ctx().router->navigate({RouteKind::Artist, meta_.ownerArtistId});
+        } else if (editHit(e.pos)) {
+            const auto edit = onEditDetails;
+            edit();
+        }
     }
     void onMouseMove(const ui::MouseEvent& e) override {
         const bool h = ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty();
-        if (h != ownerHover_) {
+        const bool ch = onEditDetails && coverRect_.contains(e.pos), th = onEditDetails && titleRect_.contains(e.pos);
+        if (h != ownerHover_ || ch != coverHover_ || th != titleHover_) {
             ownerHover_ = h;
+            coverHover_ = ch;
+            titleHover_ = th;
             invalidate();
         }
     }
-    LPCWSTR cursor() const override { return ownerHover_ ? IDC_HAND : IDC_ARROW; }
+    void onMouseLeave() override {
+        if (ownerHover_ || coverHover_ || titleHover_) {
+            ownerHover_ = coverHover_ = titleHover_ = false;
+            invalidate();
+        }
+    }
+    LPCWSTR cursor() const override { return ownerHover_ || coverHover_ || titleHover_ ? IDC_HAND : IDC_ARROW; }
 
     void paint(Canvas& c) override {
         const Rect r = rect();
@@ -152,6 +171,11 @@ public:
         } else {
             drawArtwork(c, meta_.images, cover, 2, kind_ == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
         }
+        coverRect_ = cover;
+        if (coverHover_) {   // "edit": the dialog that changes the picture
+            c.fillRounded(cover, 2, Color{0, 0, 0, 0.5f});
+            c.icon("edit", cover.center(48, 48), Color{1, 1, 1, 1});
+        }
         const float tx = cover.right() + 32, tw = r.right() - tx;
         float size = 88;
         for (float s : {88.f, 72.f, 56.f, 44.f, 36.f}) {
@@ -168,6 +192,7 @@ public:
         float y = cover.bottom() - th - 30 - (desc_.empty() ? 0.f : dh + 6);
         c.text(meta_.label, type::monoLabel, {tx, y - 26, tw, 14}, col.fgSecondary);
         c.text(titleText_, {tx - size * 0.04f, y, tw, th}, col.fgPrimary);
+        titleRect_ = {tx, y, std::min(tw, std::ceil(titleText_.measure(tw).w)), th};
         y += th + 10;
         if (!desc_.empty()) {
             c.text(desc_, {tx, y, dw, dh}, col.fgSecondary);
@@ -200,12 +225,14 @@ public:
     ui::TextBox* filterBox_;
 
 private:
+    bool editHit(gfx::Point p) const { return onEditDetails && (coverRect_.contains(p) || titleRect_.contains(p)); }
+
     Kind kind_;
     Meta meta_;
     gfx::Text titleText_, desc_;
     std::string coverUrl_;
-    Rect ownerRect_{};
-    bool ownerHover_ = false;
+    Rect ownerRect_{}, coverRect_{}, titleRect_{};
+    bool ownerHover_ = false, coverHover_ = false, titleHover_ = false;
     float sortLabelX_ = 0;
     int64_t totalMs_ = 0;
 };
@@ -590,6 +617,14 @@ private:
         opts.albumNumbering = kind_ == Kind::Album;
         table_ = c->add<TrackTable>(opts);
         table_->onPlay = [this](int i) { playFrom(i, false); };
+        // A playlist the user may edit: drag its songs into a new order, Delete removes the selected ones (with undo);
+        // the owner (any local list) also edits its details from the cover / title.
+        if (kind_ == Kind::Playlist && (!spotifyMode_ || editable_)) {
+            table_->onReorder = [this](std::vector<int> rows, int before) { reorder(rows, before); };
+            table_->onRemove = [this](const std::vector<Track>& rows) { removeRows(rows); };
+            table_->setReorderable(!moving_);
+        }
+        if (canEditDetails()) header_->onEditDetails = [this] { editDetails(); };
         if (kind_ != Kind::Album) {   // "Geliştir": the recommended rows' "+" / "×" and menu entries
             table_->setRecommendKey(enhanceKey());
             table_->onAddRecommended = [this](const Track& t) { smartshuffle::add(enhanceKey(), t); };
@@ -696,16 +731,14 @@ private:
                 const std::string lid = kind_ != Kind::Liked ? id_ : spotifyMode_ ? sync::kSpotifyLikedId : sync::kLocalLikedId;
                 items.push_back(transfer::exportMenuItem(what, lid, toUtf8(header_->meta().title)));
             }
-            // Local playlists, and Spotify playlists the user may edit (rename: owner only). Others: no edit actions.
+            // Local playlists, and Spotify playlists the user may edit (details: owner only). Others: no edit actions.
             const bool local = kind_ == Kind::Playlist && !spotifyMode_;
             const bool spotifyEdit = kind_ == Kind::Playlist && spotifyMode_ && editable_;
             if (local || spotifyEdit) {
                 const std::string id = id_;
                 const std::wstring title = header_->meta().title;
                 items.push_back(ui::MenuItem::sep());
-                if (local || owned_)
-                    items.push_back({tr(L"Yeniden adlandır"), "edit", L"",
-                                     [id, title] { promptRenamePlaylist(id, title); }});
+                if (canEditDetails()) items.push_back({tr(L"Ayrıntıları düzenle"), "edit", L"", [this] { editDetails(); }});
                 ui::MenuItem del{local || owned_ ? tr(L"Çalma listesini sil") : tr(L"Kitaplıktan kaldır"), "trash",
                                  L"", [id, title] { confirmDeletePlaylist(id, title); }};
                 del.destructive = true;
@@ -762,7 +795,172 @@ private:
             m.title = toWide(e.name);
             header_->setMeta(m);
             invalidate();
+        } else if (e.kind == K::Details) {
+            if (e.coverChanged) {   // the new picture's URL comes with the playlist itself
+                pendingScroll_ = scroll_->scrollY();
+                loadSpotifyCollection();
+                return;
+            }
+            Meta m = header_->meta();
+            if (!e.name.empty()) m.title = toWide(e.name);
+            if (e.description) m.description = toWide(*e.description);
+            header_->setMeta(m);
+            invalidate();
         }
+        // Moved: this page moved its rows itself before the write.
+    }
+
+    // ---- Editing (a playlist the user may edit) ---------------------------------------------------------------
+
+    // Name / description / cover: any local playlist, a Spotify playlist only when the user owns it.
+    bool canEditDetails() const { return kind_ == Kind::Playlist && (!spotifyMode_ || owned_); }
+
+    void editDetails() {
+        if (!header_) return;
+        const Meta& m = header_->meta();
+        editPlaylistDetails(id_, m.title, m.description, m.images);
+    }
+
+    // Rows dragged in front of row `before` (TrackTable::onReorder: custom order, no filter, no recommendations).
+    // The table moves them at once; a Spotify write that fails puts them back.
+    void reorder(const std::vector<int>& rows, int before) {
+        if (!table_ || moving_) return;
+        std::vector<Track> previous = table_->tracks();
+        const int n = static_cast<int>(previous.size());
+        const auto order = pledit::moveOrder(n, rows, before);
+        if (pledit::isIdentity(order)) return;
+        std::vector<Track> next = pledit::applyOrder(previous, order);
+        const auto moved = pledit::newPositions(order, rows);
+        if (!spotifyMode_) {
+            std::vector<std::string> ids;
+            ids.reserve(next.size());
+            for (const auto& t : next) ids.push_back(t.id);
+            table_->setTracks(std::move(next));
+            table_->selectRows(moved);
+            if (!ctx().library.reorderPlaylist(id_, ids)) {   // the list changed under us: show what is stored
+                toast(tr(L"Sıra değiştirilemedi"), true);
+                refreshLocal();
+            }
+            return;
+        }
+        // Spotify moves rows by uid, to a position relative to a row that stays.
+        auto* s = ctx().session;
+        const auto anchor = pledit::moveAnchor(n, rows, before);
+        std::vector<int> picked(rows.begin(), rows.end());
+        std::sort(picked.begin(), picked.end());
+        picked.erase(std::unique(picked.begin(), picked.end()), picked.end());
+        std::vector<std::string> uids;
+        for (int i : picked)
+            if (i >= 0 && i < n) uids.push_back(previous[static_cast<size_t>(i)].uid);
+        const bool known = std::none_of(uids.begin(), uids.end(), [](const std::string& u) { return u.empty(); });
+        if (!s || !known || anchor.kind == pledit::Anchor::Kind::None ||
+            previous[static_cast<size_t>(anchor.row)].uid.empty()) {
+            toast(tr(L"Sıra değiştirilemedi"), true);
+            return;
+        }
+        spotify::PlaylistPosition to;
+        to.kind = anchor.kind == pledit::Anchor::Kind::Before ? spotify::PlaylistPosition::Kind::BeforeUid
+                                                              : spotify::PlaylistPosition::Kind::AfterUid;
+        to.uid = previous[static_cast<size_t>(anchor.row)].uid;
+        table_->setTracks(std::move(next));
+        table_->selectRows(moved);
+        if (loading_) {   // a page in flight was asked for in the old order: the table asks again
+            ++pageGen_;
+            loading_ = false;
+        }
+        // One move at a time: the next one is computed from the order this one leaves.
+        moving_ = true;
+        table_->setReorderable(false);
+        s->moveInPlaylist(uri_, std::move(uids), to,
+                          [this, ref = editLife_.ref(), previous = std::move(previous), gen = gen_](bool ok) {
+                              if (ref.expired()) return;
+                              moving_ = false;
+                              if (table_) table_->setReorderable(true);
+                              if (ok) return;
+                              toast(tr(L"Yeni sıra Spotify'a kaydedilemedi"), true);
+                              if (!table_ || gen != gen_) return;   // reloaded meanwhile: already the server's order
+                              if (table_->tracks().size() == previous.size()) {
+                                  table_->setTracks(previous);
+                              } else {   // more rows came in since: take the server's order again
+                                  pendingScroll_ = scroll_->scrollY();
+                                  loadSpotifyCollection();
+                              }
+                          });
+    }
+
+    // Delete key / "Bu çalma listesinden kaldır" on the list's own rows; the toast offers to put them back.
+    void removeRows(const std::vector<Track>& rows) {
+        if (!table_ || rows.empty()) return;
+        if (!spotifyMode_) {
+            std::vector<std::string> ids;
+            for (const auto& t : rows) ids.push_back(t.id);
+            auto removed = ctx().library.removeFromPlaylist(id_, ids);   // rebuilds this page (posted: safe)
+            if (removed.empty()) return;
+            const std::string id = id_;
+            ui::Toasts::show(ctx().window, i18n::plural(L"{} şarkı listeden kaldırıldı", static_cast<long long>(removed.size())),
+                             ui::ToastKind::Info, tr(L"Geri al"),
+                             [id, removed = std::move(removed)] { ctx().library.restoreToPlaylist(id, removed); });
+            return;
+        }
+        // Spotify removes rows by uid. Undo puts each run of removed rows back in front of the row that followed it
+        // (or after the one before it); the songs come back as new rows.
+        auto* s = ctx().session;
+        std::vector<Track> own;
+        for (const auto& t : table_->tracks())
+            if (!t.recommended) own.push_back(t);
+        std::unordered_set<std::string> gone;
+        for (const auto& t : rows)
+            if (!t.uid.empty()) gone.insert(t.uid);
+        std::vector<int> idx;
+        std::vector<std::string> uids;
+        for (size_t i = 0; i < own.size(); ++i)
+            if (!own[i].uid.empty() && gone.contains(own[i].uid)) {
+                idx.push_back(static_cast<int>(i));
+                uids.push_back(own[i].uid);
+            }
+        if (!s || uids.empty()) {
+            toast(tr(L"Çalma listesinden kaldırılamadı"), true);
+            return;
+        }
+        struct Undo {
+            std::vector<std::string> uris;
+            spotify::PlaylistPosition at;
+        };
+        std::vector<Undo> undo;
+        for (const auto& run : pledit::restoreRuns(static_cast<int>(own.size()), idx)) {
+            Undo u;
+            for (int i : run.rows)
+                if (own[static_cast<size_t>(i)].id.rfind("spotify:", 0) == 0) u.uris.push_back(own[static_cast<size_t>(i)].id);
+            using K = spotify::PlaylistPosition::Kind;
+            if (run.anchor.kind == pledit::Anchor::Kind::None) u.at.kind = K::Top;
+            else {
+                u.at.kind = run.anchor.kind == pledit::Anchor::Kind::Before ? K::BeforeUid : K::AfterUid;
+                u.at.uid = own[static_cast<size_t>(run.anchor.row)].uid;
+                if (u.at.uid.empty()) u.at.kind = K::Bottom;
+            }
+            if (!u.uris.empty()) undo.push_back(std::move(u));
+        }
+        const std::string uri = uri_;
+        const int n = static_cast<int>(uids.size());
+        s->removeFromPlaylist(uri, std::move(uids), [uri, n, undo = std::move(undo)](bool ok) {
+            if (!ok) {
+                toast(tr(L"Çalma listesinden kaldırılamadı"), true);
+                return;
+            }
+            const auto msg = i18n::plural(L"{} şarkı listeden kaldırıldı", static_cast<long long>(n));
+            if (undo.empty()) {
+                toast(msg);
+                return;
+            }
+            ui::Toasts::show(ctx().window, msg, ui::ToastKind::Info, tr(L"Geri al"), [uri, undo] {
+                auto* ss = ctx().session;
+                if (!ss || !source::loggedIn()) return;
+                for (const auto& u : undo)
+                    ss->insertIntoPlaylist(uri, u.uris, u.at, [](bool done) {
+                        if (!done) toast(tr(L"Şarkılar listeye geri eklenemedi"), true);
+                    });
+            });
+        });
     }
 
     Kind kind_;
@@ -786,7 +984,8 @@ private:
     int pageGen_ = 0;         // bumps when rows are removed locally (a page in flight has a stale offset)
     bool firstPending_ = false;   // a (re)load of the first page is in flight
     bool editable_ = false;   // the user may add/remove items (owner or collaborator)
-    bool owned_ = false;      // the user owns it (rename / delete)
+    bool owned_ = false;      // the user owns it (details / delete)
+    bool moving_ = false;     // a reorder is being written to Spotify
     Lifetime editLife_;
     // "Geliştir".
     std::vector<Track> recs_;     // this list's recommendations (shown while it is on)

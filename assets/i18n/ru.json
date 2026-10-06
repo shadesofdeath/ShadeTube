@@ -1521,5 +1521,27 @@
   "İçe aktarılan liste": "Импортированный плейлист",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Трек исключён из синхронизации; он не будет скачан снова",
   "Şarkı yeniden senkronize edilecek": "Трек снова будет синхронизироваться",
-  "Listeyi içe aktar": "Импортировать плейлист"
+  "Listeyi içe aktar": "Импортировать плейлист",
+  "Ad": "Название",
+  "Açıklama": "Описание",
+  "Açıklama ekle (isteğe bağlı)": "Добавь описание (необязательно)",
+  "Ayrıntıları düzenle": "Изменить сведения",
+  "Ayrıntılar kaydedildi": "Сведения сохранены",
+  "Ayrıntılar kaydedilemedi": "Не удалось сохранить сведения",
+  "Değişiklikler Spotify hesabına kaydedilir.": "Изменения сохраняются в твоём аккаунте Spotify.",
+  "Görsel kaydedilemedi": "Не удалось сохранить изображение",
+  "Görsel okunamadı": "Не удалось прочитать изображение",
+  "Görsel seç…": "Выбрать изображение…",
+  "Görseli kaldır": "Удалить изображение",
+  "Görseller (JPEG, PNG, WebP)": "Изображения (JPEG, PNG, WebP)",
+  "Kapak görseli seç": "Выбери обложку",
+  "Sıra değiştirilemedi": "Не удалось изменить порядок",
+  "Yeni sıra Spotify'a kaydedilemedi": "Не удалось сохранить новый порядок в Spotify",
+  "{} şarkı listeden kaldırıldı": {
+    "one": "{} трек удалён из плейлиста",
+    "few": "{} трека удалены из плейлиста",
+    "many": "{} треков удалено из плейлиста",
+    "other": "{} трека удалено из плейлиста"
+  },
+  "Şarkılar listeye geri eklenemedi": "Не удалось вернуть треки в плейлист"
 }
