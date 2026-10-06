@@ -248,8 +248,15 @@ void Session::applyEdit(const PlaylistEdit& e) {
     case K::Removed:
         if (it != pls.end() && it->countKnown) it->totalTracks = std::max(0, it->totalTracks - e.count);
         break;
+    case K::Moved: break;   // same rows, same count
     case K::Renamed:
         if (it != pls.end()) it->name = e.name;
+        break;
+    case K::Details:
+        if (it != pls.end()) {
+            if (!e.name.empty()) it->name = e.name;
+            if (e.description) it->description = *e.description;
+        }
         break;
     case K::Deleted:
         if (it != pls.end()) pls.erase(it);
@@ -313,6 +320,77 @@ void Session::addToPlaylist(const std::string& uri, std::vector<std::string> tra
                 e.uri = uri;
                 e.count = n;
                 applyEdit(e);
+            }
+            if (done) done(ok);
+        });
+}
+
+void Session::insertIntoPlaylist(const std::string& uri, std::vector<std::string> trackUris, PlaylistPosition at,
+                                 std::function<void(bool)> done) {
+    if (!api_.hasCredentials() || uri.empty() || trackUris.empty()) {
+        if (done) done(false);
+        return;
+    }
+    const int n = static_cast<int>(trackUris.size());
+    async(
+        Priority::High, life_.ref(), [this, uri, trackUris, at] { return api_.insertIntoPlaylist(uri, trackUris, at); },
+        [this, uri, n, done](Result<bool> r) {
+            const bool ok = r && *r;
+            if (ok) {
+                PlaylistEdit e;
+                e.kind = PlaylistEdit::Kind::Added;
+                e.uri = uri;
+                e.count = n;
+                applyEdit(e);
+            }
+            if (done) done(ok);
+        });
+}
+
+void Session::moveInPlaylist(const std::string& uri, std::vector<std::string> uids, PlaylistPosition to,
+                             std::function<void(bool)> done) {
+    if (!api_.hasCredentials() || uri.empty() || uids.empty()) {
+        if (done) done(false);
+        return;
+    }
+    const int n = static_cast<int>(uids.size());
+    async(
+        Priority::High, life_.ref(), [this, uri, uids, to] { return api_.moveInPlaylist(uri, uids, to); },
+        [this, uri, n, done](Result<bool> r) {
+            const bool ok = r && *r;
+            if (ok) {
+                PlaylistEdit e;
+                e.kind = PlaylistEdit::Kind::Moved;
+                e.uri = uri;
+                e.count = n;
+                applyEdit(e);
+            }
+            if (done) done(ok);
+        });
+}
+
+void Session::updatePlaylistDetails(const std::string& uri, PlaylistDetailsChange change, std::function<void(bool)> done) {
+    if (!api_.hasCredentials() || uri.rfind("spotify:playlist:", 0) != 0 || (change.name && change.name->empty())) {
+        if (done) done(false);
+        return;
+    }
+    if (change.empty()) {
+        if (done) done(true);
+        return;
+    }
+    PlaylistEdit e;
+    e.kind = PlaylistEdit::Kind::Details;
+    e.uri = uri;
+    e.name = change.name.value_or(std::string());
+    e.description = change.description;
+    e.coverChanged = change.cover != PlaylistDetailsChange::Cover::Keep;
+    async(
+        Priority::High, life_.ref(), [this, uri, change = std::move(change)] { return api_.updatePlaylistDetails(uri, change); },
+        [this, e, done](Result<bool> r) {
+            const bool ok = r && *r;
+            if (ok) {
+                applyEdit(e);
+                if (e.coverChanged) reloadPlaylists();   // the library's cards show the new picture
             }
             if (done) done(ok);
         });

@@ -342,16 +342,53 @@ bool Api::setArtistsFollowed(const std::vector<std::string>& ids, bool follow, c
 // ---- Playlist items (Pathfinder; web-player bundle web-player.da8b87c8.js, class pj) ------------------------
 //   add:    {playlistUri, playlistItemUris:[uri...], newPosition:{moveType, fromUid}}
 //   remove: {playlistUri, uids:[uid...]}       (row uids from fetchPlaylist content.items[].uid)
+//   move:   {playlistUri, uids:[uid...], newPosition}   (moveItemsInPlaylist, web-player.c039845d.js 2026-10-06)
+// newPosition (pM): {moveType: TOP_OF_PLAYLIST | BOTTOM_OF_PLAYLIST | BEFORE_UID | AFTER_UID, fromUid: uid | null}.
+namespace {
+json positionJson(const PlaylistPosition& p) {
+    using K = PlaylistPosition::Kind;
+    switch (p.kind) {
+    case K::Top: return {{"moveType", "TOP_OF_PLAYLIST"}, {"fromUid", nullptr}};
+    case K::BeforeUid: return {{"moveType", "BEFORE_UID"}, {"fromUid", p.uid}};
+    case K::AfterUid: return {{"moveType", "AFTER_UID"}, {"fromUid", p.uid}};
+    default: return {{"moveType", "BOTTOM_OF_PLAYLIST"}, {"fromUid", nullptr}};
+    }
+}
+bool positionValid(const PlaylistPosition& p) {
+    using K = PlaylistPosition::Kind;
+    return (p.kind != K::BeforeUid && p.kind != K::AfterUid) || !p.uid.empty();
+}
+} // namespace
+
 bool Api::addToPlaylist(const std::string& playlistUri, const std::vector<std::string>& trackUris, const CT& ct) {
+    return insertIntoPlaylist(playlistUri, trackUris, PlaylistPosition{}, ct);
+}
+bool Api::insertIntoPlaylist(const std::string& playlistUri, const std::vector<std::string>& trackUris,
+                             const PlaylistPosition& at, const CT& ct) {
     if (trackUris.empty()) return true;
+    if (!positionValid(at)) return false;
     const json vars{{"playlistUri", toUri("playlist", playlistUri)},
                     {"playlistItemUris", toUris("track", trackUris)},
-                    {"newPosition", {{"moveType", "BOTTOM_OF_PLAYLIST"}, {"fromUid", nullptr}}}};
+                    {"newPosition", positionJson(at)}};
     try {
         query("addToPlaylist", vars, ct);
         return true;
     } catch (const std::exception& e) {
         ST_LOG_WARN("spotify", "addToPlaylist failed: {}", e.what());
+        return false;
+    }
+}
+bool Api::moveInPlaylist(const std::string& playlistUri, const std::vector<std::string>& uids, const PlaylistPosition& to,
+                         const CT& ct) {
+    if (uids.empty()) return true;
+    if (!positionValid(to) || std::any_of(uids.begin(), uids.end(), [](const std::string& u) { return u.empty(); }))
+        return false;
+    const json vars{{"playlistUri", toUri("playlist", playlistUri)}, {"uids", uids}, {"newPosition", positionJson(to)}};
+    try {
+        query("moveItemsInPlaylist", vars, ct);
+        return true;
+    } catch (const std::exception& e) {
+        ST_LOG_WARN("spotify", "moveItemsInPlaylist failed: {}", e.what());
         return false;
     }
 }
@@ -374,6 +411,9 @@ bool Api::removeFromPlaylist(const std::string& playlistUri, const std::vector<s
 // Bodies are the JSON form of Spotify's playlist4 protos (ts-proto toJSON: enums as strings):
 //   create:   POST /playlist                 Delta{ops:[UPDATE_LIST_ATTRIBUTES{name}], info}  -> {uri, revision}
 //   rename:   POST /playlist/<id>/changes    ListChanges{deltas:[Delta]}
+//   details:  the same, UPDATE_LIST_ATTRIBUTES{newAttributes:{values:{name, description, picture}, noValue:[kinds]}}
+//             (web player hW); a new picture first goes to image-upload.spotify.com/v4/playlist (raw JPEG ->
+//             {uploadToken}, hz) and POST /playlist/<id>/register-image {uploadToken} -> {picture} (hY)
 //   rootlist: GET /user/<u>/rootlist?decorate=...  and  POST /user/<u>/rootlist/changes  ListChanges (ADD / REM)
 json Api::playlistService(const char* method, const std::string& path, const json* body, const CT& ct) {
     return spclient(method, std::string(kPlaylistService) + path, body, ct);
@@ -517,6 +557,74 @@ bool Api::renamePlaylist(const std::string& playlistUri, const std::string& name
         return true;
     } catch (const std::exception& e) {
         ST_LOG_WARN("spotify", "renamePlaylist failed: {}", e.what());
+        return false;
+    }
+}
+
+std::string Api::uploadPlaylistImage(const std::vector<uint8_t>& jpeg, const CT& ct) {
+    std::string token;
+    {
+        std::lock_guard lock(mutex_);
+        token = accessToken_;
+    }
+    if (token.empty()) throw ApiError(401, "Spotify: not authenticated");
+    // The web player sends this one without its global headers (no client token / app platform): auth + the image.
+    http::HttpRequest r;
+    r.method = "POST";
+    r.url = "https://image-upload.spotify.com/v4/playlist";
+    r.headers = {
+        {"Authorization", "Bearer " + token},
+        {"Content-Type", "image/jpeg"},
+        {"Accept", "application/json"},
+        {"User-Agent", kUserAgent},
+        {"Origin", "https://open.spotify.com"},
+        {"Referer", "https://open.spotify.com/"},
+    };
+    r.body.assign(reinterpret_cast<const char*>(jpeg.data()), jpeg.size());
+    const auto resp = http::send(r, ct);
+    if (!resp.isSuccessStatusCode()) {
+        ST_LOG_WARN("spotify", "image upload HTTP {} body={}", resp.statusCode,
+                    resp.body.substr(0, std::min<size_t>(resp.body.size(), 300)));
+        throw ApiError(resp.statusCode, "Spotify image upload HTTP " + std::to_string(resp.statusCode));
+    }
+    const json j = json::parse(resp.body, nullptr, false);
+    const std::string uploadToken = str(j, "uploadToken");
+    if (uploadToken.empty()) throw ApiError(0, "Spotify image upload: no upload token");
+    return uploadToken;
+}
+
+bool Api::updatePlaylistDetails(const std::string& playlistUri, const PlaylistDetailsChange& change, const CT& ct) {
+    using Cover = PlaylistDetailsChange::Cover;
+    if (playlistUri.rfind("spotify:playlist:", 0) != 0 || (change.name && change.name->empty())) return false;
+    if (change.empty()) return true;
+    if (change.cover == Cover::Set && change.jpeg.empty()) return false;
+    const std::string id = lastSegment(playlistUri);
+    try {
+        json values = json::object();
+        json noValue = json::array();
+        if (change.cover == Cover::Set) {
+            const std::string uploadToken = uploadPlaylistImage(change.jpeg, ct);
+            const json body{{"uploadToken", uploadToken}};
+            const json reg = playlistService("POST", "/playlist/" + id + "/register-image", &body, ct);
+            const std::string picture = str(reg, "picture");   // bytes (base64), passed on as they came
+            if (picture.empty()) throw ApiError(0, "register-image: no picture id");
+            values["picture"] = picture;
+        } else if (change.cover == Cover::Remove) {
+            noValue.push_back("LIST_PICTURE");
+        }
+        if (change.name) values["name"] = *change.name;
+        if (change.description) {
+            if (change.description->empty()) noValue.push_back("LIST_DESCRIPTION");
+            else values["description"] = *change.description;
+        }
+        json attrs{{"values", std::move(values)}};
+        if (!noValue.empty()) attrs["noValue"] = std::move(noValue);
+        const json op{{"kind", "UPDATE_LIST_ATTRIBUTES"}, {"updateListAttributes", {{"newAttributes", std::move(attrs)}}}};
+        const json body = listChanges(json::array({op}));
+        playlistService("POST", "/playlist/" + id + "/changes", &body, ct);
+        return true;
+    } catch (const std::exception& e) {
+        ST_LOG_WARN("spotify", "updatePlaylistDetails failed: {}", e.what());
         return false;
     }
 }

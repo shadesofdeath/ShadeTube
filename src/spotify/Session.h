@@ -7,6 +7,7 @@
 #include "spotify/SpotifyApi.h"
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -29,12 +30,14 @@ struct LibrarySnapshot {
 
 // A successful write to one of the user's Spotify playlists, broadcast (UI thread) so open pages can follow it.
 struct PlaylistEdit {
-    enum class Kind { Created, Added, Removed, Renamed, Deleted };
+    enum class Kind { Created, Added, Removed, Moved, Renamed, Details, Deleted };
     Kind kind = Kind::Added;
     std::string uri;
-    std::string name;                        // Created / Renamed: the (new) name
+    std::string name;                        // Created / Renamed: the (new) name; Details: the new name or ""
     std::vector<std::string> removedUids;    // Removed: the playlist rows that are gone
-    int count = 0;                           // Created / Added / Removed: rows added or removed
+    int count = 0;                           // Created / Added / Removed / Moved: rows added, removed or moved
+    std::optional<std::string> description;  // Details: the new description ("" = cleared), unset = unchanged
+    bool coverChanged = false;               // Details: a new cover or the cover removed (its URL comes with a reload)
 };
 
 class Session {
@@ -82,9 +85,17 @@ public:
     void createPlaylist(std::string name, std::vector<std::string> trackUris,
                         std::function<void(const std::string& uri, int added)> done = {});
     void addToPlaylist(const std::string& uri, std::vector<std::string> trackUris, std::function<void(bool)> done = {});
+    // The same at a position (an undo puts removed songs back where they were).
+    void insertIntoPlaylist(const std::string& uri, std::vector<std::string> trackUris, PlaylistPosition at,
+                            std::function<void(bool)> done = {});
     // Rows by Track::uid (from Api::playlistTracks).
     void removeFromPlaylist(const std::string& uri, std::vector<std::string> uids, std::function<void(bool)> done = {});
+    // Rows (uids, in their new order) moved together to `to`. Pages reorder their own rows before the write.
+    void moveInPlaylist(const std::string& uri, std::vector<std::string> uids, PlaylistPosition to,
+                        std::function<void(bool)> done = {});
     void renamePlaylist(const std::string& uri, std::string name, std::function<void(bool)> done = {});
+    // Name / description / cover (owner only). A new or removed cover also reloads the playlists (its image URLs).
+    void updatePlaylistDetails(const std::string& uri, PlaylistDetailsChange change, std::function<void(bool)> done = {});
     // Owned: Spotify's "delete"; someone else's: unfollow. Either way it leaves the library.
     void deletePlaylist(const std::string& uri, std::function<void(bool)> done = {});
     void subscribePlaylistEdits(Lifetime::Ref owner, std::function<void(const PlaylistEdit&)> fn) {

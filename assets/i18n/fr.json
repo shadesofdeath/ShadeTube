@@ -1425,5 +1425,25 @@
   "{} yeni çıkan": {
     "one": "{} nouveauté",
     "other": "{} nouveautés"
-  }
+  },
+  "Ad": "Nom",
+  "Açıklama": "Description",
+  "Açıklama ekle (isteğe bağlı)": "Ajouter une description (facultatif)",
+  "Ayrıntıları düzenle": "Modifier les informations",
+  "Ayrıntılar kaydedildi": "Informations enregistrées",
+  "Ayrıntılar kaydedilemedi": "Impossible d'enregistrer les informations",
+  "Değişiklikler Spotify hesabına kaydedilir.": "Les modifications sont enregistrées sur ton compte Spotify.",
+  "Görsel kaydedilemedi": "Impossible d'enregistrer l'image",
+  "Görsel okunamadı": "Impossible de lire l'image",
+  "Görsel seç…": "Choisir une image…",
+  "Görseli kaldır": "Retirer l'image",
+  "Görseller (JPEG, PNG, WebP)": "Images (JPEG, PNG, WebP)",
+  "Kapak görseli seç": "Choisir une image de couverture",
+  "Sıra değiştirilemedi": "Impossible de modifier l'ordre",
+  "Yeni sıra Spotify'a kaydedilemedi": "Impossible d'enregistrer le nouvel ordre sur Spotify",
+  "{} şarkı listeden kaldırıldı": {
+    "one": "{} titre retiré de la playlist",
+    "other": "{} titres retirés de la playlist"
+  },
+  "Şarkılar listeye geri eklenemedi": "Impossible de remettre les titres dans la playlist"
 }

@@ -9,7 +9,9 @@
 #include <YoutubeExplode/Common/Cancellation.hpp>
 #include <nlohmann/json.hpp>
 
+#include <cstdint>
 #include <mutex>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -48,6 +50,24 @@ struct UserProfile {
     std::string username;
     std::string imageUrl;
     bool valid() const { return !id.empty(); }
+};
+
+// Where rows go in a playlist (the web player's newPosition): the top / bottom, or in front of / right after the row
+// with uid `uid` (Track::uid).
+struct PlaylistPosition {
+    enum class Kind { Top, Bottom, BeforeUid, AfterUid };
+    Kind kind = Kind::Bottom;
+    std::string uid;
+};
+
+// "Edit details" of a playlist the user owns. Fields left unset stay as they are.
+struct PlaylistDetailsChange {
+    std::optional<std::string> name;          // never empty (Spotify refuses an empty name)
+    std::optional<std::string> description;   // "" clears it
+    enum class Cover { Keep, Set, Remove };
+    Cover cover = Cover::Keep;
+    std::vector<uint8_t> jpeg;                // Cover::Set: the new picture (square JPEG, at most 256 KB)
+    bool empty() const { return !name && !description && cover == Cover::Keep; }
 };
 
 class Api {
@@ -93,13 +113,21 @@ public:
     // ---- Mutations (write to the user's Spotify account) --------------------------------------------------
     // The web-player token does NOT authorize api.spotify.com/v1 (it 429s everything), so writes go where the
     // web player sends them: Pathfinder mutations (library, playlist items) and the spclient playlist service
-    // (create / rename / rootlist). Return true on success (failures are logged, never thrown).
+    // (create / rename / details / rootlist), plus image-upload.spotify.com for covers. Return true on success
+    // (failures are logged, never thrown).
     // ids/uris may be either base62 ids or spotify: URIs.
     bool setTracksSaved(const std::vector<std::string>& ids, bool saved, const CT& ct = {});   // Liked Songs
     bool setAlbumsSaved(const std::vector<std::string>& ids, bool saved, const CT& ct = {});    // saved albums
     bool setArtistsFollowed(const std::vector<std::string>& ids, bool follow, const CT& ct = {});
     // Appends tracks (track ids/URIs) to the end of a playlist (Pathfinder addToPlaylist).
     bool addToPlaylist(const std::string& playlistUri, const std::vector<std::string>& trackUris, const CT& ct = {});
+    // Inserts tracks at `at` (addToPlaylist with a position: an undo puts removed rows back where they were).
+    bool insertIntoPlaylist(const std::string& playlistUri, const std::vector<std::string>& trackUris,
+                            const PlaylistPosition& at, const CT& ct = {});
+    // Moves playlist rows (uids, in the order they should end up in) together to `to` (Pathfinder
+    // moveItemsInPlaylist: the web player's drag and drop). The rows keep their uids.
+    bool moveInPlaylist(const std::string& playlistUri, const std::vector<std::string>& uids, const PlaylistPosition& to,
+                        const CT& ct = {});
     // Removes playlist ROWS by their uid (Track::uid from playlistTracks) — not by track uri: a playlist may hold
     // the same track twice, and the web player's removeFromPlaylist takes {playlistUri, uids}.
     bool removeFromPlaylist(const std::string& playlistUri, const std::vector<std::string>& uids, const CT& ct = {});
@@ -107,6 +135,10 @@ public:
     // spotify:playlist: URI, or "" on failure.
     std::string createPlaylist(const std::string& name, const std::string& description = {}, const CT& ct = {});
     bool renamePlaylist(const std::string& playlistUri, const std::string& name, const CT& ct = {});
+    // Name / description / cover in one playlist change, like the web player's "Edit details": a new cover is uploaded
+    // first (image-upload.spotify.com/v4/playlist -> uploadToken), registered with the playlist (register-image ->
+    // picture id), then set together with the texts; Cover::Remove clears it (the mosaic of the songs comes back).
+    bool updatePlaylistDetails(const std::string& playlistUri, const PlaylistDetailsChange& change, const CT& ct = {});
     // Removes the playlist from the user's library (rootlist). For the user's own playlist this is Spotify's
     // "Delete"; for someone else's it unfollows it.
     bool deletePlaylist(const std::string& playlistUri, const CT& ct = {});
@@ -171,6 +203,8 @@ private:
     // `acceptLanguage` (optional): the Accept-Language header.
     nlohmann::json spclient(const char* method, const std::string& url, const nlohmann::json* body, const CT& ct,
                             int quietStatus = 0, const char* acceptLanguage = nullptr);
+    // POST image-upload.spotify.com/v4/playlist (the raw JPEG) -> its upload token. Throws ApiError.
+    std::string uploadPlaylistImage(const std::vector<uint8_t>& jpeg, const CT& ct);
     // The raw rootlist (contents.items[] + metaItems[] with each playlist's length).
     nlohmann::json rootlist(const CT& ct);
     // POST /user/<username>/rootlist/changes with one delta of `ops`.

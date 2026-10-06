@@ -4,10 +4,12 @@
 #include "app/DragDrop.h"
 #include "app/SmartShuffle.h"
 #include "app/Router.h"
+#include "core/Dispatcher.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
+#include "ui/Layout.h"
 #include "ui/Window.h"
 
 #include <algorithm>
@@ -260,7 +262,24 @@ void TrackTable::setTracks(std::vector<catalog::Track> tracks) {
     selected_.clear();
     anchor_ = -1;
     nearEndSignaled_ = false;
+    reorderRows_.clear();   // a drag under way can't move rows that were replaced (it still drops elsewhere)
+    dropAt_ = -1;
     rebuildView();
+}
+
+void TrackTable::selectRows(const std::vector<int>& rows) {
+    selected_.clear();
+    for (int i : rows)
+        if (i >= 0 && i < static_cast<int>(tracks_.size())) selected_.insert(i);
+    if (!rows.empty())
+        for (int d = 0; d < static_cast<int>(view_.size()); ++d)
+            if (view_[d] == rows.front()) anchor_ = d;
+    invalidate();
+}
+
+bool TrackTable::canReorder() const {
+    return reorderable_ && onReorder && sortKey_ == SortKey::None && filter_.empty() &&
+           std::none_of(tracks_.begin(), tracks_.end(), [](const catalog::Track& t) { return t.recommended; });
 }
 
 void TrackTable::appendTracks(std::vector<catalog::Track> tracks) {
@@ -499,6 +518,11 @@ void TrackTable::paint(Canvas& c) {
     const int first = std::max(0, static_cast<int>((vis.y - top) / gfx::metrics::trackRowH));
     const int last = std::min(static_cast<int>(view_.size()) - 1, static_cast<int>((vis.bottom() - top) / gfx::metrics::trackRowH));
     for (int i = first; i <= last; ++i) paintRow(c, i, rowRect(i), cl);
+    if (dropAt_ >= 0) {   // own rows dragged over the list: they go in front of this row
+        const float y = rowRect(dropAt_).y;
+        c.fillRect({r.x, y - 1, r.w, 2}, accent().base);
+        c.fillCircle({r.x + 3, y}, 3, accent().base);
+    }
     // Skeleton rows while the next page loads.
     for (int k = 0; k < loadingRows_; ++k) {
         const Rect rr = rowRect(static_cast<int>(view_.size()) + k);
@@ -556,6 +580,7 @@ void TrackTable::onMouseMove(const ui::MouseEvent& e) {
         if (!tracks.empty()) {
             dragging_ = true;
             collapseOnUp_ = -1;
+            reorderRows_ = canReorder() ? dragRows() : std::vector<int>{};
             dragdrop::begin(std::move(tracks), e.windowPos);
         }
     }
@@ -612,7 +637,7 @@ bool TrackTable::onMouseDown(const ui::MouseEvent& e) {
         std::vector<catalog::Track> sel;
         for (int k : view_)
             if (selected_.contains(k)) sel.push_back(tracks_[k]);
-        showTrackMenu(sel, e.windowPos, playlistId_, recommendKey_);
+        showTrackMenu(sel, e.windowPos, playlistId_, recommendKey_, menuRemove());
         invalidate();
         return false;
     }
@@ -672,8 +697,78 @@ void TrackTable::onMouseUp(const ui::MouseEvent& e) {
         selected_ = {collapseOnUp_};
         invalidate();
     }
+    reorderRows_.clear();
+    dropAt_ = -1;
     collapseOnUp_ = -1;
     pressRow_ = -1;
+}
+
+// ---- Reordering (the table as a drop target for its own rows) ------------------------------------------------------
+
+bool TrackTable::dragOver(const DragPayload& payload, gfx::Point windowPos) {
+    if (reorderRows_.empty() || payload.fromExplorer() || !canReorder()) return false;
+    autoScroll(windowPos);
+    const int at = dropIndexAt(windowPos);
+    if (at != dropAt_) {
+        dropAt_ = at;
+        invalidate();
+    }
+    return true;
+}
+
+void TrackTable::dragLeave() {
+    // reorderRows_ stays until the release: drop() comes right after this.
+    lastScrollTick_ = 0;
+    if (dropAt_ >= 0) {
+        dropAt_ = -1;
+        invalidate();
+    }
+}
+
+void TrackTable::drop(const DragPayload&, gfx::Point windowPos) {
+    if (reorderRows_.empty() || !canReorder()) return;
+    const int at = dropIndexAt(windowPos);
+    // Custom order, unfiltered: display index == tracks_ index.
+    const int before = at < static_cast<int>(view_.size()) ? view_[at] : static_cast<int>(tracks_.size());
+    std::vector<int> rows = std::move(reorderRows_);
+    reorderRows_.clear();
+    dropAt_ = -1;
+    // After the event: the page reorders (or rebuilds) the table, and the release is still being handled here.
+    Dispatcher::post([ref = life_.ref(), this, rows = std::move(rows), before] {
+        if (!ref.expired() && onReorder) onReorder(rows, before);
+    });
+}
+
+int TrackTable::dropIndexAt(gfx::Point windowPos) const {
+    const gfx::Point p = fromWindow(windowPos);
+    const float top = rect().y + headerHeight();
+    const int i = static_cast<int>(std::floor((p.y - top) / gfx::metrics::trackRowH + 0.5f));
+    return std::clamp(i, 0, static_cast<int>(view_.size()));
+}
+
+void TrackTable::autoScroll(gfx::Point windowPos) {
+    const double now = ui::frame::realNow(), last = lastScrollTick_;
+    lastScrollTick_ = now;
+    if (last <= 0) return;
+    ui::ScrollView* sv = nullptr;
+    for (ui::Widget* w = parent(); w && !sv; w = w->parent()) sv = dynamic_cast<ui::ScrollView*>(w);
+    if (!sv) return;
+    // Near the visible top (below a sticky header) / bottom edge: faster the closer the pointer is to the edge.
+    const Rect vr = sv->toWindow(sv->rect());
+    const float top = vr.y + sv->topInset, bottom = vr.bottom(), edge = 48, y = windowPos.y;
+    float v = 0;
+    if (y >= top && y < top + edge) v = -(1 - (y - top) / edge);
+    else if (y > bottom - edge && y <= bottom) v = 1 - (bottom - y) / edge;
+    if (v == 0) return;
+    const float dt = static_cast<float>(std::min(now - last, 100.0)) / 1000.f;
+    sv->scrollTo(std::clamp(sv->scrollY() + v * 900.f * dt, 0.f, sv->maxScroll()), false);
+}
+
+std::function<void(const std::vector<catalog::Track>&)> TrackTable::menuRemove() {
+    if (!onRemove) return {};
+    return [ref = life_.ref(), fn = onRemove](const std::vector<catalog::Track>& rows) {
+        if (!ref.expired()) fn(rows);
+    };
 }
 
 std::vector<catalog::Track> TrackTable::dragTracks() const {
@@ -690,6 +785,23 @@ std::vector<catalog::Track> TrackTable::dragTracks() const {
     return out;
 }
 
+std::vector<int> TrackTable::dragRows() const {
+    std::vector<int> out;
+    if (pressRow_ < 0 || pressRow_ >= static_cast<int>(view_.size())) return out;
+    const int pressed = view_[pressRow_];
+    if (!selected_.contains(pressed)) return {pressed};
+    for (int k : view_)
+        if (selected_.contains(k)) out.push_back(k);
+    return out;
+}
+
+std::vector<catalog::Track> TrackTable::selectedOwnRows() const {
+    std::vector<catalog::Track> out;
+    for (int k : view_)
+        if (selected_.contains(k) && !tracks_[k].recommended) out.push_back(tracks_[k]);
+    return out;
+}
+
 // Keyboard cursor = anchor_ (display index). The Window draws the focus ring around it and scrolls it into view
 // after every arrow key; before the first move (Tab into the table) the cursor is row 0.
 Rect TrackTable::focusRect() const {
@@ -701,10 +813,20 @@ bool TrackTable::onKeyDown(const ui::KeyEvent& e) {
     if (dragging_ && e.vk == VK_ESCAPE) {
         dragging_ = false;
         pressRow_ = -1;
+        reorderRows_.clear();
         dragdrop::cancel();
         return true;
     }
     if (view_.empty()) return false;
+    if (e.vk == VK_DELETE && !e.ctrl && !e.alt) {   // remove the selected songs from this list
+        if (!onRemove || dragging_) return false;
+        auto rows = selectedOwnRows();
+        if (rows.empty() || e.repeat) return true;
+        Dispatcher::post([ref = life_.ref(), this, rows = std::move(rows)] {
+            if (!ref.expired() && onRemove) onRemove(rows);
+        });
+        return true;
+    }
     const int n = static_cast<int>(view_.size());
     int cur = std::min(anchor_, n - 1);   // the view may have shrunk (filter) since the anchor was set
     switch (e.vk) {
@@ -731,7 +853,7 @@ bool TrackTable::onKeyDown(const ui::KeyEvent& e) {
         for (int k : view_)
             if (selected_.contains(k)) sel.push_back(tracks_[k]);
         const Rect rr = toWindow(rowRect(i));
-        showTrackMenu(sel, {rr.x + 48, rr.bottom()}, playlistId_, recommendKey_);
+        showTrackMenu(sel, {rr.x + 48, rr.bottom()}, playlistId_, recommendKey_, menuRemove());
         invalidate();
         return true;
     }

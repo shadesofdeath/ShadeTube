@@ -1267,5 +1267,24 @@
   "{} sa": "{} j",
   "{} yeni çıkan": {
     "other": "{} rilisan baru"
-  }
+  },
+  "Ad": "Nama",
+  "Açıklama": "Deskripsi",
+  "Açıklama ekle (isteğe bağlı)": "Tambahkan deskripsi (opsional)",
+  "Ayrıntıları düzenle": "Edit detail",
+  "Ayrıntılar kaydedildi": "Detail disimpan",
+  "Ayrıntılar kaydedilemedi": "Detail tidak dapat disimpan",
+  "Değişiklikler Spotify hesabına kaydedilir.": "Perubahan disimpan ke akun Spotify kamu.",
+  "Görsel kaydedilemedi": "Gambar tidak dapat disimpan",
+  "Görsel okunamadı": "Gambar tidak dapat dibaca",
+  "Görsel seç…": "Pilih gambar…",
+  "Görseli kaldır": "Hapus gambar",
+  "Görseller (JPEG, PNG, WebP)": "Gambar (JPEG, PNG, WebP)",
+  "Kapak görseli seç": "Pilih gambar sampul",
+  "Sıra değiştirilemedi": "Urutan tidak dapat diubah",
+  "Yeni sıra Spotify'a kaydedilemedi": "Urutan baru tidak dapat disimpan ke Spotify",
+  "{} şarkı listeden kaldırıldı": {
+    "other": "{} lagu dihapus dari playlist"
+  },
+  "Şarkılar listeye geri eklenemedi": "Lagu tidak dapat dikembalikan ke playlist"
 }

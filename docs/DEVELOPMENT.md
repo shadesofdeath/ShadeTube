@@ -226,8 +226,11 @@ web player uses. Audio never comes from Spotify. Flow (`src/spotify/`, `app/Logi
    public gist (baked-in fallback), signs `GET open.spotify.com/api/token`. The web-player token is refreshed
    before it expires (`Session::maybeRefresh`, from the app's housekeeping tick).
 3. **Data** (`SpotifyApi`): persisted GraphQL queries and mutations on `api-partner.spotify.com/pathfinder/v2/query`
-   (profile, library, playlists, albums, artists, search, personalized home, library and playlist-item writes);
-   the spclient playlist service for create / rename / delete and track counts; `inspiredby-mix` for radios. The
+   (profile, library, playlists, albums, artists, search, personalized home, library and playlist-item writes:
+   add / remove / `moveItemsInPlaylist` with a `newPosition` relative to a row uid); the spclient playlist service for
+   create / rename / delete, "Edit details" (`UPDATE_LIST_ATTRIBUTES` with `noValue` to clear the description or the
+   picture) and track counts; a new cover goes to `image-upload.spotify.com/v4/playlist` (raw JPEG -> `uploadToken`)
+   and `/playlist/<id>/register-image` (-> `picture`) first; `inspiredby-mix` for radios. The
    web-player token is rate-limited on `api.spotify.com/v1`, so that API is not used. Home shelves are requested
    with the UI language's `Accept-Language`.
 4. **Session** caches the library snapshot (playlists incl. Liked Songs, saved albums, followed artists) for the
@@ -469,7 +472,7 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
 `listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
 `radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`,
 `spotify-hashes.json`,
-`update-leftovers.txt`, `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
+`update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
 go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
@@ -482,8 +485,13 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
   A non-hit-testable overlay ghost (count + first title) follows the pointer; the widget under it is asked through
   `DropTarget` (`dragOver` / `dragLeave` / `drop`, window DIPs). Targets: the **sidebar** (Liked Songs →
   `Library::likeAll`; an editable Spotify playlist or a local playlist → `addToPlaylistWithToast`; a closed folder
-  opens after 700 ms under the pointer; the list scrolls near its edges) and the **queue panel** (an insertion line;
-  `Player::insertAt`). Escape, the source table going away or a release the table never saw cancel it.
+  opens after 700 ms under the pointer; the list scrolls near its edges), the **queue panel** (an insertion line;
+  `Player::insertAt`) and the **table itself** when it is a playlist the user may edit, in custom order, unfiltered
+  and without "Geliştir" recommendations: its own rows move in front of the row under the insertion line (the page
+  scrolls near its edges). The page reorders at once (`app/PlaylistEditing::moveOrder`); a local list stores the new
+  order, a Spotify list writes `moveItemsInPlaylist` (uids + a position before / after a row that stays, one move at a
+  time) and puts the rows back with a toast when that fails. Escape, the source table going away or a release the
+  table never saw cancel it.
 - **From Explorer**: an OLE `IDropTarget` on the main window (`OleInitialize` + `RegisterDragDrop`, revoked on
   `WM_DESTROY`) takes `CF_HDROP` lists with at least one audio file or folder. Dropped on the queue panel they are
   queued at that point, anywhere else they play at once (context "Bırakılan dosyalar"). `app/DroppedFiles::collect()`
@@ -702,7 +710,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 
 | Program | Covers | Modes |
 |---|---|---|
-| `spotify_test` | TOTP / base32 vectors, home parser and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `playlist-edit` (**writes**: create → add → rename → remove → delete a temporary playlist) |
+| `spotify_test` | TOTP / base32 vectors, home parser and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
 | `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing, cold vs warm cache | `--offline`, `--keep-cache` |
 | `altsource_test` | Piped / Invidious parsing, stream choice, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, memory) | network; `[videoA] [videoB]` |
@@ -718,6 +726,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `smartlists_test` | smart lists on synthetic histories: each list's rules and minimums, streams only, podcast / radio ids out, session-based mixes, day seeds, year lists, fresh-song blending, trim, timing with 300 000 plays | offline |
 | `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), timings with 300 000 imported plays | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files) | offline |
+| `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |

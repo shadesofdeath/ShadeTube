@@ -37,6 +37,7 @@ add_executable(ShadeTube WIN32
     App.cpp App.h
     AudioSettings.cpp
     AppContext.cpp AppContext.h
+    CatalogJson.cpp CatalogJson.h
     Autostart.cpp Autostart.h
     Blacklist.cpp Blacklist.h
     BrowsePages.cpp
@@ -67,6 +68,8 @@ add_executable(ShadeTube WIN32
     PageWidgets.cpp PageWidgets.h
     Pages.h
     PlaybackSettings.cpp
+    PlaylistDetails.cpp
+    PlaylistEditing.cpp PlaylistEditing.h
     PlaylistIO.cpp PlaylistIO.h
     PlaylistTransfer.cpp PlaylistTransfer.h
     Radio.cpp Radio.h

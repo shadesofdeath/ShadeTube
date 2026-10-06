@@ -8,9 +8,11 @@
 //   spotify_test home [dump.json]  offline checks + ONLY token + the personalized home feed (use this while
 //                                  iterating: Spotify rate-limits hard). Optionally dumps the raw `data` object.
 //   spotify_test playlist-edit     offline checks + a WRITE round trip on a temporary playlist it creates itself
-//                                  ("ShadeTube test - silinecek"): create -> add a track -> rename -> remove the
-//                                  track -> delete, verifying each step and that the library's playlist count is
-//                                  back to where it started. Never touches any other playlist.
+//                                  ("ShadeTube test - silinecek"): create -> add a track -> rename -> insert a
+//                                  second one in front of it -> move it behind -> description + cover picture ->
+//                                  clear both -> remove the tracks -> delete, verifying each step and that the
+//                                  library's playlist count is back to where it started. Never touches any other
+//                                  playlist.
 //   spotify_test radio             offline checks + song / artist radio for public seeds (read-only)
 //   spotify_test hashes            offline checks + persisted-query hashes (read-only): scans the live web-player
 //                                  bundle (+ chunks) and compares it with the built-in table, shows the raw answer to
@@ -28,6 +30,7 @@
 #endif
 #include <windows.h>
 
+#include "app/PlaylistEditing.h"   // cover JPEG for the playlist-edit round trip
 #include "core/Http.h"
 #include "core/Log.h"
 #include "spotify/Auth.h"
@@ -403,6 +406,32 @@ static void testHomeLive(Api& api, const char* dumpPath) {
     }
 }
 
+// A 320 px square gradient as the JPEG the app uploads (a hand-made BMP through app/PlaylistEditing).
+static std::vector<uint8_t> gradientJpeg() {
+    const int n = 320, rowBytes = n * 3;
+    std::vector<uint8_t> bmp(54 + static_cast<size_t>(rowBytes) * n, 0);
+    auto put32 = [&](size_t at, uint32_t v) {
+        for (int i = 0; i < 4; ++i) bmp[at + i] = static_cast<uint8_t>(v >> (8 * i));
+    };
+    bmp[0] = 'B';
+    bmp[1] = 'M';
+    put32(2, static_cast<uint32_t>(bmp.size()));
+    put32(10, 54);
+    put32(14, 40);
+    put32(18, n);
+    put32(22, n);
+    bmp[26] = 1;    // planes
+    bmp[28] = 24;   // bits per pixel
+    for (int y = 0; y < n; ++y)
+        for (int x = 0; x < n; ++x) {
+            uint8_t* p = &bmp[54 + static_cast<size_t>(y) * rowBytes + x * 3];
+            p[0] = static_cast<uint8_t>(x * 255 / n);
+            p[1] = static_cast<uint8_t>(y * 255 / n);
+            p[2] = 200;
+        }
+    return st::app::pledit::squareJpeg(bmp.data(), bmp.size()).jpeg;
+}
+
 // Live WRITE round trip on a temporary playlist this test creates itself. Safety rules:
 //  * only the playlist created here (named kTempName) is ever modified or deleted;
 //  * the rootlist playlist count is recorded first and must be back to it at the end;
@@ -515,8 +544,62 @@ static void testPlaylistEditLive(Api& api) {
         std::printf("  verify rename: name=\"%s\"\n", meta2.name.c_str());
         CHECK(meta2.name == kTempRenamed);
 
-        // 4) remove the track (by row uid)
-        const bool removed = api.removeFromPlaylist(uri, {uid});
+        // 4) a second track in front of the first (addToPlaylist BEFORE_UID: undo of a removal), then moved behind it
+        //    (moveItemsInPlaylist AFTER_UID: drag and drop)
+        const std::string second = trackUri == "spotify:track:6habFhsOp2NvshLv26DqMb" ? "spotify:track:4uLU6hMCjMI75M1A2tKUQC"
+                                                                                       : "spotify:track:6habFhsOp2NvshLv26DqMb";
+        std::vector<std::string> uids{uid};
+        PlaylistPosition front{PlaylistPosition::Kind::BeforeUid, uid};
+        const bool inserted = api.insertIntoPlaylist(uri, {second}, front);
+        std::printf("  insertIntoPlaylist (before the first row): %s\n", inserted ? "ok" : "FAILED");
+        CHECK(inserted);
+        pause(1500);
+        pg = api.playlistTracks(uri, 0, 25);
+        CHECK(pg.items.size() == 2 && pg.items[0].id == second && pg.items[1].id == trackUri);
+        const std::string uid2 = pg.items.size() == 2 ? pg.items[0].uid : std::string();
+        if (!uid2.empty()) uids.push_back(uid2);
+        const bool moved = api.moveInPlaylist(uri, {uid2}, PlaylistPosition{PlaylistPosition::Kind::AfterUid, uid});
+        std::printf("  moveInPlaylist (behind the first row): %s\n", moved ? "ok" : "FAILED");
+        CHECK(moved);
+        pause(1500);
+        pg = api.playlistTracks(uri, 0, 25);
+        std::printf("  verify move: %s, %s\n", pg.items.size() > 0 ? pg.items[0].id.c_str() : "-",
+                    pg.items.size() > 1 ? pg.items[1].id.c_str() : "-");
+        CHECK(pg.items.size() == 2 && pg.items[0].uid == uid && pg.items[1].uid == uid2);   // rows keep their uids
+
+        // 5) details: description + a cover picture (a generated 320 px gradient), then both cleared
+        PlaylistDetailsChange details;
+        details.description = "ShadeTube test açıklaması";
+        details.cover = PlaylistDetailsChange::Cover::Set;
+        details.jpeg = gradientJpeg();
+        CHECK(!details.jpeg.empty());
+        const bool detailed = api.updatePlaylistDetails(uri, details);
+        std::printf("  updatePlaylistDetails (description + %zu byte cover): %s\n", details.jpeg.size(),
+                    detailed ? "ok" : "FAILED");
+        CHECK(detailed);
+        pause(2500);
+        Playlist meta3;
+        api.playlistTracks(uri, 0, 1, {}, &meta3, nullptr);
+        std::printf("  verify details: description=\"%s\" image=%s\n", meta3.description.c_str(),
+                    meta3.images.empty() ? "(none)" : meta3.images[0].url.c_str());
+        CHECK(meta3.description == *details.description);
+        CHECK(!meta3.images.empty() && meta3.images[0].url.find("mosaic") == std::string::npos);
+        PlaylistDetailsChange clear;
+        clear.description = "";
+        clear.cover = PlaylistDetailsChange::Cover::Remove;
+        const bool cleared = api.updatePlaylistDetails(uri, clear);
+        std::printf("  updatePlaylistDetails (clear): %s\n", cleared ? "ok" : "FAILED");
+        CHECK(cleared);
+        pause(2500);
+        Playlist meta4;
+        api.playlistTracks(uri, 0, 1, {}, &meta4, nullptr);
+        std::printf("  verify clear: description=\"%s\" image=%s\n", meta4.description.c_str(),
+                    meta4.images.empty() ? "(none)" : meta4.images[0].url.c_str());
+        CHECK(meta4.description.empty());
+        CHECK(meta4.images.empty() || meta4.images[0].url.find("mosaic") != std::string::npos);
+
+        // 6) remove the tracks (by row uid)
+        const bool removed = api.removeFromPlaylist(uri, uids);
         std::printf("  removeFromPlaylist: %s\n", removed ? "ok" : "FAILED");
         CHECK(removed);
         pause(1500);
