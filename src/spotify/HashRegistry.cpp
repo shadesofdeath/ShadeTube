@@ -29,7 +29,8 @@ constexpr std::chrono::seconds kChunkBudget{45};          // heal() holds healMu
 
 // The hashes this build was verified with (web-player.da8b87c8.js, 2026-09-27/28). Ops that share a GraphQL
 // document share a hash: add/removeFromLibrary take ANY uri (track = save, album = save, artist = follow);
-// add/removeFromPlaylist share one. queryArtistOverview / searchDesktop are older documents than the current web
+// add/removeFromPlaylist and moveItemsInPlaylist share one (moveItemsInPlaylist: web-player.c039845d.js,
+// 2026-10-06). queryArtistOverview / searchDesktop are older documents than the current web
 // player's (9f8134ef... / 11483936...) that Spotify still serves; they heal to the current ones once purged.
 const std::vector<std::pair<const char*, const char*>> kBuiltins = {
     {"profileAttributes", "08ffb4730af3746e04a8301396f20875dbbce10c75243803091a9274eacc8ac0"},
@@ -45,6 +46,7 @@ const std::vector<std::pair<const char*, const char*>> kBuiltins = {
     {"removeFromLibrary", "1ad0d40b3c09660d818b9e770eb1e84745dfbe941df159a64f8772b6fa2bfc3a"},
     {"addToPlaylist", "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"},
     {"removeFromPlaylist", "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"},
+    {"moveItemsInPlaylist", "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"},
 };
 
 bool isHex64(std::string_view s) {
