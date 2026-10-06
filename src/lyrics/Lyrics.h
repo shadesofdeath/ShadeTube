@@ -43,6 +43,10 @@ struct Lyrics {
     bool instrumental = false;
     std::vector<Line> lines;
     std::string source;   // kSource*; "" = unknown (old cache entries: LRCLIB)
+    std::string language; // the lyrics' language when the source names it (Spotify: "tr", "en"...), "" = unknown
+    // Translations the source carries (Spotify's "alternatives"), by language code; each list is aligned with
+    // `lines` ("" = no translation for that line).
+    std::map<std::string, std::vector<std::string>> translations;
 };
 
 // What a provider answered: lyrics, a definitive "none" (cached), or a failure worth retrying later (not cached).
@@ -79,8 +83,9 @@ std::string toLrc(const Lyrics& l, const std::string& title = {}, const std::str
 // Plain text, one line per line (instrumental gaps as empty lines).
 std::string toPlainText(const Lyrics& l);
 
-// Spotify's color-lyrics JSON (spclient /color-lyrics/v2/track/<id>) -> Lyrics (source kSourceSpotify). nullopt when
-// the body has no usable lines.
+// Spotify's color-lyrics JSON (spclient /color-lyrics/v2/track/<id>) -> Lyrics (source kSourceSpotify, its language
+// and translations: "alternatives":[{"language":"en","lines":["...", ...]}], one string per entry of "lines"). nullopt
+// when the body has no usable lines.
 std::optional<Lyrics> parseSpotify(const std::string& body);
 
 // Lyrics stored with an audio file: `<stem>.lrc` next to it, else its tags (MP3: ID3v2 SYLT, then USLT - read here;

@@ -158,6 +158,30 @@ static void testSpotify() {
     CHECK(!lyrics::parseSpotify(R"({"lyrics":{"syncType":"LINE_SYNCED","lines":[{"startTimeMs":"1","words":"♪"}]}})").has_value());
     CHECK(!lyrics::parseSpotify("not json").has_value());
     CHECK(!lyrics::parseSpotify(R"({"error":{"status":404}})").has_value());
+
+    // Translations ("alternatives") are indexed like "lines": they follow the lines through the sort and the dropped
+    // entries (an unparsable time), and a gap keeps no translation.
+    const std::string alt = R"({"lyrics":{"syncType":"LINE_SYNCED","lines":[
+        {"startTimeMs":"3000","words":"İkinci"},
+        {"startTimeMs":"1000","words":"Birinci"},
+        {"words":"no time"},
+        {"startTimeMs":"5000","words":"♪"}],
+        "language":"tr","alternatives":[
+            {"language":"en","lines":["Second","First","x","♪"],"isRtlLanguage":false},
+            {"language":"de","lines":["Zweite"]},
+            {"language":"","lines":["?"]},
+            {"language":"fr","lines":"bad"}]}})";
+    auto a = lyrics::parseSpotify(alt);
+    CHECK(a.has_value());
+    if (a) {
+        CHECK(a->language == "tr" && a->lines.size() == 3 && a->lines[0].text == "Birinci");
+        CHECK(a->translations.size() == 2 && a->translations.count("en") && a->translations.count("de"));
+        const auto& en = a->translations["en"];
+        CHECK(en.size() == 3 && en[0] == "First" && en[1] == "Second" && en[2].empty());
+        const auto& de = a->translations["de"];
+        CHECK(de.size() == 3 && de[0].empty() && de[1] == "Zweite");   // a short list: the rest stays empty
+    }
+    CHECK(lyrics::parseSpotify(R"({"lyrics":{"syncType":"UNSYNCED","language":"und","lines":[{"words":"A"}]}})")->language.empty());
 }
 
 static void testId3() {
@@ -375,6 +399,32 @@ static void testChain() {
     r = lyrics::fetch(query("spotify:track:f", &calls, K::Failed));
     CHECK(r && r->lines.size() == 1 && r->lines[0].words.size() == 2 && r->lines[0].words[1].timeMs == 1400);
 
+    // So do the source's language and translations; a translation that doesn't fit the lines is dropped.
+    plant("spotify:track:g", {{"v", 2}, {"found", true}, {"at", now}, {"synced", true}, {"src", "spotify"}, {"lang", "tr"},
+                              {"lines", {{1000, "Bir"}, {2000, "İki"}}}, {"tr", {{"en", {"One", "Two"}}, {"de", {"Eins"}}}}});
+    r = lyrics::fetch(query("spotify:track:g", &calls, K::Failed));
+    CHECK(r && r->language == "tr" && r->translations.size() == 1 && r->translations["en"][1] == "Two");
+    // ... and are written back the way they were read (a fallback's answer stored with them).
+    plant("spotify:track:h", {{"v", 2}, {"found", false}, {"at", now}, {"tried", {"lrclib"}}});
+    {
+        lyrics::Query qh = query("spotify:track:h", &calls, K::Found);
+        qh.fallback = [](const YoutubeExplode::CancellationToken&) {
+            lyrics::ProviderResult res;
+            res.kind = K::Found;
+            res.lyrics.synced = true;
+            res.lyrics.source = lyrics::kSourceSpotify;
+            res.lyrics.language = "es";
+            res.lyrics.lines = {{500, "Hola", {}}, {900, "", {}}};
+            res.lyrics.translations["en"] = {"Hello", ""};
+            return res;
+        };
+        lyrics::fetch(qh);
+        auto jh = readCacheJson("spotify:track:h");
+        CHECK(jh.value("lang", "") == "es" && jh["tr"]["en"][0] == "Hello");
+        r = lyrics::fetch(query("spotify:track:h", &calls, K::Failed));
+        CHECK(r && r->language == "es" && r->translations["en"].size() == 2);
+    }
+
     // A file's synced lyrics come first: no provider, no cache.
     const fs::path dir = g_dir / L"music";
     writeBytes(dir / L"local.mp3", std::string("\xFF\xFB\x90\x00", 4));
@@ -463,7 +513,7 @@ int main(int argc, char** argv) {
     SetConsoleOutputCP(CP_UTF8);
     wchar_t tmp[MAX_PATH];
     GetTempPathW(MAX_PATH, tmp);
-    g_dir = fs::path(tmp) / L"shadetube_lyrics_test";
+    g_dir = fs::path(tmp) / (L"shadetube_lyrics_test_" + std::to_wstring(GetCurrentProcessId()));   // runs may overlap
     std::error_code ec;
     fs::remove_all(g_dir, ec);
     fs::create_directories(g_dir, ec);

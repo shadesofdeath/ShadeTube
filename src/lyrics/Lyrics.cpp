@@ -149,7 +149,8 @@ std::string formatTimestamp(int ms) {
 
 // ---- Disk cache ------------------------------------------------------------------------------
 // {"v":2, "found":bool, "at":unix, "synced", "instrumental", "lines":[[ms,text]...], "words":{"<line>":[[ms,text]...]},
-//  "src":"lrclib"|"spotify", "tried":["lrclib","spotify"]}. Entries without "tried" were written by LRCLIB alone.
+//  "src":"lrclib"|"spotify", "tried":["lrclib","spotify"], "lang":"tr", "tr":{"en":[text per line]}}. Entries without
+//  "tried" were written by LRCLIB alone; "lang" / "tr" only when the source gave them.
 
 struct CacheEntry {
     bool found = false;
@@ -210,6 +211,15 @@ std::optional<CacheEntry> readCache(const fs::path& p) {
                     l.lines[i].words.push_back({w[0].get<int>(), w[1].get<std::string>()});
         }
     }
+    l.language = j.value("lang", std::string());
+    if (auto it = j.find("tr"); it != j.end() && it->is_object()) {
+        for (const auto& [lang, list] : it->items()) {
+            if (!list.is_array() || list.size() != l.lines.size()) continue;
+            std::vector<std::string> lines;
+            for (const auto& t : list) lines.push_back(t.is_string() ? t.get<std::string>() : std::string());
+            l.translations[lang] = std::move(lines);
+        }
+    }
     return e;
 }
 
@@ -233,6 +243,8 @@ void writeCache(const fs::path& p, const CacheEntry& e) {
         }
         j["lines"] = std::move(lines);
         if (!words.empty()) j["words"] = std::move(words);
+        if (!l.language.empty()) j["lang"] = l.language;
+        if (!l.translations.empty()) j["tr"] = l.translations;
     }
     // Write to a temp file then rename, so a crash never leaves a truncated cache entry.
     auto tmp = p;
@@ -526,8 +538,13 @@ std::optional<Lyrics> parseSpotify(const std::string& body) {
     Lyrics l;
     l.synced = synced;
     l.source = kSourceSpotify;
+    l.language = jstr(*lit, "language");
+    if (l.language == "und") l.language.clear();   // "undetermined"
+    // Each kept line remembers its index in "lines": the alternatives' lines are indexed like that.
+    std::vector<std::pair<Line, size_t>> kept;
     if (auto it = lit->find("lines"); it != lit->end() && it->is_array()) {
-        for (const auto& x : *it) {
+        for (size_t i = 0; i < it->size(); ++i) {
+            const auto& x = (*it)[i];
             if (!x.is_object()) continue;
             int ms = -1;
             if (synced) {
@@ -539,17 +556,38 @@ std::optional<Lyrics> parseSpotify(const std::string& body) {
             }
             std::string text(trim(jstr(x, "words")));
             if (text == "\xE2\x99\xAA") text.clear();   // "♪": an instrumental gap
-            l.lines.push_back({ms, std::move(text), {}});
+            kept.push_back({{ms, std::move(text), {}}, i});
         }
     }
     if (synced) {
-        std::stable_sort(l.lines.begin(), l.lines.end(), [](const Line& a, const Line& b) { return a.timeMs < b.timeMs; });
+        std::stable_sort(kept.begin(), kept.end(), [](const auto& a, const auto& b) { return a.first.timeMs < b.first.timeMs; });
     } else {
-        while (!l.lines.empty() && l.lines.back().text.empty()) l.lines.pop_back();
-        auto first = std::find_if(l.lines.begin(), l.lines.end(), [](const Line& x) { return !x.text.empty(); });
-        l.lines.erase(l.lines.begin(), first);
+        while (!kept.empty() && kept.back().first.text.empty()) kept.pop_back();
+        auto first = std::find_if(kept.begin(), kept.end(), [](const auto& x) { return !x.first.text.empty(); });
+        kept.erase(kept.begin(), first);
     }
-    if (std::none_of(l.lines.begin(), l.lines.end(), [](const Line& x) { return !x.text.empty(); })) return std::nullopt;
+    if (std::none_of(kept.begin(), kept.end(), [](const auto& x) { return !x.first.text.empty(); })) return std::nullopt;
+    if (auto alts = lit->find("alternatives"); alts != lit->end() && alts->is_array()) {
+        for (const auto& a : *alts) {
+            if (!a.is_object()) continue;
+            const std::string lang = jstr(a, "language");
+            const auto al = a.find("lines");
+            if (lang.empty() || al == a.end() || !al->is_array()) continue;
+            std::vector<std::string> lines;
+            bool any = false;
+            for (const auto& [line, src] : kept) {
+                std::string t = !line.text.empty() && src < al->size() && (*al)[src].is_string()
+                                    ? std::string(trim((*al)[src].get<std::string>()))
+                                    : std::string();
+                if (t == "\xE2\x99\xAA") t.clear();
+                any |= !t.empty();
+                lines.push_back(std::move(t));
+            }
+            if (any) l.translations[lang] = std::move(lines);
+        }
+    }
+    l.lines.reserve(kept.size());
+    for (auto& k : kept) l.lines.push_back(std::move(k.first));
     return l;
 }
 

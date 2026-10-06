@@ -378,7 +378,8 @@ json Api::playlistService(const char* method, const std::string& path, const jso
     return spclient(method, std::string(kPlaylistService) + path, body, ct);
 }
 
-json Api::spclient(const char* method, const std::string& url, const json* body, const CT& ct, int quietStatus) {
+json Api::spclient(const char* method, const std::string& url, const json* body, const CT& ct, int quietStatus,
+                   const char* acceptLanguage) {
     std::string token, cookie;
     {
         std::lock_guard lock(mutex_);
@@ -399,6 +400,7 @@ json Api::spclient(const char* method, const std::string& url, const json* body,
         {"Referer", "https://open.spotify.com/"},
         {"Cookie", "sp_dc=" + cookie + ";"},
     };
+    if (acceptLanguage && *acceptLanguage) r.headers.push_back({"Accept-Language", acceptLanguage});
     if (body) {
         r.headers.push_back({"Content-Type", "application/json;charset=UTF-8"});
         r.body = body->dump();
@@ -1257,8 +1259,9 @@ Track Api::track(const std::string& uri, const CT& ct) {
 
 // ---- Lyrics (spclient color-lyrics) ---------------------------------------------------------------------
 // What the web player's lyrics view loads: {"lyrics":{"syncType":"LINE_SYNCED","lines":[{"startTimeMs":"960",
-// "words":"...","syllables":[],"endTimeMs":"0"}...],"provider":"MusixMatch",...},"colors":{...}}. 404 = no lyrics.
-std::string Api::trackLyrics(const std::string& trackId, const CT& ct) {
+// "words":"...","syllables":[],"endTimeMs":"0"}...],"provider":"MusixMatch","language":"tr","alternatives":[{"language":
+// "en","lines":["...", one per line]}],...},"colors":{...}}. 404 = no lyrics.
+std::string Api::trackLyrics(const std::string& trackId, const CT& ct, const std::string& language) {
     std::string id = trackId;
     if (const auto colon = id.rfind(':'); colon != std::string::npos) id = id.substr(colon + 1);
     if (id.empty() || id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") != std::string::npos)
@@ -1266,7 +1269,8 @@ std::string Api::trackLyrics(const std::string& trackId, const CT& ct) {
     const std::string url = "https://spclient.wg.spotify.com/color-lyrics/v2/track/" + id +
                             "?format=json&vocalRemoval=false&market=from_token";
     try {
-        const json j = spclient("GET", url, nullptr, ct, 404);
+        const std::string acceptLanguage = language.empty() ? std::string() : language + ",en;q=0.5";
+        const json j = spclient("GET", url, nullptr, ct, 404, acceptLanguage.c_str());
         return j.is_null() ? std::string() : j.dump();
     } catch (const ApiError& e) {
         if (e.status == 404) return {};

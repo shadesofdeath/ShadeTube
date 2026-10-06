@@ -111,7 +111,9 @@ public:
     static Track parseTrackMetadata(const nlohmann::json& j);
     // Spotify's lyrics for a track (the web player's color-lyrics service: Musixmatch and other providers), as the raw
     // JSON body for lyrics::parseSpotify(). "" when Spotify has none (404). Throws ApiError otherwise (401 / 403 / 429).
-    std::string trackLyrics(const std::string& trackId, const CT& ct = {});
+    // `language` ("en", optional) goes out as Accept-Language, like the web player's: the translations Spotify sends
+    // along ("alternatives") follow it.
+    std::string trackLyrics(const std::string& trackId, const CT& ct = {}, const std::string& language = {});
 
     static constexpr const char* kLikedSongsUri = "spotify:collection:tracks";
 
@@ -130,8 +132,9 @@ private:
                                    const CT& ct);
     // Any spclient.wg.spotify.com request (absolute `url`) with the web-player headers; same contract as above.
     // `quietStatus`: a status that is an expected answer (404 "no lyrics"), not logged as a warning.
+    // `acceptLanguage` (optional): the Accept-Language header.
     nlohmann::json spclient(const char* method, const std::string& url, const nlohmann::json* body, const CT& ct,
-                            int quietStatus = 0);
+                            int quietStatus = 0, const char* acceptLanguage = nullptr);
     // The raw rootlist (contents.items[] + metaItems[] with each playlist's length).
     nlohmann::json rootlist(const CT& ct);
     // POST /user/<username>/rootlist/changes with one delta of `ops`.
