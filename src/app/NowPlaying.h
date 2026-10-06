@@ -1,7 +1,8 @@
 #pragma once
-// Full-screen "Şimdi Çalıyor": blurred artwork backdrop, glowing hero art, synced lyrics (with the timing offset −/+
-// and the full-screen karaoke view in their header), queue panel.
+// Full-screen "Şimdi Çalıyor": blurred artwork backdrop, glowing hero art, synced lyrics (with the translation toggle,
+// the timing offset −/+ and the full-screen karaoke view in their header), queue panel.
 #include "app/Components.h"
+#include "app/LyricsService.h"
 #include "lyrics/Lyrics.h"
 #include "ui/Anim.h"
 #include "ui/Controls.h"
@@ -33,6 +34,8 @@ private:
     enum class LyricsState { None, Loading, Synced, Plain, Instrumental, Missing };
     void fetchLyrics();
     void syncLyricsControls();           // header buttons for the lyrics state + the track's offset
+    void rebuildTranslation();           // translated lines under the lyrics, for translation_'s state
+    float translationHeight(int i, float width);   // with its gap above; 0 = nothing under line i
     void paintBackdrop(Canvas& c, const Rect& r);
     void paintArtShadow(Canvas& c);
     void paintLyrics(Canvas& c, const Rect& r);
@@ -41,7 +44,7 @@ private:
     int lineAt(gfx::Point p) const;
 
     QueuePanel* queue_;
-    ui::Button *earlier_, *offset_, *later_, *fullscreen_;
+    ui::Button *translate_, *earlier_, *offset_, *later_, *fullscreen_;
     Lifetime life_;
     std::string trackId_;
     LyricsState state_ = LyricsState::None;
@@ -50,6 +53,10 @@ private:
     std::vector<gfx::Text> lines_;       // inactive style; a line keeps its layout only while it is on screen
     std::vector<float> lineH_;           // measured heights (-1 = not yet) for width lineHW_
     float lineHW_ = -1;
+    LyricsTranslation translation_;      // "Çeviri"
+    std::vector<gfx::Text> trans_;       // each line's translation while shown (empty text = none), like lines_
+    std::vector<float> transH_;          // measured heights (-1 = not yet) for width transHW_
+    float transHW_ = -1;
     gfx::Text activeText_;
     int active_ = -2;
     ui::Anim scroll_;

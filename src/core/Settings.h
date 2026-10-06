@@ -57,6 +57,8 @@ struct Settings {
     int syncCapGb = 0;                   // storage cap for synced downloads in GB; 0 = no limit
     bool lyricsEnabled = true;
     bool lyricsInDownloads = true;       // MP3 downloads: lyrics in the ID3 tag + a synced .lrc next to the file
+    bool lyricsTranslate = false;        // the lyrics views' "Çeviri": each line's translation shown under it
+    std::string lyricsTranslateTo;       // the language it translates into; "" = the UI language
 
     // Integrations
     bool scrobbleEnabled = true;         // Last.fm / ListenBrainz (credentials live DPAPI-encrypted in scrobble.dat)

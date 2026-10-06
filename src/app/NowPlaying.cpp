@@ -23,10 +23,23 @@ using gfx::accent;
 using gfx::colors;
 namespace type = gfx::type;
 
+namespace {
+// A line's translation under it: smaller and dimmer than the inactive lines.
+constexpr gfx::TextStyle kTranslationStyle{19, 500, 1.2f, -0.01f};
+constexpr float kTranslationGap = 6;
+} // namespace
+
 NowPlayingView::NowPlayingView()
     : title_({}, type::displayS), subtitle_({}, type::bodyL.withSize(17)), meta_({}, type::monoMeta),
       liveNow_({}, type::title) {
     queue_ = add<QueuePanel>();
+    translate_ = add<ui::Button>(ui::ButtonKind::Chip, tr(L"Çeviri"));
+    translate_->setTooltip(tr(L"Her satırın çevirisini altında göster"));
+    translate_->onClick = [this] { translation_.toggle(); };
+    translation_.onChange = [this] {
+        rebuildTranslation();
+        syncLyricsControls();
+    };
     earlier_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "minus");
     earlier_->setTooltip(tr(L"Sözleri daha erken göster"));
     earlier_->onClick = [this] {
@@ -78,6 +91,11 @@ void NowPlayingView::deactivate() {
     lyrics_ = {};
     activeText_ = {};
     active_ = -2;
+    translation_.clear();
+    trans_.clear();
+    trans_.shrink_to_fit();
+    transH_.clear();
+    transH_.shrink_to_fit();
     // The display-size title / subtitle / meta layouts are rebuilt on the next open.
     title_.reset();
     subtitle_.reset();
@@ -116,6 +134,9 @@ void NowPlayingView::fetchLyrics() {
     lines_.clear();
     lineH_.clear();
     lineRects_.clear();
+    translation_.clear();
+    trans_.clear();
+    transH_.clear();
     active_ = -2;
     scroll_.snap(0);
     manualUntil_ = 0;
@@ -160,13 +181,43 @@ void NowPlayingView::fetchLyrics() {
               }
               lineH_.assign(lines_.size(), -1.f);
               activeText_ = gfx::Text({}, type::lyricActive, wrap);
+              // Offered when the lyrics are in another language (found out off the UI thread; onChange follows).
+              if (state_ == LyricsState::Synced || state_ == LyricsState::Plain) translation_.setLyrics(lyrics_, trackId_);
               syncLyricsControls();
               invalidate();
           });
 }
 
+void NowPlayingView::rebuildTranslation() {
+    trans_.clear();
+    transH_.clear();
+    if (translation_.shown()) {
+        gfx::TextOptions wrap;
+        wrap.wrap = true;
+        trans_.reserve(lines_.size());
+        for (size_t i = 0; i < lines_.size(); ++i) trans_.emplace_back(toWide(translation_.line(i)), kTranslationStyle, wrap);
+        transH_.assign(trans_.size(), -1.f);
+    }
+    invalidate();
+}
+
+float NowPlayingView::translationHeight(int i, float width) {
+    if (i < 0 || i >= static_cast<int>(trans_.size()) || trans_[i].empty()) return 0;
+    if (width != transHW_ || transH_.size() != trans_.size()) {
+        transH_.assign(trans_.size(), -1.f);
+        transHW_ = width;
+    }
+    if (transH_[i] < 0) {
+        transH_[i] = trans_[i].measure(width).h;
+        trans_[i].reset();
+    }
+    return kTranslationGap + transH_[i];
+}
+
 void NowPlayingView::syncLyricsControls() {
     const bool synced = state_ == LyricsState::Synced;
+    translate_->setVisible((synced || state_ == LyricsState::Plain) && translation_.offered());
+    translate_->setActive(translation_.on());
     earlier_->setVisible(synced);
     offset_->setVisible(synced);
     later_->setVisible(synced);
@@ -183,7 +234,7 @@ void NowPlayingView::layout() {
     artRect_ = {64, std::max(40.f, (r.h - artSize - 140) * 0.5f), artSize, artSize};
     const float lx = artRect_.right() + 64;
     lyricsRect_ = {lx, 0, std::max(200.f, r.w - gfx::metrics::queueW - 48 - lx), r.h};
-    // Lyrics header, right-aligned on the label's row: [−] [+0,5 sn] [+]  [full screen].
+    // Lyrics header, right-aligned on the label's row: [Çeviri]  [−] [+0,5 sn] [+]  [full screen].
     const float cy = lyricsRect_.y + 56, bs = 28;
     float x = lyricsRect_.right();
     if (fullscreen_->visible()) {
@@ -199,6 +250,12 @@ void NowPlayingView::layout() {
         offset_->setRect({x, cy - 14, ow, 28});
         x -= bs + 2;
         earlier_->setRect({x, cy - bs / 2, bs, bs});
+        x -= 12;
+    }
+    if (translate_->visible()) {
+        const float tw = std::ceil(translate_->naturalWidth());
+        x -= tw;
+        translate_->setRect({x, cy - 14, tw, 28});
     }
 }
 
@@ -337,8 +394,16 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
     std::wstring label = state_ == LyricsState::Synced ? tr(L"ŞARKI SÖZLERİ · SENKRONİZE") : toUpperTr(tr(L"Şarkı sözleri"));
     if ((state_ == LyricsState::Synced || state_ == LyricsState::Plain) && !lyrics_.source.empty())
         label += L" · " + lyricsSourceLabel(lyrics_.source);
-    const float controlsX = earlier_->visible() ? earlier_->rect().x : fullscreen_->visible() ? fullscreen_->rect().x : r.right();
+    // The translation follows the setting / target language changed in the full-screen view or Ayarlar.
+    if (state_ == LyricsState::Synced || state_ == LyricsState::Plain) translation_.sync();
+    const float controlsX = translate_->visible() ? translate_->rect().x
+                            : earlier_->visible() ? earlier_->rect().x
+                            : fullscreen_->visible() ? fullscreen_->rect().x
+                                                     : r.right();
     c.text(label, type::monoLabel, {r.x, r.y + 48, std::max(40.f, controlsX - r.x - 12), 16}, col.fgTertiary);
+    // The translation's state on the line below: "ÇEVRİLİYOR…", "ÇEVİRİ ALINAMADI", what is shown.
+    if (const std::wstring note = translation_.note(); !note.empty())
+        c.text(note, type::monoLabel, {r.x, r.y + 70, r.w, 16}, col.fgTertiary);
     // The offset value flashes in the accent right after a change.
     if (offset_->visible() && lyricsOffsetChangedAt() > 0) {
         const double since = ui::frame::realNow() - lyricsOffsetChangedAt();
@@ -377,7 +442,7 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
     lineRects_.resize(lines_.size());
     float y = 0, activeTop = 0, activeH = 0;
     for (int i = 0; i < static_cast<int>(lines_.size()); ++i) {
-        const float h = lineHeight(i, area.w);
+        const float h = lineHeight(i, area.w) + translationHeight(i, area.w);   // a line's rect holds its translation
         lineRects_[i] = {area.x, y, area.w, h};
         if (i == active_) {
             activeTop = y;
@@ -399,8 +464,10 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
     for (int i = 0; i < static_cast<int>(lines_.size()); ++i) {
         Rect lr = lineRects_[i].offset(0, area.y - off);
         lineRects_[i] = lr;
+        const bool hasTrans = i < static_cast<int>(trans_.size()) && !trans_[i].empty();
         if (lr.bottom() < area.y || lr.y > area.bottom()) {
             lines_[i].reset();   // scrolled away: drop its layout (no-op when it has none)
+            if (hasTrans) trans_[i].reset();
             continue;
         }
         Color colr;
@@ -412,8 +479,11 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
             colr = col.fgPrimary.withAlpha(dist >= 3 ? a * 0.6f : a);
         }
         if (i == hoverLine_ && synced && i != active_) colr = col.fgPrimary.withAlpha(0.7f);
-        if (i == active_ && synced) c.text(activeText_, lr, colr);
-        else c.text(lines_[i], lr, colr);
+        const float th = translationHeight(i, area.w);
+        const Rect main{lr.x, lr.y, lr.w, lr.h - th};
+        if (i == active_ && synced) c.text(activeText_, main, colr);
+        else c.text(lines_[i], main, colr);
+        if (hasTrans) c.text(trans_[i], {lr.x, main.bottom() + kTranslationGap, lr.w, th - kTranslationGap}, colr.mulAlpha(0.62f));
     }
     c.popClip();
     // Edge fades.

@@ -1521,5 +1521,12 @@
   "İçe aktarılan liste": "Імпортований плейлист",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Трек виключено із синхронізації; його не буде завантажено знову",
   "Şarkı yeniden senkronize edilecek": "Трек знову синхронізуватиметься",
-  "Listeyi içe aktar": "Імпортувати плейлист"
+  "Listeyi içe aktar": "Імпортувати плейлист",
+  "Çeviri": "Переклад",
+  "Her satırın çevirisini altında göster": "Показувати переклад під кожним рядком",
+  "Çevriliyor…": "Перекладаємо…",
+  "Çeviri alınamadı": "Не вдалося отримати переклад",
+  "Söz çevirisi dili": "Мова перекладу текстів",
+  "Şarkı sözlerindeki Çeviri düğmesi her satırın bu dildeki çevirisini altında gösterir; sözler zaten bu dildeyse düğme görünmez. Spotify'ın kendi çevirisi varsa o, yoksa Google Çeviri kullanılır.": "Кнопка «Переклад» у тексті пісні показує під кожним рядком його переклад цією мовою; якщо текст уже цією мовою, кнопки немає. Використовується власний переклад Spotify, якщо він є, інакше Google Перекладач.",
+  "Arayüz dili": "Мова застосунку"
 }

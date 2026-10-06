@@ -1230,5 +1230,12 @@
   "İçe aktarılan liste": "Playlist impor",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Lagu dikecualikan dari sinkronisasi; tidak akan diunduh lagi",
   "Şarkı yeniden senkronize edilecek": "Lagu akan disinkronkan lagi",
-  "Listeyi içe aktar": "Impor playlist"
+  "Listeyi içe aktar": "Impor playlist",
+  "Çeviri": "Terjemahan",
+  "Her satırın çevirisini altında göster": "Tampilkan terjemahan di bawah setiap baris",
+  "Çevriliyor…": "Menerjemahkan…",
+  "Çeviri alınamadı": "Terjemahan tidak tersedia",
+  "Söz çevirisi dili": "Bahasa terjemahan lirik",
+  "Şarkı sözlerindeki Çeviri düğmesi her satırın bu dildeki çevirisini altında gösterir; sözler zaten bu dildeyse düğme görünmez. Spotify'ın kendi çevirisi varsa o, yoksa Google Çeviri kullanılır.": "Tombol Terjemahan pada lirik menampilkan terjemahan setiap baris ke bahasa ini di bawahnya; tombol tidak muncul jika lirik sudah dalam bahasa ini. Terjemahan Spotify sendiri dipakai jika ada, jika tidak Google Terjemahan.",
+  "Arayüz dili": "Bahasa aplikasi"
 }

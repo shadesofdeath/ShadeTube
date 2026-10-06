@@ -1230,5 +1230,12 @@
   "İçe aktarılan liste": "가져온 재생목록",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "곡을 동기화에서 제외했습니다. 다시 다운로드되지 않습니다",
   "Şarkı yeniden senkronize edilecek": "곡을 다시 동기화합니다",
-  "Listeyi içe aktar": "재생목록 가져오기"
+  "Listeyi içe aktar": "재생목록 가져오기",
+  "Çeviri": "번역",
+  "Her satırın çevirisini altında göster": "각 줄 아래에 번역 표시",
+  "Çevriliyor…": "번역 중…",
+  "Çeviri alınamadı": "번역을 가져오지 못했습니다",
+  "Söz çevirisi dili": "가사 번역 언어",
+  "Şarkı sözlerindeki Çeviri düğmesi her satırın bu dildeki çevirisini altında gösterir; sözler zaten bu dildeyse düğme görünmez. Spotify'ın kendi çevirisi varsa o, yoksa Google Çeviri kullanılır.": "가사의 번역 버튼을 누르면 각 줄 아래에 이 언어로 된 번역이 표시됩니다. 가사가 이미 이 언어이면 버튼이 나타나지 않습니다. Spotify 자체 번역이 있으면 그것을, 없으면 Google 번역을 사용합니다.",
+  "Arayüz dili": "앱 언어"
 }

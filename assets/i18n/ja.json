@@ -1230,5 +1230,12 @@
   "İçe aktarılan liste": "読み込んだ再生リスト",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "曲を同期から除外しました。再ダウンロードされません",
   "Şarkı yeniden senkronize edilecek": "曲を再び同期します",
-  "Listeyi içe aktar": "再生リストを読み込む"
+  "Listeyi içe aktar": "再生リストを読み込む",
+  "Çeviri": "翻訳",
+  "Her satırın çevirisini altında göster": "各行の下に翻訳を表示",
+  "Çevriliyor…": "翻訳中…",
+  "Çeviri alınamadı": "翻訳を取得できませんでした",
+  "Söz çevirisi dili": "歌詞の翻訳言語",
+  "Şarkı sözlerindeki Çeviri düğmesi her satırın bu dildeki çevirisini altında gösterir; sözler zaten bu dildeyse düğme görünmez. Spotify'ın kendi çevirisi varsa o, yoksa Google Çeviri kullanılır.": "歌詞の「翻訳」ボタンで、各行の下にこの言語への翻訳を表示します。歌詞がすでにこの言語の場合、ボタンは表示されません。Spotify 独自の翻訳があればそれを、なければ Google 翻訳を使います。",
+  "Arayüz dili": "アプリの言語"
 }

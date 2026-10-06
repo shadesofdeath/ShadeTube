@@ -1387,5 +1387,12 @@
   "İçe aktarılan liste": "Imported playlist",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Song excluded from sync; it won't be downloaded again",
   "Şarkı yeniden senkronize edilecek": "The song will sync again",
-  "Listeyi içe aktar": "Import playlist"
+  "Listeyi içe aktar": "Import playlist",
+  "Çeviri": "Translation",
+  "Her satırın çevirisini altında göster": "Show each line's translation below it",
+  "Çevriliyor…": "Translating…",
+  "Çeviri alınamadı": "Couldn't get the translation",
+  "Söz çevirisi dili": "Lyrics translation language",
+  "Şarkı sözlerindeki Çeviri düğmesi her satırın bu dildeki çevirisini altında gösterir; sözler zaten bu dildeyse düğme görünmez. Spotify'ın kendi çevirisi varsa o, yoksa Google Çeviri kullanılır.": "The Translation button in the lyrics shows each line's translation into this language below it; it's hidden when the lyrics already are in this language. Spotify's own translation is used when there is one, otherwise Google Translate.",
+  "Arayüz dili": "App language"
 }

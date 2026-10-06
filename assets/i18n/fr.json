@@ -1387,5 +1387,12 @@
   "İçe aktarılan liste": "Playlist importée",
   "Şarkı senkrondan çıkarıldı; yeniden indirilmeyecek": "Titre exclu de la synchronisation ; il ne sera plus téléchargé",
   "Şarkı yeniden senkronize edilecek": "Le titre sera de nouveau synchronisé",
-  "Listeyi içe aktar": "Importer la playlist"
+  "Listeyi içe aktar": "Importer la playlist",
+  "Çeviri": "Traduction",
+  "Her satırın çevirisini altında göster": "Afficher la traduction sous chaque ligne",
+  "Çevriliyor…": "Traduction…",
+  "Çeviri alınamadı": "Traduction indisponible",
+  "Söz çevirisi dili": "Langue de traduction des paroles",
+  "Şarkı sözlerindeki Çeviri düğmesi her satırın bu dildeki çevirisini altında gösterir; sözler zaten bu dildeyse düğme görünmez. Spotify'ın kendi çevirisi varsa o, yoksa Google Çeviri kullanılır.": "Le bouton Traduction des paroles affiche sous chaque ligne sa traduction dans cette langue ; il n'apparaît pas si les paroles sont déjà dans cette langue. La traduction de Spotify est utilisée quand elle existe, sinon Google Traduction.",
+  "Arayüz dili": "Langue de l'app"
 }

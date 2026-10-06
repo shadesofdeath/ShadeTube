@@ -2,10 +2,11 @@
 // Full-screen karaoke lyrics (ctx().toggleLyricsFullscreen): a modal overlay over the whole main window with the
 // artwork's blurred backdrop, large centered lines, the active one filled with the accent as it is sung (per word when
 // the lyrics have word times, else across the line until the next one starts), a thin progress bar and the track.
-// The top controls (lyrics source, timing offset −/+, close) fade out while the mouse rests. Esc / F close it,
-// − / + shift the timing, a click on a line seeks there, the wheel scrolls for a moment. Everything it holds (backdrop,
-// lyrics, text layouts) goes with it when it closes.
+// The top controls (lyrics source, translation, timing offset −/+, close) fade out while the mouse rests. Esc / F
+// close it, − / + shift the timing, a click on a line (or its translation) seeks there, the wheel scrolls for a
+// moment. Everything it holds (backdrop, lyrics, text layouts) goes with it when it closes.
 #include "app/Components.h"
+#include "app/LyricsService.h"
 #include "lyrics/Lyrics.h"
 #include "ui/Anim.h"
 #include "ui/Controls.h"
@@ -38,6 +39,8 @@ private:
     enum class State { None, Loading, Synced, Plain, Instrumental, Missing, Live };
     void load();
     void syncControls();
+    void rebuildTranslation();           // translated lines under the lyrics, for translation_'s state
+    float translationHeight(int i, float width);   // with its gap above; 0 = nothing under line i
     void shiftOffset(int ms);
     void showControls();
     float lineHeight(int i, float width);
@@ -56,7 +59,12 @@ private:
     std::vector<gfx::Text> lines_;       // a line keeps its layout only while it is on screen
     std::vector<float> lineH_;           // measured heights (-1 = not yet) for width lineHW_
     float lineHW_ = -1;
-    std::vector<Rect> lineRects_;        // last painted (hit testing)
+    LyricsTranslation translation_;      // "Çeviri"
+    gfx::TextStyle transStyle_{};
+    std::vector<gfx::Text> trans_;       // each line's translation while shown (empty text = none), like lines_
+    std::vector<float> transH_;          // measured heights (-1 = not yet) for width transHW_
+    float transHW_ = -1;
+    std::vector<Rect> lineRects_;        // last painted (hit testing), translation included
     int active_ = -1;
     int hoverLine_ = -1;
     ui::Anim scroll_, open_, controls_;
@@ -66,7 +74,7 @@ private:
     Rect lyricsArea_{};
 
     ui::Widget* drag_;                   // the top strip moves the window (the title bar is covered)
-    ui::Button *earlier_, *offset_, *later_, *close_;
+    ui::Button *translate_, *earlier_, *offset_, *later_, *close_;
 
     Microsoft::WRL::ComPtr<ID2D1Bitmap1> backdrop_;
     std::string backdropUrl_;

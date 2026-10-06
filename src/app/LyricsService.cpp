@@ -15,6 +15,7 @@
 #include "ui/Anim.h"
 #include "ui/Window.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <filesystem>
@@ -31,11 +32,13 @@ std::function<lyrics::Ranges()> g_extraProvider;
 // Spotify answered 429 / 403: leave its lyrics alone until then (steadyMs), instead of asking again for every track.
 std::atomic<int64_t> g_spotifyPausedUntil{0};
 
-lyrics::ProviderResult spotifyLyrics(spotify::Api* api, const std::string& trackId, const YoutubeExplode::CancellationToken& ct) {
+// `language`: the translation language, which the translations Spotify sends along follow.
+lyrics::ProviderResult spotifyLyrics(spotify::Api* api, const std::string& trackId, const std::string& language,
+                                     const YoutubeExplode::CancellationToken& ct) {
     const int64_t now = steadyMs();
     if (now < g_spotifyPausedUntil.load()) return {K::Failed, {}};
     try {
-        const std::string body = api->trackLyrics(trackId, ct);
+        const std::string body = api->trackLyrics(trackId, ct, language);
         if (body.empty()) return {K::NotFound, {}};
         auto l = lyrics::parseSpotify(body);
         if (!l) return {K::NotFound, {}};
@@ -79,7 +82,9 @@ lyrics::Query lyricsQueryFor(const catalog::Track& t) {
     // Spotify's own lyrics (Musixmatch and others) for its tracks while logged in, when LRCLIB has no synced ones.
     if (auto* api = source::activeApi(); api && t.id.rfind("spotify:track:", 0) == 0) {
         q.fallbackName = lyrics::kSourceSpotify;
-        q.fallback = [api, id = t.id](const YoutubeExplode::CancellationToken& ct) { return spotifyLyrics(api, id, ct); };
+        q.fallback = [api, id = t.id, lang = lyricsTranslationTarget()](const YoutubeExplode::CancellationToken& ct) {
+            return spotifyLyrics(api, id, lang, ct);
+        };
     }
     return q;
 }
@@ -129,6 +134,156 @@ std::wstring lyricsSourceLabel(const std::string& source) {
     if (source == lyrics::kSourceFile) return toUpperTr(tr(L".lrc dosyası"));
     if (source == lyrics::kSourceTag) return toUpperTr(tr(L"Dosya etiketi"));
     return L"LRCLIB";
+}
+
+// ---- Translation -------------------------------------------------------------------------------------------------
+
+namespace {
+
+// The machine translator behind the lyrics translation: another lyrics::Translator plugs in here.
+std::unique_ptr<lyrics::Translator> makeTranslator() { return std::make_unique<lyrics::GoogleTranslator>(); }
+
+bool anyTranslatable(const lyrics::Lyrics& l) {
+    return !l.instrumental &&
+           std::any_of(l.lines.begin(), l.lines.end(), [](const lyrics::Line& x) { return lyrics::translatable(x.text); });
+}
+
+} // namespace
+
+std::string lyricsTranslationTarget() {
+    const std::string& to = Settings::get().lyricsTranslateTo;
+    return to.empty() ? std::string(i18n::code()) : to;
+}
+
+std::wstring lyricsTranslationLanguageName(const std::string& code) {
+    for (const auto& l : lyrics::targetLanguages())
+        if (code == l.code) return l.name;
+    return toWide(code);
+}
+
+bool LyricsTranslation::on() const { return Settings::get().lyricsTranslate; }
+
+const std::string& LyricsTranslation::line(size_t i) const {
+    static const std::string none;
+    return state_ == State::Ready && i < result_.lines.size() ? result_.lines[i] : none;
+}
+
+void LyricsTranslation::changed() {
+    if (onChange) onChange();
+}
+
+void LyricsTranslation::clear() {
+    life_.renew();
+    lyrics_.reset();
+    key_.clear();
+    result_ = {};
+    state_ = State::None;
+    on_ = on();
+}
+
+void LyricsTranslation::setLyrics(const lyrics::Lyrics& l, const std::string& trackKey) {
+    life_.renew();
+    result_ = {};
+    lyrics_ = std::make_shared<const lyrics::Lyrics>(l);   // the workers' copy
+    key_ = trackKey;
+    target_ = lyricsTranslationTarget();
+    on_ = on();
+    if (!anyTranslatable(l)) {
+        state_ = State::None;
+        changed();
+        return;
+    }
+    // Is it another language? A cached translation knows (and is shown at once), else the lyrics' source says, else
+    // Windows' detection guesses. Unknown: offered, the translator then tells.
+    state_ = State::Detecting;
+    struct Found {
+        bool offer = true;
+        std::optional<lyrics::Translation> ready;
+    };
+    async(Priority::Normal, life_.ref(),
+          [l = lyrics_, key = key_, target = target_] {
+              Found f;
+              if (auto cached = lyrics::cachedTranslation(*l, key, target)) {
+                  f.offer = !cached->sameLanguage;
+                  if (f.offer) f.ready = std::move(cached);
+                  return f;
+              }
+              const std::string lang = lyrics::detectLanguage(*l);
+              f.offer = lang.empty() || !lyrics::sameLanguage(lang, target);
+              return f;
+          },
+          [this](Result<Found> r) {
+              state_ = r && !r->offer ? State::None : State::Offered;
+              if (r && r->ready) {
+                  result_ = std::move(*r->ready);
+                  state_ = State::Ready;
+              }
+              if (state_ == State::Offered && on()) start();
+              else changed();
+          });
+}
+
+void LyricsTranslation::start() {
+    if (!lyrics_) return;
+    state_ = State::Loading;
+    changed();
+    async(Priority::Normal, life_.ref(),
+          [l = lyrics_, key = key_, target = target_] {
+              const auto translator = makeTranslator();
+              return lyrics::translate(*l, key, target, *translator);
+          },
+          [this](Result<std::optional<lyrics::Translation>> r) {
+              if (!r || !*r) {
+                  state_ = State::Failed;
+              } else if ((*r)->sameLanguage) {
+                  state_ = State::None;   // the translator saw the target language: nothing to offer (cached)
+              } else {
+                  result_ = std::move(**r);
+                  state_ = State::Ready;
+              }
+              changed();
+          });
+}
+
+void LyricsTranslation::sync() {
+    if (!lyrics_) return;
+    if (lyricsTranslationTarget() != target_) {   // another language picked in Ayarlar: start over
+        const auto l = lyrics_;
+        const std::string key = key_;
+        setLyrics(*l, key);
+        return;
+    }
+    const bool o = on();
+    if (o == on_) return;
+    on_ = o;
+    if (o && (state_ == State::Offered || state_ == State::Failed)) {
+        start();
+        return;
+    }
+    if (!o && state_ == State::Failed) state_ = State::Offered;
+    changed();
+}
+
+void LyricsTranslation::toggle() {
+    auto& s = Settings::get();
+    s.lyricsTranslate = !s.lyricsTranslate;
+    s.markDirty();
+    sync();
+}
+
+std::wstring LyricsTranslation::note() const {
+    if (!on()) return {};
+    switch (state_) {
+    case State::Loading: return toUpperTr(tr(L"Çevriliyor…"));
+    case State::Failed: return toUpperTr(tr(L"Çeviri alınamadı"));
+    case State::Ready: {
+        std::wstring s = toUpperTr(tr(L"Çeviri")) + L" · " + toUpperTr(lyricsTranslationLanguageName(result_.target));
+        if (result_.provider == lyrics::kTranslatorGoogle) s += L" · GOOGLE";
+        else if (result_.provider == lyrics::kSourceSpotify) s += L" · SPOTIFY";
+        return s;
+    }
+    default: return {};
+    }
 }
 
 // ---- Downloads -------------------------------------------------------------------------------------------------

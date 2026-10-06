@@ -1,4 +1,5 @@
 // Settings page and the page factory.
+#include "app/LyricsService.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Scrobbler.h"
@@ -207,6 +208,7 @@ private:
                       L"tam ekran söz görünümünde gösterilir."),
                    s.lyricsEnabled,
                    [](bool v) { Settings::get().lyricsEnabled = v; });
+            buildLyricsTranslationRow(c);
             toggle(c, tr(L"Müzik dışı bölümleri atla"),
                    tr(L"SponsorBlock topluluk verisiyle müzik videolarındaki konuşma, sponsor ve tanıtım bölümleri "
                       L"çalarken otomatik atlanır, MP3 indirmelerde ise dosyadan kesilir. Hangi videoyu dinlediğin "
@@ -514,6 +516,41 @@ private:
 
     // "Dil": a menu of the UI languages ("" = Windows' display language). The running language never changes; when
     // the choice differs from it, a second row offers "Yeniden başlat".
+    // The language of the lyrics translation ("Çeviri" in Now Playing and the full-screen lyrics). Applies at once:
+    // the lyrics views follow it as they paint.
+    void buildLyricsTranslationRow(ui::Column* c) {
+        const std::string chosen = Settings::get().lyricsTranslateTo;
+        auto* row = c->add<SettingRow>(
+            tr(L"Söz çevirisi dili"),
+            tr(L"Şarkı sözlerindeki Çeviri düğmesi her satırın bu dildeki çevirisini altında gösterir; sözler zaten bu "
+               L"dildeyse düğme görünmez. Spotify'ın kendi çevirisi varsa o, yoksa Google Çeviri kullanılır."));
+        auto* pick = row->control<Button>(200.f, ButtonKind::Secondary,
+                                          chosen.empty() ? tr(L"Arayüz dili") : lyricsTranslationLanguageName(chosen),
+                                          "chevron-down");
+        pick->onClick = [this, pick] {
+            const std::string cur = Settings::get().lyricsTranslateTo;
+            auto choose = [this](std::string code) {
+                return [this, code] {
+                    Settings::get().lyricsTranslateTo = code;
+                    Settings::get().markDirty();
+                    rebuilder()();
+                };
+            };
+            std::vector<ui::MenuItem> items;
+            ui::MenuItem follow{tr(L"Arayüz dili"), "settings", L"", choose("")};
+            follow.checked = cur.empty();
+            items.push_back(std::move(follow));
+            items.push_back(ui::MenuItem::sep());
+            for (const auto& l : lyrics::targetLanguages()) {
+                ui::MenuItem it{l.name, "", L"", choose(l.code)};
+                it.checked = cur == l.code;
+                items.push_back(std::move(it));
+            }
+            const gfx::Rect r = pick->toWindow(pick->rect());
+            ui::Menu::open(ctx().window, {r.x, r.bottom() + 4}, std::move(items));
+        };
+    }
+
     void buildLanguageRow(ui::Column* c) {
         const std::string chosen = Settings::get().language;
         const i18n::Language& target = i18n::resolve(chosen);
