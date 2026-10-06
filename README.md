@@ -76,7 +76,7 @@ starts instantly and stays light.
 - 🔗 **Scrobbling & presence** — Last.fm, ListenBrainz and Discord "Listening to" (optional).
 - 📋 **Paste a link** — a Spotify, YouTube or MusicBrainz link in Search (or Ctrl+V anywhere) opens the album,
   playlist or artist, or plays the song or video.
-- 🛟 **Backup audio source** — Piped or Invidious when YouTube itself fails (off by default).
+- 🛟 **Backup audio source** — Piped / Invidious servers, then SoundCloud, when YouTube itself fails (off by default).
 - 🌍 **11 languages** — Türkçe, English, Deutsch, Español, Français, Português (BR), Русский, Українська,
   Bahasa Indonesia, 日本語, 한국어.
 - ⚡ **Light and self-updating** — a single ~8 MB exe that runs without installing; one click installs it for your
@@ -143,7 +143,7 @@ lacks), YouTube (audio), LRCLIB (lyrics), SponsorBlock (segments, queried by has
 revealed), MusicBrainz / Cover Art Archive / ListenBrainz (open catalog) and GitHub (update checks). Podcasts use
 Apple's podcast directory (search and charts) and each show's own feed and audio host, only when you open them;
 internet radio uses radio-browser.info and the stations themselves. Last.fm, ListenBrainz scrobbling, Discord and
-Piped / Invidious are used only if you turn them on.
+Piped / Invidious / SoundCloud are used only if you turn them on.
 
 ## 🛠 Build from source
 

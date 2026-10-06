@@ -72,6 +72,12 @@ public:
                                                       const CancellationToken& ct = {}) const {
         return videos_.streams().getManifest(videoId, ct);
     }
+    /// Starts a new anonymous YouTube session: forgets the visitor data and every cookie YouTube set (the consent
+    /// cookie and the initial cookies stay). YouTube runs its playback experiments per session; when the stream URLs
+    /// of one session are refused (HTTP 403) while a fresh session gets working ones, this is the remedy. Shared by
+    /// all copies of this client; thread-safe.
+    void resetSession() const;
+
     /// Same as search().getVideos(query, maxCount).
     std::vector<Search::VideoSearchResult> searchVideos(const std::string& query, std::size_t maxCount = 20,
                                                         const CancellationToken& ct = {}) const {

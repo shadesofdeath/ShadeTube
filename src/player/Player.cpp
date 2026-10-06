@@ -772,12 +772,7 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
     async(
         Priority::High, life_.ref(),
         [matcher, track, webm, low, token, bypassStreamCache]() -> youtube::Resolved {
-            if (bypassStreamCache) {
-                if (auto m = matcher->cachedMatch(track.id)) {
-                    return {*m, matcher->stream(m->videoId, webm, low, true, token)};
-                }
-            }
-            return matcher->resolve(track, webm, low, token);
+            return matcher->resolveForPlayback(track, webm, low, bypassStreamCache, token);
         },
         [this, tag, startMs, autoplay, track](Result<youtube::Resolved> r) {
             if (tag != currentTag_) return;   // superseded
@@ -839,7 +834,7 @@ void Player::maybePrefetch() {
     const uint64_t forTag = currentTag_;
     const int forPos = pos_;
     async(
-        Priority::Low, life_.ref(), [matcher, track, webm, low, token] { return matcher->resolve(track, webm, low, token); },
+        Priority::Low, life_.ref(), [matcher, track, webm, low, token] { return matcher->resolveForPlayback(track, webm, low, false, token); },
         [this, tag, nextPos, track, forTag, forPos](Result<youtube::Resolved> r) {
             if (prefetchTag_ != tag) return;
             prefetchTag_ = 0;

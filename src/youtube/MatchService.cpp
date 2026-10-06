@@ -1,5 +1,6 @@
 #include "youtube/MatchService.h"
 
+#include "core/Http.h"
 #include "core/Log.h"
 #include "core/Paths.h"
 #include "core/Settings.h"
@@ -74,12 +75,49 @@ bool isRateLimit(const std::exception& e) {
     return dynamic_cast<const yte::Exceptions::RequestLimitExceededException*>(&e) != nullptr;
 }
 
+// A new YouTube session at most this often: a refused URL from a session this young is not the session's fault.
+constexpr auto kSessionMinAge = std::chrono::seconds(20);
+// SoundCloud's signed CDN URLs are short-lived.
+constexpr auto kSoundCloudTtl = std::chrono::minutes(30);
+
+// googlevideo URLs name the innertube client they were issued to: `&c=VISIONOS`.
+std::string clientOf(const std::string& url) {
+    auto p = url.find("&c=");
+    if (p == std::string::npos) p = url.find("?c=");
+    if (p == std::string::npos) return "?";
+    p += 3;
+    return url.substr(p, url.find('&', p) - p);
+}
+
+bool refused(int status) { return status == 403 || status == 404 || status == 410; }
+
+// The engine's first request, made here first: 1 KB from the middle of the stream with googlevideo's `range`
+// parameter (YouTube's enforcement has been seen refusing the very first request of a URL as well as only the ranges
+// past its first MB). 0 = could not tell (network trouble): the engine gets the URL anyway and retries on its own.
+int probeYoutubeUrl(const std::string& url, int64_t length, const CT& ct) {
+    const int64_t at = length > 8192 ? length / 2 : 0;
+    http::Limits limits;
+    limits.maxBytes = 64 * 1024;
+    limits.timeout = std::chrono::seconds(6);
+    try {
+        return http::getLimited(std::format("{}{}range={}-{}", url, url.find('?') == std::string::npos ? "?" : "&", at, at + 1023), limits, ct)
+            .statusCode;
+    } catch (const yte::Exceptions::OperationCanceledException&) {
+        throw;
+    } catch (const std::exception& e) {
+        ST_LOG_WARN("youtube", "stream URL check failed ({}): handing it to the engine anyway", e.what());
+        return 0;
+    }
+}
+
 } // namespace
 
 MatchService::MatchService(yte::YoutubeClient client) : client_(std::move(client)) {
     load();
     const auto& s = Settings::get();
+    alt_.setHealthFile(paths::cacheDir() / L"altsource-health.json");
     setAltSource(s.altSource, s.altSourceInstance);
+    soundCloudOn_ = s.altSoundCloud;
     if (const char* force = std::getenv("SHADETUBE_FORCE_ALT"); force && force[0] == '1') {
         forceAlt_ = true;
         ST_LOG_WARN("youtube", "SHADETUBE_FORCE_ALT: YoutubeExplode is bypassed while a backup source is set");
@@ -172,6 +210,7 @@ StreamInfo MatchService::stream(const std::string& videoId, bool allowWebm, bool
     const auto now = std::chrono::system_clock::now();
     const bool altOn = alt_.enabled();
     bool youtubeFailed = false;
+    std::chrono::system_clock::time_point failedFetched{};
     {
         std::lock_guard lock(mutex_);
         if (auto it = streams_.find(key); it != streams_.end()) {
@@ -179,15 +218,19 @@ StreamInfo MatchService::stream(const std::string& videoId, bool allowWebm, bool
             const bool usable = it->second.source == "youtube" || altOn;
             if (!bypassCache && usable && it->second.expires > now) return it->second;
             youtubeFailed = bypassCache && it->second.source == "youtube" && now - it->second.fetched < kFreshStream;
+            failedFetched = it->second.fetched;
         }
     }
+    // A fresh YouTube URL that failed in the engine: most likely this session's URLs are refused. A new session first;
+    // when the URL already came from a brand-new one, the backup goes first (YouTube is asked again after it).
+    const bool renewed = youtubeFailed && renewYoutubeSession(failedFetched, "a fresh stream of " + videoId + " failed in the engine");
 
     StreamInfo info;
     uint64_t altGeneration = 0;   // the backup configuration a backup stream was fetched under
     if (altOn && (forceAlt_ || youtubeLimited())) {
         info = altStream(videoId, allowWebm, lowQuality, ct, altGeneration);   // test switch / YouTube rate-limited us
-    } else if (altOn && youtubeFailed) {
-        ST_LOG_WARN("youtube", "YouTube stream for {} failed during playback: asking {} first", videoId, alt_.label());
+    } else if (altOn && youtubeFailed && !renewed) {
+        ST_LOG_WARN("youtube", "YouTube stream for {} failed during playback: asking the backup servers first", videoId);
         try {
             info = altStream(videoId, allowWebm, lowQuality, ct, altGeneration);
         } catch (const yte::Exceptions::OperationCanceledException&) {
@@ -250,7 +293,37 @@ StreamInfo MatchService::altStream(const std::string& videoId, bool allowWebm, b
     return info;
 }
 
+bool MatchService::renewYoutubeSession(std::chrono::system_clock::time_point failedAt, const std::string& why) {
+    std::lock_guard lock(sessionMutex_);
+    const auto now = std::chrono::system_clock::now();
+    if (sessionStarted_ > failedAt) return true;             // another request already started a newer one
+    if (now - sessionStarted_ < kSessionMinAge) return false;   // the failed URL is from a session this young
+    client_.resetSession();
+    sessionStarted_ = now;
+    ST_LOG_WARN("youtube", "{}: new YouTube session (fresh visitor data and cookies)", why);
+    return true;
+}
+
 StreamInfo MatchService::youtubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct) {
+    for (int attempt = 0;; ++attempt) {
+        StreamInfo info = pickYoutubeStream(videoId, allowWebm, lowQuality, ct);
+        const int status = urlCheck_ ? urlCheck_(info.url, info.contentLength) : probeYoutubeUrl(info.url, info.contentLength, ct);
+        if (!refused(status)) {
+            ST_LOG_INFO("youtube", "stream {} served by youtube ({}): {} {} {} kbps, itag {}, loudness {}", videoId, clientOf(info.url),
+                        info.mimeType, info.codec, info.bitrateKbps, info.itag,
+                        info.loudnessDb ? std::format("{:+.1f} dB", *info.loudnessDb) : std::string("unknown"));
+            return info;
+        }
+        const std::string why = std::format("YouTube refused the stream URL of {} (HTTP {}, itag {}, client {})", videoId, status,
+                                            info.itag, clientOf(info.url));
+        if (attempt == 0 && renewYoutubeSession(info.fetched, why)) continue;
+        ST_LOG_WARN("youtube", "{}, also in a new session", why);
+        throw StreamRefusedError(why);
+    }
+}
+
+StreamInfo MatchService::pickYoutubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct) {
+    const auto started = std::chrono::system_clock::now();   // the session this manifest belongs to was current then
     const auto manifest = client_.videos().streams().getManifest(videoId, ct);
     std::shared_ptr<const yte::Videos::Streams::IAudioStreamInfo> best;
 
@@ -286,11 +359,54 @@ StreamInfo MatchService::youtubeStream(const std::string& videoId, bool allowWeb
     info.loudnessDb = best->loudnessDb();
     info.expires = urlExpiry(info.url);
     info.source = "youtube";
-    info.fetched = std::chrono::system_clock::now();
-    ST_LOG_INFO("youtube", "stream {} served by youtube: {} {} {} kbps, itag {}, loudness {}", videoId, info.mimeType,
-                info.codec, info.bitrateKbps, info.itag,
-                info.loudnessDb ? std::format("{:+.1f} dB", *info.loudnessDb) : std::string("unknown"));
+    info.fetched = started;
     return info;
+}
+
+Resolved MatchService::resolveForPlayback(const catalog::Track& track, bool allowWebm, bool lowQuality, bool refresh, const CT& ct) {
+    Resolved r;
+    try {
+        const auto cached = refresh ? cachedMatch(track.id) : std::nullopt;
+        r = cached ? Resolved{*cached, stream(cached->videoId, allowWebm, lowQuality, true, ct)} : resolve(track, allowWebm, lowQuality, ct);
+    } catch (const yte::Exceptions::OperationCanceledException&) {
+        throw;
+    } catch (const std::exception& e) {
+        if (!alt_.enabled() || !soundCloudOn_ || track.durationMs <= 0) throw;
+        ST_LOG_WARN("youtube", "\"{}\" has no playable YouTube stream ({}): trying SoundCloud", track.name, e.what());
+        const auto original = std::current_exception();
+        try {
+            r = soundCloud(track, ct);
+        } catch (const yte::Exceptions::OperationCanceledException&) {
+            throw;
+        } catch (const std::exception& scError) {
+            ST_LOG_WARN("soundcloud", "\"{}\": {}", track.name, scError.what());
+            std::rethrow_exception(original);
+        }
+    }
+    ST_LOG_INFO("youtube", "\"{}\" plays from {}{}", track.name, r.stream.source,
+                r.match.videoId.empty() ? std::string{} : " (video " + r.match.videoId + ")");
+    return r;
+}
+
+Resolved MatchService::soundCloud(const catalog::Track& track, const CT& ct) {
+    const yte::Music::TrackMatcher ranker(client_);
+    const auto served = soundCloud_.find(track, ranker, ct);
+    const auto now = std::chrono::system_clock::now();
+    Resolved r;
+    r.match.title = served.track.title;
+    r.match.channel = served.track.user;
+    r.match.durationSec = served.track.durationMs / 1000;
+    r.stream.url = served.stream.url;
+    r.stream.contentLength = served.stream.contentLength;
+    r.stream.mimeType = served.stream.mimeType;
+    r.stream.codec = served.stream.codec;
+    r.stream.bitrateKbps = served.stream.bitrate / 1000;
+    r.stream.expires = now + kSoundCloudTtl;
+    r.stream.source = "soundcloud";
+    r.stream.fetched = now;
+    ST_LOG_INFO("soundcloud", "\"{}\" served by soundcloud: \"{}\" by {} ({}), mp3 {} kbps, this play only", track.name,
+                served.track.title, served.track.user, served.track.permalink, r.stream.bitrateKbps);
+    return r;
 }
 
 Resolved MatchService::resolve(const catalog::Track& track, bool allowWebm, bool lowQuality, const CT& ct) {
@@ -360,7 +476,8 @@ Resolved MatchService::resolve(const catalog::Track& track, bool allowWebm, bool
                 matches_[track.id] = m;
                 dirty_ = true;
             }
-            ST_LOG_INFO("youtube", "matched \"{}\" -> {} ({:.0f}){}", track.name, m.videoId, m.score, persist ? "" : ", this play only");
+            ST_LOG_INFO("youtube", "matched \"{}\" -> {} ({:.0f}) via {}{}", track.name, m.videoId, m.score, s.source,
+                        persist ? "" : ", this play only");
             return {std::move(m), std::move(s)};
         } catch (const yte::Exceptions::OperationCanceledException&) {
             throw;

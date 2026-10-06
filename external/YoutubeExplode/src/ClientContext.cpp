@@ -54,6 +54,17 @@ ClientContext::ClientContext(YoutubeClientOptions options) : options_(std::move(
                        cookies_.end());
         cookies_.push_back({c.name, c.value, domain, false, c.path.empty() ? "/" : c.path});
     }
+    initialCookies_ = cookies_;
+}
+
+void ClientContext::resetSession() {
+    {
+        std::lock_guard<std::mutex> lock(cookiesMutex_);
+        cookies_ = initialCookies_;
+    }
+    std::lock_guard<std::mutex> lock(cacheMutex_);
+    visitorData_.reset();
+    visitorDataResolved_ = false;
 }
 
 std::string ClientContext::cookieHeaderFor(const std::string& host, const std::string& path) {

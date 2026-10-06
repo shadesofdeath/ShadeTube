@@ -73,7 +73,7 @@ kalır.
 - 🔗 **Scrobble ve durum** — Last.fm, ListenBrainz ve Discord'da "dinliyor" (isteğe bağlı).
 - 📋 **Bağlantı yapıştır** — Ara'ya (ya da her yerde Ctrl+V ile) yapıştırdığın Spotify, YouTube veya MusicBrainz
   bağlantısı albümü, listeyi ya da sanatçıyı açar; şarkıyı veya videoyu çalar.
-- 🛟 **Yedek ses kaynağı** — YouTube çalışmazsa Piped ya da Invidious (varsayılan olarak kapalı).
+- 🛟 **Yedek ses kaynağı** — YouTube çalışmazsa Piped / Invidious sunucuları, sonra SoundCloud (varsayılan olarak kapalı).
 - 🌍 **11 dil** — Türkçe, English, Deutsch, Español, Français, Português (BR), Русский, Українська,
   Bahasa Indonesia, 日本語, 한국어.
 - ⚡ **Hafif ve kendini güncelleyen** — kurmadan çalışan yaklaşık 8 MB'lık tek bir exe; istersen tek tıkla kurulur
@@ -139,7 +139,7 @@ olmayan sözler), YouTube (ses), LRCLIB (sözler), SponsorBlock (bölümler; vid
 sorulur), MusicBrainz / Cover Art Archive / ListenBrainz (açık katalog) ve GitHub (güncelleme denetimi). Podcastler,
 Apple'ın podcast dizinini (arama ve listeler) ve her programın kendi besleme ve ses sunucusunu yalnızca sen açınca
 kullanır; internet radyosu radio-browser.info'yu ve istasyonların kendisini kullanır. Last.fm, ListenBrainz scrobble,
-Discord ve Piped / Invidious yalnızca sen açarsan kullanılır.
+Discord ve Piped / Invidious / SoundCloud yalnızca sen açarsan kullanılır.
 
 ## 🛠 Kaynaktan derleme
 

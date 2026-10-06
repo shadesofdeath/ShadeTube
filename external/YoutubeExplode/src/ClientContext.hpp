@@ -39,6 +39,9 @@ public:
     /// Visitor data identifier (cached for the lifetime of the client).
     std::optional<std::string> visitorData(const CancellationToken& cancellationToken);
 
+    /// Drops the cached visitor data and the cookies YouTube set (keeps the consent and the initial cookies).
+    void resetSession();
+
     /// Current player JavaScript (cached; the player version is resolved from /iframe_api).
     std::shared_ptr<const PlayerSource> playerSource(const CancellationToken& cancellationToken);
 
@@ -64,6 +67,7 @@ private:
 
     std::mutex cookiesMutex_;
     std::vector<StoredCookie> cookies_;
+    std::vector<StoredCookie> initialCookies_;  // consent + options.initialCookies: what resetSession() returns to
 
     std::mutex cacheMutex_;
     std::optional<std::string> visitorData_;

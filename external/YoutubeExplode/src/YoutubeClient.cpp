@@ -24,4 +24,6 @@ YoutubeClient::YoutubeClient(std::shared_ptr<Http::IHttpClient> httpClient)
           return options;
       }()) {}
 
+void YoutubeClient::resetSession() const { context_->resetSession(); }
+
 } // namespace YoutubeExplode
