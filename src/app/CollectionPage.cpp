@@ -116,12 +116,14 @@ public:
         sortLabelX_ = r.w - 32 - 8 - sortW - 8;
     }
 
+    // Navigate on release: navigating replaces this page, and the window still touches the pressed widget after
+    // onMouseDown returns.
     bool onMouseDown(const ui::MouseEvent& e) override {
-        if (ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty()) {
+        return e.button == ui::MouseButton::Left && ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty();
+    }
+    void onMouseUp(const ui::MouseEvent& e) override {
+        if (ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty())
             ctx().router->navigate({RouteKind::Artist, meta_.ownerArtistId});
-            return true;
-        }
-        return false;
     }
     void onMouseMove(const ui::MouseEvent& e) override {
         const bool h = ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty();
