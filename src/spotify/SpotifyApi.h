@@ -22,7 +22,24 @@ using namespace st::catalog;
 
 struct ApiError : std::runtime_error {
     int status = 0;
-    explicit ApiError(int s, const std::string& what) : std::runtime_error(what), status(s) {}
+    int retryAfterSec = 0;   // HTTP 429: the server's Retry-After (seconds; 0 = it sent none)
+    explicit ApiError(int s, const std::string& what, int retryAfter = 0)
+        : std::runtime_error(what), status(s), retryAfterSec(retryAfter) {}
+};
+
+// Retry-After header value -> seconds (the delta-seconds form; an HTTP date or garbage gives 0). Capped at a day.
+int parseRetryAfter(std::string_view value);
+
+// What one person the user follows is listening to (Spotify's buddy list, the desktop client's "Friend Activity").
+struct FriendActivity {
+    std::string userUri;       // spotify:user:<name>
+    std::string userName;      // display name
+    std::string imageUrl;      // avatar ("" when they have none)
+    Track track;               // id = spotify:track: (or spotify:episode:) URI, one artist, album {uri, name, cover}
+    std::string contextUri;    // what it plays from: spotify:playlist: / album: / artist: ... ("" = unknown); the
+                               // legacy spotify:user:<u>:playlist:<id> form is normalized to spotify:playlist:<id>
+    std::string contextName;
+    int64_t timestampMs = 0;   // when the track started (unix ms)
 };
 
 struct UserProfile {
@@ -112,6 +129,25 @@ public:
     // Spotify's lyrics for a track (the web player's color-lyrics service: Musixmatch and other providers), as the raw
     // JSON body for lyrics::parseSpotify(). "" when Spotify has none (404). Throws ApiError otherwise (401 / 403 / 429).
     std::string trackLyrics(const std::string& trackId, const CT& ct = {});
+
+    // ---- Social (spotify/Social.cpp) ------------------------------------------------------------------------
+    // Friend activity: the people the user follows and what they play now / played last (spclient presence-view
+    // buddylist), newest first. Throws ApiError (a 429 carries Retry-After).
+    std::vector<FriendActivity> friendActivity(const CT& ct = {});
+    // The buddylist JSON {"friends":[{timestamp, user:{uri,name,imageUrl}, track:{uri,name,imageUrl,album,artist,
+    // context}}]} -> entries, newest first. Entries without a user or a track are dropped.
+    static std::vector<FriendActivity> parseBuddylist(const nlohmann::json& j);
+
+    // New releases of the artists the user follows: Spotify's "What's New" feed (queryWhatsNewFeed, music only), as
+    // the feed orders them. Albums carry primaryType "Album" / "Single" / "EP" / "Compilation" (the release type, or a
+    // guess from the track count when the feed has none) and firstReleaseDate "YYYY-MM-DD". Throws ApiError.
+    std::vector<Album> whatsNewReleases(int limit = 50, const CT& ct = {});
+    static std::vector<Album> parseWhatsNewFeed(const nlohmann::json& data);
+    // An artist's most recent releases from its overview (queryArtistOverview discography: the latest release and the
+    // newest album / single), deduplicated. Used when the feed is unavailable and for artists the user plays but
+    // doesn't follow. Releases without an artist list are credited to the artist. Throws ApiError.
+    std::vector<Album> artistLatestReleases(const std::string& artistUri, const CT& ct = {});
+    static std::vector<Album> parseArtistReleases(const nlohmann::json& data);
 
     static constexpr const char* kLikedSongsUri = "spotify:collection:tracks";
 

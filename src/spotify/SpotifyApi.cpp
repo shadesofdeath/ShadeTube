@@ -289,7 +289,8 @@ json Api::query(const std::string& operationName, const json& variables, const C
         }
         if (gqlErrors)
             throw ApiError(resp.statusCode, "Spotify " + operationName + ": " + str(at(j, "errors")[0], "message"));
-        throw ApiError(resp.statusCode, "Spotify " + operationName + " HTTP " + std::to_string(resp.statusCode));
+        throw ApiError(resp.statusCode, "Spotify " + operationName + " HTTP " + std::to_string(resp.statusCode),
+                       parseRetryAfter(resp.header("Retry-After").value_or("")));
     }
 }
 
@@ -411,7 +412,8 @@ json Api::spclient(const char* method, const std::string& url, const json* body,
         if (resp.statusCode != quietStatus)
             ST_LOG_WARN("spotify", "spclient {} HTTP {} body={}", where, resp.statusCode,
                         resp.body.substr(0, std::min<size_t>(resp.body.size(), 500)));
-        throw ApiError(resp.statusCode, "Spotify " + where + " HTTP " + std::to_string(resp.statusCode));
+        throw ApiError(resp.statusCode, "Spotify " + where + " HTTP " + std::to_string(resp.statusCode),
+                       parseRetryAfter(resp.header("Retry-After").value_or("")));
     }
     if (resp.body.empty()) return json();
     auto j = json::parse(resp.body, nullptr, false);

@@ -45,6 +45,9 @@ const std::vector<std::pair<const char*, const char*>> kBuiltins = {
     {"removeFromLibrary", "1ad0d40b3c09660d818b9e770eb1e84745dfbe941df159a64f8772b6fa2bfc3a"},
     {"addToPlaylist", "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"},
     {"removeFromPlaylist", "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"},
+    // The "What's New" feed (new releases of followed artists; web-player.c039845d.js, 2026-10-06). One document
+    // with its badge query (whatsNewFeedNewItems) and the seen-state mutation.
+    {"queryWhatsNewFeed", "d889c8c936ab192af8ced595427f5ba2acdf63478fdc0a181c8d477f8322630e"},
 };
 
 bool isHex64(std::string_view s) {

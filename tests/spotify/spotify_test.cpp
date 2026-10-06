@@ -1,7 +1,8 @@
 // spotify_test: offline verification of the TOTP core (base32 + RFC 6238 vectors) plus an optional live run
 // against Spotify using an sp_dc cookie supplied via the environment.
 //
-//   spotify_test                   offline checks (TOTP + base32 vectors, home parser and rootlist folder fixtures), then the full
+//   spotify_test                   offline checks (TOTP + base32 vectors, home / buddylist / new-releases parsers and rootlist
+//                                  folder fixtures), then the full
 //                                  live run when a sp_dc is available (SHADETUBE_SPDC or the app's saved cookie)
 //   spotify_test offline           offline checks only (no network besides the nuance gist)
 //   spotify_test home [dump.json]  offline checks + ONLY token + the personalized home feed (use this while
@@ -127,6 +128,101 @@ static const char* kindName(CardItem::Kind k) {
     case CardItem::Kind::Playlist: return "playlist";
     }
     return "?";
+}
+
+#ifdef SPOTIFY_FIXTURE_DIR
+static nlohmann::json loadFixture(const char* name) {
+    std::ifstream f(std::string(SPOTIFY_FIXTURE_DIR) + "/" + name, std::ios::binary);
+    if (!f) {
+        std::printf("  FAIL fixture missing: %s\n", name);
+        ++g_failures;
+        return {};
+    }
+    return nlohmann::json::parse(f, nullptr, false);
+}
+#endif
+
+// Offline: friend activity (buddylist) — the shape spotify-buddylist documents plus edge cases: legacy
+// spotify:user:<u>:playlist: contexts, a user without a name, a missing context, an entry without a track.
+static void testBuddylistFixture() {
+    std::printf("buddylist parser (fixture):\n");
+#ifdef SPOTIFY_FIXTURE_DIR
+    const auto j = loadFixture("buddylist.json");
+    const auto list = Api::parseBuddylist(j);
+    for (const auto& a : list)
+        std::printf("  %lld %s | %s - %s | %s (%s)\n", static_cast<long long>(a.timestampMs), a.userName.c_str(),
+                    a.track.name.c_str(), a.track.artistLine().c_str(), a.contextName.c_str(), a.contextUri.c_str());
+    CHECK(list.size() == 3);   // the entry without a track is dropped
+    if (list.size() == 3) {
+        // Newest first.
+        CHECK(list[0].userName == "Elif Yılmaz" && list[1].userName == "shaktirockgym" && list[2].userName == "noname");
+        CHECK(list[0].timestampMs == 1600780000000LL);
+        CHECK(list[0].imageUrl == "https://i.scdn.co/image/ab6775700000ee8555c25988a6ac314394d3fbf5");
+        CHECK(list[0].contextUri == "spotify:album:4yP0hdKOZPNshxUOjY0cZj" && list[0].contextName == "After Hours");
+        CHECK(list[0].track.id == "spotify:track:0VjIjW4GlUZAMYd2vXMi3b");
+        CHECK(list[0].track.artists.size() == 1 && list[0].track.artists[0].id == "spotify:artist:1Xyo4u8uXC1ZmMpatF05PJ");
+        // Legacy playlist URI normalized; http cover upgraded to https.
+        CHECK(list[1].contextUri == "spotify:playlist:37i9dQZF1E4riV8HyBkA7r");
+        CHECK(list[1].imageUrl.empty());
+        CHECK(list[1].track.album.id == "spotify:album:1XORY4rQNhqkZxTze6Px90");
+        CHECK(list[1].track.album.images.size() == 1 &&
+              list[1].track.album.images[0].url == "https://i.scdn.co/image/ab67616d0000b273bf4b533ee6e9634a6fcd8882");
+        // No display name: the username; no context.
+        CHECK(list[2].userName == "noname" && list[2].contextUri.empty() && list[2].track.album.images.empty());
+    }
+    CHECK(Api::parseBuddylist(nlohmann::json::object()).empty());
+    CHECK(Api::parseBuddylist(nlohmann::json::parse(R"({"friends":[]})")).empty());
+    CHECK(Api::parseBuddylist(nlohmann::json::parse(R"({"friends":{"x":1}})")).empty());
+#else
+    std::printf("  skipped (SPOTIFY_FIXTURE_DIR not defined)\n");
+#endif
+}
+
+// Offline: the What's New feed (music) and the artist overview's latest releases.
+static void testReleasesFixtures() {
+    std::printf("new releases parsers (fixtures):\n");
+#ifdef SPOTIFY_FIXTURE_DIR
+    const auto feed = loadFixture("whatsnew.json");
+    const auto albums = Api::parseWhatsNewFeed(feed.is_object() && feed.contains("data") ? feed["data"] : feed);
+    for (const auto& a : albums)
+        std::printf("  %s | %s | %s | %s | %zu artist(s) | %zu img\n", a.id.c_str(), a.name.c_str(), a.primaryType.c_str(),
+                    a.firstReleaseDate.c_str(), a.artists.size(), a.images.size());
+    // The episode, the NotFound entry, the duplicate and the one without a URI are dropped.
+    CHECK(albums.size() == 3);
+    if (albums.size() == 3) {
+        CHECK(albums[0].name == "Gece Yarısı" && albums[0].primaryType == "Single" && albums[0].firstReleaseDate == "2026-10-02");
+        CHECK(albums[0].artists.size() == 1 && albums[0].artists[0].name == "Sezen Aksu");
+        CHECK(albums[0].images.size() == 2);
+        // No type: five tracks make an EP.
+        CHECK(albums[1].id == "spotify:album:6dVIqQ8qmQ5GBnJ9shOYGE" && albums[1].primaryType == "EP" &&
+              albums[1].totalTracks == 5 && albums[1].artists.size() == 2);
+        // {year, month, day} dates.
+        CHECK(albums[2].primaryType == "Album" && albums[2].firstReleaseDate == "2026-09-12" && albums[2].images.empty());
+    }
+    CHECK(Api::parseWhatsNewFeed(nlohmann::json::object()).empty());
+
+    const auto overview = loadFixture("artist_overview.json");
+    const auto latest = Api::parseArtistReleases(overview.is_object() && overview.contains("data") ? overview["data"] : overview);
+    for (const auto& a : latest)
+        std::printf("  latest: %s | %s | %s | %s\n", a.id.c_str(), a.name.c_str(), a.primaryType.c_str(), a.firstReleaseDate.c_str());
+    CHECK(latest.size() == 2);   // latest + the newest album (the newest single is the latest again)
+    if (latest.size() == 2) {
+        CHECK(latest[0].id == "spotify:album:2up3OPMp9Tb4dAKM2erWXQ" && latest[0].primaryType == "Single" &&
+              latest[0].firstReleaseDate == "2026-10-02" && latest[0].label == "Plak");
+        // Credited to the artist of the page.
+        CHECK(latest[0].artists.size() == 1 && latest[0].artists[0].id == "spotify:artist:3BMsK5vWvBMbKu2N4oKnBq");
+        CHECK(latest[1].name == "Eski Albüm" && latest[1].firstReleaseDate == "2024-05" && latest[1].primaryType == "Album");
+    }
+
+    CHECK(parseRetryAfter("120") == 120);
+    CHECK(parseRetryAfter(" 7 ") == 7);
+    CHECK(parseRetryAfter("") == 0);
+    CHECK(parseRetryAfter("Wed, 21 Oct 2026 07:28:00 GMT") == 0);
+    CHECK(parseRetryAfter("999999") == 86400);
+    CHECK(parseRetryAfter("-5") == 0);
+#else
+    std::printf("  skipped (SPOTIFY_FIXTURE_DIR not defined)\n");
+#endif
 }
 
 // Offline: the home parser against a synthetic fixture that mirrors the live response shape
@@ -937,6 +1033,8 @@ int main(int argc, char** argv) {
     testBase32();
     testTotp();
     testHomeFixture();
+    testBuddylistFixture();
+    testReleasesFixtures();
     testPlaylistTree();
     testHashExtractor();
     testHashRegistryOffline();
