@@ -392,6 +392,7 @@ void Window::forget(Widget* w) {
         if (contains(s.previous)) s.previous = nullptr;
     std::erase_if(savedFocus_, [&](const SavedFocus& s) { return s.overlay == w; });
     if (contains(pendingOverlayFocus_)) pendingOverlayFocus_ = nullptr;
+    if (contains(pressing_)) pressing_ = nullptr;
     if (contains(tipWidget_)) {
         tipWidget_ = nullptr;
         tipText_.clear();
@@ -754,7 +755,15 @@ void Window::onMouseMessage(UINT msg, WPARAM wp, LPARAM lp) {
             if (!w->enabled_) continue;
             MouseEvent e = makeEvent(w, p, b, wp);
             e.clicks = (msg == WM_LBUTTONDBLCLK || msg == WM_RBUTTONDBLCLK || msg == WM_MBUTTONDBLCLK) ? 2 : 1;
-            if (w->onMouseDown(e)) {
+            pressing_ = w;
+            const bool took = w->onMouseDown(e);
+            const bool gone = !pressing_;   // forget() ran: the handler replaced the page that held w
+            pressing_ = nullptr;
+            if (gone) {
+                handled = true;
+                break;   // w (and maybe its parents) are freed: touch nothing of them
+            }
+            if (took) {
                 handled = true;
                 capture_ = w;
                 w->pressed_ = true;

@@ -161,6 +161,7 @@ private:
 
     Widget* hover_ = nullptr;
     Widget* capture_ = nullptr;
+    Widget* pressing_ = nullptr;   // inside its onMouseDown; forget() clears it when the handler destroys it
     Widget* focus_ = nullptr;
 
     // Keyboard focus state
