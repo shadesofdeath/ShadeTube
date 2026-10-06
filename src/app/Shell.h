@@ -13,6 +13,7 @@ namespace st::app {
 
 class NowPlayingView;
 class ConnectScreen;
+class FriendPanel;
 
 // ---- Internet radio (defined in app/RadioPage.cpp) --------------------------------------------------------------
 // Shared by the Radyo page and the live displays (player bar, queue, Now Playing, mini player). A station plays as a
@@ -42,6 +43,7 @@ public:
 
 private:
     ui::Button *back_, *forward_, *collapse_;
+    ui::Button* friends_;   // "Arkadaş etkinliği" (only with a Spotify session)
     ui::Button *min_, *max_, *close_;
     bool nowPlaying_ = false;
 };
@@ -66,10 +68,12 @@ private:
     void setFolderOpen(const std::string& folderId, bool open);   // Settings::expandedFolders, then refresh()
     SidebarRow* rowAt(gfx::Point windowPos) const;
 
-    ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *podcasts_, *stats_, *settings_, *newPlaylist_;
+    ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *podcasts_, *releases_, *stats_, *settings_,
+        *newPlaylist_;   // releases_: "Yeni çıkanlar", only with a Spotify session
     ui::ScrollView* list_;
     ui::Column* listCol_;
     std::vector<std::pair<SidebarRow*, Route>> items_;   // folders: {Library, "folder:<id>"}
+    float listLabelY_ = 0;                               // the "Çalma listeleri" label (below the visible nav items)
     SidebarRow* dropRow_ = nullptr;                      // highlighted drop target
     SidebarRow* restingFolder_ = nullptr;                // closed folder under a drag, since restingSince_
     double restingSince_ = 0, lastScrollTick_ = 0;
@@ -163,6 +167,9 @@ public:
     bool nowPlaying() const { return nowPlaying_; }
     void setQueueOpen(bool on);
     bool queueOpen() const { return queueOpen_; }
+    // The friend activity panel takes the queue's place: opening one closes the other.
+    void setFriendsOpen(bool on);
+    bool friendsOpen() const { return friendsOpen_; }
     void setConnect(bool on);                     // full-window Spotify connect overlay
     bool connectMode() const { return connectMode_; }
 
@@ -171,6 +178,7 @@ public:
     PlayerBar* playerBar() const { return playerBar_; }
     PageHost* pageHost() const { return pageHost_; }
     QueuePanel* queuePanel() const { return queue_; }
+    FriendPanel* friendPanel() const { return friends_; }
     NowPlayingView* nowPlayingView() const { return nowPlayingView_; }
 
 private:
@@ -178,12 +186,14 @@ private:
     Sidebar* sidebar_;
     PageHost* pageHost_;
     QueuePanel* queue_;
+    FriendPanel* friends_;
     PlayerBar* playerBar_;
     NowPlayingView* nowPlayingView_;
     ConnectScreen* connect_ = nullptr;
-    bool nowPlaying_ = false, queueOpen_ = false, connectMode_ = false;
+    bool nowPlaying_ = false, queueOpen_ = false, friendsOpen_ = false, connectMode_ = false;
     bool npActive_ = false;   // Now Playing holds its resources (activate() ran, deactivate() not yet)
     ui::Anim npAnim_, queueAnim_;
+    Lifetime life_;
 };
 
 } // namespace st::app

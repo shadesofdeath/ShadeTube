@@ -1,0 +1,95 @@
+{
+  "data": {
+    "whatsNewFeedItems": {
+      "__typename": "WhatsNewFeedItems",
+      "items": [
+        {
+          "id": "item-1",
+          "state": {"state": "NEW"},
+          "content": {
+            "__typename": "AlbumResponseWrapper",
+            "data": {
+              "__typename": "Album",
+              "uri": "spotify:album:2up3OPMp9Tb4dAKM2erWXQ",
+              "name": "Gece Yarısı",
+              "type": "SINGLE",
+              "date": {"isoString": "2026-10-02T00:00:00Z", "precision": "DAY"},
+              "artists": {"items": [{"uri": "spotify:artist:3BMsK5vWvBMbKu2N4oKnBq", "profile": {"name": "Sezen Aksu"}}]},
+              "coverArt": {"sources": [
+                {"url": "https://i.scdn.co/image/ab67616d00001e02aaaa", "width": 300, "height": 300},
+                {"url": "https://i.scdn.co/image/ab67616d0000b273aaaa", "width": 640, "height": 640}
+              ]},
+              "tracks": {"totalCount": 1}
+            }
+          }
+        },
+        {
+          "id": "item-2",
+          "state": {"state": "SEEN"},
+          "content": {
+            "__typename": "EpisodeOrChapterResponseWrapper",
+            "data": {"__typename": "Episode", "uri": "spotify:episode:7makk4oTQel546B0PZlDM5", "name": "Bölüm 12"}
+          }
+        },
+        {
+          "id": "item-3",
+          "state": {"state": "NEW"},
+          "content": {
+            "__typename": "AlbumResponseWrapper",
+            "data": {
+              "__typename": "Album",
+              "uri": "spotify:album:6dVIqQ8qmQ5GBnJ9shOYGE",
+              "name": "Five Songs",
+              "date": {"isoString": "2026-09-26T00:00:00Z"},
+              "artists": {"items": [
+                {"uri": "spotify:artist:06HL4z0CvFAxyc27GXpf02", "profile": {"name": "Taylor Swift"}},
+                {"uri": "spotify:artist:1uNFoZAHBGtllmzznpCI3s", "profile": {"name": "Justin Bieber"}}
+              ]},
+              "coverArt": {"sources": [{"url": "https://i.scdn.co/image/ab67616d0000b273bbbb", "width": 640, "height": 640}]},
+              "tracksV2": {"totalCount": 5}
+            }
+          }
+        },
+        {
+          "id": "item-4",
+          "state": {"state": "NEW"},
+          "content": {
+            "__typename": "AlbumResponseWrapper",
+            "data": {
+              "__typename": "Album",
+              "uri": "spotify:album:6dVIqQ8qmQ5GBnJ9shOYGE",
+              "name": "Five Songs",
+              "date": {"isoString": "2026-09-26T00:00:00Z"}
+            }
+          }
+        },
+        {
+          "id": "item-5",
+          "content": {
+            "__typename": "AlbumResponseWrapper",
+            "data": {
+              "__typename": "Album",
+              "uri": "spotify:album:1ATL5GLyefJaxhQzSPVrLX",
+              "name": "Uzun Albüm",
+              "type": "ALBUM",
+              "date": {"year": 2026, "month": 9, "day": 12, "precision": "DAY"},
+              "artists": {"items": [{"uri": "spotify:artist:5abcdefghijklmnopqrstu", "profile": {"name": "Duman"}}]},
+              "coverArt": {"sources": []}
+            }
+          }
+        },
+        {
+          "id": "item-6",
+          "content": {"__typename": "AlbumResponseWrapper", "data": {"__typename": "NotFound"}}
+        },
+        {
+          "id": "item-7",
+          "content": {
+            "__typename": "AlbumResponseWrapper",
+            "data": {"__typename": "Album", "uri": "", "name": "No uri"}
+          }
+        }
+      ]
+    }
+  }
+}

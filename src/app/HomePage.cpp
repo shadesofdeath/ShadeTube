@@ -4,6 +4,7 @@
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/SmartListsPage.h"
+#include "app/Social.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -263,6 +264,10 @@ public:
         ShelfCache::instance().subscribe(life_.ref(), [this] {
             if (source::loggedIn()) buildSpotify();
         });
+        // ...and when new releases of followed artists come in (the shelf on top).
+        subscribeNewReleases(life_.ref(), [this] {
+            if (source::loggedIn()) buildSpotify();
+        });
         reload();
     }
 
@@ -300,6 +305,9 @@ private:
             meta += L" · " + i18n::plural(L"{} LİSTE", snap.playlists.size()) + L" · " +
                     toUpperTr(i18n::plural(L"{} albüm", snap.albums.size()));   // two counts: one plural each
         c->add<Greeting>(todayLabel(), meta);
+
+        // --- Yeni çıkanlar: new releases of followed artists from the last two weeks (when there are any).
+        addNewReleasesShelf(c);
 
         // --- Spotify's personalized shelves.
         if (haveShelves)

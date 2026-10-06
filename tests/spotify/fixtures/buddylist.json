@@ -1,0 +1,59 @@
+{
+  "friends": [
+    {
+      "timestamp": 1600773735000,
+      "user": {
+        "uri": "spotify:user:shaktirockgym",
+        "name": "shaktirockgym"
+      },
+      "track": {
+        "uri": "spotify:track:51xHvAUYQfhY29GcGlBM0n",
+        "name": "Piano Sonata No. 16 in C Major, K. 545 \"Sonata facile\": 1. Allegro",
+        "imageUrl": "http://i.scdn.co/image/ab67616d0000b273bf4b533ee6e9634a6fcd8882",
+        "album": {
+          "uri": "spotify:album:1XORY4rQNhqkZxTze6Px90",
+          "name": "Piano Book (Deluxe Edition)"
+        },
+        "artist": {
+          "uri": "spotify:artist:4NJhFmfw43RLBLjQvxDuRS",
+          "name": "Wolfgang Amadeus Mozart"
+        },
+        "context": {
+          "uri": "spotify:user:spotify:playlist:37i9dQZF1E4riV8HyBkA7r",
+          "name": "Wolfgang Amadeus Mozart Radio",
+          "index": 0
+        }
+      }
+    },
+    {
+      "timestamp": 1600780000000,
+      "user": {
+        "uri": "spotify:user:31abcde",
+        "name": "Elif Yılmaz",
+        "imageUrl": "https://i.scdn.co/image/ab6775700000ee8555c25988a6ac314394d3fbf5"
+      },
+      "track": {
+        "uri": "spotify:track:0VjIjW4GlUZAMYd2vXMi3b",
+        "name": "Blinding Lights",
+        "imageUrl": "https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36",
+        "album": {"uri": "spotify:album:4yP0hdKOZPNshxUOjY0cZj", "name": "After Hours"},
+        "artist": {"uri": "spotify:artist:1Xyo4u8uXC1ZmMpatF05PJ", "name": "The Weeknd"},
+        "context": {"uri": "spotify:album:4yP0hdKOZPNshxUOjY0cZj", "name": "After Hours", "index": 8}
+      }
+    },
+    {
+      "timestamp": 1600770000000,
+      "user": {"uri": "spotify:user:noname"},
+      "track": {
+        "uri": "spotify:track:3n3Ppam7vgaVa1iaRUc9Lp",
+        "name": "Mr. Brightside",
+        "album": {"uri": "spotify:album:4OHNH3sDzIxnmUADXzv2kT", "name": "Hot Fuss"},
+        "artist": {"uri": "spotify:artist:0C0XlULifJtAgn6ZNCW2eu", "name": "The Killers"}
+      }
+    },
+    {
+      "timestamp": 1600775000000,
+      "user": {"uri": "spotify:user:broken", "name": "Track missing"}
+    }
+  ]
+}

@@ -193,6 +193,12 @@ void MediaCard::paint(Canvas& c) {
     } else {
         if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h));   // cardHoverShadow
         drawArtwork(c, images_, art, 2, ph_);
+        if (!badge_.empty()) {
+            const float bw = std::ceil(badge_.measure().w) + 12;
+            const Rect pill{art.x + 8, art.y + 8, bw, 16};
+            c.fillPill(pill, accent().base);
+            c.text(badge_, pill.inset(6, 0), accent().onAccent, gfx::VAlign::Center);
+        }
         if (onPlay && h > 0.01f) {
             const Rect pr = playRect().offset(0, 8 * (1 - ui::ease(ui::Ease::Decelerate, h)));
             c.pushOpacity(h);

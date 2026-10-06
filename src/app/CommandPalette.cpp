@@ -6,6 +6,7 @@
 #include "app/Router.h"
 #include "app/Shortcuts.h"
 #include "app/SmartListsPage.h"
+#include "app/Social.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -199,7 +200,8 @@ std::vector<Item> staticItems() {
         if ((a.flags & shortcuts::kGlobalOnly) || std::string_view(a.id) == "command-palette") continue;
         const std::string_view id = a.id;
         if ((id == "lyrics-fullscreen" && !ctx().toggleLyricsFullscreen) ||
-            ((id == "lyrics-earlier" || id == "lyrics-later") && !ctx().lyricsOffsetBy))
+            ((id == "lyrics-earlier" || id == "lyrics-later") && !ctx().lyricsOffsetBy) ||
+            ((id == "friend-activity" || id == "go-new-releases") && !socialAvailable()))   // Spotify only
             continue;
         Item it = commandItem("action:" + std::string(id), a.name(), shortcuts::categoryName(a.category), a.icon,
                               [idStr = std::string(id)] { commands::run(idStr); });

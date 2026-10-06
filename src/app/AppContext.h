@@ -109,6 +109,7 @@ struct AppContext {
 
     std::function<void(bool)> toggleNowPlaying; // full-screen Now Playing
     std::function<void(bool)> toggleQueue;      // side queue panel
+    std::function<void()> toggleFriendActivity; // "Arkadaş etkinliği" side panel (Spotify; app/Social.h)
     std::function<void()> openMiniPlayer;
     std::function<void(const catalog::Track&)> showMatchPicker;
     std::function<void()> startSpotifyLogin;    // opens the WebView2 login window
@@ -157,6 +158,7 @@ void initDragDrop();           // app/DragDrop.cpp       (files dropped from Exp
 void initLyrics();             // app/LyricsService.cpp  (lyrics offset, full-screen lyrics)
 void initPodcasts();           // app/PodcastsPage.cpp   (Podcastler: RSS feeds, progress, downloads)
 void initSmartShuffle();       // app/SmartShuffle.cpp   (smart shuffle: recommendations mixed into the queue)
+void initNewReleases();        // app/NewReleasesPage.cpp (Yeni çıkanlar: followed artists' releases, notifications)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -169,6 +171,7 @@ inline void initFeatures() {
     initLyrics();
     initPodcasts();
     initSmartShuffle();
+    initNewReleases();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the

@@ -13,6 +13,7 @@
 #include "app/Router.h"
 #include "app/Shell.h"
 #include "app/Smtc.h"
+#include "app/Social.h"
 #include "catalog/TrackKind.h"
 #include "core/CrashHandler.h"
 #include "core/Http.h"
@@ -382,7 +383,10 @@ void App::wireSession() {
     wasLoggedIn_ = session_->loggedIn();
     session_->subscribe(life_.ref(), [this] {
         const bool now = session_->loggedIn();
-        if (shell_) shell_->sidebar()->refresh();   // playlists come from the session when logged in
+        if (shell_) {
+            shell_->sidebar()->refresh();   // playlists come from the session when logged in
+            shell_->requestLayout();        // the friend activity panel needs a session
+        }
         if (now != wasLoggedIn_) {
             wasLoggedIn_ = now;
             // (--route connect keeps the connect screen up for a dev capture even though the session logs in.)
@@ -453,6 +457,21 @@ void App::showShell() {
         if (!shell_) return;
         shell_->setQueueOpen(!shell_->queueOpen());
         shell_->queuePanel()->sync();
+        if (shell_->queueOpen() && Settings::get().friendActivityOpen) {   // it took the friend activity's place
+            Settings::get().friendActivityOpen = false;
+            Settings::get().markDirty();
+        }
+    };
+    // Arkadaş etkinliği (Spotify): open / close; the choice is remembered for the next start.
+    c.toggleFriendActivity = [this] {
+        if (!shell_) return;
+        const bool on = !shell_->friendsOpen() || !shell_->friendPanel()->visible();
+        if (on && !socialAvailable()) return;
+        if (on && shell_->nowPlaying()) shell_->setNowPlaying(false);
+        shell_->setFriendsOpen(on);
+        Settings::get().friendActivityOpen = on;
+        Settings::get().markDirty();
+        window_->invalidate();
     };
     window_->setRoot(std::move(shell));
 
@@ -482,6 +501,8 @@ void App::showShell() {
         options_.route == "connect")
         shell_->setConnect(true);
     shell_->sidebar()->refresh();
+    // The friend activity panel as it was left (it shows once a Spotify session is there).
+    if (Settings::get().friendActivityOpen || options_.route == "friends") shell_->setFriendsOpen(true);
     Route start{RouteKind::Home};
     if (options_.route == "search") start = {RouteKind::Search};
     else if (options_.route.rfind("search:", 0) == 0) start = {RouteKind::Search, options_.route.substr(7)};
@@ -499,6 +520,7 @@ void App::showShell() {
     else if (options_.route == "podcasts") start = {RouteKind::Podcasts};
     else if (options_.route.rfind("podcasts:", 0) == 0) start = {RouteKind::Podcasts, options_.route.substr(9)};
     else if (options_.route.rfind("smart:", 0) == 0) start = {RouteKind::SmartList, options_.route.substr(6)};
+    else if (options_.route == "releases") start = {RouteKind::NewReleases};
     else if (options_.route == "settings") start = {RouteKind::Settings};
     else if (options_.route.rfind("settings:", 0) == 0) start = {RouteKind::Settings, options_.route.substr(9)};
     startRoute_ = start;
