@@ -74,6 +74,8 @@ struct Settings {
     std::string altSourceInstance;
     std::vector<std::string> localFolders;   // "Yerel dosyalar": folders scanned for the user's own music files
     std::vector<std::string> expandedFolders;   // sidebar: Spotify library folders left open (rootlist group ids)
+    bool friendActivityOpen = false;     // "Arkadaş etkinliği" panel open (Spotify; app/FriendActivity)
+    bool newReleaseNotifications = false;   // Windows notification for new releases of followed artists
     // Updates (GitHub releases): check at startup at most once a day; a version the user dismissed stays quiet.
     bool updateCheck = true;
     int64_t lastUpdateCheck = 0;         // unix seconds

@@ -117,6 +117,7 @@ bool builtin(std::string_view id) {
     if (id == "go-local") return navigate(RouteKind::LocalFiles);
     if (id == "go-radio") return navigate(RouteKind::Radio);
     if (id == "go-stats") return navigate(RouteKind::Stats);
+    if (id == "go-new-releases") return navigate(RouteKind::NewReleases);
     if (id == "settings") return navigate(RouteKind::Settings);
     if (id == "import-playlist") {
         transfer::importFromFile();
@@ -124,6 +125,7 @@ bool builtin(std::string_view id) {
     }
 
     if (id == "queue") return ctx().toggleQueue && (ctx().toggleQueue(true), true);
+    if (id == "friend-activity") return ctx().toggleFriendActivity && (ctx().toggleFriendActivity(), true);
     if (id == "lyrics-fullscreen") return ctx().toggleLyricsFullscreen && (ctx().toggleLyricsFullscreen(), true);
     if (id == "lyrics-earlier") return ctx().lyricsOffsetBy && (ctx().lyricsOffsetBy(-250), true);
     if (id == "lyrics-later") return ctx().lyricsOffsetBy && (ctx().lyricsOffsetBy(250), true);

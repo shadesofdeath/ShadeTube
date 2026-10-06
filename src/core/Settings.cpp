@@ -78,6 +78,8 @@ void Settings::load() {
     read(j, "altSourceInstance", altSourceInstance);
     read(j, "localFolders", localFolders);
     read(j, "expandedFolders", expandedFolders);
+    read(j, "friendActivityOpen", friendActivityOpen);
+    read(j, "newReleaseNotifications", newReleaseNotifications);
     read(j, "updateCheck", updateCheck);
     read(j, "lastUpdateCheck", lastUpdateCheck);
     read(j, "skippedVersion", skippedVersion);
@@ -146,6 +148,8 @@ void Settings::save() const {
         {"altSourceInstance", altSourceInstance},
         {"localFolders", localFolders},
         {"expandedFolders", expandedFolders},
+        {"friendActivityOpen", friendActivityOpen},
+        {"newReleaseNotifications", newReleaseNotifications},
         {"updateCheck", updateCheck},
         {"lastUpdateCheck", lastUpdateCheck},
         {"skippedVersion", skippedVersion},

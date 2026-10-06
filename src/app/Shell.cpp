@@ -1,6 +1,7 @@
 #include "app/Shell.h"
 
 #include "app/Blacklist.h"
+#include "app/Commands.h"
 #include "app/ConnectScreen.h"
 #include "app/DownloadSync.h"
 #include "app/DroppedFiles.h"
@@ -9,6 +10,7 @@
 #include "app/PlaylistTransfer.h"
 #include "app/PodcastUi.h"
 #include "app/SmartShuffle.h"
+#include "app/Social.h"
 #include "app/Source.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
@@ -31,8 +33,6 @@ using ui::ButtonKind;
 namespace type = gfx::type;
 namespace metrics = gfx::metrics;
 
-constexpr int kNavItems = 8;   // Ana Sayfa, Ara, Kitaplık, İndirilenler, Yerel dosyalar, Radyo, Podcastler, İstatistikler
-
 // ===================================================================================================
 // TitleBar
 
@@ -49,6 +49,11 @@ TitleBar::TitleBar() {
     collapse_ = add<Button>(ButtonKind::Ghost, tr(L"Küçült"), "chevron-up");
     collapse_->setVisible(false);
     collapse_->onClick = [] { ctx().toggleNowPlaying(false); };
+    friends_ = add<Button>(ButtonKind::Icon, L"", "users");
+    friends_->setIconSize(16);
+    friends_->setTooltip(tr(L"Arkadaş etkinliği"));
+    friends_->onClick = [] { commands::run("friend-activity"); };
+    friends_->setVisible(false);
 
     min_ = add<Button>(ButtonKind::Caption, L"", "minimize");
     max_ = add<Button>(ButtonKind::Caption, L"", "maximize");
@@ -72,6 +77,7 @@ void TitleBar::layout() {
     close_->setRect({r.w - 8 - 40, 6, 40, 28});
     max_->setRect({r.w - 8 - 80, 6, 40, 28});
     min_->setRect({r.w - 8 - 120, 6, 40, 28});
+    friends_->setRect({r.w - 8 - 120 - 12 - 28, 6, 28, 28});
     back_->setRect({130, 8, 24, 24});
     forward_->setRect({156, 8, 24, 24});
     collapse_->setRect({8, 4, collapse_->naturalWidth(), 32});
@@ -83,6 +89,11 @@ void TitleBar::paint(Canvas& c) {
     max_->setIcon(ctx().window && ctx().window->isMaximized() ? "restore" : "maximize");
     back_->setEnabled(ctx().router && ctx().router->canBack());
     forward_->setEnabled(ctx().router && ctx().router->canForward());
+    // Friend activity: with a Spotify session, outside Now Playing; lit while its panel is open.
+    if (auto* shell = dynamic_cast<Shell*>(parent())) {
+        friends_->setVisible(!nowPlaying_ && socialAvailable());
+        friends_->setActive(shell->friendsOpen());
+    }
     if (!nowPlaying_) {
         c.iconColored("logo/logo-mark", {r.x + 16, r.y + 11, 18, 18});
         c.text(L"ShadeTube", type::body.withSize(13).withWeight(700), {r.x + 42, r.y, 90, r.h}, col.fgPrimary,
@@ -254,6 +265,8 @@ Sidebar::Sidebar() {
     local_ = add<Button>(ButtonKind::Nav, tr(L"Yerel dosyalar"), "music-note");
     radio_ = add<Button>(ButtonKind::Nav, tr(L"Radyo"), "radio");
     podcasts_ = add<Button>(ButtonKind::Nav, tr(L"Podcastler"), "podcast");
+    releases_ = add<Button>(ButtonKind::Nav, tr(L"Yeni çıkanlar"), "sparkle");
+    releases_->setVisible(false);
     stats_ = add<Button>(ButtonKind::Nav, tr(L"İstatistikler"), "stats");
     settings_ = add<Button>(ButtonKind::Nav, tr(L"Ayarlar"), "settings");
     home_->onClick = [] { ctx().router->navigate({RouteKind::Home}); };
@@ -263,6 +276,7 @@ Sidebar::Sidebar() {
     local_->onClick = [] { ctx().router->navigate({RouteKind::LocalFiles}); };
     radio_->onClick = [] { ctx().router->navigate({RouteKind::Radio}); };
     podcasts_->onClick = [] { ctx().router->navigate({RouteKind::Podcasts}); };
+    releases_->onClick = [] { ctx().router->navigate({RouteKind::NewReleases}); };
     stats_->onClick = [] { ctx().router->navigate({RouteKind::Stats}); };
     settings_->onClick = [] { ctx().router->navigate({RouteKind::Settings}); };
     newPlaylist_ = add<Button>(ButtonKind::Icon, L"", "plus");
@@ -283,6 +297,10 @@ Sidebar::Sidebar() {
 }
 
 void Sidebar::refresh() {
+    if (releases_->visible() != socialAvailable()) {   // Spotify only: logging in / out shows / hides it
+        releases_->setVisible(socialAvailable());
+        requestLayout();
+    }
     listCol_->clearChildren();
     items_.clear();
     dropRow_ = restingFolder_ = nullptr;
@@ -414,6 +432,7 @@ void Sidebar::syncActive() {
     local_->setActive(cur.kind == RouteKind::LocalFiles);
     radio_->setActive(cur.kind == RouteKind::Radio);
     podcasts_->setActive(cur.kind == RouteKind::Podcasts);
+    releases_->setActive(cur.kind == RouteKind::NewReleases);
     stats_->setActive(cur.kind == RouteKind::Stats);
     settings_->setActive(cur.kind == RouteKind::Settings);
     for (auto& [b, route] : items_) b->setActive(route == cur);
@@ -496,10 +515,12 @@ void Sidebar::layout() {
     const Rect r = rect();
     const float x = 16, w = r.w - 32;
     float y = 24;
-    for (auto* b : {home_, search_, library_, downloads_, local_, radio_, podcasts_, stats_}) {
+    for (auto* b : {home_, search_, library_, downloads_, local_, radio_, podcasts_, releases_, stats_}) {
+        if (!b->visible()) continue;
         b->setRect({x, y, w, metrics::navItemH});
         y += metrics::navItemH + 2;
     }
+    listLabelY_ = y + 28 - 14;
     y += 28 + 14 + 8;   // section label
     const float bottom = r.h - 16 - metrics::navItemH - 8;
     list_->setRect({x, y, w + 8, std::max(0.f, bottom - y)});
@@ -511,21 +532,23 @@ void Sidebar::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
     c.vline(r.right() - 1, r.y, r.bottom(), col.hairSubtle);
-    const float labelY = r.y + 24 + (metrics::navItemH + 2) * kNavItems + 28 - 14;
-    c.text(toUpperTr(tr(L"Çalma listeleri")), type::monoLabel, {r.x + 28, labelY, 200, 14}, col.fgTertiary);
+    c.text(toUpperTr(tr(L"Çalma listeleri")), type::monoLabel, {r.x + 28, r.y + listLabelY_, 200, 14}, col.fgTertiary);
     paintChildren(c);
-    // New episodes of the podcast subscriptions: a count on the Podcastler entry.
-    if (const int n = podcastNewEpisodeCount(); n > 0) {
-        const Rect b = podcasts_->rect();
+    // A count pill on a nav entry: new episodes of the podcast subscriptions, unseen new releases.
+    auto badge = [&](const Button* b, int n) {
+        if (n <= 0 || !b->visible()) return;
+        const Rect br = b->rect();
         const std::wstring label = n > 99 ? std::wstring(L"99+") : std::to_wstring(n);
         auto layout = gfx::makeLayout(label, type::monoBadge, 100);
         DWRITE_TEXT_METRICS m{};
         layout->GetMetrics(&m);
         const float w = std::max(18.f, std::ceil(m.widthIncludingTrailingWhitespace) + 10);
-        const Rect pill{r.x + b.right() - 10 - w, r.y + b.cy() - 9, w, 18};
+        const Rect pill{r.x + br.right() - 10 - w, r.y + br.cy() - 9, w, 18};
         c.fillPill(pill, accent().base);
         c.text(label, type::monoBadge, pill, accent().onAccent, gfx::TextAlign::Center, gfx::VAlign::Center);
-    }
+    };
+    badge(podcasts_, podcastNewEpisodeCount());
+    badge(releases_, newReleasesUnseenCount());
 }
 
 // ===================================================================================================
@@ -1125,6 +1148,8 @@ Shell::Shell() {
     nowPlayingView_->setVisible(false);
     queue_ = add<QueuePanel>();
     queue_->setVisible(false);
+    friends_ = add<FriendPanel>();
+    friends_->setVisible(false);
     playerBar_ = add<PlayerBar>();
     connect_ = add<ConnectScreen>();
     connect_->setVisible(false);
@@ -1155,9 +1180,17 @@ void Shell::setNowPlaying(bool on) {
 
 void Shell::setQueueOpen(bool on) {
     queueOpen_ = on;
+    if (on) friendsOpen_ = false;
     queueAnim_.to(on ? 1.f : 0.f, ui::motion::medium, ui::Ease::Decelerate);
     queue_->setVisible(true);
     requestLayout();
+}
+
+void Shell::setFriendsOpen(bool on) {
+    friendsOpen_ = on;
+    if (on) queueOpen_ = false;
+    requestLayout();
+    invalidate();
 }
 
 void Shell::layout() {
@@ -1167,18 +1200,28 @@ void Shell::layout() {
     if (connectMode_) {
         connect_->setRect({0, top, r.w, r.h - top});
         connect_->setVisible(true);
-        for (Widget* w : std::initializer_list<Widget*>{sidebar_, pageHost_, playerBar_, queue_, nowPlayingView_})
+        for (Widget* w : std::initializer_list<Widget*>{sidebar_, pageHost_, playerBar_, queue_, friends_, nowPlayingView_})
             w->setVisible(false);
         return;
     }
     connect_->setVisible(false);
     playerBar_->setVisible(true);   // connect mode hid it (logout -> login again)
     playerBar_->setRect({0, bottom, r.w, metrics::playerBarH});
-    const float q = queueOpen_ && !nowPlaying_ ? metrics::queueW : 0;
+    // Right side: the queue or the friend activity (Spotify only), never both.
+    const bool friends = friendsOpen_ && !nowPlaying_ && socialAvailable();
+    const bool queue = queueOpen_ && !nowPlaying_ && !friends;
+    const float q = queue || friends ? metrics::queueW : 0;
     sidebar_->setRect({0, top, metrics::sidebarW, bottom - top});
     pageHost_->setRect({metrics::sidebarW, top, r.w - metrics::sidebarW - q, bottom - top});
     queue_->setRect({r.w - metrics::queueW, top, metrics::queueW, bottom - top});
-    queue_->setVisible(q > 0);
+    queue_->setVisible(queue);
+    friends_->setRect({r.w - metrics::queueW, top, metrics::queueW, bottom - top});
+    if (friends && !friends_->visible()) {   // just opened / back from Now Playing: catch up once it is laid out
+        Dispatcher::post([this, ref = life_.ref()] {
+            if (!ref.expired() && friends_->visible()) friends_->refreshIfStale();
+        });
+    }
+    friends_->setVisible(friends);
     nowPlayingView_->setRect({0, top, r.w, bottom - top});
     nowPlayingView_->setVisible(nowPlaying_ || npAnim_.running());
     sidebar_->setVisible(!nowPlaying_);
@@ -1213,7 +1256,9 @@ void Shell::paint(Canvas& c) {
             c.popLayer();
             continue;
         }
-        if ((child.get() == sidebar_ || child.get() == pageHost_ || child.get() == queue_) && t > 0.999f) continue;
+        if ((child.get() == sidebar_ || child.get() == pageHost_ || child.get() == queue_ || child.get() == friends_) &&
+            t > 0.999f)
+            continue;
         child->paint(c);
     }
     // Closed and faded out: release the view's bitmaps, lyrics and layouts. Not keyed on visible(): layout() already

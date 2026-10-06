@@ -3,6 +3,7 @@
 #include "app/Pages.h"
 #include "app/Scrobbler.h"
 #include "app/SettingsWidgets.h"
+#include "app/Social.h"
 #include "app/Source.h"
 #include "core/CrashHandler.h"
 #include "core/I18n.h"
@@ -170,6 +171,10 @@ private:
                 out->onClick = [] {
                     if (ctx().logoutSpotify) ctx().logoutSpotify();
                 };
+                toggle(c, tr(L"Yeni çıkan bildirimleri"),
+                       tr(L"Takip ettiğin bir sanatçı yeni bir albüm, tekli ya da EP yayımladığında Windows bildirimi "
+                          L"gösterilir. Yeni çıkanlar birkaç saatte bir denetlenir."),
+                       s.newReleaseNotifications, [](bool v) { Settings::get().newReleaseNotifications = v; });
             } else {
                 const bool connecting = sess && sess->state() == spotify::SessionState::Connecting;
                 auto* row = c->add<SettingRow>(
@@ -611,6 +616,7 @@ std::unique_ptr<Page> createPage(const Route& route) {
     case RouteKind::Radio: return makeRadioPage(route.id);
     case RouteKind::Podcasts: return makePodcastsPage(route.id);
     case RouteKind::SmartList: return makeSmartListPage(route.id);
+    case RouteKind::NewReleases: return makeNewReleasesPage();
     }
     return makeHomePage();
 }

@@ -41,6 +41,8 @@ public:
     std::function<void()> onOpen;
     std::function<void()> onPlay;              // hover play button (hidden when unset)
     std::function<void(gfx::Point)> onContext;
+    // Small accent pill on the artwork's top-left corner ("YENİ"); "" = none. Square cards only.
+    void setBadge(std::wstring text) { badge_ = gfx::Text(std::move(text), gfx::type::monoBadge); }
 
     float preferredHeight(float width) override;
     void paint(Canvas& c) override;
@@ -60,7 +62,7 @@ public:
 private:
     Rect artRect() const;
     Rect playRect() const;
-    gfx::Text title_, subtitle_;
+    gfx::Text title_, subtitle_, badge_;
     std::vector<catalog::Image> images_;
     Shape shape_;
     Placeholder ph_;

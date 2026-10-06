@@ -93,6 +93,9 @@ add_executable(ShadeTube WIN32
     SystemSettings.cpp
     Updater.cpp Updater.h
     WinShell.cpp WinShell.h
+    FriendActivity.cpp Social.h
+    NewReleases.cpp NewReleases.h
+    NewReleasesPage.cpp
     ShadeTube.manifest
     ${CMAKE_CURRENT_BINARY_DIR}/resources.rc
 )
