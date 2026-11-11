@@ -1671,5 +1671,6 @@
   "Çıkar": "Remove",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Optional: an MQTT WebSocket address starting with wss://. It's tried first when you start a session, then the public servers (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). The server is part of the invite link; everyone in the session uses it.",
   "İzinler": "Permissions",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Leave the session you're in and start your own listen together session?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Leave the session you're in and start your own listen together session?",
+  "Kenar çubuğunu daralt / genişlet": "Collapse / expand sidebar"
 }

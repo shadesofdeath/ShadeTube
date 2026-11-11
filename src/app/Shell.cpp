@@ -116,8 +116,12 @@ void TitleBar::paint(Canvas& c) {
 // A row of the sidebar's playlist list, painted like ButtonKind::SidebarItem: a playlist (name, mono track count, the
 // playing indicator) or a Spotify folder (chevron + folder glyph + name; a click opens / closes it). Rows inside
 // folders are indented by their depth. While songs are dragged over a row that takes them it shows the drop highlight.
+// In the icon rail (compact) the row is a cover tile (Liked Songs: the accent tile with the heart; a folder: the folder
+// placeholder with a chevron) named by its tooltip.
 class SidebarRow : public ui::Widget {
 public:
+    static constexpr float kTileH = 48, kTile = 40;   // compact row height / cover size
+
     SidebarRow(std::wstring label, int depth, bool folder)
         : label_(std::move(label), type::secondary), trailing_({}, type::monoLabel), depth_(depth), folder_(folder) {
         focusable = true;
@@ -130,6 +134,23 @@ public:
     bool folder() const { return folder_; }
     bool expanded() const { return expanded_; }
     void setExpanded(bool on) { expanded_ = on; }
+    // Cover of the tile (compact): the collection's images, or the Liked Songs tile.
+    void setArt(std::vector<catalog::Image> images, bool liked) {
+        images_ = std::move(images);
+        liked_ = liked;
+    }
+    void setCompact(bool on) {
+        if (compact_ == on) return;
+        compact_ = on;
+        setRect({rect().x, rect().y, rect().w, on ? kTileH : metrics::playlistItemH});
+        invalidate();
+    }
+    // The rail names the tile; a row names itself only when its name is cut.
+    std::wstring tooltip() const override {
+        if (compact_) return label_.text();
+        auto& label = const_cast<gfx::Text&>(label_);
+        return labelW_ > 0 && label.isTrimmed(labelW_) ? label_.text() : std::wstring();
+    }
     void setTrailing(std::wstring t) { trailing_.setText(std::move(t)); }
     void setIcon(std::string icon) {
         if (icon_ == icon) return;
@@ -149,6 +170,10 @@ public:
     }
 
     void paint(Canvas& c) override {
+        if (compact_) {
+            paintTile(c);
+            return;
+        }
         const auto& col = colors();
         const auto& acc = accent();
         const Rect r = pill();
@@ -178,7 +203,40 @@ public:
             x += 20;
         }
         label_.setStyle(type::secondary.withWeight(active_ ? 600.f : 400.f));
+        labelW_ = right - x;
         c.text(label_, {x, r.y, right - x, r.h}, fg, gfx::VAlign::Center);
+    }
+
+    void paintTile(Canvas& c) {
+        const auto& col = colors();
+        const auto& acc = accent();
+        const Rect r = rect();
+        const Rect bg{r.cx() - kTileH * 0.5f, r.y, kTileH, kTileH};
+        const Rect tile = bg.center(kTile, kTile);
+        const float h = hover_, a = activeA_;
+        if (dropHot_) {
+            c.fillRounded(bg, metrics::radiusSurface, acc.tint12);
+            c.strokeRounded(bg, metrics::radiusSurface, acc.base);
+        } else {
+            c.fillRounded(bg, metrics::radiusSurface, col.overlaySelected.mulAlpha(a));
+            c.fillRounded(bg, metrics::radiusSurface, col.overlayHover.mulAlpha(h * (1 - a)));
+        }
+        if (liked_ && images_.empty()) {
+            c.fillRounded(tile, metrics::radiusSurface, acc.base);
+            c.icon("heart-filled", tile.center(16, 16), acc.onAccent);
+        } else {
+            drawArtwork(c, images_, tile, metrics::radiusSurface, folder_ ? Placeholder::Folder : Placeholder::Playlist,
+                        false, Priority::Normal);
+        }
+        // A corner badge: the folder's open / closed chevron, or the equalizer of the playing collection.
+        const gfx::Point corner{tile.right() - 3, tile.bottom() - 3};
+        if (folder_) {
+            c.fillCircle(corner, 7, col.bgElevated);
+            c.icon(expanded_ ? "chevron-down" : "chevron-right", {corner.x - 5, corner.y - 5, 10, 10}, col.fgSecondary);
+        } else if (!icon_.empty()) {
+            c.fillCircle(corner, 8, acc.base);
+            c.icon(icon_, {corner.x - 5, corner.y - 5, 10, 10}, acc.onAccent);
+        }
     }
 
     bool onMouseDown(const ui::MouseEvent& e) override {
@@ -236,8 +294,8 @@ public:
         }
         return false;
     }
-    Rect focusRect() const override { return pill(); }
-    ui::FocusShape focusShape() const override { return ui::FocusShape::Pill; }
+    Rect focusRect() const override { return compact_ ? Rect{rect().cx() - kTileH * 0.5f, rect().y, kTileH, kTileH} : pill(); }
+    ui::FocusShape focusShape() const override { return compact_ ? ui::FocusShape::Rect : ui::FocusShape::Pill; }
 
 private:
     // The row minus its indent (16 DIPs per folder level).
@@ -249,27 +307,36 @@ private:
 
     gfx::Text label_, trailing_;
     std::string icon_;
+    std::vector<catalog::Image> images_;
     int depth_;
     bool folder_;
+    bool liked_ = false;
+    bool compact_ = false;
     bool expanded_ = false;
     bool active_ = false;
     bool dropHot_ = false;
+    float labelW_ = 0;   // width the name had at the last paint (tooltip when it was cut)
     ui::Anim hover_, activeA_;
 };
 
 Sidebar::Sidebar() {
-    // Page names ("Ara" = the Search page).
-    home_ = add<Button>(ButtonKind::Nav, tr(L"Ana Sayfa"), "home");
-    search_ = add<Button>(ButtonKind::Nav, tr(L"Ara"), "search");
-    library_ = add<Button>(ButtonKind::Nav, tr(L"Kitaplık"), "library");
-    downloads_ = add<Button>(ButtonKind::Nav, tr(L"İndirilenler"), "download");
-    local_ = add<Button>(ButtonKind::Nav, tr(L"Yerel dosyalar"), "music-note");
-    radio_ = add<Button>(ButtonKind::Nav, tr(L"Radyo"), "radio");
-    podcasts_ = add<Button>(ButtonKind::Nav, tr(L"Podcastler"), "podcast");
-    releases_ = add<Button>(ButtonKind::Nav, tr(L"Yeni çıkanlar"), "sparkle");
+    // Page names ("Ara" = the Search page); in the icon rail they are the tooltips.
+    auto nav = [this](std::wstring name, const char* icon) {
+        auto* b = add<Button>(ButtonKind::Nav, name, icon);
+        navNames_.emplace_back(b, std::move(name));
+        return b;
+    };
+    home_ = nav(tr(L"Ana Sayfa"), "home");
+    search_ = nav(tr(L"Ara"), "search");
+    library_ = nav(tr(L"Kitaplık"), "library");
+    downloads_ = nav(tr(L"İndirilenler"), "download");
+    local_ = nav(tr(L"Yerel dosyalar"), "music-note");
+    radio_ = nav(tr(L"Radyo"), "radio");
+    podcasts_ = nav(tr(L"Podcastler"), "podcast");
+    releases_ = nav(tr(L"Yeni çıkanlar"), "sparkle");
     releases_->setVisible(false);
-    stats_ = add<Button>(ButtonKind::Nav, tr(L"İstatistikler"), "stats");
-    settings_ = add<Button>(ButtonKind::Nav, tr(L"Ayarlar"), "settings");
+    stats_ = nav(tr(L"İstatistikler"), "stats");
+    settings_ = nav(tr(L"Ayarlar"), "settings");
     home_->onClick = [] { ctx().router->navigate({RouteKind::Home}); };
     search_->onClick = [] { ctx().router->navigate({RouteKind::Search}); };
     library_->onClick = [] { ctx().router->navigate({RouteKind::Library}); };
@@ -349,6 +416,7 @@ void Sidebar::refresh() {
             const bool liked = p.id == spotify::Api::kLikedSongsUri;
             const Route route = liked ? Route{RouteKind::Liked} : Route{RouteKind::Playlist, p.id};
             auto* b = addItem(toWide(p.name), p.countKnown ? p.totalTracks : -1, route, row.depth);
+            b->setArt(p.images, liked);
             const std::string id = p.id;
             const std::wstring name = toWide(p.name);
             const bool editable = !liked && p.editable, owned = p.owned;
@@ -382,6 +450,7 @@ void Sidebar::refresh() {
     } else {
         auto& lib = ctx().library;
         auto* liked = addItem(tr(L"Beğenilen Şarkılar"), static_cast<int>(lib.liked().size()), {RouteKind::Liked});
+        liked->setArt({}, true);
         liked->onContext = [](const ui::MouseEvent& e) {
             ui::Menu::open(ctx().window, e.windowPos,
                            {{tr(L"Aç"), "arrow-up-right", L"", [] { ctx().router->navigate({RouteKind::Liked}); }},
@@ -392,6 +461,7 @@ void Sidebar::refresh() {
         };
         for (const auto& p : lib.playlists()) {
             auto* b = addItem(toWide(p.name), p.totalTracks, {RouteKind::Playlist, p.id});
+            b->setArt(p.images, false);
             const std::string id = p.id;
             const sync::Target offline{sync::Kind::Playlist, id, p.name, p.images};
             b->onContext = [id, offline](const ui::MouseEvent& e) {
@@ -413,10 +483,38 @@ void Sidebar::refresh() {
             };
         }
     }
-    for (auto& [b, _] : items_) b->requestLayout();
+    for (auto& [b, _] : items_) {
+        b->setCompact(compact_);   // the rail's tiles
+        b->requestLayout();
+    }
     // Rows are fixed height: make Column use it.
     syncActive();
     requestLayout();
+}
+
+void Sidebar::setCollapsed(bool on) {
+    if (on == collapsed_) return;
+    collapsed_ = on;
+    for (auto& [b, name] : navNames_) b->setTooltip(on ? name : std::wstring());
+    requestLayout();
+    invalidate();
+}
+
+void Sidebar::setRailProgress(float progress) {
+    progress = std::clamp(progress, 0.f, 1.f);
+    if (progress == rail_) return;
+    rail_ = progress;
+    requestLayout();
+}
+
+std::vector<Button*> Sidebar::navButtons() const {
+    return {home_, search_, library_, downloads_, local_, radio_, podcasts_, releases_, stats_, settings_};
+}
+
+float Sidebar::labelOpacity() const {
+    // As ButtonKind::Nav fades its name: by the room the name has next to the icon.
+    const float labelW = home_->rect().w - 36 - metrics::navIcon;
+    return std::clamp((labelW - 16) / 64.f, 0.f, 1.f);
 }
 
 void Sidebar::setFolderOpen(const std::string& folderId, bool open) {
@@ -525,7 +623,15 @@ void Sidebar::drop(const DragPayload& payload, gfx::Point windowPos) {
 
 void Sidebar::layout() {
     const Rect r = rect();
-    const float x = 16, w = r.w - 32;
+    const float t = rail_;
+    // Half way into the rail the playlist rows turn into (taller) cover tiles: the list re-measures.
+    if (const bool compact = t >= 0.5f; compact != compact_) {
+        compact_ = compact;
+        for (auto& [b, _] : items_) b->setCompact(compact);
+        listCol_->requestLayout();
+    }
+    // Expanded: 16 DIP margins; the rail (72 DIPs): 48 DIP wide icon pills.
+    const float x = std::round(ui::lerp(16.f, 12.f, t)), w = std::max(0.f, r.w - 2 * x);
     float y = 24;
     for (auto* b : {home_, search_, library_, downloads_, local_, radio_, podcasts_, releases_, stats_}) {
         if (!b->visible()) continue;
@@ -535,8 +641,12 @@ void Sidebar::layout() {
     listLabelY_ = y + 28 - 14;
     y += 28 + 14 + 8;   // section label
     const float bottom = r.h - 16 - metrics::navItemH - 8;
-    list_->setRect({x, y, w + 8, std::max(0.f, bottom - y)});
-    newPlaylist_->setRect({r.w - 16 - 28, y - 14 - 8 - 24 + 6, 24, 24});
+    // The list ends 8 DIPs before the edge (its scrollbar); in the rail its tiles center on the rail.
+    const float lx = std::round(ui::lerp(16.f, 8.f, t));
+    list_->setRect({lx, y, std::max(0.f, r.w - 8 - lx), std::max(0.f, bottom - y)});
+    // "+": at the end of the section label; centered in the rail.
+    const float plusX = std::round(ui::lerp(r.w - 16 - 28, r.w * 0.5f - 12, t));
+    newPlaylist_->setRect({plusX, y - 14 - 8 - 24 + 6, 24, 24});
     settings_->setRect({x, r.h - 16 - metrics::navItemH, w, metrics::navItemH});
 }
 
@@ -544,12 +654,27 @@ void Sidebar::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
     c.vline(r.right() - 1, r.y, r.bottom(), col.hairSubtle);
-    c.text(toUpperTr(tr(L"Çalma listeleri")), type::monoLabel, {r.x + 28, r.y + listLabelY_, 200, 14}, col.fgTertiary);
+    const float show = labelOpacity();
+    if (show > 0.01f) {
+        const float labelW = newPlaylist_->rect().x - 28 - 8;   // up to the "+"
+        c.text(toUpperTr(tr(L"Çalma listeleri")), type::monoLabel, {r.x + 28, r.y + listLabelY_, std::max(0.f, labelW), 14},
+               col.fgTertiary.mulAlpha(show));
+    }
     paintChildren(c);
-    // A count pill on a nav entry: new episodes of the podcast subscriptions, unseen new releases.
+    // A count pill on a nav entry: new episodes of the podcast subscriptions, unseen new releases. In the rail: a dot on
+    // the icon's corner (the tooltip names the page).
     auto badge = [&](const Button* b, int n) {
         if (n <= 0 || !b->visible()) return;
         const Rect br = b->rect();
+        if (show < 0.5f) {
+            const gfx::Point p{r.x + br.cx() + metrics::navIcon * 0.5f - 1, r.y + br.cy() - metrics::navIcon * 0.5f + 1};
+            // Ringed in what is under it (the selected pill of the current page) so it stands off the glyph.
+            const Color under = b->active() ? Color::lerp(col.bgBase, col.overlaySelected.withAlpha(1.f), col.overlaySelected.a)
+                                            : col.bgBase;
+            c.fillCircle(p, 5.5f, under);
+            c.fillCircle(p, 3.5f, accent().base);
+            return;
+        }
         const std::wstring label = n > 99 ? std::wstring(L"99+") : std::to_wstring(n);
         auto layout = gfx::makeLayout(label, type::monoBadge, 100);
         DWRITE_TEXT_METRICS m{};
@@ -1212,12 +1337,128 @@ void PageHost::paint(Canvas& c) {
 }
 
 // ===================================================================================================
+// Sidebar width
+
+namespace {
+constexpr float kSideMin = 200, kSideMax = 420, kSideDefault = metrics::sidebarW, kRailW = 72;
+// A drag narrower than kCollapseBelow snaps into the rail; from the rail, wider than kExpandFrom expands again (the gap
+// keeps it from flickering at the line).
+constexpr float kCollapseBelow = 150, kExpandFrom = 160;
+constexpr float kPageMin = 400;   // the page keeps at least this much next to an expanded sidebar
+} // namespace
+
+// 6 DIPs centered on the sidebar's hairline, above the sidebar and the page. Hover / drag light the hairline in the
+// accent; a double click goes back to the default width. No tooltip: anchored to this full-height strip it would show
+// far from the pointer. Not a drop target: songs dragged across it just pass (the playlist rows end 8 DIPs before it).
+class SidebarEdge : public ui::Widget {
+public:
+    explicit SidebarEdge(Shell& shell) : shell_(shell) {}
+
+    void paint(Canvas& c) override {
+        const float a = dragging_ ? 1.f : hover_.value() * 0.7f;
+        if (a <= 0.01f) return;
+        const Rect r = rect();
+        // The hairline is the sidebar's last DIP (r.cx() - 1): light it and the DIP before it.
+        c.fillRect({r.cx() - 2, r.y, 2, r.h}, accent().base.mulAlpha(a));
+    }
+    void onMouseEnter() override {
+        hover_.to(1, ui::motion::fast);
+        invalidate();
+    }
+    void onMouseLeave() override {
+        hover_.to(0, ui::motion::normal);
+        invalidate();
+    }
+    bool onMouseDown(const ui::MouseEvent& e) override {
+        if (e.button != ui::MouseButton::Left) return false;
+        if (e.clicks == 2) {   // back to the default width (and out of the rail)
+            dragging_ = false;
+            shell_.resetSidebar();
+            return true;
+        }
+        dragging_ = true;
+        startX_ = e.windowPos.x;
+        startW_ = shell_.sidebarWidth();
+        shell_.beginSidebarDrag();
+        invalidate();
+        return true;
+    }
+    void onMouseMove(const ui::MouseEvent& e) override {
+        if (dragging_ && pressed()) shell_.dragSidebar(startW_ + e.windowPos.x - startX_);
+    }
+    void onMouseUp(const ui::MouseEvent&) override {
+        if (!dragging_) return;
+        dragging_ = false;
+        shell_.saveSidebar();
+        invalidate();
+    }
+    LPCWSTR cursor() const override { return IDC_SIZEWE; }
+
+private:
+    Shell& shell_;
+    ui::Anim hover_;
+    bool dragging_ = false;
+    float startX_ = 0, startW_ = 0;
+};
+
+float Shell::sidebarWidth() const { return sidebar_->rect().w; }
+
+void Shell::setSidebarCollapsed(bool on) {
+    if (on == sideCollapsed_) return;
+    sideCollapsed_ = on;
+    railAnim_.to(on ? 1.f : 0.f, ui::motion::medium, ui::Ease::Standard);
+    sidebar_->setCollapsed(on);
+    saveSidebar();
+    requestLayout();
+    invalidate();
+}
+
+void Shell::beginSidebarDrag() { sideDragFromW_ = sideW_; }
+
+void Shell::dragSidebar(float width) {
+    if (!sideCollapsed_ && width < kCollapseBelow) {
+        // On its way down the drag pinned the width at the minimum: expanding again brings back the one it started with.
+        sideW_ = sideDragFromW_;
+        setSidebarCollapsed(true);
+        return;
+    }
+    if (sideCollapsed_) {
+        if (width < kExpandFrom) return;
+        setSidebarCollapsed(false);
+    }
+    // Never wider than the window allows right now (what the user sees is what is kept).
+    const float w = std::round(std::clamp(width, kSideMin, std::max(kSideMin, sideMaxW_)));
+    if (w == sideW_) return;
+    sideW_ = w;
+    requestLayout();
+    invalidate();
+}
+
+void Shell::resetSidebar() {
+    sideW_ = kSideDefault;
+    setSidebarCollapsed(false);
+    saveSidebar();
+    requestLayout();
+    invalidate();
+}
+
+void Shell::saveSidebar() {
+    if (sideDevOverride_) return;
+    auto& s = Settings::get();
+    if (s.sidebarWidth == sideW_ && s.sidebarCollapsed == sideCollapsed_) return;
+    s.sidebarWidth = sideW_;
+    s.sidebarCollapsed = sideCollapsed_;
+    s.markDirty();
+}
+
+// ===================================================================================================
 // Shell
 
 Shell::Shell() {
     titleBar_ = add<TitleBar>();
     sidebar_ = add<Sidebar>();
     pageHost_ = add<PageHost>();
+    edge_ = add<SidebarEdge>(*this);
     nowPlayingView_ = add<NowPlayingView>();
     nowPlayingView_->setVisible(false);
     queue_ = add<QueuePanel>();
@@ -1229,6 +1470,19 @@ Shell::Shell() {
     playerBar_ = add<PlayerBar>();
     connect_ = add<ConnectScreen>();
     connect_->setVisible(false);
+
+    const auto& s = Settings::get();
+    sideW_ = std::clamp(s.sidebarWidth, kSideMin, kSideMax);
+    sideCollapsed_ = s.sidebarCollapsed;
+    // Dev: SHADETUBE_SIDEBAR_W=<DIPs> | rail for this run (screenshots); nothing is saved.
+    wchar_t dev[16] = {};
+    if (GetEnvironmentVariableW(L"SHADETUBE_SIDEBAR_W", dev, 16) > 0) {
+        sideDevOverride_ = true;
+        sideCollapsed_ = std::wstring_view(dev) == L"rail";
+        if (!sideCollapsed_) sideW_ = std::clamp(static_cast<float>(_wtof(dev)), kSideMin, kSideMax);
+    }
+    railAnim_.snap(sideCollapsed_ ? 1.f : 0.f);
+    sidebar_->setCollapsed(sideCollapsed_);
 }
 
 void Shell::setConnect(bool on) {
@@ -1283,7 +1537,7 @@ void Shell::layout() {
     if (connectMode_) {
         connect_->setRect({0, top, r.w, r.h - top});
         connect_->setVisible(true);
-        for (Widget* w : std::initializer_list<Widget*>{sidebar_, pageHost_, playerBar_, queue_, friends_, jam_, nowPlayingView_})
+        for (Widget* w : std::initializer_list<Widget*>{sidebar_, pageHost_, edge_, playerBar_, queue_, friends_, jam_, nowPlayingView_})
             w->setVisible(false);
         return;
     }
@@ -1295,8 +1549,14 @@ void Shell::layout() {
     const bool friends = friendsOpen_ && !nowPlaying_ && socialAvailable() && !jam;
     const bool queue = queueOpen_ && !nowPlaying_ && !friends && !jam;
     const float q = queue || friends || jam ? metrics::queueW : 0;
-    sidebar_->setRect({0, top, metrics::sidebarW, bottom - top});
-    pageHost_->setRect({metrics::sidebarW, top, r.w - metrics::sidebarW - q, bottom - top});
+    // Sidebar: the chosen width (no wider than the page allows), or the rail; in between while it collapses / expands.
+    sideMaxW_ = std::max(kSideMin, std::min(kSideMax, r.w - q - kPageMin));
+    const float rail = railAnim_;
+    const float sw = std::round(ui::lerp(std::min(sideW_, sideMaxW_), kRailW, rail));
+    sidebar_->setRailProgress(rail);
+    sidebar_->setRect({0, top, sw, bottom - top});
+    pageHost_->setRect({sw, top, r.w - sw - q, bottom - top});
+    edge_->setRect({sw - 3, top, 6, bottom - top});
     queue_->setRect({r.w - metrics::queueW, top, metrics::queueW, bottom - top});
     queue_->setVisible(queue);
     friends_->setRect({r.w - metrics::queueW, top, metrics::queueW, bottom - top});
@@ -1312,6 +1572,7 @@ void Shell::layout() {
     nowPlayingView_->setVisible(nowPlaying_ || npAnim_.running());
     sidebar_->setVisible(!nowPlaying_);
     pageHost_->setVisible(!nowPlaying_);
+    edge_->setVisible(!nowPlaying_);
 }
 
 void Shell::paint(Canvas& c) {
@@ -1321,6 +1582,7 @@ void Shell::paint(Canvas& c) {
         titleBar_->paint(c);
         return;
     }
+    if (railAnim_.running()) requestLayout();   // the sidebar collapsing / expanding: lay out the next frame too
     // Now Playing cross-fade: the regular layout fades out underneath while it opens.
     const float t = npAnim_;
     if (npAnim_.running()) {
@@ -1342,8 +1604,8 @@ void Shell::paint(Canvas& c) {
             c.popLayer();
             continue;
         }
-        if ((child.get() == sidebar_ || child.get() == pageHost_ || child.get() == queue_ || child.get() == friends_ ||
-             child.get() == jam_) &&
+        if ((child.get() == sidebar_ || child.get() == pageHost_ || child.get() == edge_ || child.get() == queue_ ||
+             child.get() == friends_ || child.get() == jam_) &&
             t > 0.999f)
             continue;
         child->paint(c);

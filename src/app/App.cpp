@@ -204,6 +204,12 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         window_->invalidate();
         return true;
     });
+    // Ctrl+B: the sidebar's icon rail (saved; the edge drag does the same).
+    commands::setHandler("toggle-sidebar", [this] {
+        if (!shell_) return false;
+        shell_->setSidebarCollapsed(!shell_->sidebarCollapsed());
+        return true;
+    });
     commands::setHandler("mini-player", [this] {
         if (mini_) closeMini();
         else openMini();

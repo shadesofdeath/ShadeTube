@@ -86,6 +86,10 @@ struct Settings {
     // ("recents" | "added" | "alpha" | "creator"). Missing = grid, recents.
     std::map<std::string, std::string> libraryView, librarySort;
     bool friendActivityOpen = false;     // "Arkadaş etkinliği" panel open (Spotify; app/FriendActivity)
+    // Sidebar (app/Shell): its width when expanded (DIPs, 200..420; dragged at its right edge) and the icon-only rail
+    // (Ctrl+B, or the edge dragged narrower than 150 DIPs).
+    float sidebarWidth = 240;
+    bool sidebarCollapsed = false;
     // "Birlikte dinle" (app/Together): the name others see ("" = Spotify / Windows name) and a broker of the user's own
     // tried before the built-in public ones (wss://host[:port]/path, "" = none).
     std::string jamName;

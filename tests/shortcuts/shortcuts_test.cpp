@@ -93,6 +93,7 @@ static void testDefaults() {
     CHECK(shortcuts::actionFor(none, combo('R', true), false) == "repeat");
     CHECK(shortcuts::actionFor(none, combo(VK_F11), false) == "now-playing");
     CHECK(shortcuts::actionFor(none, combo('K', true), false) == "command-palette");
+    CHECK(shortcuts::actionFor(none, combo('B', true), false) == "toggle-sidebar");
     CHECK(shortcuts::actionFor(none, combo(VK_UP), false).empty());   // plain arrows up/down stay list navigation
     // No global defaults.
     for (const auto& a : shortcuts::actions()) CHECK(shortcuts::binding(none, a.id, true).empty());

@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -86,6 +87,9 @@ void Settings::load() {
     read(j, "libraryView", libraryView);
     read(j, "librarySort", librarySort);
     read(j, "friendActivityOpen", friendActivityOpen);
+    read(j, "sidebarWidth", sidebarWidth);
+    sidebarWidth = std::isfinite(sidebarWidth) ? std::clamp(sidebarWidth, 200.f, 420.f) : 240.f;
+    read(j, "sidebarCollapsed", sidebarCollapsed);
     read(j, "jamName", jamName);
     read(j, "jamBroker", jamBroker);
     read(j, "newReleaseNotifications", newReleaseNotifications);
@@ -169,6 +173,8 @@ void Settings::save() const {
         {"libraryView", libraryView},
         {"librarySort", librarySort},
         {"friendActivityOpen", friendActivityOpen},
+        {"sidebarWidth", sidebarWidth},
+        {"sidebarCollapsed", sidebarCollapsed},
         {"jamName", jamName},
         {"jamBroker", jamBroker},
         {"newReleaseNotifications", newReleaseNotifications},

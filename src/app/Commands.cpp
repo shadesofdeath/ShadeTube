@@ -134,7 +134,7 @@ bool builtin(std::string_view id) {
         setThemeMode(gfx::isLightTheme() ? ThemeMode::Dark : ThemeMode::Light);
         return true;
     }
-    return false;   // "now-playing", "show-window": App's handlers
+    return false;   // "now-playing", "show-window", "toggle-sidebar": App's handlers
 }
 
 // ---- Global hotkeys ----

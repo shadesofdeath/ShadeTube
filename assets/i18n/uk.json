@@ -1822,5 +1822,6 @@
   "Çıkar": "Видалити",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Необов'язково: адреса MQTT WebSocket, що починається з wss://. Під час запуску сеансу її пробують першою, потім публічні сервери (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Сервер входить до посилання-запрошення, його використовують усі учасники.",
   "İzinler": "Дозволи",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Вийти з поточного сеансу й почати своє спільне прослуховування?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Вийти з поточного сеансу й почати своє спільне прослуховування?",
+  "Kenar çubuğunu daralt / genişlet": "Згорнути / розгорнути бічну панель"
 }

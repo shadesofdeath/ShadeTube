@@ -1504,5 +1504,6 @@
   "Çıkar": "Keluarkan",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Opsional: alamat MQTT WebSocket yang diawali wss://. Alamat ini dicoba lebih dulu saat memulai sesi, lalu server publik (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Server termasuk dalam tautan undangan; semua orang di sesi memakainya.",
   "İzinler": "Izin",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Keluar dari sesi yang sedang diikuti dan mulai sesi dengar bersamamu sendiri?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Keluar dari sesi yang sedang diikuti dan mulai sesi dengar bersamamu sendiri?",
+  "Kenar çubuğunu daralt / genişlet": "Ciutkan / bentangkan bilah samping"
 }

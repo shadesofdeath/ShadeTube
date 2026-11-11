@@ -56,6 +56,11 @@ public:
     Sidebar();
     void refresh();          // playlists / counts / folders changed
     void syncActive();       // router changed
+    // The icon-only rail (Shell::setSidebarCollapsed): nav items as icons with their names as tooltips, playlists as
+    // cover tiles. `progress` is the collapse animation (0 = expanded .. 1 = rail) the layout morphs with; the rows
+    // switch to tiles half way.
+    void setCollapsed(bool on);
+    void setRailProgress(float progress);
     void layout() override;
     void paint(Canvas& c) override;
 
@@ -68,6 +73,8 @@ public:
 private:
     void setFolderOpen(const std::string& folderId, bool open);   // Settings::expandedFolders, then refresh()
     SidebarRow* rowAt(gfx::Point windowPos) const;
+    std::vector<ui::Button*> navButtons() const;   // the page entries, top to bottom (Ayarlar last)
+    float labelOpacity() const;                     // names fade out as the rail takes the room
 
     ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *podcasts_, *releases_, *stats_, *settings_,
         *newPlaylist_;   // releases_: "Yeni çıkanlar", only with a Spotify session
@@ -78,8 +85,15 @@ private:
     SidebarRow* dropRow_ = nullptr;                      // highlighted drop target
     SidebarRow* restingFolder_ = nullptr;                // closed folder under a drag, since restingSince_
     double restingSince_ = 0, lastScrollTick_ = 0;
+    std::vector<std::pair<ui::Button*, std::wstring>> navNames_;   // tooltips of the rail
+    float rail_ = 0;           // collapse progress (setRailProgress)
+    bool collapsed_ = false;   // setCollapsed
+    bool compact_ = false;     // the rows are tiles (rail_ past half way)
     Lifetime life_;
 };
+
+// The sidebar's right edge (6 DIPs over its hairline, IDC_SIZEWE): drag to resize, double click for the default width.
+class SidebarEdge;
 
 class PlayerBar : public ui::Widget {
 public:
@@ -182,6 +196,17 @@ public:
     void setConnect(bool on);                     // full-window Spotify connect overlay
     bool connectMode() const { return connectMode_; }
 
+    // Sidebar width. Expanded it is Settings::sidebarWidth (200..420 DIPs, dragged at its right edge; the page keeps at
+    // least 400 DIPs, so a narrow window shows it narrower); collapsed it is the 72 DIP icon rail (Ctrl+B, the edge
+    // dragged below 150 DIPs). Collapsing / expanding animates the width (instant with reduce motion).
+    float sidebarWidth() const;                   // as laid out (mid-animation: in between)
+    bool sidebarCollapsed() const { return sideCollapsed_; }
+    void setSidebarCollapsed(bool on);            // saved to Settings
+    void beginSidebarDrag();                      // the edge pressed: a drag into the rail keeps today's width
+    void dragSidebar(float width);                // the edge dragged to `width`: resize, collapse below / expand above
+    void resetSidebar();                          // double click on the edge: expanded, 240 DIPs; saved
+    void saveSidebar();                           // end of a drag: width + state to Settings (when changed)
+
     TitleBar* titleBar() const { return titleBar_; }
     Sidebar* sidebar() const { return sidebar_; }
     PlayerBar* playerBar() const { return playerBar_; }
@@ -201,6 +226,13 @@ private:
     PlayerBar* playerBar_;
     NowPlayingView* nowPlayingView_;
     ConnectScreen* connect_ = nullptr;
+    SidebarEdge* edge_ = nullptr;
+    float sideW_ = 240;           // expanded width the user chose
+    float sideDragFromW_ = 240;   // sideW_ when the current drag began (restored when it ends in the rail)
+    float sideMaxW_ = 420;        // the widest the window allows now (layout)
+    bool sideCollapsed_ = false;
+    bool sideDevOverride_ = false;   // SHADETUBE_SIDEBAR_W: this run's width, never saved
+    ui::Anim railAnim_;           // 0 = expanded .. 1 = rail
     bool nowPlaying_ = false, queueOpen_ = false, friendsOpen_ = false, connectMode_ = false;
     bool jamOpen_ = false;
     bool npActive_ = false;   // Now Playing holds its resources (activate() ran, deactivate() not yet)
