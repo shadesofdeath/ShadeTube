@@ -210,9 +210,13 @@ void LibraryView::paintPlay(Canvas& c, const LibraryCell& cell, const Rect& pr, 
     const auto& acc = accent();
     const bool playing = isCurrent(cell) && ctx().player->isPlaying();
     const bool hot = playHot_ && hot_ >= 0 && &this->cell(hot_) == &cell;
+    // On the accent heart tile an accent button would vanish: the inverse there.
+    const bool onTile = cell.likedTile && cell.images.empty();
+    const Color fill = onTile ? acc.onAccent.mulAlpha(hot ? 0.85f : 1.f) : hot ? acc.hover : acc.base;
     c.pushOpacity(h);
-    c.fillCircle({pr.cx(), pr.cy()}, pr.w * 0.5f, hot ? acc.hover : acc.base);
-    c.icon(playing ? "pause" : "play", pr.center(iconSize, iconSize).offset(playing ? 0.f : 1.f, 0), acc.onAccent);
+    c.fillCircle({pr.cx(), pr.cy()}, pr.w * 0.5f, fill);
+    c.icon(playing ? "pause" : "play", pr.center(iconSize, iconSize).offset(playing ? 0.f : 1.f, 0),
+           onTile ? acc.base : acc.onAccent);
     c.popLayer();
 }
 
