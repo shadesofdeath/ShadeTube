@@ -134,6 +134,12 @@ std::vector<std::pair<Lifetime::Ref, std::function<void()>>> g_listeners;
 UINT_PTR g_timer = 0;
 std::string g_device;
 std::string g_inviteFile;           // SHADETUBE_JAM_INVITE_FILE (dev)
+// Dev (SHADETUBE_JAM_DEV, host): "control" = guests may control playback from the start, "rotate@<s>" = a new invite
+// link <s> seconds into the session, "kick@<s>" = the first guest removed then.
+struct DevPlan {
+    bool control = false;
+    int64_t rotateAtMs = -1, kickAtMs = -1;
+} g_dev;
 
 // ---- small helpers --------------------------------------------------------------------------------------------------
 
@@ -1029,7 +1035,7 @@ void guestState(const Envelope& e) {
     g.lastHostMsg = now();
     g.hostLost = false;
     if (s->banned(deviceId())) {
-        leaveGuest(Leave::Banned);
+        leaveGuest(g.state ? Leave::Kicked : Leave::Banned);   // removed now, or turned away at the door
         return;
     }
     if (!s->movedTo.empty() && s->movedTo != g.brokerUrl && mqtt::parseBrokerUrl(s->movedTo)) {
@@ -1133,6 +1139,18 @@ void onMessage(const mqtt::Publish& p, int64_t rxAt) {
 void hostTick() {
     const int64_t t = now();
     if (g.publishDue >= 0 && t >= g.publishDue) publishState();
+    if (g_dev.rotateAtMs >= 0 && t - g.startedAt >= g_dev.rotateAtMs && g.link == Link::Connected) {
+        g_dev.rotateAtMs = -1;
+        ST_LOG_INFO(kTag, "dev: new invite link");
+        rotateInvite();
+        return;
+    }
+    if (g_dev.kickAtMs >= 0 && t - g.startedAt >= g_dev.kickAtMs && g.link == Link::Connected && !g.members.empty()) {
+        g_dev.kickAtMs = -1;
+        ST_LOG_INFO(kTag, "dev: removing the first guest");
+        removeMember(g.members.front().device);
+        return;
+    }
     if (g.link == Link::Connected) {
         if (t - g.lastPublish >= kRepublishMs) publishState();
         // The published position drifted from where the player really is (a rebuffer, a slow start): say so.
@@ -1327,6 +1345,7 @@ void startHosting() {
             p->setSpeed(1.f);
         }
     }
+    g.guestsControl = g_dev.control;
     hostLinkTo("");
     startTimer();
     ST_LOG_INFO(kTag, "host: session started (room {})", roomTag(g.invite.roomId));
@@ -1378,7 +1397,7 @@ bool join(const std::string& inviteText) {
     }
     if (g.role == Role::Guest) {
         if (inv->roomId == g.invite.roomId) {
-            toast(tr(L"Bu oturumdasın zaten"));
+            toast(tr(L"Zaten bu oturumdasın"));
             return true;
         }
         // Another session: the queue saved at the first join stays the one that comes back.
@@ -1595,7 +1614,7 @@ void initTogether() {
             if (auto* pl = ctx().player; pl && pl->current() && pl->current()->id != g.lastItemId) {
                 g.lastItemId = pl->current()->id;
                 if (radio::isStationId(g.lastItemId) || catalog::isPodcastId(g.lastItemId))
-                    toast(tr(L"Podcast ve radyo yayınları birlikte dinlemede paylaşılmaz; misafirler bekler"));
+                    toast(tr(L"Podcast ve radyo yayınları birlikte dinlemede paylaşılmaz"));
             }
         } else if (g.role == Role::Guest) {
             // Follow at once (a finished song, a failed load); the 250 ms tick does the rest.
@@ -1623,6 +1642,18 @@ void initTogether() {
 
     // Dev: a host and a guest in two sandbox profiles.
     g_inviteFile = toUtf8(envVar(L"SHADETUBE_JAM_INVITE_FILE"));
+    {
+        std::wstringstream plan(envVar(L"SHADETUBE_JAM_DEV"));
+        std::wstring item;
+        while (std::getline(plan, item, L',')) {
+            const size_t at = item.find(L'@');
+            const std::wstring what = item.substr(0, at);
+            const int64_t ms = at == std::wstring::npos ? -1 : _wtoi(item.c_str() + at + 1) * 1000LL;
+            if (what == L"control") g_dev.control = true;
+            else if (what == L"rotate") g_dev.rotateAtMs = ms;
+            else if (what == L"kick") g_dev.kickAtMs = ms;
+        }
+    }
     if (envVar(L"SHADETUBE_JAM_HOST") == L"1") Dispatcher::post([] { startHosting(); });
     if (const std::wstring link = envVar(L"SHADETUBE_JAM_JOIN"); !link.empty())
         Dispatcher::post([text = toUtf8(link)] {

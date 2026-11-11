@@ -530,6 +530,7 @@ void App::showShell() {
     // The friend activity panel as it was left (it shows once a Spotify session is there).
     if (Settings::get().friendActivityOpen || options_.route == "friends") shell_->setFriendsOpen(true);
     if (options_.route == "jam") shell_->setJamOpen(true);   // dev: the "Birlikte dinle" panel
+    if (options_.route == "queue") shell_->setQueueOpen(true);   // dev: the queue panel
     Route start{RouteKind::Home};
     if (options_.route == "search") start = {RouteKind::Search};
     else if (options_.route.rfind("search:", 0) == 0) start = {RouteKind::Search, options_.route.substr(7)};
