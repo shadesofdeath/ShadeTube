@@ -111,6 +111,9 @@ public:
 
     // Tooltip support (Window draws it in the overlay layer).
     void showTooltipFor(Widget* w);
+    // Re-sends the pointer's position as a mouse move (posted): content that slid under a still pointer (a scroll
+    // settling) updates its hover. Nothing when the pointer is not over this window.
+    void refreshHover();
 
     static Window* fromHwnd(HWND hwnd);
     LRESULT handleMessageThunk(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
@@ -130,12 +133,14 @@ private:
     Point toDip(LPARAM lp) const;
     MouseEvent makeEvent(Widget* target, Point windowPos, MouseButton b, WPARAM wp) const;
     void resized();
+    double frameTime();
     void runLayout();
     void paintTooltip(Canvas& c);
     void paintFocusRing(Canvas& c);
     Widget* focusScope() const;                    // topmost modal overlay, else the root
     bool inScope(const Widget* w) const;           // attached under focusScope()
     bool dispatchKey(const KeyEvent& e);
+    bool scrollByKey(const KeyEvent& e);
     void restartRing();
     void applyPendingOverlayFocus();
 
@@ -158,6 +163,7 @@ private:
     bool trackingLeave_ = false;
     bool maxButtonHot_ = false;
     double wakeAt_ = 1e300;
+    double lastFrameAt_ = 0;   // frame time of the last render (frameTime())
 
     Widget* hover_ = nullptr;
     Widget* capture_ = nullptr;

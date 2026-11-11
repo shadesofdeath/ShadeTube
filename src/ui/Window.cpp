@@ -5,6 +5,7 @@
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
 #include "ui/Anim.h"
+#include "ui/Layout.h"
 
 #include <dwmapi.h>
 #include <windowsx.h>
@@ -436,10 +437,32 @@ void Window::runLayout() {
     applyFocusRestore();
 }
 
+// Animation time of the frame about to be drawn: the vblank it is shown at, on DWM's refresh grid. Frames start
+// unevenly after the swap chain's wait (2.5 / 5.5 ms apart at 240 Hz), but they appear on whole refresh periods: with
+// these times a glide advances by the same amount per refresh (smooth scrolling); with the start times it would wobble.
+// Two frames in one period go a period apart; without DWM timing the plain clock is used.
+double Window::frameTime() {
+    const double now = frame::realNow();
+    static const double ticksPerMs = [] {
+        LARGE_INTEGER f;
+        QueryPerformanceFrequency(&f);
+        return static_cast<double>(f.QuadPart) / 1000.0;
+    }();
+    DWM_TIMING_INFO ti{};
+    ti.cbSize = sizeof ti;
+    if (FAILED(DwmGetCompositionTimingInfo(nullptr, &ti)) || ti.qpcRefreshPeriod == 0) return lastFrameAt_ = now;
+    const double period = static_cast<double>(ti.qpcRefreshPeriod) / ticksPerMs;
+    const double vblank = static_cast<double>(ti.qpcVBlank) / ticksPerMs;
+    if (period < 2 || period > 60 || vblank > now + period || now - vblank > 1000) return lastFrameAt_ = now;
+    double t = vblank + std::ceil((now - vblank) / period) * period;   // the next vblank
+    if (t < lastFrameAt_ + period * 0.5) t = std::min(lastFrameAt_ + period, t + period);
+    return lastFrameAt_ = t;
+}
+
 void Window::render() {
     graveyard_.clear();
     if (!target_ || isMinimized()) return;
-    frame::begin();
+    frame::begin(frameTime());
     // This frame consumes a wake-up that is due. Clear it before layout and painting: a repaint asked for meanwhile
     // (invalidateAfter, e.g. a debounce or a caret blink) must be kept, not merged into the due one and dropped with it.
     const double dueWake = wakeAt_;
@@ -703,7 +726,48 @@ bool Window::dispatchKey(const KeyEvent& e) {
         if (target && target != chainTop) handled = target->onKeyDown(e);
     }
     if (!handled && onKey) handled = onKey(e);
+    if (!handled) handled = scrollByKey(e);
     return handled;
+}
+
+// Page keys nobody took (PageUp / PageDown / Home / End / Up / Down): the scroll view the user last clicked in, else
+// the one under the pointer (innermost that can scroll), else the biggest one on screen (the page). A focused widget
+// inside a ScrollView already offered them to it.
+bool Window::scrollByKey(const KeyEvent& e) {
+    if (e.ctrl || e.alt || e.shift) return false;
+    if (e.vk != VK_PRIOR && e.vk != VK_NEXT && e.vk != VK_HOME && e.vk != VK_END && e.vk != VK_UP && e.vk != VK_DOWN)
+        return false;
+    for (Widget* start : {inScope(navStart_) ? navStart_ : nullptr, inScope(hover_) ? hover_ : nullptr}) {
+        for (Widget* w = start; w; w = w->parent_)
+            if (auto* sv = dynamic_cast<ScrollView*>(w); sv && sv->visible() && sv->onKeyDown(e)) return true;
+    }
+    if (focusScope() != root_.get() || !root_) return false;   // a modal overlay: not the page behind it
+    ScrollView* best = nullptr;
+    float bestArea = 0;
+    std::function<void(Widget*)> walk = [&](Widget* w) {
+        if (!w->visible()) return;
+        auto* sv = dynamic_cast<ScrollView*>(w);
+        if (const float area = sv ? sv->rect().w * sv->rect().h : 0; sv && sv->maxScroll() > 0 && area > bestArea) {
+            best = sv;
+            bestArea = area;
+        }
+        for (auto& c : w->children_) walk(c.get());
+    };
+    walk(root_.get());
+    return best && best->onKeyDown(e);
+}
+
+void Window::refreshHover() {
+    POINT pt;
+    if (!GetCursorPos(&pt) || WindowFromPoint(pt) != hwnd_) return;
+    ScreenToClient(hwnd_, &pt);
+    WPARAM keys = 0;
+    if (GetKeyState(VK_LBUTTON) < 0) keys |= MK_LBUTTON;
+    if (GetKeyState(VK_RBUTTON) < 0) keys |= MK_RBUTTON;
+    if (GetKeyState(VK_MBUTTON) < 0) keys |= MK_MBUTTON;
+    if (GetKeyState(VK_SHIFT) < 0) keys |= MK_SHIFT;
+    if (GetKeyState(VK_CONTROL) < 0) keys |= MK_CONTROL;
+    PostMessageW(hwnd_, WM_MOUSEMOVE, keys, MAKELPARAM(pt.x, pt.y));
 }
 
 MouseEvent Window::makeEvent(Widget* target, Point windowPos, MouseButton b, WPARAM wp) const {
