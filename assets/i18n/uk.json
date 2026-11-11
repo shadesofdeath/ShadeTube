@@ -483,7 +483,6 @@
   "Taranacak bir müzik klasörü seç": "Вибери папку з музикою для сканування",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Знайти нові, змінені й видалені файли в папках",
   "Bilgisayarındaki müziği ekle": "Додай музику зі свого комп’ютера",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "Вибери папки з музикою — треки з’являться тут із тегами й обкладинками та гратимуть без інтернету. Твої файли лише зчитуються.",
   "Klasörler taranıyor": "Сканування папок",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Це може зайняти трохи часу; після завершення твої треки з’являться тут.",
   "Şarkı bulunamadı": "Треків не знайдено",
@@ -513,7 +512,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "Видалити зі списку (файли залишаться)",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "Папку видалено зі списку; твої файли на місці",
   "Müzik klasörü ekle": "Додати папку з музикою",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "Сканується разом із вкладеними папками: MP3, M4A, AAC, FLAC, WAV, WMA. Треки з’являться на сторінці «Локальні файли» з тегами й обкладинками. Твої файли лише зчитуються й ніколи не змінюються.",
   "Önceki": "Попередній",
   "Sonraki": "Наступний",
   "Büyüt": "Розгорнути",
@@ -1585,5 +1583,70 @@
     "many": "{} треків видалено з плейлиста",
     "other": "{} треку видалено з плейлиста"
   },
-  "Şarkılar listeye geri eklenemedi": "Не вдалося повернути треки до плейлиста"
+  "Şarkılar listeye geri eklenemedi": "Не вдалося повернути треки до плейлиста",
+  "Klasörler": "Папки",
+  "Tüm klasörler": "Усі папки",
+  "Klasörler hazırlanıyor…": "Підготовка папок…",
+  "Bu klasördeki şarkılar": "Треки в цій папці",
+  "Eklenen klasörlerde şarkı yok.": "У доданих папках немає треків.",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Вибери папки з музикою — треки з’являться тут із тегами й обкладинками та гратимуть без інтернету. Твої файли змінюються, лише коли ти редагуєш їхні теги.",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Сканується разом із вкладеними папками: MP3, M4A, AAC, FLAC, WAV, WMA. Треки з’являться на сторінці «Локальні файли» з тегами й обкладинками. Твої файли змінюються, лише коли ти редагуєш їхні теги.",
+  "Etiketleri düzenle…": "Змінити теги…",
+  "Etiketleri düzenle": "Змінити теги",
+  "Albüm sanatçısı": "Виконавець альбому",
+  "Parça no": "Номер треку",
+  "Disk no": "Номер диска",
+  "Yıl": "Рік",
+  "Tür": "Жанр",
+  "Farklı değerler": "Різні значення",
+  "Farklı kapaklar": "Різні обкладинки",
+  "Kapağı dosyadan kaldır": "Видалити обкладинку з файлу",
+  "{} dosya": {
+    "one": "{} файл",
+    "few": "{} файли",
+    "many": "{} файлів",
+    "other": "{} файлів"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{} · {}. Поля з написом «Різні значення» не зміняться, якщо нічого в них не вводити.",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "one": "{} файл пропущено: його формат не можна змінити.",
+    "few": "{} файли пропущено: їхній формат не можна змінити.",
+    "many": "{} файлів пропущено: їхній формат не можна змінити.",
+    "other": "{} файлів пропущено: їхній формат не можна змінити."
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "Номер треку, номер диска й рік можуть містити лише цифри",
+  "Bu dosyaların etiketleri okunamadı": "Не вдалося прочитати теги цих файлів",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Теги цього формату не можна змінити (можна — у MP3, M4A і FLAC)",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Теги цих форматів не можна змінити (можна — у MP3, M4A і FLAC)",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "one": "Можна змінити теги щонайбільше {} файлу за раз",
+    "few": "Можна змінити теги щонайбільше {} файлів за раз",
+    "many": "Можна змінити теги щонайбільше {} файлів за раз",
+    "other": "Можна змінити теги щонайбільше {} файлів за раз"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "Теги ще зберігаються — спробуй трохи згодом",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "one": "Зберігаються теги {} файлу…",
+    "few": "Зберігаються теги {} файлів…",
+    "many": "Зберігаються теги {} файлів…",
+    "other": "Зберігаються теги {} файлів…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "one": "Теги {} файлу збережено",
+    "few": "Теги {} файлів збережено",
+    "many": "Теги {} файлів збережено",
+    "other": "Теги {} файлів збережено"
+  },
+  "Etiketler kaydedildi": "Теги збережено",
+  "Etiketler kaydedilemedi": "Не вдалося зберегти теги",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "Не вдалося зберегти теги: {} Файл не змінено.",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "Не збережено: {} з {}. {} Ці файли не змінено.",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "Файл лише для читання, або в папку не можна записувати.",
+  "Dosya başka bir uygulamada açık.": "Файл відкрито в іншій програмі.",
+  "Dosyanın etiketleri bozuk.": "Теги файлу пошкоджено.",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "Теги файлів цього формату не можна змінити.",
+  "Dosya bulunamadı.": "Файл не знайдено.",
+  "Yeni dosya doğrulanamadı.": "Не вдалося перевірити новий файл.",
+  "Dosya bu sırada başka bir programca değiştirildi.": "Тим часом файл змінила інша програма.",
+  "Dosyaya yazılamadı.": "Не вдалося записати файл."
 }

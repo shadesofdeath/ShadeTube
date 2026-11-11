@@ -93,6 +93,9 @@ public:
     // Change notifications. Subscriptions die with their Lifetime (pages renew/destroy theirs).
     void subscribe(Lifetime::Ref owner, std::function<void()> fn) { listeners_.emplace_back(std::move(owner), std::move(fn)); }
     void notify();
+    // New metadata for every stored copy of t.id (liked songs, local playlists, history): a local file whose tags were
+    // edited. Name, artists, album, number and duration change. Returns how many copies changed.
+    int updateTrackInfo(const catalog::Track& t);
 
 private:
     void touch();
@@ -224,6 +227,9 @@ void promptRenamePlaylist(const std::string& id, const std::wstring& currentName
 // playlist the user owns. `name` / `description` / `images`: what the playlist shows now.
 void editPlaylistDetails(const std::string& id, const std::wstring& name, const std::wstring& description,
                          const std::vector<catalog::Image>& images);
+// A picture file (JPEG / PNG / WebP...) picked in a dialog owned by the main window; "" = cancelled. Modal: call it
+// posted, outside a widget event (app/PlaylistDetails.cpp; also the tag editor's cover).
+std::wstring pickImageFile();
 // Confirm dialog, then delete (Spotify: removes it from the library — Spotify's "delete" for an owned playlist,
 // unfollow otherwise). Leaves the playlist's page (-> Library) if it is open.
 void confirmDeletePlaylist(const std::string& id, const std::wstring& name);

@@ -515,6 +515,7 @@ void App::showShell() {
     else if (options_.route == "downloads") start = {RouteKind::Downloads};
     else if (options_.route == "stats") start = {RouteKind::Stats};
     else if (options_.route == "local") start = {RouteKind::LocalFiles};
+    else if (options_.route.rfind("local:", 0) == 0) start = {RouteKind::LocalFiles, options_.route.substr(6)};
     else if (options_.route == "radio") start = {RouteKind::Radio};
     else if (options_.route.rfind("radio:", 0) == 0) start = {RouteKind::Radio, options_.route.substr(6)};
     else if (options_.route == "podcasts") start = {RouteKind::Podcasts};

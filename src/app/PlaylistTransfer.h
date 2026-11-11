@@ -13,9 +13,11 @@
 // library's tag reader and remembered like dropped files (so they keep playing); songs named only by an id get their
 // title from Spotify / YouTube / MusicBrainz (at most kMaxLookups); YouTube videos keep exactly that video as their
 // source. Logged in, "Spotify'da da oluştur" also creates a Spotify playlist with the songs that have Spotify ids.
+#include "catalog/Models.h"
 #include "ui/Popups.h"
 
 #include <string>
+#include <vector>
 
 namespace st::app::transfer {
 
@@ -27,6 +29,8 @@ inline constexpr int kMaxLookups = 300;     // id-only songs named through the n
 // spotify:playlist: URI; Album -> a Spotify URI or an MBID; Queue -> unused. `name` is the default file name.
 void exportList(What what, const std::string& id, const std::string& name);
 ui::MenuItem exportMenuItem(What what, const std::string& id, const std::string& name);
+// Songs the caller already holds (a Yerel dosyalar folder), under the default file name `name`.
+void exportTracks(const std::string& name, std::vector<catalog::Track> tracks);
 
 void importFromFile();                                  // file picker (posted: safe from a click handler)
 void importFile(const std::wstring& path);              // that playlist file (e.g. dropped from Explorer)

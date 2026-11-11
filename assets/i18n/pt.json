@@ -437,7 +437,6 @@
   "Taranacak bir müzik klasörü seç": "Escolha uma pasta de música para escanear",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Encontrar arquivos novos, alterados e excluídos nas pastas",
   "Bilgisayarındaki müziği ekle": "Adicione as músicas do seu computador",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "Escolha suas pastas de música; as músicas aparecem aqui com tags e capas e tocam sem internet. Seus arquivos são apenas lidos.",
   "Klasörler taranıyor": "Escaneando as pastas",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Isso pode levar um tempinho; ao terminar, suas músicas aparecem aqui.",
   "Şarkı bulunamadı": "Nenhuma música encontrada",
@@ -463,7 +462,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "Remover da lista (os arquivos ficam intactos)",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "Pasta removida; seus arquivos continuam no lugar",
   "Müzik klasörü ekle": "Adicionar pasta de música",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "As subpastas também são escaneadas: MP3, M4A, AAC, FLAC, WAV, WMA. As músicas aparecem em Arquivos locais com tags e capas. Seus arquivos são apenas lidos, nunca alterados.",
   "Önceki": "Anterior",
   "Sonraki": "Próxima",
   "Büyüt": "Expandir",
@@ -1447,5 +1445,60 @@
     "one": "{} música removida da playlist",
     "other": "{} músicas removidas da playlist"
   },
-  "Şarkılar listeye geri eklenemedi": "Não foi possível devolver as músicas à playlist"
+  "Şarkılar listeye geri eklenemedi": "Não foi possível devolver as músicas à playlist",
+  "Klasörler": "Pastas",
+  "Tüm klasörler": "Todas as pastas",
+  "Klasörler hazırlanıyor…": "Preparando pastas…",
+  "Bu klasördeki şarkılar": "Músicas desta pasta",
+  "Eklenen klasörlerde şarkı yok.": "As pastas adicionadas não têm músicas.",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Escolha suas pastas de música; as músicas aparecem aqui com tags e capas e tocam sem internet. Seus arquivos só são alterados quando você edita as tags deles.",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "As subpastas também são escaneadas: MP3, M4A, AAC, FLAC, WAV, WMA. As músicas aparecem em Arquivos locais com tags e capas. Seus arquivos só são alterados quando você edita as tags deles.",
+  "Etiketleri düzenle…": "Editar tags…",
+  "Etiketleri düzenle": "Editar tags",
+  "Albüm sanatçısı": "Artista do álbum",
+  "Parça no": "Nº da faixa",
+  "Disk no": "Nº do disco",
+  "Yıl": "Ano",
+  "Tür": "Gênero",
+  "Farklı değerler": "Valores diferentes",
+  "Farklı kapaklar": "Capas diferentes",
+  "Kapağı dosyadan kaldır": "Remover a capa do arquivo",
+  "{} dosya": {
+    "one": "{} arquivo",
+    "other": "{} arquivos"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{} · {}. Os campos com \"Valores diferentes\" ficam como estão, a menos que você digite algo.",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "one": "{} arquivo será ignorado: o formato dele não pode ser editado.",
+    "other": "{} arquivos serão ignorados: o formato deles não pode ser editado."
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "Nº da faixa, nº do disco e ano só podem conter números",
+  "Bu dosyaların etiketleri okunamadı": "Não foi possível ler as tags destes arquivos",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "As tags deste formato não podem ser editadas (as de MP3, M4A e FLAC podem)",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "As tags destes formatos não podem ser editadas (as de MP3, M4A e FLAC podem)",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "one": "Você pode editar as tags de no máximo {} arquivo de uma vez",
+    "other": "Você pode editar as tags de no máximo {} arquivos de uma vez"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "As tags ainda estão sendo salvas; tente de novo em instantes",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "one": "Salvando as tags de {} arquivo…",
+    "other": "Salvando as tags de {} arquivos…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "one": "Tags de {} arquivo salvas",
+    "other": "Tags de {} arquivos salvas"
+  },
+  "Etiketler kaydedildi": "Tags salvas",
+  "Etiketler kaydedilemedi": "Não foi possível salvar as tags",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "Não foi possível salvar as tags: {} O arquivo não foi alterado.",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "Não salvos: {} de {}. {} Esses arquivos não foram alterados.",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "O arquivo é somente leitura ou não é possível gravar na pasta.",
+  "Dosya başka bir uygulamada açık.": "O arquivo está aberto em outro aplicativo.",
+  "Dosyanın etiketleri bozuk.": "As tags do arquivo estão corrompidas.",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "As tags deste formato de arquivo não podem ser editadas.",
+  "Dosya bulunamadı.": "Arquivo não encontrado.",
+  "Yeni dosya doğrulanamadı.": "Não foi possível verificar o novo arquivo.",
+  "Dosya bu sırada başka bir programca değiştirildi.": "Outro programa alterou o arquivo nesse meio-tempo.",
+  "Dosyaya yazılamadı.": "Não foi possível gravar no arquivo."
 }

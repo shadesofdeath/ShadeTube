@@ -437,7 +437,6 @@
   "Taranacak bir müzik klasörü seç": "Choose a music folder to scan",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Find new, changed and deleted files in your folders",
   "Bilgisayarındaki müziği ekle": "Add music from your computer",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "Choose your music folders; songs show up here with their tags and cover art and play without internet. ShadeTube only reads your files.",
   "Klasörler taranıyor": "Scanning folders",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "This may take a while; your songs will show up here when it's done.",
   "Şarkı bulunamadı": "No songs found",
@@ -463,7 +462,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "Remove from list (your files stay untouched)",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "Folder removed; your files weren't touched",
   "Müzik klasörü ekle": "Add music folder",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "Subfolders are scanned too: MP3, M4A, AAC, FLAC, WAV, WMA. Songs appear on the Local files page with their tags and cover art. ShadeTube only reads your files and never changes them.",
   "Önceki": "Previous",
   "Sonraki": "Next",
   "Büyüt": "Expand",
@@ -1447,5 +1445,60 @@
     "one": "{} song removed from the playlist",
     "other": "{} songs removed from the playlist"
   },
-  "Şarkılar listeye geri eklenemedi": "Couldn't put the songs back"
+  "Şarkılar listeye geri eklenemedi": "Couldn't put the songs back",
+  "Klasörler": "Folders",
+  "Tüm klasörler": "All folders",
+  "Klasörler hazırlanıyor…": "Preparing folders…",
+  "Bu klasördeki şarkılar": "Songs in this folder",
+  "Eklenen klasörlerde şarkı yok.": "The added folders have no songs.",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Choose your music folders; songs show up here with their tags and cover art and play without internet. Your files are only changed when you edit their tags.",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Subfolders are scanned too: MP3, M4A, AAC, FLAC, WAV, WMA. Songs appear on the Local files page with their tags and cover art. Your files are only changed when you edit their tags.",
+  "Etiketleri düzenle…": "Edit tags…",
+  "Etiketleri düzenle": "Edit tags",
+  "Albüm sanatçısı": "Album artist",
+  "Parça no": "Track no.",
+  "Disk no": "Disc no.",
+  "Yıl": "Year",
+  "Tür": "Genre",
+  "Farklı değerler": "Different values",
+  "Farklı kapaklar": "Different covers",
+  "Kapağı dosyadan kaldır": "Remove the cover from the file",
+  "{} dosya": {
+    "one": "{} file",
+    "other": "{} files"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{} · {}. Fields that say \"Different values\" stay as they are unless you type something in.",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "one": "{} file is skipped: its format can't be edited.",
+    "other": "{} files are skipped: their format can't be edited."
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "Track no., disc no. and year can only contain digits",
+  "Bu dosyaların etiketleri okunamadı": "Couldn't read the tags of these files",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "This format's tags can't be edited (MP3, M4A and FLAC can)",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "These formats' tags can't be edited (MP3, M4A and FLAC can)",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "one": "You can edit the tags of at most {} file at once",
+    "other": "You can edit the tags of at most {} files at once"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "Tags are still being saved; try again in a moment",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "one": "Saving the tags of {} file…",
+    "other": "Saving the tags of {} files…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "one": "Tags of {} file saved",
+    "other": "Tags of {} files saved"
+  },
+  "Etiketler kaydedildi": "Tags saved",
+  "Etiketler kaydedilemedi": "Couldn't save the tags",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "Couldn't save the tags: {} The file was left untouched.",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "Not saved: {} of {}. {} Those files were left untouched.",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "The file is read-only, or the folder can't be written to.",
+  "Dosya başka bir uygulamada açık.": "The file is open in another app.",
+  "Dosyanın etiketleri bozuk.": "The file's tags are damaged.",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "Tags of this file format can't be edited.",
+  "Dosya bulunamadı.": "File not found.",
+  "Yeni dosya doğrulanamadı.": "The new file failed verification.",
+  "Dosya bu sırada başka bir programca değiştirildi.": "Another program changed the file in the meantime.",
+  "Dosyaya yazılamadı.": "Couldn't write to the file."
 }

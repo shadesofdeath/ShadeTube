@@ -94,6 +94,7 @@ add_executable(ShadeTube WIN32
     StatsPage.cpp
     SyncRules.cpp SyncRules.h
     SystemSettings.cpp
+    TagEditor.cpp TagEditor.h
     Updater.cpp Updater.h
     WinShell.cpp WinShell.h
     FriendActivity.cpp Social.h

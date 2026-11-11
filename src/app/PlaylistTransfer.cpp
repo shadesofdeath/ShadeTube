@@ -491,6 +491,8 @@ ui::MenuItem exportMenuItem(What what, const std::string& id, const std::string&
     return {tr(L"Dışa aktar…"), "share", L"", [what, id, name] { exportList(what, id, name); }};
 }
 
+void exportTracks(const std::string& name, std::vector<Track> tracks) { saveRows(name, std::move(tracks)); }
+
 void importFromFile() { Dispatcher::post([] { pickImportFile(); }); }
 
 void importFile(const std::wstring& path) {

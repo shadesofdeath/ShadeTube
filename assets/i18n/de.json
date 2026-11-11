@@ -437,7 +437,6 @@
   "Taranacak bir müzik klasörü seç": "Wähle einen Musikordner zum Scannen",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Neue, geänderte und gelöschte Dateien in den Ordnern finden",
   "Bilgisayarındaki müziği ekle": "Füge Musik von deinem PC hinzu",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "Wähle deine Musikordner: Die Songs erscheinen hier mit Tags und Covern und laufen auch ohne Internet. Deine Dateien werden nur gelesen.",
   "Klasörler taranıyor": "Ordner werden gescannt",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Das kann etwas dauern; danach erscheinen deine Songs hier.",
   "Şarkı bulunamadı": "Keine Songs gefunden",
@@ -463,7 +462,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "Aus Liste entfernen (Dateien bleiben unberührt)",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "Ordner entfernt; deine Dateien bleiben, wo sie sind",
   "Müzik klasörü ekle": "Musikordner hinzufügen",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "Unterordner werden mitgescannt: MP3, M4A, AAC, FLAC, WAV, WMA. Die Songs erscheinen unter „Lokale Dateien“ mit Tags und Covern. Deine Dateien werden nur gelesen, nie verändert.",
   "Önceki": "Zurück",
   "Sonraki": "Weiter",
   "Büyüt": "Vergrößern",
@@ -1447,5 +1445,60 @@
     "one": "{} Song aus der Playlist entfernt",
     "other": "{} Songs aus der Playlist entfernt"
   },
-  "Şarkılar listeye geri eklenemedi": "Songs konnten nicht zurückgeholt werden"
+  "Şarkılar listeye geri eklenemedi": "Songs konnten nicht zurückgeholt werden",
+  "Klasörler": "Ordner",
+  "Tüm klasörler": "Alle Ordner",
+  "Klasörler hazırlanıyor…": "Ordner werden vorbereitet…",
+  "Bu klasördeki şarkılar": "Songs in diesem Ordner",
+  "Eklenen klasörlerde şarkı yok.": "In den hinzugefügten Ordnern sind keine Songs.",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Wähle deine Musikordner: Die Songs erscheinen hier mit Tags und Covern und laufen auch ohne Internet. Deine Dateien werden nur verändert, wenn du ihre Tags bearbeitest.",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Unterordner werden mitgescannt: MP3, M4A, AAC, FLAC, WAV, WMA. Die Songs erscheinen unter „Lokale Dateien“ mit Tags und Covern. Deine Dateien werden nur verändert, wenn du ihre Tags bearbeitest.",
+  "Etiketleri düzenle…": "Tags bearbeiten…",
+  "Etiketleri düzenle": "Tags bearbeiten",
+  "Albüm sanatçısı": "Albuminterpret",
+  "Parça no": "Titel-Nr.",
+  "Disk no": "CD-Nr.",
+  "Yıl": "Jahr",
+  "Tür": "Genre",
+  "Farklı değerler": "Unterschiedliche Werte",
+  "Farklı kapaklar": "Unterschiedliche Cover",
+  "Kapağı dosyadan kaldır": "Cover aus der Datei entfernen",
+  "{} dosya": {
+    "one": "{} Datei",
+    "other": "{} Dateien"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{} · {}. Felder mit „Unterschiedliche Werte“ bleiben, wie sie sind, solange du nichts eingibst.",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "one": "{} Datei wird übersprungen: Ihr Format lässt sich nicht bearbeiten.",
+    "other": "{} Dateien werden übersprungen: Ihr Format lässt sich nicht bearbeiten."
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "Titel-Nr., CD-Nr. und Jahr dürfen nur Ziffern enthalten",
+  "Bu dosyaların etiketleri okunamadı": "Die Tags dieser Dateien konnten nicht gelesen werden",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Die Tags dieses Formats lassen sich nicht bearbeiten (MP3, M4A und FLAC schon)",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Die Tags dieser Formate lassen sich nicht bearbeiten (MP3, M4A und FLAC schon)",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "one": "Du kannst die Tags von höchstens {} Datei auf einmal bearbeiten",
+    "other": "Du kannst die Tags von höchstens {} Dateien auf einmal bearbeiten"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "Die Tags werden noch gespeichert; versuch es gleich noch einmal",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "one": "Tags von {} Datei werden gespeichert…",
+    "other": "Tags von {} Dateien werden gespeichert…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "one": "Tags von {} Datei gespeichert",
+    "other": "Tags von {} Dateien gespeichert"
+  },
+  "Etiketler kaydedildi": "Tags gespeichert",
+  "Etiketler kaydedilemedi": "Tags konnten nicht gespeichert werden",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "Tags konnten nicht gespeichert werden: {} Die Datei bleibt unverändert.",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "Nicht gespeichert: {} von {}. {} Diese Dateien bleiben unverändert.",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "Die Datei ist schreibgeschützt, oder in den Ordner kann nicht geschrieben werden.",
+  "Dosya başka bir uygulamada açık.": "Die Datei ist in einer anderen App geöffnet.",
+  "Dosyanın etiketleri bozuk.": "Die Tags der Datei sind beschädigt.",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "Die Tags dieses Dateiformats lassen sich nicht bearbeiten.",
+  "Dosya bulunamadı.": "Datei nicht gefunden.",
+  "Yeni dosya doğrulanamadı.": "Die neue Datei hat die Prüfung nicht bestanden.",
+  "Dosya bu sırada başka bir programca değiştirildi.": "Ein anderes Programm hat die Datei inzwischen geändert.",
+  "Dosyaya yazılamadı.": "In die Datei konnte nicht geschrieben werden."
 }

@@ -273,7 +273,10 @@ Sidebar::Sidebar() {
     search_->onClick = [] { ctx().router->navigate({RouteKind::Search}); };
     library_->onClick = [] { ctx().router->navigate({RouteKind::Library}); };
     downloads_->onClick = [] { ctx().router->navigate({RouteKind::Downloads}); };
-    local_->onClick = [] { ctx().router->navigate({RouteKind::LocalFiles}); };
+    local_->onClick = [] {   // (the page names its view in the route: on it, a click scrolls it to the top)
+        auto* r = ctx().router;
+        r->navigate(r->current().kind == RouteKind::LocalFiles ? r->current() : Route{RouteKind::LocalFiles});
+    };
     radio_->onClick = [] { ctx().router->navigate({RouteKind::Radio}); };
     podcasts_->onClick = [] { ctx().router->navigate({RouteKind::Podcasts}); };
     releases_->onClick = [] { ctx().router->navigate({RouteKind::NewReleases}); };

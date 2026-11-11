@@ -79,6 +79,8 @@ struct Settings {
     // (full-length uploads whose duration matches; youtube/SoundCloud).
     bool altSoundCloud = true;
     std::vector<std::string> localFolders;   // "Yerel dosyalar": folders scanned for the user's own music files
+    std::string localView;               // its view: "songs" (also ""), "albums", "artists", "folders"
+    std::string localFolder;             // the folder its Klasörler view showed last ("" = the top level)
     std::vector<std::string> expandedFolders;   // sidebar: Spotify library folders left open (rootlist group ids)
     bool friendActivityOpen = false;     // "Arkadaş etkinliği" panel open (Spotify; app/FriendActivity)
     bool newReleaseNotifications = false;   // Windows notification for new releases of followed artists

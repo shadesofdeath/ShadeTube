@@ -11,6 +11,7 @@
 #include "app/Shell.h"
 #include "app/SmartShuffle.h"
 #include "app/Source.h"
+#include "app/TagEditor.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -138,6 +139,28 @@ void Library::notify() {
     auto ls = listeners_;   // a listener may subscribe new listeners while we iterate
     for (auto& [owner, fn] : ls)
         if (!owner.expired() && fn) fn();
+}
+
+int Library::updateTrackInfo(const Track& t) {
+    int changed = 0;
+    const auto update = [&](Track& copy) {
+        if (copy.id != t.id) return;
+        copy.name = t.name;
+        copy.artists = t.artists;
+        copy.album = t.album;
+        copy.trackNumber = t.trackNumber;
+        if (t.durationMs > 0) copy.durationMs = t.durationMs;
+        ++changed;
+    };
+    for (auto& x : liked_) update(x);
+    for (auto& [id, tracks] : playlistTracks_)
+        for (auto& x : tracks) update(x);
+    for (auto& h : history_) update(h.track);
+    if (changed > 0) {
+        for (auto& p : playlists_) refreshPlaylistMeta(p);   // a list's cover mosaic may use the new cover
+        touch();
+    }
+    return changed;
 }
 
 bool Library::isLiked(const std::string& trackId) const {
@@ -928,6 +951,7 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
     std::vector<Track> downloadable;
     for (const auto& t : tracks)
         if (!isLocal(t)) downloadable.push_back(t);
+    bool fileGroup = false;
     if (!many && isLocal(track)) {
         const std::wstring path = LocalLibrary::get().pathFor(track.id);
         if (!path.empty()) {
@@ -935,9 +959,15 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
                                  const std::wstring arg = L"/select,\"" + path + L"\"";
                                  ShellExecuteW(nullptr, L"open", L"explorer.exe", arg.c_str(), nullptr, SW_SHOWNORMAL);
                              }});
-            items.push_back(ui::MenuItem::sep());
+            fileGroup = true;
         }
     }
+    // The files' tags (Yerel dosyalar, dropped files, downloads: app/TagEditor).
+    if (auto edit = tagedit::menuItem(tracks)) {
+        items.push_back(std::move(*edit));
+        fileGroup = true;
+    }
+    if (fileGroup) items.push_back(ui::MenuItem::sep());
     // Download (MP3).
     if (!downloadable.empty()) {
         const bool downloaded = !many && ctx().downloads.isDownloaded(track.id);

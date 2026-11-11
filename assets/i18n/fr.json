@@ -437,7 +437,6 @@
   "Taranacak bir müzik klasörü seç": "Choisis un dossier de musique à analyser",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Détecter les fichiers nouveaux, modifiés et supprimés dans les dossiers",
   "Bilgisayarındaki müziği ekle": "Ajoute la musique de ton ordinateur",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "Choisis tes dossiers de musique : les titres s'affichent ici avec leurs tags et pochettes, et se lisent sans Internet. Tes fichiers restent intacts.",
   "Klasörler taranıyor": "Analyse des dossiers",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Cela peut prendre un moment ; tes titres s'afficheront ici une fois l'analyse terminée.",
   "Şarkı bulunamadı": "Aucun titre trouvé",
@@ -463,7 +462,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "Retirer de la liste (les fichiers ne sont pas touchés)",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "Dossier retiré ; tes fichiers restent en place",
   "Müzik klasörü ekle": "Ajouter un dossier de musique",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "Les sous-dossiers sont aussi analysés (MP3, M4A, AAC, FLAC, WAV, WMA). Les titres s'affichent sur la page Fichiers locaux avec leurs tags et pochettes. ShadeTube lit tes fichiers mais ne les modifie jamais.",
   "Önceki": "Précédent",
   "Sonraki": "Suivant",
   "Büyüt": "Agrandir",
@@ -1447,5 +1445,60 @@
     "one": "{} titre retiré de la playlist",
     "other": "{} titres retirés de la playlist"
   },
-  "Şarkılar listeye geri eklenemedi": "Impossible de remettre les titres dans la playlist"
+  "Şarkılar listeye geri eklenemedi": "Impossible de remettre les titres dans la playlist",
+  "Klasörler": "Dossiers",
+  "Tüm klasörler": "Tous les dossiers",
+  "Klasörler hazırlanıyor…": "Préparation des dossiers…",
+  "Bu klasördeki şarkılar": "Titres de ce dossier",
+  "Eklenen klasörlerde şarkı yok.": "Les dossiers ajoutés ne contiennent aucun titre.",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Choisis tes dossiers de musique : les titres s'affichent ici avec leurs tags et pochettes, et se lisent sans Internet. Tes fichiers ne sont modifiés que si tu modifies leurs tags.",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Les sous-dossiers sont aussi analysés (MP3, M4A, AAC, FLAC, WAV, WMA). Les titres s'affichent sur la page Fichiers locaux avec leurs tags et pochettes. Tes fichiers ne sont modifiés que si tu modifies leurs tags.",
+  "Etiketleri düzenle…": "Modifier les tags…",
+  "Etiketleri düzenle": "Modifier les tags",
+  "Albüm sanatçısı": "Artiste de l'album",
+  "Parça no": "N° de piste",
+  "Disk no": "N° de disque",
+  "Yıl": "Année",
+  "Tür": "Genre",
+  "Farklı değerler": "Valeurs différentes",
+  "Farklı kapaklar": "Pochettes différentes",
+  "Kapağı dosyadan kaldır": "Retirer la pochette du fichier",
+  "{} dosya": {
+    "one": "{} fichier",
+    "other": "{} fichiers"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{} · {}. Les champs marqués « Valeurs différentes » restent tels quels tant que tu n'y écris rien.",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "one": "{} fichier est ignoré : son format n'est pas modifiable.",
+    "other": "{} fichiers sont ignorés : leur format n'est pas modifiable."
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "Le n° de piste, le n° de disque et l'année ne peuvent contenir que des chiffres",
+  "Bu dosyaların etiketleri okunamadı": "Impossible de lire les tags de ces fichiers",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Les tags de ce format ne sont pas modifiables (ceux des MP3, M4A et FLAC le sont)",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Les tags de ces formats ne sont pas modifiables (ceux des MP3, M4A et FLAC le sont)",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "one": "Tu peux modifier les tags de {} fichier au maximum à la fois",
+    "other": "Tu peux modifier les tags de {} fichiers au maximum à la fois"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "Les tags sont encore en cours d'enregistrement ; réessaie dans un instant",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "one": "Enregistrement des tags de {} fichier…",
+    "other": "Enregistrement des tags de {} fichiers…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "one": "Tags de {} fichier enregistrés",
+    "other": "Tags de {} fichiers enregistrés"
+  },
+  "Etiketler kaydedildi": "Tags enregistrés",
+  "Etiketler kaydedilemedi": "Impossible d'enregistrer les tags",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "Impossible d'enregistrer les tags : {} Le fichier n'a pas été touché.",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "Non enregistrés : {} sur {}. {} Ces fichiers n'ont pas été touchés.",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "Le fichier est en lecture seule, ou le dossier n'est pas accessible en écriture.",
+  "Dosya başka bir uygulamada açık.": "Le fichier est ouvert dans une autre application.",
+  "Dosyanın etiketleri bozuk.": "Les tags du fichier sont endommagés.",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "Les tags de ce format de fichier ne sont pas modifiables.",
+  "Dosya bulunamadı.": "Fichier introuvable.",
+  "Yeni dosya doğrulanamadı.": "Le nouveau fichier n'a pas pu être vérifié.",
+  "Dosya bu sırada başka bir programca değiştirildi.": "Un autre programme a modifié le fichier entre-temps.",
+  "Dosyaya yazılamadı.": "Impossible d'écrire dans le fichier."
 }

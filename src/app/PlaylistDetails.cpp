@@ -47,6 +47,8 @@ std::filesystem::path previewDir() {
     return std::filesystem::temp_directory_path(ec) / L"ShadeTube";
 }
 
+} // namespace
+
 // Image file picker (IFileOpenDialog) owned by the main window. Modal: call it posted (outside a widget event).
 std::wstring pickImageFile() {
     ComPtr<IFileOpenDialog> dlg;
@@ -67,6 +69,8 @@ std::wstring pickImageFile() {
     CoTaskMemFree(path);
     return file;
 }
+
+namespace {
 
 // Cover tile (click: pick a picture) + name and description fields + "Görsel seç…" / "Görseli kaldır".
 class DetailsEditor : public ui::Widget {
