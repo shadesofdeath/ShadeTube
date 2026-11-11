@@ -207,7 +207,7 @@ void setCompactLists(bool on) {
 
 } // namespace display
 
-// Ayarlar › GÖRÜNÜM.
+// Ayarlar › Görünüm.
 void buildDisplayRows(ui::Column* c, const std::function<void()>&) {
     // The keys come from the user's bindings (Ayarlar › KLAVYE): "Ctrl+= / Ctrl+-, Ctrl+0".
     const auto& o = Settings::get().shortcuts;

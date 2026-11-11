@@ -1,5 +1,5 @@
 #pragma once
-// "Arayüz ölçeği" (UI zoom) and "Liste yoğunluğu" (track list density), both in Ayarlar › GÖRÜNÜM. UI thread only.
+// "Arayüz ölçeği" (UI zoom) and "Liste yoğunluğu" (track list density), both in Ayarlar › Görünüm. UI thread only.
 //
 // Zoom: Settings::uiZoom, a percentage from kZoomSteps, multiplies the main window's DPI scale (ui::Window::setZoom):
 // the window keeps its pixel size and the content reflows, independent of Windows' own scaling (a monitor change keeps

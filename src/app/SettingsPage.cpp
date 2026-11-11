@@ -362,7 +362,7 @@ private:
         c = card("audio", "equalizer", tr(L"Ses"), tr(L"Ses dengeleme, şarkı geçişi, ekolayzer, çıkış aygıtı"));
         buildAudioRows(c, rebuilder());
 
-        c = card("appearance", "palette", tr(L"Görünüm"), tr(L"Tema, dil, vurgu rengi, hareket"));
+        c = card("appearance", "palette", tr(L"Görünüm"), tr(L"Tema, dil, vurgu rengi, ölçek, liste yoğunluğu, Mica"));
         {
             auto* themeRow = c->add<SettingRow>(
                 tr(L"Tema"), tr(L"Koyu, açık ya da Windows'un uygulama moduna uyan sistem teması. Değişiklik anında "

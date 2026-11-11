@@ -177,7 +177,7 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   `WM_SETTINGCHANGE` "ImmersiveColorSet"). Switching is live: `Theme::load()` swaps the palette, re-derives the
   accent (the light theme darkens it to ≥ 3:1 against `bg.base`) and bumps `Theme::generation()` for caches that bake
   colors; `App::applyTheme()` refreshes every window frame (DWM dark mode, border/caption color) and the tray menu.
-- **Mica** (Ayarlar › GÖRÜNÜM › *Mica arka plan*, `Settings.micaBackdrop`, off by default; main window only). In
+- **Mica** (Ayarlar › Görünüm › *Mica arka plan*, `Settings.micaBackdrop`, off by default; main window only). In
   effect while `ui::Window::backdropAvailability()` allows it: Windows 11 22H2+ (build 22621), transparency effects
   on (`Personalize\EnableTransparency`), no high contrast; re-checked on `WM_SETTINGCHANGE`. A main window created
   with the setting on presents through DirectComposition (`WindowTarget::useComposition()`:
