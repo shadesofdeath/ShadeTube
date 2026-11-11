@@ -81,6 +81,36 @@ struct IcoImage {
 };
 std::vector<uint8_t> icoFile(const std::vector<IcoImage>& images);   // .ico bytes (32-bit BMP entries)
 
+// ---- The app icon in the accent ----
+// The logo mark's own accent (fill of assets/logo/logo-mark.svg). The title bar, the window icons and the tray icon
+// draw the mark with this color swapped for the app's accent (it follows the playing song's cover).
+inline constexpr uint32_t kLogoAccent = 0xDDFF47;
+// The design's app icon (the mark on its dark tile, as assets/app.ico) with the mark's accent replaced by `rgb`,
+// px x px: top-down 0xAARRGGBB, straight alpha. Empty on failure. Any thread with COM initialized.
+std::vector<uint32_t> renderAppIcon(int px, uint32_t rgb);
+// That icon as an HICON: kLogoAccent loads the exe's own icon (resource 1) at that size, so the default look is the
+// .ico itself; any other color renders renderAppIcon() (falling back to the .ico). nullptr on failure; DestroyIcon.
+HICON appIcon(int px, uint32_t rgb);
+
+// A window's own icon (WM_SETICON big + small: title bar, taskbar button, Alt+Tab) in an accent, sized for the window's
+// DPI (SM_CXICON / SM_CXSMICON). apply() renders only when the color or the DPI changed (call it again after
+// WM_DPICHANGED) and destroys the icons it replaced. The destructor hands the window back its class icon (the .ico)
+// before destroying ours. UI thread.
+class WindowIcon {
+public:
+    explicit WindowIcon(HWND hwnd) : hwnd_(hwnd) {}
+    ~WindowIcon();
+    WindowIcon(const WindowIcon&) = delete;
+    WindowIcon& operator=(const WindowIcon&) = delete;
+    void apply(uint32_t rgb);
+
+private:
+    HWND hwnd_;
+    HICON big_ = nullptr, small_ = nullptr;
+    uint32_t rgb_ = kLogoAccent;
+    UINT dpi_ = 0;
+};
+
 // ---- Jump list ----
 struct JumpTask {
     Command command;

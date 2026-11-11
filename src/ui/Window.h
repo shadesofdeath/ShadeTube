@@ -111,6 +111,9 @@ public:
 
     // Tooltip support (Window draws it in the overlay layer).
     void showTooltipFor(Widget* w);
+    // Dev (SHADETUBE_HOVER_AT): hover state as if the pointer rested at `windowPos` (DIPs), kept until the real pointer
+    // moves over the window (a pointer outside does not clear it). For screenshots of hover looks and tooltips.
+    void simulateHover(Point windowPos);
 
     static Window* fromHwnd(HWND hwnd);
     LRESULT handleMessageThunk(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
@@ -157,6 +160,7 @@ private:
     bool active_ = true;
     bool trackingLeave_ = false;
     bool maxButtonHot_ = false;
+    bool simulatedHover_ = false;   // simulateHover(): WM_MOUSELEAVE leaves the hover alone
     double wakeAt_ = 1e300;
 
     Widget* hover_ = nullptr;

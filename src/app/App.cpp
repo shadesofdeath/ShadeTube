@@ -32,8 +32,10 @@
 #include "ui/Popups.h"
 #include "ui/Window.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -185,6 +187,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     ChangeWindowMessageFilterEx(window_->hwnd(), WM_COPYDATA, MSGFLT_ALLOW, nullptr);
     thumbBar_ = std::make_unique<winshell::ThumbBar>(window_->hwnd());
     thumbBar_->onCommand = [this](winshell::Command cmd) { runCommand(cmd); };
+    windowIcon_ = std::make_unique<winshell::WindowIcon>(window_->hwnd());
     // Keyboard shortcut actions only App can carry out (its windows); the rest are app/Commands' own.
     commands::setHandler("now-playing", [this] {
         if (!shell_ || !ctx().toggleNowPlaying) return false;
@@ -272,6 +275,12 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
             persist();
             return;
         }
+        if (msg == WM_DPICHANGED) {   // the window icons at the new DPI's sizes (outside the message)
+            Dispatcher::post([this, ref = life_.ref()] {
+                if (!ref.expired() && windowIcon_) windowIcon_->apply(iconRgb_);
+            });
+            return;
+        }
         // Windows' light/dark app mode changed (also broadcast to hidden windows, so this works from the tray).
         // Windows sends a burst of these: applyTheme() is idempotent and runs outside the message.
         if (msg == WM_SETTINGCHANGE && lp && CompareStringOrdinal(reinterpret_cast<LPCWSTR>(lp), -1, L"ImmersiveColorSet", -1, TRUE) == CSTR_EQUAL) {
@@ -354,6 +363,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         case Tray::Command::Quit: quit(); break;
         }
     };
+    syncAccentIcons();   // a fixed accent: the window and tray icons in it before the window shows
 
     // Spotify session (Spotube-style sp_dc login). The local library lives on this PC and MusicBrainz is the
     // open-catalog fallback, so the app is fully usable logged out too.
@@ -452,6 +462,7 @@ App::~App() {
         for (int id : {kHotkeyPlay, kHotkeyNext, kHotkeyPrev, kHotkeyStop}) UnregisterHotKey(window_->hwnd(), id);
     c.router = nullptr;
     thumbBar_.reset();
+    windowIcon_.reset();   // the class icon back while the window still exists
     winshell::clearWindowIdentity(window_->hwnd());
     window_.reset();
     c.window = nullptr;
@@ -1136,6 +1147,23 @@ void App::syncThumbBar() {
     thumbBar_->setProgress(winshell::progressFor(in));
 }
 
+double App::syncAccentIcons() {
+    constexpr double kMinInterval = 400;
+    const auto requested = gfx::Theme::get().requestedAccent();
+    const auto byte = [](float v) { return static_cast<uint32_t>(std::clamp(v, 0.f, 1.f) * 255.f + 0.5f); };
+    const uint32_t rgb = requested ? (byte(requested->r) << 16) | (byte(requested->g) << 8) | byte(requested->b)
+                                   : winshell::kLogoAccent;
+    if (rgb == iconRgb_) return 1e300;
+    const double now = ui::frame::realNow();
+    if (now < iconsAt_ + kMinInterval) return iconsAt_ + kMinInterval;
+    iconsAt_ = now;
+    iconRgb_ = rgb;
+    if (windowIcon_) windowIcon_->apply(rgb);
+    if (tray_) tray_->setAccent(rgb);
+    ST_LOG_DEBUG("app", "icons in accent #{:06X}", rgb);
+    return 1e300;
+}
+
 void App::syncTray() {
     if (!tray_) return;
     std::wstring tip = L"ShadeTube";
@@ -1165,6 +1193,13 @@ int App::run() {
     bool shot = false;
     bool themeSwitched = options_.themeSwitchAtMs <= 0;
     bool toasted = options_.toastAtMs <= 0 || options_.toastText.empty();
+    // Dev: SHADETUBE_HOVER_AT=x,y[@ms] - the window acts as if the pointer rested at window DIPs x,y after ms (default
+    // 2000): hover looks and tooltips for --screenshot.
+    std::optional<std::pair<gfx::Point, double>> hoverAt;
+    if (wchar_t v[64] = {}; GetEnvironmentVariableW(L"SHADETUBE_HOVER_AT", v, 64) > 0) {
+        float x = 0, y = 0, ms = 2000;
+        if (swscanf_s(v, L"%f,%f@%f", &x, &y, &ms) >= 2) hoverAt.emplace(gfx::Point{x, y}, ms);
+    }
     MSG msg;
     while (running_) {
         // Pump everything that's queued.
@@ -1187,6 +1222,11 @@ int App::run() {
         if (now >= nextSponsor) {
             sponsorTick();
             nextSponsor = now + 250;
+        }
+        const double iconsWake = syncAccentIcons();
+        if (hoverAt && now - start >= hoverAt->second) {   // dev: SHADETUBE_HOVER_AT
+            window_->simulateHover(hoverAt->first);
+            hoverAt.reset();
         }
         if (!toasted && now - start >= options_.toastAtMs) {
             toasted = true;
@@ -1230,6 +1270,8 @@ int App::run() {
         if (mini_) wake = std::min(wake, mini_->window()->nextWakeMs());
         if (player_ && player_->isPlaying()) wake = std::min(wake, nextSmtc);   // paused: idle stays 0% CPU
         if (sponsorActive()) wake = std::min(wake, nextSponsor);
+        wake = std::min(wake, iconsWake);
+        if (hoverAt) wake = std::min(wake, start + hoverAt->second);
         if (options_.screenshotAfterMs > 0 && !shot) wake = std::min(wake, start + options_.screenshotAfterMs);
         if (!themeSwitched) wake = std::min(wake, start + options_.themeSwitchAtMs);
         if (!toasted) wake = std::min(wake, start + options_.toastAtMs);

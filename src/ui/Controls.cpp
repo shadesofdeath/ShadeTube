@@ -304,8 +304,14 @@ void Button::paint(Canvas& c) {
     case ButtonKind::CaptionClose: {
         const Rect hit = r.center(40, 28);
         if (kind_ == ButtonKind::CaptionClose) {
-            c.fillRounded(hit, 2, col.closeHover.mulAlpha(std::max(h, p)));
-            c.icon(icon_, r.center(12, 12), Color::lerp(col.fgSecondary, col.closeHoverFg, h));
+            // The accent (it follows the playing song's cover) instead of Windows' red; the glyph in whichever of ink /
+            // white reads better on it.
+            const Color fill = Color::lerp(acc.base, acc.pressed, p);
+            const Color ink = Color::rgb(0x0F0D0B), white = Color::rgb(0xFFFFFF);
+            const float lum = fill.luminance();
+            const Color on = (lum + 0.05f) / (ink.luminance() + 0.05f) >= (white.luminance() + 0.05f) / (lum + 0.05f) ? ink : white;
+            c.fillRounded(hit, 2, fill.mulAlpha(std::max(h, p)));
+            c.icon(icon_, r.center(12, 12), Color::lerp(col.fgSecondary, on, std::max(h, p)));
         } else {
             c.fillRounded(hit, 2, col.captionHover.mulAlpha(h));
             if (p > 0) c.fillRounded(hit, 2, col.overlayPressed.mulAlpha(p));

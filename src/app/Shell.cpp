@@ -13,10 +13,12 @@
 #include "app/Social.h"
 #include "app/Source.h"
 #include "app/Together.h"
+#include "app/WinShell.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
+#include "gfx/Icons.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
 #include "ui/Popups.h"
@@ -96,7 +98,9 @@ void TitleBar::paint(Canvas& c) {
         friends_->setActive(shell->friendsOpen());
     }
     if (!nowPlaying_) {
-        c.iconColored("logo/logo-mark", {r.x + 16, r.y + 11, 18, 18});
+        // The mark in the accent (it follows the playing song's cover, cross-fading with the rest of the UI).
+        gfx::Icons::drawRecolored(c.dc(), "logo/logo-mark", {r.x + 16, r.y + 11, 18, 18}, c.scale(),
+                                  Color::rgb(winshell::kLogoAccent), accent().base);
         c.text(L"ShadeTube", type::body.withSize(13).withWeight(700), {r.x + 42, r.y, 90, r.h}, col.fgPrimary,
                gfx::TextAlign::Leading, gfx::VAlign::Center);
         const std::wstring label = source::sourceLabel();

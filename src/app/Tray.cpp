@@ -1,5 +1,6 @@
 #include "app/Tray.h"
 
+#include "app/WinShell.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 
@@ -7,6 +8,7 @@
 #include <windowsx.h>
 
 #include <exception>
+#include <utility>
 
 namespace st::app {
 
@@ -32,7 +34,7 @@ void applyMenuTheme(bool dark) {
 }
 } // namespace
 
-Tray::Tray(bool darkMenus) {
+Tray::Tray(bool darkMenus) : accent_(winshell::kLogoAccent) {
     applyMenuTheme(darkMenus);
     const HINSTANCE inst = GetModuleHandleW(nullptr);
     static bool registered = false;
@@ -73,11 +75,30 @@ Tray::~Tray() {
 }
 
 void Tray::loadIcon() {
-    if (icon_) DestroyIcon(icon_);
     const UINT dpi = hwnd_ ? GetDpiForWindow(hwnd_) : 96;
-    const int cx = GetSystemMetricsForDpi(SM_CXSMICON, dpi), cy = GetSystemMetricsForDpi(SM_CYSMICON, dpi);
-    icon_ = static_cast<HICON>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1), IMAGE_ICON, cx, cy, LR_DEFAULTCOLOR));
-    if (!icon_) icon_ = static_cast<HICON>(CopyIcon(LoadIconW(nullptr, IDI_APPLICATION)));
+    // The app icon in the accent at the small-icon size (the exe's own icon for the logo's color).
+    HICON icon = winshell::appIcon(GetSystemMetricsForDpi(SM_CXSMICON, dpi), accent_);
+    if (!icon) icon = static_cast<HICON>(CopyIcon(LoadIconW(nullptr, IDI_APPLICATION)));
+    // The shell keeps its own copy of what NIM_ADD / NIM_MODIFY handed it: the old icon can go once replaced.
+    if (icon_) DestroyIcon(icon_);
+    icon_ = icon;
+}
+
+void Tray::setAccent(uint32_t rgb) {
+    rgb &= 0xFFFFFF;
+    if (rgb == accent_) return;
+    accent_ = rgb;
+    const HICON old = std::exchange(icon_, nullptr);
+    loadIcon();
+    if (added_) {
+        NOTIFYICONDATAW nid{sizeof nid};
+        nid.hWnd = hwnd_;
+        nid.uID = kIconId;
+        nid.uFlags = NIF_ICON | NIF_SHOWTIP;   // NIF_SHOWTIP: see balloon()
+        nid.hIcon = icon_;
+        if (!Shell_NotifyIconW(NIM_MODIFY, &nid)) ST_LOG_WARN("tray", "icon update failed");
+    }
+    if (old) DestroyIcon(old);
 }
 
 bool Tray::add() {

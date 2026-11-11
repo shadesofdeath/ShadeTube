@@ -17,6 +17,9 @@
 //                               profile's shell folder and the jump list (ids without "WinShell" are refused).
 //   winshell_test --hold-window <class>
 //                               (internal) the "other running copy": a hidden window of <class> for up to 30 s.
+//   winshell_test --icons <dir> [RRGGBB...]
+//                               writes the accent-tinted app icon (16-256 px) as <dir>\app-<rrggbb>.ico per color
+//                               (default: the logo's own color and a few accents) to look at.
 //
 // Exit code: number of failed checks (0 = all passed).
 #include "app/Installer.h"
@@ -217,6 +220,146 @@ void testIcons() {
     const bool sig = png.size() > 24 && png[0] == 0x89 && png[1] == 'P' && png[2] == 'N' && png[3] == 'G';
     const auto be32 = [&](size_t at) { return (png[at] << 24) | (png[at + 1] << 16) | (png[at + 2] << 8) | png[at + 3]; };
     check(sig && be32(16) == 256 && be32(20) == 256, std::format("appIconPng: 256x256 PNG from icon resource 1 ({} bytes)", png.size()));
+}
+
+// ---- the app icon in the accent ---------------------------------------------------------------------------------
+
+// Top-down 0xAARRGGBB pixels of an HICON's color bitmap (empty on failure).
+std::vector<uint32_t> iconPixels(HICON icon, int& px) {
+    ICONINFO info{};
+    BITMAP bm{};
+    std::vector<uint32_t> out;
+    px = 0;
+    if (icon && GetIconInfo(icon, &info) && info.hbmColor && GetObjectW(info.hbmColor, sizeof bm, &bm) && bm.bmWidth == bm.bmHeight) {
+        px = bm.bmWidth;
+        BITMAPINFO bi{};
+        bi.bmiHeader.biSize = sizeof bi.bmiHeader;
+        bi.bmiHeader.biWidth = px;
+        bi.bmiHeader.biHeight = -px;
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB;
+        out.resize(static_cast<size_t>(px) * px);
+        const HDC dc = GetDC(nullptr);
+        if (GetDIBits(dc, info.hbmColor, 0, px, out.data(), &bi, DIB_RGB_COLORS) != px) out.clear();
+        ReleaseDC(nullptr, dc);
+    }
+    if (info.hbmColor) DeleteObject(info.hbmColor);
+    if (info.hbmMask) DeleteObject(info.hbmMask);
+    return out;
+}
+
+int channelDiff(uint32_t a, uint32_t b) {
+    int d = 0;
+    for (int s : {0, 8, 16}) d = std::max(d, std::abs(static_cast<int>((a >> s) & 0xFF) - static_cast<int>((b >> s) & 0xFF)));
+    return d;
+}
+
+void testAccentIcons() {
+    std::printf("\n-- the app icon in the accent\n");
+    constexpr uint32_t pink = 0xFF3366;
+    for (int px : {16, 20, 24, 32, 48, 64, 256}) {
+        const auto argb = ws::renderAppIcon(px, pink);
+        const bool sized = argb.size() == static_cast<size_t>(px) * px;
+        check(sized, std::format("renderAppIcon({} px): {} pixels", px, argb.size()));
+        if (!sized) continue;
+        const auto at = [&](float fx, float fy) {
+            return argb[static_cast<size_t>(fy * px) * px + static_cast<size_t>(fx * px)];
+        };
+        // The tile (#0F0D0B, opaque away from its 1/32 corners), the mark's left half in the accent, its right half
+        // under the 85 % ink, the ink ring around the accent dot (from 24 px: smaller, its pixels are edge blends).
+        const uint32_t tile = at(0.5f, 0.06f), left = at(0.3f, 0.5f), right = at(0.7f, 0.5f), ring = at(0.57f, 0.5f);
+        const uint32_t shaded = 0xFF000000u | (static_cast<uint32_t>(0.15 * 0xFF + 0.85 * 0x0F + 0.5) << 16) |
+                                (static_cast<uint32_t>(0.15 * 0x33 + 0.85 * 0x0D + 0.5) << 8) |
+                                static_cast<uint32_t>(0.15 * 0x66 + 0.85 * 0x0B + 0.5);
+        check(tile >> 24 == 255 && channelDiff(tile, 0x0F0D0B) <= 2 && left >> 24 == 255 && channelDiff(left, pink) <= 2 &&
+                  channelDiff(right, shaded) <= 3 && (px < 24 || channelDiff(ring, 0x0F0D0B) <= 3),
+              std::format("{} px: tile {:06X}, left half {:06X}, right half {:06X} (want {:06X}), ring {:06X}", px,
+                          tile & 0xFFFFFF, left & 0xFFFFFF, right & 0xFFFFFF, shaded & 0xFFFFFF, ring & 0xFFFFFF));
+    }
+    // The logo's own color renders the .ico's look: the tinted icons are the same drawing in another color.
+    for (int px : {32, 48, 256}) {
+        const HICON ico = static_cast<HICON>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1), IMAGE_ICON, px, px, LR_DEFAULTCOLOR));
+        int icoPx = 0;
+        const auto want = iconPixels(ico, icoPx);
+        if (ico) DestroyIcon(ico);
+        const auto got = ws::renderAppIcon(px, ws::kLogoAccent);
+        double sum = 0;
+        int worst = 0;
+        if (icoPx == px && got.size() == want.size())
+            for (size_t i = 0; i < got.size(); ++i) {
+                const uint32_t a = got[i] >> 24, b = want[i] >> 24;
+                const int d = std::max(std::abs(static_cast<int>(a) - static_cast<int>(b)),
+                                       a > 128 && b > 128 ? channelDiff(got[i], want[i]) : 0);
+                sum += d;
+                worst = std::max(worst, d);
+            }
+        const double mean = got.empty() ? 999 : sum / static_cast<double>(got.size());
+        check(icoPx == px && mean < 2.0, std::format("{} px in the logo's color vs app.ico: mean difference {:.2f} / 255 (worst {})",
+                                                     px, mean, worst));
+    }
+    {
+        int px = 0;
+        const HICON own = ws::appIcon(32, ws::kLogoAccent), tinted = ws::appIcon(32, pink);
+        const auto ownPixels = iconPixels(own, px);
+        const bool ownOk = px == 32;
+        const auto tintedPixels = iconPixels(tinted, px);
+        check(ownOk && px == 32 && ownPixels != tintedPixels && channelDiff(tintedPixels[16 * 32 + 9], pink) <= 2,
+              "appIcon: the .ico for the logo's color, a rendered icon for another");
+        if (own) DestroyIcon(own);
+        if (tinted) DestroyIcon(tinted);
+    }
+
+    // WindowIcon on a hidden window: WM_SETICON big + small at the window's DPI, nothing for the logo's color, no
+    // handles left behind by repeated changes, the class icon back afterwards.
+    WNDCLASSEXW wc{sizeof wc};
+    wc.lpfnWndProc = DefWindowProcW;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = L"ShadeTube.WinShellTest.Icon";
+    RegisterClassExW(&wc);
+    const HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"icon", WS_OVERLAPPEDWINDOW, 0, 0, 100, 100, nullptr, nullptr, wc.hInstance, nullptr);
+    const auto windowIcon = [hwnd](WPARAM which) { return reinterpret_cast<HICON>(SendMessageW(hwnd, WM_GETICON, which, 0)); };
+    {
+        ws::WindowIcon wi(hwnd);
+        wi.apply(ws::kLogoAccent);
+        check(!windowIcon(ICON_BIG) && !windowIcon(ICON_SMALL), "WindowIcon: the logo's color keeps the class icon (nothing set)");
+        wi.apply(pink);
+        const HICON bigIcon = windowIcon(ICON_BIG), smallIcon = windowIcon(ICON_SMALL);
+        int bigPx = 0, smallPx = 0;
+        iconPixels(bigIcon, bigPx);
+        iconPixels(smallIcon, smallPx);
+        const UINT dpi = GetDpiForWindow(hwnd);
+        check(bigIcon && smallIcon && bigPx == GetSystemMetricsForDpi(SM_CXICON, dpi) && smallPx == GetSystemMetricsForDpi(SM_CXSMICON, dpi),
+              std::format("WindowIcon: big {} px + small {} px at {} dpi", bigPx, smallPx, dpi));
+        wi.apply(pink);
+        check(windowIcon(ICON_BIG) == bigIcon && windowIcon(ICON_SMALL) == smallIcon, "WindowIcon: the same color renders nothing");
+        const DWORD gdi = GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS), user = GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+        for (uint32_t i = 0; i < 24; ++i) wi.apply(i % 2 ? 0x2A7FFF + i : 0x33CC66 + i);
+        const DWORD gdi2 = GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS), user2 = GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+        check(gdi2 <= gdi + 2 && user2 <= user + 2,
+              std::format("WindowIcon: 24 changes leave no handles behind (GDI {} -> {}, USER {} -> {})", gdi, gdi2, user, user2));
+        wi.apply(ws::kLogoAccent);
+        check(windowIcon(ICON_BIG) && windowIcon(ICON_BIG) != bigIcon, "WindowIcon: back to the logo's color sets the .ico");
+    }
+    check(!windowIcon(ICON_BIG) && !windowIcon(ICON_SMALL), "WindowIcon gone: the class icon is back");
+    DestroyWindow(hwnd);
+    UnregisterClassW(wc.lpszClassName, wc.hInstance);
+}
+
+int dumpIcons(const fs::path& dir, std::vector<uint32_t> colors) {
+    if (colors.empty()) colors = {ws::kLogoAccent, 0xFF3366, 0x2A7FFF, 0xF5A623, 0x7CE0A6, 0xB388FF};
+    fs::create_directories(dir);
+    int failed = 0;
+    for (uint32_t rgb : colors) {
+        std::vector<ws::IcoImage> images;
+        for (int px : {16, 20, 24, 32, 40, 48, 64, 256}) images.push_back({px, ws::renderAppIcon(px, rgb)});
+        const auto ico = ws::icoFile(images);
+        const fs::path file = dir / std::format(L"app-{:06x}.ico", rgb);
+        std::ofstream(file, std::ios::binary).write(reinterpret_cast<const char*>(ico.data()), static_cast<std::streamsize>(ico.size()));
+        std::printf("%s %s\n", ico.empty() ? "FAILED" : "wrote", u8(file.wstring()).c_str());
+        failed += ico.empty();
+    }
+    return failed;
 }
 
 // ---- thumbnail toolbar states -----------------------------------------------------------------------------------
@@ -480,6 +623,12 @@ int wmain(int argc, wchar_t** argv) {
         if (w) DestroyWindow(w);
         return 0;
     }
+    if (argc >= 3 && std::wstring(argv[1]) == L"--icons") {
+        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        std::vector<uint32_t> colors;
+        for (int i = 3; i < argc; ++i) colors.push_back(static_cast<uint32_t>(std::wcstoul(argv[i], nullptr, 16)));
+        return dumpIcons(argv[2], colors);
+    }
     bool startMenu = false;
     for (int i = 1; i < argc; ++i)
         if (std::wstring(argv[i]) == L"--start-menu") startMenu = true;
@@ -502,6 +651,7 @@ int wmain(int argc, wchar_t** argv) {
     testCommands();
     testForwarding();
     testIcons();
+    testAccentIcons();
     testThumbStates();
     testProgress();
     check(ws::registrationAllowed(), "a sandbox profile with a test AUMID may register");
