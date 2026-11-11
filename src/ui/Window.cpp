@@ -639,6 +639,12 @@ void Window::updateHover(Widget* hit) {
     invalidate();
 }
 
+void Window::simulatePointer(Point pos) {
+    updateHover(hitTest(pos));
+    if (hover_) hover_->onMouseMove(makeEvent(hover_, pos, MouseButton::Left, 0));
+    invalidate();
+}
+
 void Window::showTooltipFor(Widget* w) {
     tipWidget_ = w;
     tipHoverStart_ = frame::realNow() - kTooltipDelay;

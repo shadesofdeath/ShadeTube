@@ -103,10 +103,14 @@ protected:
 };
 
 // ---------------------------------------------------------------------------------------------------
-// Circular play/pause button with the 9-frame morph and spring press (motion-spec).
+// Circular play/pause button with the play <-> pause morph and spring press (motion-spec).
+// Accent: accent.base fill, the 9-frame filled glyph morph (page headers).
+// Outline: the thin outline style of the player bar and the mini player: a 1.25 DIP fg.primary ring around an outline
+// glyph whose triangle splits into the two pause bars continuously; hover turns ring and glyph accent over an
+// accent.tint12 fill; loading = an accent arc running around a faint ring.
 class PlayButton : public Widget {
 public:
-    enum class Look { Accent, Light };   // Light = fg.primary fill (player bar)
+    enum class Look { Accent, Outline };
     explicit PlayButton(Look look = Look::Accent);
     std::function<void()> onClick;
     void setPlaying(bool playing);
@@ -125,6 +129,7 @@ public:
     FocusShape focusShape() const override { return FocusShape::Circle; }
 
 private:
+    void paintOutlineGlyph(Canvas& c, Point center, float size, Color color, float stroke);
     Look look_;
     bool playing_ = false;
     bool loading_ = false;
@@ -154,10 +159,34 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
-// Horizontal slider: seek bar (buffered range, hover-grow, handle on hover) or volume slider.
+// The wave progress line (the player bar's seek bar, the mini player's progress line). The played part, from `x` to
+// x + w * value, is a sine wave of `amp` DIP (0 = a straight line) that starts and ends on the line; `phase` (radians,
+// wavePhase()) makes it flow to the right. The rest is a straight line, its buffered part in `bufferedColor`. `gap`
+// leaves room around the playhead (the handle is the caller's).
+struct WaveLine {
+    float value = 0, buffered = 0;
+    float amp = 0, wavelength = 26, phase = 0;
+    float stroke = 2, restStroke = 2, gap = 0;
+    Color played{}, rest{}, bufferedColor{};
+    bool full = false;   // a live stream: the whole line is "now" (a wave end to end, no playhead)
+};
+void drawWaveLine(Canvas& c, float x, float y, float w, const WaveLine& s);
+// The flow at frame time `ms`: one wavelength every 1.9 s. Constant under reduce motion (a still wave).
+float wavePhase(double ms);
+// Wave amplitude in DIP for the played part (scaled by the flowing animation, 0..1).
+inline constexpr float kWaveAmp = 3.f;
+// Repaint interval of a flowing wave: the wake-up plus the wait for vsync lands on every second 60 Hz frame (~30 fps).
+inline constexpr double kWaveFrameMs = 25;
+
+// ---------------------------------------------------------------------------------------------------
+// Horizontal slider: seek bar (buffered range, hover-grow, handle on hover), volume slider, or the wave seek bar.
+// Wave: the played part is a WaveLine that flows while setFlowing(true) (playing) and flattens into a straight line
+// otherwise (paused, stopped, buffering; 420 ms); a short vertical playhead pill grows on hover / drag / keyboard
+// focus. The owner keeps it moving: while waveMoving() it asks its window for a repaint every kWaveFrameMs (only while
+// that bar is on screen), so a paused or covered bar draws nothing.
 class Slider : public Widget {
 public:
-    enum class Look { Seek, Volume, Plain };
+    enum class Look { Seek, Volume, Plain, Wave };
     explicit Slider(Look look = Look::Seek);
 
     std::function<void(float)> onScrub;    // while dragging
@@ -167,6 +196,11 @@ public:
     float value() const { return dragging_ ? dragValue_ : value_; }
     void setBuffered(float b) { buffered_ = b; }
     bool dragging() const { return dragging_; }
+    // Wave look: playing (flowing wave) or not (straight line); live = a stream (a wave end to end, no playhead).
+    void setFlowing(bool on);
+    void setLive(bool live) { live_ = live; }
+    // The wave is moving (playing, still visible, reduce motion off): the owner keeps repainting.
+    bool waveMoving() const;
     // Extra vertical hit area (the visual track is 2 px).
     float hitPadding = 8;
     // Keyboard step for Left/Right/Up/Down (fraction of the range); 0 = default (seek 2 %, volume/plain 5 %).
@@ -192,10 +226,13 @@ public:
 
 private:
     float fractionAt(float x) const;
+    void paintWave(Canvas& c);
     Look look_;
     float value_ = 0, buffered_ = 0, dragValue_ = 0, hoverFrac_ = 0;
     bool dragging_ = false;
+    bool live_ = false;
     Anim hover_;
+    Anim flow_;   // wave amplitude 0..1
 };
 
 // ---------------------------------------------------------------------------------------------------

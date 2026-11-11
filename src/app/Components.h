@@ -33,6 +33,45 @@ Color tileColor(std::string_view seed);
 Color tileFill(Color tone);
 
 // ---------------------------------------------------------------------------------------------------
+// Track change in the blocks that show the current track (player bar, mini player): the old cover and lines slide
+// 10 DIP out and fade while the new ones slide in (motion::slow; next: up, previous: down). Only a new track id after
+// another track starts it: metadata refreshes of the same track (tags, a station's song title), the first track and
+// a cleared player change in place. Reduce motion = instant.
+class TrackSwap {
+public:
+    // From sync(): true when the track changed and the transition started (the caller keeps what it showed so far as
+    // the outgoing layer). The direction comes from the play order: an earlier slot of the same queue = previous.
+    bool update(const player::Player* p);
+    bool running() const { return t_.running(); }
+    struct Layer {
+        float alpha = 1, dy = 0;
+    };
+    Layer outgoing() const;   // alpha 0 when done
+    Layer incoming() const;
+    float progress() const;   // eased 0..1 (things that move from the old layout to the new one)
+
+private:
+    std::string id_;
+    int index_ = -1;
+    uint64_t gen_ = 0;
+    bool started_ = false;
+    float dir_ = 1;
+    ui::Anim t_{1.f};
+};
+
+// Cover art of the current track that cross-fades in over the placeholder when its image arrives after the first
+// paint (a new track whose cover is still loading); one per place it is drawn.
+class FadingArt {
+public:
+    void draw(Canvas& c, const std::vector<catalog::Image>& images, const Rect& r, float radius);
+
+private:
+    std::string url_;
+    bool waiting_ = false;
+    ui::Anim in_{1.f};
+};
+
+// ---------------------------------------------------------------------------------------------------
 class MediaCard : public ui::Widget {
 public:
     enum class Shape { Square, Circle };

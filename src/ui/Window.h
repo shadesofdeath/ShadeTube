@@ -133,6 +133,9 @@ public:
     // Re-sends the pointer's position as a mouse move (posted): content that slid under a still pointer (a scroll
     // settling) updates its hover. Nothing when the pointer is not over this window.
     void refreshHover();
+    // Dev (screenshots of hover states): hovers the widget at window DIP `pos` and sends it a move, as if the pointer
+    // were there, without touching the real cursor.
+    void simulatePointer(Point pos);
 
     static Window* fromHwnd(HWND hwnd);
     LRESULT handleMessageThunk(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);

@@ -57,7 +57,8 @@ ShadeTube/
 │   fonts/        Bricolage Grotesque + JetBrains Mono (variable, OFL.txt)
 │   i18n/         <code>.json translations (en de es fr pt ru uk id ja ko); _keys.json is a local dump
 │   remote/       the phone remote's web page (index.html, app.js, app.css; served by the app, see 3.23)
-│   icons/16|20|24, logo/, placeholders/, animations/ (SVG frames), textures/, tokens/ (dark/light), app.ico
+│   icons/16|20|24 (*-thin: the player bar's outline set, 3.29), logo/, placeholders/, animations/ (SVG frames),
+│   textures/, tokens/ (dark/light), app.ico
 ├─ docs/                         DEVELOPMENT.md, screenshots/
 ├─ packaging/winget/             winget-pkgs manifest of the current release (tools/update_manifests.py)
 ├─ bucket/shadetube.json         Scoop manifest: the repository doubles as a Scoop bucket
@@ -1041,6 +1042,51 @@ time of the event.
   with `SHADETUBE_SCROLL_DEMO` on Stats with 25 000 imported plays (Release, 240 Hz): 97 % of frames on consecutive
   vblanks, frame CPU up to the page's paint 1.3 ms median / 3.9 ms p99.
 
+### 3.29 Player bar
+
+`app/Shell.cpp` (`PlayerBar`, 88 DIP), the controls in `ui/Controls`, the shared pieces in `app/Components`.
+
+- **Layout**: track info on the left (art 56, title, artist, heart after the title), on the right the session pill /
+  jam, sleep timer, lyrics, queue, volume knob, mini player and full screen (vertically centered). The center column
+  holds the transport row (shuffle · prev · play 40 · next · repeat, center y 33) over the seek row (center y 69:
+  elapsed · wave · total, mono 11, elapsed `fg.secondary`, total `fg.tertiary`). The column is 40 % of the bar
+  (380..640 DIP) but narrows to keep ~140 DIP of title and the right group free (about 316 DIP at the 960 DIP minimum
+  window). A `hairline.subtle` marks the bar's top edge. Now Playing keeps the bar (the spectrum strip replaces the
+  track info).
+- **Thin outline icons**: the player bar and the mini player use `assets/icons/{16,20,24}/<name>-thin.svg` (next, prev,
+  shuffle, shuffle-smart, repeat, repeat-one, heart, heart-liked, lyrics, queue, mini-player, expand, collapse, users,
+  clock, close): the regular icons' geometry stroked 1.5 / 1.65 / 1.85 units in the 24 / 20 / 16 grids instead of
+  1.75 / 1.9 / 2.15, filled parts redrawn as outlines (next / prev: outlined triangle + bar; the liked heart: outline
+  over a 32 % fill, tinted with the accent). Everything else keeps the regular set, so the filled `play` / `pause` /
+  `next` / `prev` stay where they were (page headers, track rows, menus, the phone remote, the taskbar buttons).
+- **Play button** (`ui::PlayButton::Look::Outline`; `Look::Accent`, the filled accent circle of page headers, is
+  unchanged): a 1.25 DIP `fg.primary` ring around an outline glyph drawn in code (`Canvas::polyline`, round joins).
+  The play triangle is cut into a quad and a triangle that move into the two pause bars (240 ms, eased, continuous);
+  while they part, the cut edges fade in and the outline between them fades out. Hover: ring and glyph accent over
+  `accent.tint12`; press: the spring scale; loading: an accent arc runs around a `hairline.control` ring with the
+  glyph dimmed; disabled (a listen-together guest): 38 %.
+- **Seek wave** (`ui::Slider::Look::Wave`, drawn by `ui::drawWaveLine`): the played part is a 1.75 DIP accent sine wave
+  (amplitude 3, wavelength 26 DIP) tapered to the line at both ends, flowing right one wavelength per 1.9 s; the rest
+  is a `hairline.strong` line with the buffered part in `fg.tertiary`. The wave flows only in `Status::Playing`:
+  paused, stopped, resolving and buffering settle it into a straight line (420 ms) and back. The playhead is a 3 × 12
+  accent pill that grows to 4 × 18 on hover, drag and keyboard focus (the focus ring circles it); the hover time shows
+  in a small box just above the wave. Seeking, keyboard steps (5 s) and the time labels work as before. A live stream
+  is all "now": a wave end to end, no playhead, the "CANLI" badge after it; a listen-together guest without control
+  sees it at 38 % without a playhead. The mini player draws the same wave (amplitude 2.5, no playhead) under the
+  artwork.
+- **Frame budget**: while the wave flows the bar asks for a repaint every `ui::kWaveFrameMs` (25 ms: with the wait for
+  vsync every second 60 Hz frame, ~30 fps; each one a full-window frame) only when it can be seen: hidden and minimized
+  windows never render (3.3; the mini player alone then renders its own small window) and the full-screen lyrics,
+  which cover the bar, keep their own rate. Otherwise playing repaints 4 times a second (time label) and a paused
+  player schedules nothing. Reduce motion: a still wave (a straight line when paused) and no fast repaints. Measured
+  (Release, 1440 × 900 DIP window at 175 %, Ayarlar page, a local file, frames counted per 2 s): flowing 32 fps and
+  about 4-7 % of one core; reduce motion 4 fps and about 0.5-1.4 %; paused 0 frames and 0 %.
+- **Track change** (`TrackSwap`, `FadingArt`): when another track starts, the old cover, title and artist slide 10 DIP
+  out (up for a later slot of the queue, down for an earlier one) and fade while the new ones slide in (`motion::slow`;
+  the heart slides from the old title's end to the new one's); a cover that is not loaded yet starts as the placeholder
+  and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
+  a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1171,6 +1217,8 @@ apps*).
 | `SHADETUBE_RUN_KEY` | HKCU key used instead of `…\CurrentVersion\Run` for *Start with Windows* (its `StartupApproved` stand-in is a subkey); without it a sandbox profile never touches the real value |
 | `SHADETUBE_DRAG_DEMO` | `x,y[,queue][,drop]`: 2.5 s after startup drags the first Liked Songs to window DIPs x,y and holds (for `--screenshot`) or drops them a second later; `queue` opens the queue panel first |
 | `SHADETUBE_DRAG_DEMO_FILES` | `path\|path`: with `SHADETUBE_DRAG_DEMO`, drags these files / folders as if from Explorer (a playlist file opens the import preview) |
+| `SHADETUBE_PLAY_FILES` | `path\|path`: plays these audio files / folders at startup as if dropped on the window (a track playing in a sandbox, e.g. generated WAVs next to a `cover.png`) |
+| `SHADETUBE_PLAYER_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after startup: `play`, `pause`, `next`, `prev`, `like` (the current song), `seekfocus` (keyboard focus on the seek wave), `seek=<seconds>`, `hover=<x>,<y>` (a simulated pointer at window DIPs, e.g. over the seek wave or the play button). With `--screenshot`: `seek@2500=70;pause@3000`, or `next@4500` and a capture at 4620 ms for the middle of a track change |
 | `SHADETUBE_IMPORT_HISTORY` | `<file>[;<file>…]`: import these Spotify history files (JSON / ZIP) once the stats are loaded |
 | `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |

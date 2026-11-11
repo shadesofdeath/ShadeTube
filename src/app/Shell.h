@@ -95,6 +95,9 @@ private:
 // The sidebar's right edge (6 DIPs over its hairline, IDC_SIZEWE): drag to resize, double click for the default width.
 class SidebarEdge;
 
+// The player bar (88 DIP): track info on the left, the transport row above the wave seek row in the center (elapsed
+// time · wave · total time), the other controls on the right. Every control uses the thin outline icon set
+// (icons/*/<name>-thin.svg) and the outline play button; a track change slides the info over (TrackSwap).
 class PlayerBar : public ui::Widget {
 public:
     PlayerBar();
@@ -105,6 +108,9 @@ public:
     ui::Slider* seek() { return seek_; }
 
 private:
+    // Cover, title and artist of the current track (or of the outgoing one during a track change).
+    void paintInfo(Canvas& c, bool outgoing);
+
     ui::Slider* seek_;
     ui::Button *shuffle_, *prev_, *next_, *repeat_, *heart_;
     ui::PlayButton* play_;
@@ -112,11 +118,23 @@ private:
     ui::Button *jam_, *jamLabel_;   // "Birlikte dinle": the icon, or the session pill ("Birlikte dinleniyor · Ayşe")
     bool lockedHover_ = false;      // the pointer is on a transport control a guest may not use (its tooltip says why)
     ui::Knob* knob_;
-    gfx::Text title_, artist_, time_;
-    Rect infoRect_{}, artRect_{}, timeRect_{};
+    gfx::Text title_, artist_, elapsed_, total_;
+    Rect infoRect_{}, artRect_{}, elapsedRect_{}, totalRect_{};
     bool nowPlaying_ = false;
     bool infoHover_ = false;
     bool live_ = false;      // the current item is an internet radio station (no times, no seeking)
+    // Track change: what the bar showed for the previous track, sliding out while the new one slides in.
+    TrackSwap swap_;
+    FadingArt art_;
+    struct Shown {
+        std::vector<catalog::Image> images;
+        bool live = false, recommended = false;
+        float titleW = 0;
+    };
+    Shown shown_, old_;
+    gfx::Text oldTitle_, oldArtist_;
+    float heartFrom_ = -1;   // the heart's x for the outgoing track (it slides to the new title's end)
+    bool heartSliding_ = false;   // laid out mid-slide: one more layout after the transition puts it in place
 
 public:
     bool onMouseDown(const ui::MouseEvent& e) override;

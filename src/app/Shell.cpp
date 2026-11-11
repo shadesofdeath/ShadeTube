@@ -6,6 +6,7 @@
 #include "app/DownloadSync.h"
 #include "app/DroppedFiles.h"
 #include "app/InternetRadio.h"
+#include "app/LyricsFullscreen.h"
 #include "app/NowPlaying.h"
 #include "app/PlaylistTransfer.h"
 #include "app/PodcastUi.h"
@@ -695,21 +696,31 @@ void Sidebar::paint(Canvas& c) {
 // ===================================================================================================
 // PlayerBar
 
+namespace {
+// Player bar geometry (DIP): the transport row and the seek row of the center column, the time labels beside the wave.
+constexpr float kBarMidY = 44, kTransportY = 33, kSeekY = 69, kTimeW = 46, kTimeGap = 12;
+}
+
 PlayerBar::PlayerBar()
-    : title_({}, type::body), artist_({}, type::caption), time_({}, type::monoMeta) {
-    seek_ = add<ui::Slider>(ui::Slider::Look::Seek);
+    : title_({}, type::body), artist_({}, type::caption), elapsed_({}, type::monoMeta), total_({}, type::monoMeta),
+      oldTitle_({}, type::body), oldArtist_({}, type::caption) {
+    gfx::TextOptions right;
+    right.align = gfx::TextAlign::Trailing;
+    elapsed_.setOptions(right);
+    seek_ = add<ui::Slider>(ui::Slider::Look::Wave);
+    seek_->hitPadding = 4;
     seek_->onCommit = [](float f) { ctx().player->seek(static_cast<int64_t>(f * ctx().player->durationMs())); };
-    shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle");
-    prev_ = add<Button>(ButtonKind::Icon, L"", "prev");
-    play_ = add<ui::PlayButton>(ui::PlayButton::Look::Light);
-    next_ = add<Button>(ButtonKind::Icon, L"", "next");
-    repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat");
-    heart_ = add<Button>(ButtonKind::Icon, L"", "heart");
-    lyrics_ = add<Button>(ButtonKind::Icon, L"", "lyrics");
-    queue_ = add<Button>(ButtonKind::Icon, L"", "queue");
+    shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle-thin");
+    prev_ = add<Button>(ButtonKind::Icon, L"", "prev-thin");
+    play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
+    next_ = add<Button>(ButtonKind::Icon, L"", "next-thin");
+    repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat-thin");
+    heart_ = add<Button>(ButtonKind::Icon, L"", "heart-thin");
+    lyrics_ = add<Button>(ButtonKind::Icon, L"", "lyrics-thin");
+    queue_ = add<Button>(ButtonKind::Icon, L"", "queue-thin");
     knob_ = add<ui::Knob>();
-    mini_ = add<Button>(ButtonKind::Icon, L"", "mini-player");
-    expand_ = add<Button>(ButtonKind::Icon, L"", "expand");
+    mini_ = add<Button>(ButtonKind::Icon, L"", "mini-player-thin");
+    expand_ = add<Button>(ButtonKind::Icon, L"", "expand-thin");
     // Playback speed: always offered for podcast episodes, for songs only once it isn't 1x (keys / palette set it).
     speed_ = add<Button>(ButtonKind::Ghost, speedLabel(1.f));
     speed_->setTooltip(tr(L"Çalma hızı"));
@@ -728,14 +739,14 @@ PlayerBar::PlayerBar()
         ui::Menu::open(ctx().window, {br.x, br.y - 6}, std::move(items));
     };
     // "Birlikte dinle" (app/Together): the panel's button; during a session a pill that names it.
-    jam_ = add<Button>(ButtonKind::Icon, L"", "users");
+    jam_ = add<Button>(ButtonKind::Icon, L"", "users-thin");
     jam_->setTooltip(tr(L"Birlikte dinle"));
     jam_->onClick = [] { commands::run("listen-together"); };
-    jamLabel_ = add<Button>(ButtonKind::Ghost, L"", "users");
+    jamLabel_ = add<Button>(ButtonKind::Ghost, L"", "users-thin");
     jamLabel_->setTooltip(tr(L"Birlikte dinle"));
     jamLabel_->onClick = [] { commands::run("listen-together"); };
     jamLabel_->setVisible(false);
-    sleep_ = add<Button>(ButtonKind::Icon, L"", "clock");
+    sleep_ = add<Button>(ButtonKind::Icon, L"", "clock-thin");
     sleep_->setTooltip(tr(L"Uyku zamanlayıcı"));
     sleep_->onClick = [this] {
         const Rect br = sleep_->toWindow(sleep_->rect());
@@ -780,7 +791,7 @@ PlayerBar::PlayerBar()
 void PlayerBar::setNowPlayingMode(bool on) {
     nowPlaying_ = on;
     heart_->setVisible(!on);
-    expand_->setIcon(on ? "collapse" : "expand");
+    expand_->setIcon(on ? "collapse-thin" : "expand-thin");
     lyrics_->setActive(on);
     requestLayout();
 }
@@ -788,24 +799,37 @@ void PlayerBar::setNowPlayingMode(bool on) {
 void PlayerBar::sync() {
     auto* p = ctx().player;
     const auto* t = p ? p->current() : nullptr;
+    // A new track: what was shown so far becomes the outgoing layer of the transition.
+    if (swap_.update(p)) {
+        old_ = shown_;
+        oldTitle_.setText(title_.text());
+        oldArtist_.setText(artist_.text());
+        heartFrom_ = heart_->visible() ? heart_->rect().x : -1.f;
+    }
     live_ = t && radio::isStationId(t->id);
+    shown_.images = t ? t->album.images : std::vector<catalog::Image>{};
+    shown_.live = live_;
+    shown_.recommended = t && t->recommended;
     title_.setText(t ? toWide(t->name) : L"");
     // A station: the song it announces (ICY), else its country and genres.
     artist_.setText(!t ? std::wstring() : live_ && !p->liveTitle().empty() ? p->liveTitle() : toWide(t->artistLine()));
     play_->setPlaying(p && p->isPlaying());
     play_->setLoading(p && p->status() == player::Status::Resolving);
+    // The wave flows only while sound plays: paused, stopped, resolving or buffering = a straight line.
+    seek_->setFlowing(p && p->status() == player::Status::Playing);
+    seek_->setLive(live_);
     const auto shuffleMode = smartshuffle::mode();
     shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
-    shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart" : "shuffle");
+    shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart-thin" : "shuffle-thin");
     shuffle_->setTooltip(smartshuffle::modeLabel(shuffleMode));
     const auto rep = p ? p->repeat() : RepeatMode::Off;
     repeat_->setActive(rep != RepeatMode::Off);
-    repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
+    repeat_->setIcon(rep == RepeatMode::One ? "repeat-one-thin" : "repeat-thin");
     const bool liked = t && (live_ ? radio::store().isFavorite(radio::uuidOf(t->id)) : ctx().library.isLiked(t->id));
-    heart_->setIcon(liked ? "heart-filled" : "heart");
+    heart_->setIcon(liked ? "heart-liked-thin" : "heart-thin");
     heart_->setActive(liked);
     heart_->setTooltip(!live_ ? std::wstring(tr(L"Beğen")) : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
-    // Live: no seeking (the bar stays a hairline).
+    // Live: no seeking (the wave runs end to end without a playhead).
     seek_->setEnabled(!live_);
     queue_->setActive(false);
     {
@@ -849,18 +873,7 @@ void PlayerBar::sync() {
 
 void PlayerBar::layout() {
     const Rect r = rect();
-    seek_->setRect({0, 0, r.w, 4});
-    const float cy = 44 + 2;
-    // Center group: controls + time label.
-    const float timeW = 132;
-    const float groupW = 36 * 4 + 48 + 8 * 4 + 12 + timeW;
-    float x = std::round(r.w * 0.5f - groupW * 0.5f);
-    for (Widget* w : std::initializer_list<Widget*>{shuffle_, prev_, play_, next_, repeat_}) {
-        const float s = (w == play_) ? 48.f : 36.f;
-        w->setRect({x, cy - s * 0.5f, s, s});
-        x += s + 8;
-    }
-    timeRect_ = {x + 4, cy - 10, timeW, 20};
+    const float cy = kBarMidY;
     // Right group.
     float rx = r.w - 20;
     auto place = [&](Widget* w, float size, float gapAfter) {
@@ -874,9 +887,29 @@ void PlayerBar::layout() {
     place(queue_, 32, 6);
     place(lyrics_, 32, 6);
     place(sleep_, 32, 10);
-    // "Birlikte dinle": the pill while a session runs and there is room before the center group, else the icon.
+    // Center column: the transport row over the seek row (elapsed · wave · total), centered on the bar; 40 % of the
+    // width (380..640 DIP) as far as the left info (at least ~140 DIP of text) and the right group (with the jam icon
+    // that always follows) leave room.
+    const float cx = std::round(r.w * 0.5f);
+    const float room = std::min(cx - 230.f, rx - 38 - 16 - cx);
+    const float colW = std::round(std::max(240.f, std::min({std::max(380.f, r.w * 0.4f), 640.f, 2 * room})));
+    const float colX = cx - std::round(colW * 0.5f);
     {
-        const float centerRight = std::round(r.w * 0.5f + groupW * 0.5f) + 16;
+        constexpr float gap = 10;
+        float x = cx - std::round((36 * 4 + 40 + gap * 4) * 0.5f);
+        for (Widget* w : std::initializer_list<Widget*>{shuffle_, prev_, play_, next_, repeat_}) {
+            const float s = (w == play_) ? 40.f : 36.f;
+            w->setRect({x, kTransportY - s * 0.5f, s, s});
+            x += s + gap;
+        }
+    }
+    elapsedRect_ = {colX, kSeekY - 10, kTimeW, 20};
+    totalRect_ = {colX + colW - kTimeW, kSeekY - 10, kTimeW, 20};
+    const float waveX = colX + kTimeW + kTimeGap;
+    seek_->setRect({waveX, kSeekY - 8, colX + colW - kTimeW - kTimeGap - waveX, 16});
+    // "Birlikte dinle": the pill while a session runs and there is room before the center column, else the icon.
+    {
+        const float centerRight = colX + colW + 16;
         const float pillW = std::min(260.f, std::ceil(jamLabel_->naturalWidth()));
         const bool pill = together::active() && rx - pillW - (speed_->visible() ? 52 : 0) >= centerRight;
         jamLabel_->setVisible(pill);
@@ -898,10 +931,15 @@ void PlayerBar::layout() {
     // Left: art + title/artist + heart.
     artRect_ = {20, cy - 28, 56, 56};
     const float textX = artRect_.right() + 14;
-    const float maxW = std::max(60.f, std::min(320.f, std::round(r.w * 0.5f - groupW * 0.5f) - textX - 40));
+    const float maxW = std::max(60.f, std::min(320.f, colX - textX - 48));
     const float tw = std::min(maxW, std::ceil(title_.measure().w));
     infoRect_ = {textX, cy - 20, std::max(tw, std::ceil(artist_.measure().w)), 40};
-    heart_->setRect({textX + tw + 6, cy - 16 - 8, 32, 32});
+    shown_.titleW = tw + 2;
+    // The heart follows the title's end; during a track change it slides from the old title's end to the new one's.
+    float heartX = textX + tw + 6;
+    heartSliding_ = swap_.running() && heartFrom_ >= 0;
+    if (heartSliding_) heartX = ui::lerp(heartFrom_, heartX, swap_.progress());
+    heart_->setRect({heartX, cy - 16 - 8, 32, 32});
     // No heart for a track that can't be liked (logged in: only Spotify tracks).
     const auto* cur = ctx().player ? ctx().player->current() : nullptr;
     heart_->setVisible(!nowPlaying_ && cur && (radio::isStationId(cur->id) || ctx().library.canLike(cur->id)));
@@ -956,12 +994,36 @@ ui::Widget* PlayerBar::hitTest(gfx::Point pos) {
 
 std::wstring PlayerBar::tooltip() const { return lockedHover_ ? together::lockedReason() : std::wstring(); }
 
+void PlayerBar::paintInfo(Canvas& c, bool outgoing) {
+    const auto& col = colors();
+    const auto layer = outgoing ? swap_.outgoing() : swap_.incoming();
+    if (layer.alpha <= 0.001f) return;
+    const Shown& s = outgoing ? old_ : shown_;
+    gfx::Text& title = outgoing ? oldTitle_ : title_;
+    gfx::Text& artist = outgoing ? oldArtist_ : artist_;
+    const bool group = layer.alpha < 0.999f;
+    if (group) c.pushOpacity(layer.alpha);
+    c.pushTransform(D2D1::Matrix3x2F::Translation(0, layer.dy));
+    c.shadow(artRect_, 2, 40, 0, accent().glow);   // playerThumbGlow
+    if (s.live) drawStationArt(c, s.images, artRect_, 2);
+    else if (outgoing) drawArtwork(c, s.images, artRect_, 2);
+    else art_.draw(c, s.images, artRect_, 2);   // a cover still loading fades in over the placeholder
+    c.text(title, {infoRect_.x, infoRect_.y + 1, s.titleW, 20}, col.fgPrimary, gfx::VAlign::Center);
+    c.text(artist, {infoRect_.x, infoRect_.y + 21, 320, 18}, infoHover_ && !outgoing ? col.fgPrimary : col.fgSecondary,
+           gfx::VAlign::Center);
+    if (s.recommended)   // smart shuffle / "Geliştir"
+        smartshuffle::drawBadge(c, infoRect_.x + std::min(320.f, std::ceil(artist.measure().w)) + 8, infoRect_.y + 30);
+    c.popTransform();
+    if (group) c.popLayer();
+}
+
 void PlayerBar::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
     const auto& acc = accent();
     auto* p = ctx().player;
     c.fillRect(r, col.bgBase);
+    c.hline(r.x, r.right(), r.y, col.hairSubtle);   // the bar's top edge
     c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
 
     const auto* t = p ? p->current() : nullptr;
@@ -974,46 +1036,47 @@ void PlayerBar::paint(Canvas& c) {
         // Spectrum strip instead of track info (hi-fi cue from the Now Playing mock).
         float bands[48] = {};
         const bool live = p && p->spectrum(bands, 48);
-        const float x0 = 28, baseY = 44 + 6;
+        const float x0 = 28, baseY = kBarMidY + 6;
         for (int i = 0; i < 48; ++i) {
             const float v = live ? bands[i] : 0.f;
             const float h = 2 + v * 14;
             const bool played = live_ || i < 48 * (dur > 0 ? static_cast<float>(pos) / dur : 0);   // a stream is all "now"
             c.fillRect({x0 + i * 2.5f, baseY - h, 1, h}, (played ? acc.base : col.fgTertiary).mulAlpha(live ? 1.f : 0.5f));
         }
-    } else if (t) {
-        c.shadow(artRect_, 2, 40, 0, acc.glow);   // playerThumbGlow
-        if (live_) drawStationArt(c, t->album.images, artRect_, 2);
-        else drawArtwork(c, t->album.images, artRect_, 2);
-        const Color titleCol = infoHover_ ? col.fgPrimary : col.fgPrimary;
-        c.text(title_, {infoRect_.x, infoRect_.y + 1, heart_->rect().x - infoRect_.x - 4, 20}, titleCol, gfx::VAlign::Center);
-        c.text(artist_, {infoRect_.x, infoRect_.y + 21, 320, 18}, infoHover_ ? col.fgPrimary : col.fgSecondary, gfx::VAlign::Center);
-        if (t->recommended)   // smart shuffle / "Geliştir"
-            smartshuffle::drawBadge(c, infoRect_.x + std::min(320.f, std::ceil(artist_.measure().w)) + 8, infoRect_.y + 30);
+    } else {
+        if (swap_.running() || heartSliding_) requestLayout();   // the heart slides along
+        if (swap_.running()) paintInfo(c, true);
+        if (t) paintInfo(c, false);
     }
 
-    // Time label "01:24 / 03:42"; a live stream has no times: the "CANLI" badge instead.
+    // Times beside the wave: elapsed (fg.secondary) and total (fg.tertiary); a live stream has none: the "CANLI"
+    // badge after the wave instead.
     if (live_ && t) {
-        drawLiveBadge(c, {timeRect_.x, timeRect_.cy()}, p->isPlaying());
+        drawLiveBadge(c, {totalRect_.x, totalRect_.cy()}, p->isPlaying());
     } else {
-        time_.setText(ui::formatDuration(seek_->dragging() ? static_cast<int64_t>(seek_->value() * dur) : pos) + L"  /  " +
-                      ui::formatDuration(dur));
-        c.text(time_, timeRect_, col.fgSecondary, gfx::VAlign::Center);
+        elapsed_.setText(ui::formatDuration(seek_->dragging() ? static_cast<int64_t>(seek_->value() * dur) : pos));
+        total_.setText(ui::formatDuration(dur));
+        c.text(elapsed_, elapsedRect_, col.fgSecondary, gfx::VAlign::Center);
+        c.text(total_, totalRect_, col.fgTertiary, gfx::VAlign::Center);
     }
-    // Hover time preview above the seek bar.
+    c.popTransform();
+    paintChildren(c);
+    // Hover time preview just above the wave, between the two rows (after the buttons: it may cover their edge).
     if (const float hf = seek_->hoverFraction(); hf >= 0 && dur > 0 && !live_) {
+        const Rect sr = seek_->rect();
         const std::wstring s = ui::formatDuration(static_cast<int64_t>(hf * dur));
-        const float x = std::clamp(hf * r.w, 24.f, r.w - 24.f);
-        const Rect tip{x - 24, -30, 48, 22};
+        const float x = std::clamp(sr.x + hf * sr.w, 24.f, r.w - 24.f);
+        const Rect tip{r.x + x - 24, r.y + sr.cy() - 6 - 18, 48, 18};
         c.fillRounded(tip, 2, col.bgElevated);
         c.strokeRounded(tip, 2, col.hairStrong);
         c.text(s, type::monoMeta, tip, col.fgPrimary, gfx::TextAlign::Center, gfx::VAlign::Center);
     }
-    c.popTransform();
-    paintChildren(c);
-    // Seek bar hairline on the top edge is drawn by the slider (track). Keep repainting while playing.
+    // Keep repainting while playing: the wave flows at ~30 fps while it is on screen (not under the full-screen lyrics,
+    // not with reduce motion); otherwise only the time label ticks, 4 times a second (Now Playing's spectrum strip:
+    // 33 ms). Paused: no wake-ups at all.
     if (p && p->isPlaying()) {
-        if (auto* w = window()) w->invalidateAfter(nowPlaying_ ? 33 : 250);
+        const bool flowing = seek_->waveMoving() && !LyricsFullscreen::isOpen();
+        if (auto* w = window()) w->invalidateAfter(flowing ? ui::kWaveFrameMs : nowPlaying_ ? 33 : 250);
     }
 }
 
