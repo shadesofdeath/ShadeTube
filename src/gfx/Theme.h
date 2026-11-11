@@ -23,6 +23,8 @@ struct Accent {
 
 struct Palette {
     Color bgBase, bgRaised, bgOverlay, bgSunken, bgElevated;
+    // bg.base as a translucent tint: the base surface of a window with a system backdrop (Mica, Canvas::surface()).
+    Color bgBackdrop;
     Color fgPrimary, fgSecondary, fgTertiary, fgDisabled, fgInverse;
     Color hairSubtle, hairDefault, hairStrong, hairControl;
     Color overlayHover, overlayPressed, overlaySelected, scrim, scrimHeavy;

@@ -22,6 +22,40 @@ using gfx::ComPtr;
 namespace {
 constexpr double kTooltipDelay = 400;
 
+// DWM system backdrop (dwmapi.h of the Windows 11 SDKs; spelled out so older SDKs build too).
+constexpr DWORD kDwmSystemBackdropType = 38;   // DWMWA_SYSTEMBACKDROP_TYPE, Windows 11 22H2 (build 22621)+
+constexpr DWORD kFirstBackdropBuild = 22621;
+constexpr int kBackdropNone = 1;               // DWMSBT_NONE
+constexpr int kBackdropMica = 2;               // DWMSBT_MAINWINDOW: Mica behind the entire window
+
+DWORD windowsBuild() {
+    static const DWORD build = [] {
+        // RtlGetVersion: the real version, whatever the manifest says.
+        using RtlGetVersionFn = LONG(WINAPI*)(PRTL_OSVERSIONINFOW);
+        RTL_OSVERSIONINFOW vi{};
+        vi.dwOSVersionInfoSize = sizeof vi;
+        auto fn = reinterpret_cast<RtlGetVersionFn>(
+            reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion")));
+        return fn && fn(&vi) == 0 ? vi.dwBuildNumber : DWORD{0};
+    }();
+    return build;
+}
+
+// Settings › Personalization › Colors › Transparency effects (missing value: on, the Windows default).
+bool transparencyEffectsOn() {
+    DWORD value = 1, size = sizeof value;
+    if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                     L"EnableTransparency", RRF_RT_REG_DWORD, nullptr, &value, &size) != ERROR_SUCCESS)
+        return true;
+    return value != 0;
+}
+
+bool highContrastOn() {
+    HIGHCONTRASTW hc{};
+    hc.cbSize = sizeof hc;
+    return SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof hc, &hc, 0) && (hc.dwFlags & HCF_HIGHCONTRASTON) != 0;
+}
+
 std::wstring& classNameStorage() {
     static std::wstring name = L"ShadeTube.Window";
     return name;
@@ -96,6 +130,12 @@ Window::Window(const WindowOptions& options) : options_(options) {
 
     target_ = std::make_unique<gfx::WindowTarget>(hwnd_);
     resized();
+    if (options.backdrop) {
+        // Before the first frame: the composition swap chain stays for the window's lifetime, so Mica can then go
+        // off and on again live (transparency effects, the setting) by painting opaque or translucent.
+        if (backdropAvailability() != BackdropAvailability::NeedsWindows11) target_->useComposition();
+        setBackdrop(true);
+    }
 }
 
 Window::~Window() {
@@ -122,14 +162,67 @@ void Window::show(int cmd) {
 void Window::close() { PostMessageW(hwnd_, WM_CLOSE, 0, 0); }
 
 void Window::applyTheme() {
+    // Dark mode also picks dark or light Mica.
     const BOOL dark = gfx::Theme::get().isLight() ? FALSE : TRUE;
     DwmSetWindowAttribute(hwnd_, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof dark);
+    applyFrameColors();
+    scheduleLayout();
+    invalidate();
+}
+
+void Window::applyFrameColors() {
     const auto bg = gfx::colors().bgBase;
     const COLORREF border = RGB(static_cast<int>(bg.r * 255), static_cast<int>(bg.g * 255), static_cast<int>(bg.b * 255));
     DwmSetWindowAttribute(hwnd_, DWMWA_BORDER_COLOR, &border, sizeof border);
-    DwmSetWindowAttribute(hwnd_, DWMWA_CAPTION_COLOR, &border, sizeof border);
-    scheduleLayout();
+    // A caption color is a solid fill DWM puts behind the title bar area: with Mica it would cover the backdrop there.
+    const COLORREF caption = backdropOn_ ? DWMWA_COLOR_DEFAULT : border;
+    DwmSetWindowAttribute(hwnd_, DWMWA_CAPTION_COLOR, &caption, sizeof caption);
+}
+
+Window::BackdropAvailability Window::backdropAvailability() {
+    // 21H2 only had an undocumented Mica switch that needs the frame extended into the client area, where DWM then
+    // also draws its own caption buttons: not supported.
+    if (windowsBuild() < kFirstBackdropBuild) return BackdropAvailability::NeedsWindows11;
+    // Dev (SHADETUBE_BACKDROP=force): skip the two checks below, e.g. on a test machine with transparency effects
+    // off (DWM then draws Mica's solid fallback color, which still shows the translucent rendering).
+    static const bool force = [] {
+        wchar_t v[16]{};
+        return GetEnvironmentVariableW(L"SHADETUBE_BACKDROP", v, 16) > 0 && std::wstring_view(v) == L"force";
+    }();
+    if (force) return BackdropAvailability::Available;
+    if (highContrastOn()) return BackdropAvailability::HighContrast;   // DWM draws no backdrop then
+    if (!transparencyEffectsOn()) return BackdropAvailability::TransparencyOff;   // Mica would be a flat color
+    return BackdropAvailability::Available;
+}
+
+void Window::setBackdrop(bool on) {
+    backdropWanted_ = on;
+    updateBackdrop();
+}
+
+bool Window::backdropLive() const { return target_ && target_->composition(); }
+
+void Window::updateBackdrop() {
+    const bool on = backdropWanted_ && backdropLive() && backdropAvailability() == BackdropAvailability::Available;
+    if (on == backdropOn_) return;
+    backdropOn_ = on;
+    ST_LOG_INFO("ui", "system backdrop {}", on ? "on" : "off");
+    // On: Mica goes on behind the still opaque frame, the next frame is translucent. Off: the next frame is opaque and
+    // only then Mica goes (render()), so a translucent frame never shows the desktop through.
+    dwmOffPending_ = false;
+    if (on || !target_->hasSwapChain()) setDwmBackdrop(on);
+    else dwmOffPending_ = true;
     invalidate();
+}
+
+void Window::setDwmBackdrop(bool on) {
+    // DWMSBT_MAINWINDOW draws Mica behind the entire window bounds. The window has no redirection surface, so the
+    // composition swap chain's translucent pixels show it directly: no DwmExtendFrameIntoClientArea, which would also
+    // make DWM draw its own caption buttons under the title bar. Dark / light Mica follows DWMWA_USE_IMMERSIVE_DARK_MODE.
+    const int type = on ? kBackdropMica : kBackdropNone;
+    if (FAILED(DwmSetWindowAttribute(hwnd_, kDwmSystemBackdropType, &type, sizeof type)))
+        ST_LOG_WARN("ui", "DWMWA_SYSTEMBACKDROP_TYPE refused");
+    applyFrameColors();
 }
 
 void Window::setRoot(std::unique_ptr<Widget> root) {
@@ -455,7 +548,8 @@ void Window::render() {
     const bool accentAnimating = gfx::Theme::get().tick(frame::now());
     {
         Canvas c(dc, target_->scale());
-        c.clear(gfx::colors().bgBase);
+        c.setTranslucent(backdropOn_ && target_->composition());   // Mica: the base surface lets the backdrop through
+        c.clear(c.surface());
         if (root_) root_->paint(c);
         for (auto& o : overlays_) o.widget->paint(c);
         paintFocusRing(c);
@@ -466,6 +560,10 @@ void Window::render() {
     animating_ = more;
     if (!target_->end()) dirty_ = true;   // device lost: redraw with recreated resources
     if (layoutDirty_) dirty_ = true;
+    if (dwmOffPending_) {   // the opaque frame is up: Mica can go
+        dwmOffPending_ = false;
+        setDwmBackdrop(false);
+    }
 }
 
 bool Window::renderToPng(const std::wstring& path) {
@@ -496,7 +594,8 @@ bool Window::renderToPng(const std::wstring& path) {
     dc->BeginDraw();
     {
         Canvas c(dc, s);
-        c.clear(gfx::colors().bgBase);
+        c.setTranslucent(backdropOn_ && target_->composition());   // as on screen (the PNG then has the alpha)
+        c.clear(c.surface());
         if (root_) root_->paint(c);
         for (auto& o : overlays_) o.widget->paint(c);
         paintFocusRing(c);
@@ -927,6 +1026,10 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
             dirty_ = true;
             render();
         }
+        break;
+    case WM_SETTINGCHANGE:
+        // Transparency effects ("ImmersiveColorSet") or high contrast (SPI_SETHIGHCONTRAST) changed: Mica follows.
+        if (backdropWanted_) updateBackdrop();
         break;
     case WM_ACTIVATE:
         active_ = LOWORD(wp) != WA_INACTIVE;

@@ -27,6 +27,7 @@ struct WindowOptions {
     bool topmost = false;
     bool toolWindow = false;     // no taskbar button and no minimize box (mini player)
     bool maximized = false;
+    bool backdrop = false;       // Windows 11 Mica behind a translucent client area (Window::setBackdrop)
 };
 
 class Overlay;
@@ -42,6 +43,19 @@ public:
     // Re-applies the theme-dependent native frame after a live gfx::Theme::load(): DWMWA_USE_IMMERSIVE_DARK_MODE and
     // the bg.base border/caption color, then relayout + repaint.
     void applyTheme();
+
+    // System backdrop (Windows 11 22H2+ Mica, DWMSBT_MAINWINDOW). While in effect, DWM draws Mica behind the whole
+    // window and the window paints its base surface with the translucent Canvas::surface(); anything that paints itself
+    // opaque stays opaque. That needs the premultiplied composition swap chain, which is chosen when the window is
+    // created (WindowOptions::backdrop) and kept: such a window turns Mica off and on again live (the setting,
+    // WM_SETTINGCHANGE for transparency effects / high contrast), painting opaque while off, and never shows a
+    // see-through frame. A window created without it keeps today's HWND swap chain: setBackdrop(true) there only
+    // takes effect after a restart (backdropLive() false).
+    void setBackdrop(bool on);
+    bool backdropActive() const { return backdropOn_; }
+    bool backdropLive() const;   // the window can show Mica now (composition swap chain)
+    enum class BackdropAvailability { Available, NeedsWindows11, TransparencyOff, HighContrast };
+    static BackdropAvailability backdropAvailability();
 
     void setRoot(std::unique_ptr<Widget> root);
     Widget* root() const { return root_.get(); }
@@ -130,6 +144,9 @@ private:
     Point toDip(LPARAM lp) const;
     MouseEvent makeEvent(Widget* target, Point windowPos, MouseButton b, WPARAM wp) const;
     void resized();
+    void updateBackdrop();
+    void setDwmBackdrop(bool on);
+    void applyFrameColors();   // DWM border + caption color (bg.base; no caption color under Mica)
     void runLayout();
     void paintTooltip(Canvas& c);
     void paintFocusRing(Canvas& c);
@@ -157,6 +174,9 @@ private:
     bool active_ = true;
     bool trackingLeave_ = false;
     bool maxButtonHot_ = false;
+    bool backdropWanted_ = false;   // setBackdrop()
+    bool backdropOn_ = false;       // wanted, available and live: DWM Mica + translucent base surface
+    bool dwmOffPending_ = false;    // DWM backdrop goes off once the next (opaque) frame is up
     double wakeAt_ = 1e300;
 
     Widget* hover_ = nullptr;

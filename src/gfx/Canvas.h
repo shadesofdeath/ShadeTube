@@ -21,6 +21,22 @@ public:
     // off-screen work.
     const Rect& clip() const { return clips_.back().r; }
 
+    // --- base surface ---------------------------------------------------------------------------
+    // The window's base surface: bg.base, or on a window with a system backdrop (Mica, Window::setBackdrop) the
+    // translucent bg.base tint the backdrop shows through. Everything else paints the same either way; opaque things
+    // (cards, menus, Now Playing) stay opaque.
+    void setTranslucent(bool on) { translucent_ = on; }
+    bool translucent() const { return translucent_; }
+    Color surface() const;
+    // Covers r with the base surface, hiding what was painted there (sticky headers, the player bar). Opaque: a bg.base
+    // fill. Translucent: the pixels are replaced rather than blended over, so the backdrop shows through exactly as
+    // around it; `opacity` < 1 moves them only that far towards the surface (a fading sticky header).
+    void fillSurface(const Rect& r, float opacity = 1.f);
+    // Group opacity that fades linearly from `opacityFrom` at `from` to `opacityTo` at `to` (clamped beyond):
+    // content that has to dissolve into a translucent surface instead of being covered by an opaque gradient.
+    // Paired with popLayer().
+    void pushFade(const Rect& bounds, Point from, Point to, float opacityFrom, float opacityTo);
+
     // --- shapes ---------------------------------------------------------------------------------
     void clear(const Color& c);
     void fillRect(const Rect& r, const Color& c);
@@ -88,6 +104,7 @@ private:
     std::vector<ClipEntry> clips_;
     std::vector<D2D1_MATRIX_3X2_F> transforms_;
     int layerDepth_ = 0;
+    bool translucent_ = false;
 };
 
 } // namespace st::gfx
