@@ -34,7 +34,13 @@ kalır.
 
 - 🎧 **Spotify kitaplığın** — çalma listeleri, Beğenilen Şarkılar, kayıtlı albümler, takip ettiğin sanatçılar ve
   kişisel ana sayfa (Daily Mix'ler, Haftalık Keşif, Yakınlarda Çalınanlar), liste klasörlerinle birlikte. Beğenme,
-  kaydetme, takip ve liste düzenleme doğrudan hesabına yazılır.
+  kaydetme, takip ve liste düzenleme doğrudan hesabına yazılır. Kitaplıkta ızgara ya da liste görünümü, sıralama
+  (son çalınanlar, son eklenenler, alfabetik, oluşturan) ve hızlı arama.
+- 👥 **Birlikte dinle** — bir oturum başlat, davet bağlantısını paylaş: arkadaşların aynı şarkıyı aynı anda dinler;
+  Spotify hesabı da bizim bir sunucumuz da gerekmez (uçtan uca şifreli). Misafirler şarkı ekler, çalmayı kimin
+  yöneteceğine oturum sahibi karar verir.
+- 📱 **Telefondan kumanda** — QR kodu tara, aynı Wi-Fi'daki telefonunun tarayıcısından ShadeTube'u yönet: çalma, ses,
+  sıra, arama, kitaplığın. Hiçbir şey yüklemen gerekmez.
 - 🖱️ **Sürükle bırak** — şarkıları bir listeye, Beğenilen Şarkılar'a ya da sıraya sürükle; Explorer'dan müzik
   dosyası ve klasör bırak, hemen çalsın.
 - 🔄 **Liste içe / dışa aktarma** — her listeyi, Beğenilen Şarkılar'ı, bir albümü ya da sırayı M3U8, CSV (Excel),
@@ -54,7 +60,8 @@ kalır.
 - ⬇️ **Gerçek MP3 indirme** — etiketli ve kapaklı 320 kbps MP3 (ya da orijinal m4a), Sanatçı/Albüm klasörlerine;
   videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar; Beğenilen Şarkılar,
   çalma listeleri ve albümler kendiliğinden indirilip güncel tutulabilir; senkrondan çıkardığın şarkılar geri gelmez.
-- 📁 **Yerel dosyalar** — kendi klasörlerin: MP3, FLAC, M4A/ALAC, AAC, WAV ve WMA, etiket ve kapaklarıyla.
+- 📁 **Yerel dosyalar** — kendi klasörlerin: MP3, FLAC, M4A/ALAC, AAC, WAV ve WMA, etiket ve kapaklarıyla; klasör
+  klasör gez, etiketlerini ve kapaklarını düzenle (MP3, FLAC, M4A), tek şarkıda ya da topluca.
 - 🎙️ **Podcastler** — Apple Podcasts dizininde ara ya da herhangi bir RSS beslemesini ekle; abone ol, yeni bölümleri
   gör, kaldığın yerden devam et, bölüm notlarını oku ve bölümleri çevrimdışı dinlemek için indir.
 - 🎤 **Senkron şarkı sözleri** — LRCLIB'den, Spotify'a bağlıyken Spotify'dan ya da kendi `.lrc` dosyalarından; bir

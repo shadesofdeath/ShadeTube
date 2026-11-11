@@ -2,6 +2,27 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.8.0 — 2026-11-11
+
+- **Listen together**: start a session from the player bar (or the command palette) and share the invite link; friends
+  who open it hear the same song at the same moment, in sync to a fraction of a second. They don't need a Spotify
+  account: everyone plays the host's exact YouTube recording. Guests add songs to the shared queue (marked with their
+  name); the host decides whether guests may also pause, skip and seek, and can remove someone. A guest's own queue
+  comes back when they leave. Sessions run over public MQTT servers (or your own) and every message is end-to-end
+  encrypted with a key that exists only in the invite link. Podcasts and radio aren't shared.
+- **Phone remote**: turn it on in Settings › Phone remote, scan the QR code and your phone's browser becomes a remote
+  on the same network: now playing with seek, play / pause, next / previous, shuffle, repeat, like, volume, the queue,
+  search and your library, with the current lyrics line. Nothing to install; each phone pairs once and can be
+  disconnected from the list.
+- **Library views**: a grid or list view, sorting by recently played, recently added, alphabetical or creator / artist
+  (remembered per tab) and a "Search in Your Library" filter. Albums and followed artists beyond the first 50 now load too.
+- **Local files by folder**: a new Folders view browses your music folders with a path bar; play, shuffle, queue,
+  add to a playlist or export a whole folder.
+- **Tag editor**: "Edit tags" on a local song, a selection, a folder or a downloaded song changes the title, artist,
+  album, album artist, track and disc number, year, genre and cover of MP3, FLAC and M4A files. Fields that differ
+  across a selection stay as they are unless you type in them. The file is written next to the original, checked and
+  only then swapped in, and everything else in it (lyrics, ReplayGain, the audio itself) is kept as it was.
+
 ## 0.7.0 — 2026-10-06
 
 - **YouTube playback recovers by itself**: when YouTube suddenly refuses its own stream links (HTTP 403), ShadeTube

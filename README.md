@@ -35,7 +35,13 @@ starts instantly and stays light.
 
 - 🎧 **Your Spotify library** — playlists, Liked Songs, saved albums, followed artists and the personalized home
   feed (Made For You, Daily Mixes, Discover Weekly, Recently played), with your playlist folders. Liking, saving,
-  following and playlist edits are written back to your account.
+  following and playlist edits are written back to your account. The Library has a grid or list view, sorting
+  (recents, recently added, alphabetical, creator) and a quick filter.
+- 👥 **Listen together** — start a session and share the invite link: friends hear the same song at the same moment,
+  without Spotify accounts and without a server of ours (end-to-end encrypted). Guests add songs; the host decides who
+  controls playback.
+- 📱 **Phone remote** — scan a QR code and control ShadeTube from your phone's browser on the same Wi-Fi: playback,
+  volume, queue, search, your library. Nothing to install.
 - 🖱️ **Drag and drop** — drag songs onto a playlist, Liked Songs or into the queue; drop music files and folders
   from Explorer to play them.
 - 🔄 **Import & export playlists** — save any playlist, Liked Songs, an album or the queue as M3U8, CSV (Excel),
@@ -56,7 +62,8 @@ starts instantly and stays light.
 - ⬇️ **Real MP3 downloads** — 320 kbps MP3 (or the original m4a) with tags and cover art, sorted into
   Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline, and
   Liked Songs, playlists and albums can be kept offline and in sync automatically, minus the songs you exclude.
-- 📁 **Local files** — add your own folders: MP3, FLAC, M4A/ALAC, AAC, WAV and WMA with tags and covers.
+- 📁 **Local files** — add your own folders: MP3, FLAC, M4A/ALAC, AAC, WAV and WMA with tags and covers; browse them
+  folder by folder and edit their tags and covers (MP3, FLAC, M4A), one song or many at once.
 - 🎙️ **Podcasts** — search Apple's podcast directory or add any RSS feed; subscribe, get new episodes, continue
   where you left off, read the show notes and download episodes for offline listening.
 - 🎤 **Synced lyrics** from LRCLIB, Spotify (when connected) or your own `.lrc` files — click a line to jump there,
