@@ -4,6 +4,7 @@
 #include "app/PlaylistTransfer.h"
 #include "app/Router.h"
 #include "app/Source.h"
+#include "app/Together.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Utf.h"
@@ -203,6 +204,7 @@ std::wstring linkLabel(const Link& link) {
     case Kind::MbRelease: return tr(L"MusicBrainz albümü");
     case Kind::MbArtist: return tr(L"MusicBrainz sanatçısı");
     case Kind::MbRecording: return tr(L"MusicBrainz kaydı");
+    case Kind::JamInvite: return tr(L"Birlikte dinleme daveti");
     case Kind::Unsupported: break;
     }
     return tr(L"Desteklenmeyen bağlantı");
@@ -220,6 +222,7 @@ std::wstring linkAction(const Link& link) {
     case Kind::SpotifyPlaylist: return tr(L"Çalma listesini aç");
     case Kind::SpotifyArtist:
     case Kind::MbArtist: return tr(L"Sanatçıyı aç");
+    case Kind::JamInvite: return tr(L"Oturuma katıl");
     case Kind::None:
     case Kind::Unsupported: break;
     }
@@ -230,6 +233,7 @@ const char* linkIcon(const Link& link) {
     switch (link.service) {
     case Service::Spotify: return "spotify-link";
     case Service::YouTube: return "youtube-source";
+    case Service::ShadeTube: return "users";
     default: return "link";
     }
 }
@@ -241,7 +245,16 @@ bool linkNeedsSpotify(const Link& link) {
 bool openLink(const Link& link) {
     if (!link) return false;
     g_linkLife.renew();
-    ST_LOG_INFO("links", "open kind {} id {}", static_cast<int>(link.kind), link.id);
+    // An invite link is the session's key: never logged.
+    ST_LOG_INFO("links", "open kind {} id {}", static_cast<int>(link.kind), link.kind == Kind::JamInvite ? std::string("(invite)") : link.id);
+    if (link.kind == Kind::JamInvite) {
+        if (!together::join(link.id)) toast(tr(L"Bu birlikte dinleme daveti bozuk ya da eksik kopyalanmış"), true);
+        return true;
+    }
+    if (link.kind == Kind::Unsupported && link.service == Service::ShadeTube) {
+        toast(tr(L"Bu ShadeTube bağlantısı açılamıyor"), true);
+        return true;
+    }
     if (link.kind == Kind::Unsupported) {
         toast(tr(L"Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir."), true);
         return true;
@@ -272,6 +285,7 @@ bool openLink(const Link& link) {
         if (router) router->navigate({RouteKind::Artist, link.id});
         break;
     case Kind::MbRecording: openMbRecording(link.id); break;
+    case Kind::JamInvite:
     case Kind::None:
     case Kind::Unsupported: break;
     }

@@ -195,6 +195,8 @@ private:
 
         section(c, tr(L"TELEFONDAN KUMANDA"));
         buildRemoteSection(c, rebuilder());
+        section(c, tr(L"BİRLİKTE DİNLE"));
+        buildJamRows(c, rebuilder());
 
         section(c, tr(L"OYNATMA"));
         {
@@ -613,6 +615,7 @@ private:
         const std::pair<const wchar_t*, const char*> ids[] = {
             {L"SPOTIFY", "spotify"},             {tr(L"BAĞLANTILAR"), "connections"}, {tr(L"OYNATMA"), "playback"},
             {tr(L"TELEFONDAN KUMANDA"), "remote"},
+            {tr(L"BİRLİKTE DİNLE"), "jam"},
             {tr(L"SES"), "audio"},               {tr(L"KARA LİSTE"), "blocklist"},    {tr(L"GÖRÜNÜM"), "appearance"},
             {tr(L"PENCERE"), "window"},          {tr(L"KLAVYE"), "keyboard"},         {tr(L"İNDİRME"), "downloads"},
             {tr(L"YEREL MÜZİK"), "local"},       {tr(L"KİTAPLIK VE DEPOLAMA"), "storage"}, {tr(L"HAKKINDA"), "about"},

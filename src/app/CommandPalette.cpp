@@ -8,6 +8,7 @@
 #include "app/SmartListsPage.h"
 #include "app/Social.h"
 #include "app/Source.h"
+#include "app/Together.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Paths.h"
@@ -213,6 +214,7 @@ std::vector<Item> staticItems() {
         {"spotify", tr(L"Spotify hesabı")},
         {"connections", tr(L"Bağlantılar: Last.fm, ListenBrainz, Discord")},
         {"remote", tr(L"Telefondan kumanda")},
+        {"jam", tr(L"Birlikte dinle ayarları")},
         {"playback", tr(L"Oynatma ayarları")},
         {"audio", tr(L"Ses ayarları")},
         {"blocklist", tr(L"Kara liste")},
@@ -240,6 +242,8 @@ std::vector<Item> staticItems() {
     if (!source::loggedIn() && ctx().startSpotifyLogin)
         items.push_back(commandItem("cmd:spotify-login", tr(L"Spotify ile bağlan"), L"Spotify", "spotify-link",
                                     [] { ctx().startSpotifyLogin(); }));
+    for (auto& jc : together::paletteCommands())   // "Birlikte dinle": start / join / copy the link / leave
+        items.push_back(commandItem(jc.key, jc.title, tr(L"Birlikte dinle"), jc.icon, std::move(jc.run)));
     if (ctx().quitApp)
         items.push_back(commandItem("cmd:quit", tr(L"ShadeTube'dan çık"), tr(L"Uygulama"), "logout", [] { ctx().quitApp(); }));
 

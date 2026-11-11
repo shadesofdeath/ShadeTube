@@ -8,7 +8,9 @@
 //   youtube.com / m. / music. / youtube-nocookie.com: /watch?v=<id>, /shorts/<id>, /embed/<id>, /live/<id>, /v/<id>,
 //   and youtu.be/<id> (11-char video ids); youtube.com / music.youtube.com /playlist?list=<id> (imported as a local
 //   playlist: app/PlaylistTransfer);
-//   musicbrainz.org/{release-group,release,artist,recording}/<mbid>[/...].
+//   musicbrainz.org/{release-group,release,artist,recording}/<mbid>[/...];
+//   shadetube://jam/<base64url token>[/] (a listen-together invite; app/JamInvite decodes the token). Any other
+//   shadetube: link is Unsupported.
 // Links of those services to things ShadeTube can't open (podcasts, users, YouTube channels,
 // spotify.link short links...) parse as Kind::Unsupported, so the caller can say so instead of searching for a URL.
 //
@@ -18,7 +20,7 @@
 
 namespace st::app::links {
 
-enum class Service { None, Spotify, YouTube, MusicBrainz };
+enum class Service { None, Spotify, YouTube, MusicBrainz, ShadeTube };
 
 enum class Kind {
     None,               // not a link of a known service: search for the text as usual
@@ -33,6 +35,7 @@ enum class Kind {
     MbArtist,
     MbRecording,        // a song: played
     Unsupported,        // a known service, but nothing ShadeTube opens
+    JamInvite,          // shadetube://jam/<token>: a "Birlikte dinle" invite (app/Together; id = the whole link)
 };
 
 struct Link {

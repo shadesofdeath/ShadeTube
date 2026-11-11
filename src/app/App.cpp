@@ -3,6 +3,7 @@
 #include "app/CommandPalette.h"
 #include "app/Commands.h"
 #include "app/InternetRadio.h"
+#include "app/JamInvite.h"
 #include "app/LinkOpener.h"
 #include "app/LyricsService.h"
 #include "app/LoginWindow.h"
@@ -14,6 +15,7 @@
 #include "app/Shell.h"
 #include "app/Smtc.h"
 #include "app/Social.h"
+#include "app/Together.h"
 #include "catalog/TrackKind.h"
 #include "core/CrashHandler.h"
 #include "core/Http.h"
@@ -179,12 +181,27 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     winshell::setWindowIdentity(window_->hwnd());
     commandMsg_ = RegisterWindowMessageW(winshell::kCommandMessage);
     if (commandMsg_) ChangeWindowMessageFilterEx(window_->hwnd(), commandMsg_, MSGFLT_ALLOW, nullptr);
+    // A shadetube: link a second launch hands over (main.cpp, jam::forwardOpenLink).
+    ChangeWindowMessageFilterEx(window_->hwnd(), WM_COPYDATA, MSGFLT_ALLOW, nullptr);
     thumbBar_ = std::make_unique<winshell::ThumbBar>(window_->hwnd());
     thumbBar_->onCommand = [this](winshell::Command cmd) { runCommand(cmd); };
     // Keyboard shortcut actions only App can carry out (its windows); the rest are app/Commands' own.
     commands::setHandler("now-playing", [this] {
         if (!shell_ || !ctx().toggleNowPlaying) return false;
         ctx().toggleNowPlaying(!shell_->nowPlaying());
+        return true;
+    });
+    // "Birlikte dinle" side panel (app/Together): open / close; it takes the queue's slot.
+    commands::setHandler("listen-together", [this] {
+        if (!shell_) return false;
+        const bool on = !shell_->jamOpen();
+        if (on && shell_->nowPlaying()) shell_->setNowPlaying(false);
+        shell_->setJamOpen(on);
+        if (on && Settings::get().friendActivityOpen) {
+            Settings::get().friendActivityOpen = false;
+            Settings::get().markDirty();
+        }
+        window_->invalidate();
         return true;
     });
     commands::setHandler("mini-player", [this] {
@@ -234,6 +251,15 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         }
         if (commandMsg_ && msg == commandMsg_) {
             postCommand(static_cast<winshell::Command>(wp));
+            return;
+        }
+        if (msg == WM_COPYDATA) {   // a link from a second launch: opened outside this message
+            if (std::wstring link = jam::openLinkFromCopyData(reinterpret_cast<const void*>(lp)); !link.empty())
+                Dispatcher::post([this, ref = life_.ref(), link = std::move(link)] {
+                    if (ref.expired()) return;
+                    activate();
+                    openLink(links::parse(std::wstring_view(link)));
+                });
             return;
         }
         if (msg == WM_ENDSESSION && wp) {   // logoff / shutdown: the process may end right after this message
@@ -503,6 +529,8 @@ void App::showShell() {
     shell_->sidebar()->refresh();
     // The friend activity panel as it was left (it shows once a Spotify session is there).
     if (Settings::get().friendActivityOpen || options_.route == "friends") shell_->setFriendsOpen(true);
+    if (options_.route == "jam") shell_->setJamOpen(true);   // dev: the "Birlikte dinle" panel
+    if (options_.route == "queue") shell_->setQueueOpen(true);   // dev: the queue panel
     Route start{RouteKind::Home};
     if (options_.route == "search") start = {RouteKind::Search};
     else if (options_.route.rfind("search:", 0) == 0) start = {RouteKind::Search, options_.route.substr(7)};
@@ -685,6 +713,7 @@ bool App::sponsorActive() const {
 void App::sponsorTick() {
     sponsor_.enabled = Settings::get().sponsorBlockEnabled;   // toggle takes effect immediately
     if (!player_ || player_->status() != player::Status::Playing) return;
+    if (together::guest()) return;   // listen together: the host's skips arrive as its position
     const auto m = player_->currentMatch();
     if (!m || m->videoId != sponsor_.videoId()) return;       // offline file / resolving / not synced yet
     const int64_t pos = player_->positionMs();

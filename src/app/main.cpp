@@ -2,6 +2,7 @@
 #include "app/App.h"
 #include "app/Autostart.h"
 #include "app/Installer.h"
+#include "app/JamInvite.h"
 #include "app/WinShell.h"
 #include "core/CrashHandler.h"
 #include "core/Dispatcher.h"
@@ -129,6 +130,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         settings.load();   // what the exited instance saved on its way out
     }
     if (running && options.autostart) {   // Windows' sign-in start while ShadeTube already runs: nothing to do
+        if (mutex) CloseHandle(mutex);
+        return 0;
+    }
+    // A clicked shadetube: link (the URL protocol runs `--open-link "%1"`): the running instance opens it.
+    if (running && !options.openLink.empty() && st::app::jam::forwardOpenLink(windowClass.c_str(), options.openLink)) {
         if (mutex) CloseHandle(mutex);
         return 0;
     }

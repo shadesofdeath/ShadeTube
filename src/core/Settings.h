@@ -86,6 +86,10 @@ struct Settings {
     // ("recents" | "added" | "alpha" | "creator"). Missing = grid, recents.
     std::map<std::string, std::string> libraryView, librarySort;
     bool friendActivityOpen = false;     // "Arkadaş etkinliği" panel open (Spotify; app/FriendActivity)
+    // "Birlikte dinle" (app/Together): the name others see ("" = Spotify / Windows name) and a broker of the user's own
+    // tried before the built-in public ones (wss://host[:port]/path, "" = none).
+    std::string jamName;
+    std::string jamBroker;
     bool newReleaseNotifications = false;   // Windows notification for new releases of followed artists
     // Phone remote control (app/RemoteControl): a LAN web server the phone's browser talks to. Off by default.
     bool remoteEnabled = false;

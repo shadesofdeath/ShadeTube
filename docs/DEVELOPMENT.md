@@ -90,10 +90,12 @@ ShadeTube/
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
+│                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
+│                                JamCrypto, JamInvite, JamProtocol, JamSync)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
-                                 library, links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts, radio,
-                                 remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync, tags, updater,
-                                 winshell
+                                 jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts,
+                                 radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync,
+                                 tags, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -433,6 +435,7 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
   longer than 30 s and min(50 %, 4 min) really listened. Credentials DPAPI-encrypted in `scrobble.dat`.
 - **Discord Rich Presence** (`app/DiscordRpc`): local IPC pipe, own thread, silent without Discord; off by default.
 - **Single instance**: a second launch posts `ShadeTube.Activate`; the running app restores itself (or its mini player).
+  A second launch with `--open-link <link>` (a clicked `shadetube:` invite) hands the link over as `WM_COPYDATA` (3.24).
 - **Pasted links** (`app/Links` parser, standalone; `app/LinkOpener`): the search box and Ctrl+V outside a text field
   recognize `open.spotify.com` URLs / `spotify:` URIs (track, album, playlist, artist; `intl-xx`, `embed`, legacy user
   playlists), YouTube / YouTube Music videos (`watch?v=`, `youtu.be`, `shorts`, `embed`, `live`) and `musicbrainz.org`
@@ -441,7 +444,8 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
   spclient `metadata/4` JSON, base62 id -> hex gid) or a MusicBrainz recording (`mb::recording`) plays in its album
   from that song and shows the album; a YouTube video becomes a `yt:<videoId>` track titled from the video
   (`links::videoSong`: "Artist - Title (Official Video)" -> artist / title) whose video is pinned in `MatchService`,
-  so it never re-matches. Spotify links need a session (logged out: the connect screen); links of those services to
+  so it never re-matches. A `shadetube://jam/` invite joins a listen-together session (3.24; never logged). Spotify
+  links need a session (logged out: the connect screen); links of those services to
   anything else (podcasts, users, YouTube playlists, `spotify.link` short links) only toast; other text is searched.
 - **Windows shell** (`app/WinShell`): the process gets the AppUserModelID before any window exists (the Start menu
   shortcut carries the same id, so the media flyout names the app), `HKCU\Software\Classes\AppUserModelId\<AUMID>`
@@ -537,7 +541,8 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
 `listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
-`radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`,
+`radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`, `jam.json`
+(listen together: the device id, a guest's saved playback settings), `jam-own-session.json` (a guest's own queue),
 `spotify-hashes.json`, `library-recents.json`,
 `update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
@@ -819,6 +824,72 @@ responses, SSE framing), `RemoteAuth` (pairing secret, device tokens, throttle),
   downloads, local playlists) is registered under a hash handle and served by `/api/cover/<handle>` with the token
   (read on a worker, ≤ 8 MB, image types only); the page fetches it with the header and shows a blob URL.
 
+### 3.24 Listen together (Jam)
+
+"Birlikte dinle": friends hear the same song at the same moment, without a Spotify account and without a server of
+ours. Standalone core (`app/Jam*`, `jam_test`): `JamMqtt` (MQTT 3.1.1 codec + client), `JamCrypto` (CNG), `JamInvite`
+(invite links, topics, the URL protocol key), `JamProtocol` (envelopes, replay windows, the session state, requests,
+the invite hand-off), `JamSync` (clock estimator, guest reconciliation). App side: `app/Together` (the session on the
+UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side panel, settings rows).
+
+- **Transport**: MQTT over secure WebSocket (WinHTTP's WebSocket API, subprotocol `mqtt`, the system proxy, IPv6 fast
+  fallback) to public brokers: `wss://broker.emqx.io:8084/mqtt`, `wss://test.mosquitto.org:8081/mqtt`,
+  `wss://broker.hivemq.com:8884/mqtt` (all three passed `jam_test live` on 2026-11-11 through WinHTTP; HiveMQ's first
+  connect took ~9 s there, its IPv6 addresses don't answer). QoS 0 only: CONNECT (clean session, 20 s keep-alive, a
+  last will per connection), SUBSCRIBE, PUBLISH (retained for the state), PINGREQ, DISCONNECT. The client has its own
+  thread (+ a receive thread per connection), reconnects with backoff (1 s doubling to 30 s) and moves to the next
+  broker after two failed attempts. A planned close sends DISCONNECT, a WebSocket close and waits for the broker to hang
+  up, so the last messages (end, goodbye) arrive. Order: the invite's broker, `Settings::jamBroker` (the user's own,
+  `wss://` or `ws://`), the built-in list (`jam::brokerOrder`). The broker the host is connected to goes into the
+  invite; when it fails, the host fails over in that order and re-publishes; a guest that finds no session within 15 s
+  or hears nothing from the host for 35 s tries the next one; "Başka sunucuya taşı" leaves a retained state with
+  `movedTo` (and a `move` message) on the old broker.
+- **Room and encryption**: room id = 128 random bits, key = 256 random bits; both exist only in the invite
+  `shadetube://jam/<base64url(1 | flags | room | key | broker host:port/path)>` (~115 characters). Topics:
+  `shadetube/jam/v1/<hex SHA-256(room id)>/{state,h,g}` (retained host state, host messages, guest messages). Every
+  payload is AES-256-GCM (random 96-bit nonce, the topic as associated data) of `{v, t, d, s, b}`: type, the sender's
+  device id (random, `jam.json`), a sequence number and the body. Receivers keep a 64-entry replay window per device;
+  sequence numbers are `(epoch << 24) | counter` with a new epoch (unix second) per connection, and each connection's
+  last will takes `epoch << 24 | 2^23`, so a will the broker delivers after the device reconnected is refused. Keys and
+  links are never logged (logs name rooms by `jam::roomTag`, 8 hex digits of the topic hash).
+- **Host**: publishes the state on every player change (coalesced 150 ms), at least every 30 s and when the real
+  position drifts 400 ms from the published one: the current item + the next 50 in play order (id, title, artists,
+  album, length, cover, the exact YouTube video it plays, who added it, kind), position + the host's steady clock,
+  playing / status, guest permission, members, bans, a revision. Items it plays from disk are `File` (guests use the
+  host's video when the match cache knows one, else look them up by title / artist / length); podcast episodes and
+  radio stations are `Unsupported`: not shared (the host gets a toast, guests pause and the panel says why). Guests'
+  `req`s: `add` always (the song goes after the songs guests added before, marked "+ NAME" in the queue panel); play,
+  pause, next, previous, seek and jump only with "Misafirler çalmayı kontrol edebilir". Presence: hello (name + the
+  guest's ECDH public key), heartbeats every 10 s, the last will; 35 s of silence = offline, offline members leave the
+  list after 3 min; at most 10 people. "Çıkar" bans the device (ignored by the host, listed in the state, the guest
+  leaves). "Yeni bağlantı" moves the session to a new room + key: each online guest gets the new link sealed with
+  SHA-256(ECDH(host ephemeral, guest key) || label), the old room's retained state is cleared; a removed device reads
+  the old room but can't open the hand-offs. Both ends play at 1x during a session.
+- **Guest**: on joining, `session.json` is copied to `jam-own-session.json` and shuffle / repeat / speed go to
+  `jam.json`; leaving, being removed, the host ending the session or the next start after a crash put them back
+  (`Player::restoreSession` stops what plays first). Following runs four times a second (`jam::decide`): the host's
+  queue is loaded at the host's position (`Player::playContextAt`, the host's videos pinned with
+  `MatchService::pinForSession`, so the guest's own downloads / matches of a song are not used), an item that became
+  current is jumped to (gapless when prepared), changed upcoming items are replaced, play / pause follow. Position:
+  host clock = guest clock + offset from pings (NTP formula, median of the faster half of the last 9 samples); the
+  drift is re-sought past 1 s (at most every 3 s), and a steady offset over 250 ms gets up to three fine corrections
+  per song; seeks and loads aim ahead by learned leads. Items that fail twice are held until the host moves on;
+  SponsorBlock is off for guests (the host's skips arrive as its position). The player's commands go through
+  `Player::commandFilter`: playing or queuing a song becomes an `add` request (a toast says so), transport becomes a
+  request or is refused, queue edits / shuffle / repeat / speed / "Yanlış eşleşme?" are refused; the player bar
+  disables what a guest can't use (its tooltip says why); volume stays local.
+- **UI**: a side panel in the queue's slot (`JamPanel`; the player bar's button, the `listen-together` action,
+  `--route jam`): start / join, the invite link + copy + new link, participants (remove), the permission, the broker
+  and link state, the guest's sync state ("Eşit · ±0,03 sn"), leave / end. The player bar shows "Birlikte dinleniyor ·
+  <host>" (guests) or "… · n kişi" (host). Invite links open from the search box, Ctrl+V, the "Katıl" dialog,
+  `--open-link` and the `shadetube:` URL protocol: `HKCU\Software\Classes\shadetube` → `"<exe>" --open-link "%1"`,
+  written at startup for the real profile only (sandbox profiles leave it alone unless `SHADETUBE_PROTOCOL_KEY` names
+  a test key) and removed by the uninstaller; a second launch hands the link to the running instance as `WM_COPYDATA`.
+  Ayarlar › BİRLİKTE DİNLE (`settings:jam`): the display name (`Settings::jamName`; default: the Spotify display name,
+  else the Windows user's first name) and the own broker (`Settings::jamBroker`).
+- **Measured** (two sandbox instances on one PC, EMQX, Debug): ~0.7-1.3 s to connect, guest requests reach the host in
+  ~100-250 ms, clock offset within a few ms, drift after the first correction +20 .. +50 ms (-110 ms after a resume).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -839,7 +910,7 @@ responses, SSE framing), `RemoteAuth` (pairing secret, device tokens, throttle),
   that may navigate (and so destroy the widget) are called through a local copy.
 - App files that tests compile directly (`Blacklist`, `ListenStats`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
   `SponsorBlock`, `Smtc`, `Updater`, `Installer`, `LibrarySort`, `RemoteHttp`, `RemoteAuth`, `RemoteApi`,
-  `RemoteState`, `RemoteServer`) must stay standalone: no `App`, `AppContext` or UI headers.
+  `RemoteState`, `RemoteServer`, the `Jam*` core) must stay standalone: no `App`, `AppContext` or UI headers.
 
 ## 5. Testing
 
@@ -887,7 +958,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
-| `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
+| `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
+| `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
 | `radio_test` | radio-browser.info parsing (fixtures), codec filter, station -> track mapping, genre labels, `radio.json` store | offline; `live` (discovery, lists, failover; never counts a click) |
 | `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
@@ -900,6 +972,14 @@ The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\upda
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
 `updater_test --e2e` on exe copies in `%TEMP%`. `tests/updater/make_fixture.ps1` regenerates `fixtures/sample.zip`.
 
+Listen together end to end (3.24): two sandbox profiles, each with its own `SHADETUBE_INSTANCE_CLASS` /
+`SHADETUBE_INSTANCE_MUTEX` so second launches reach them. The host: `SHADETUBE_JAM_HOST=1`,
+`SHADETUBE_JAM_INVITE_FILE=<file>`, `ShadeTube.exe --play "Artist - Title"`; the guest: `SHADETUBE_JAM_JOIN=<link>`
+(or a running guest gets `ShadeTube.exe --open-link <link>`). Then `--command play-pause` / `next` to the host (or the
+guest with `SHADETUBE_JAM_DEV=control` on the host), `--open-link <YouTube URL>` to the guest (a song it adds) and
+`SHADETUBE_JAM_DEV=rotate@45,kick@80`; both logs (`jam` lines) say what each side did: `host: state rev …`,
+`guest: load / jump / seek / play / pause`, `guest: following "…": drift +31 ms`.
+
 ### 5.3 Dev flags (ShadeTube.exe)
 
 | Flag | Effect |
@@ -908,8 +988,8 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--login` | open the Spotify WebView2 login window at startup |
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
-| `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:albums` / `artists` / `history`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `local:<view>` (`songs`, `albums`, `artists`, `folders`, `folder:<path>`), `settings`, `settings:<section>` (`spotify`, `connections`, `remote`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...) |
+| `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz / `shadetube://jam/` invite) once a saved Spotify session has connected; with an instance running (not `--preview`) the link is handed to it |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:albums` / `artists` / `history`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `local:<view>` (`songs`, `albums`, `artists`, `folders`, `folder:<path>`), `settings`, `settings:<section>` (`spotify`, `connections`, `remote`, `jam`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...), `jam` (the "Birlikte dinle" panel), `queue` (the queue panel) |
 | `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
@@ -947,6 +1027,11 @@ apps*).
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
 | `SHADETUBE_REMOTE_BIND` | the phone remote listens on this IPv4 address only (e.g. `127.0.0.1`: no Windows Firewall prompt while testing) and the QR code points at it |
 | `SHADETUBE_TAG_EDITOR` | `<n>` or `<first>,<n>`: opens the tag editor for n Yerel dosyalar songs (from index `first`) once the library has loaded (screenshots) |
+| `SHADETUBE_JAM_HOST=1` | starts a listen-together session at startup (3.24) |
+| `SHADETUBE_JAM_INVITE_FILE` | `<path>`: the host writes its invite link there (and again when it changes) |
+| `SHADETUBE_JAM_JOIN` | `<invite link>`: joins that session at startup (a guest in a second sandbox profile) |
+| `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest) |
+| `SHADETUBE_PROTOCOL_KEY` | HKCU key used instead of `Software\Classes\shadetube` for the URL protocol (tests); without it a sandbox profile never registers it |
 
 ## 6. Release process
 
@@ -998,6 +1083,12 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   which the verify-then-swap rule doesn't allow). An ID3v2 extended header is dropped and an enhanced `TAG+` block is
   left as it is; an ID3v2.2 frame without a v2.3 form is dropped (logged); a compressed v2.2 tag is refused. A
   download's catalog name in the app doesn't follow its edited file tags.
+- **Listen together** depends on public MQTT brokers (free services without guarantees; a custom broker can be set).
+  Members share the room key, so a member could forge messages under another device id; removing someone keeps them
+  out only after "Yeni davet bağlantısı" (the old key still reads the old room). The session lives in the host's
+  running app (a host restart ends it); podcasts and radio are not shared; guests need the songs on YouTube.
+  Two instances are best tested on two profiles of one PC (`SHADETUBE_INSTANCE_CLASS` / `_MUTEX` per profile let
+  `--command` and `--open-link` reach each); sync across two machines depends on their audio output latency.
 - **Playback speed** uses time-domain stretching (WSOLA): transparent for speech and fine for music around 0.75-1.5x,
   with some phasing on dense music at extreme speeds.
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most

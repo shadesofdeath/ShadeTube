@@ -20,6 +20,7 @@
 #include <propkey.h>
 
 #include <algorithm>
+#include <cwctype>
 #include <format>
 #include <fstream>
 #include <mutex>
@@ -585,6 +586,19 @@ void unregister() {
     if (!testLocationsWithoutTestAppId()) {
         if (runningInstances().empty()) unregisterAppIdentity();
         else ST_LOG_INFO("install", "app identity kept: another ShadeTube is running");
+    }
+    // The shadetube: URL protocol ("Birlikte dinle" invites, app/JamInvite) when it starts the removed exe (a portable
+    // copy that is still used registers itself again at its next start).
+    if (!testLocationsWithoutTestAppId()) {
+        HKEY k = nullptr;
+        if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Classes\\shadetube\\shell\\open\\command", 0, KEY_QUERY_VALUE, &k) ==
+            ERROR_SUCCESS) {
+            std::wstring cmd = regString(k, nullptr), exe = loc.exe.wstring();
+            RegCloseKey(k);
+            for (auto* s : {&cmd, &exe})
+                for (auto& ch : *s) ch = static_cast<wchar_t>(towlower(ch));
+            if (!exe.empty() && cmd.find(exe) != std::wstring::npos) RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\shadetube");
+        }
     }
     // "Windows ile başlat": the Run value would start the removed exe at sign-in. (A portable copy that is still used
     // writes it again at its next start.) A test that redirects the locations never touches the real one.

@@ -175,5 +175,6 @@ void buildStartupRows(ui::Column* c, const std::function<void()>& rebuild);     
 void buildShortcutRows(ui::Column* c, const std::function<void()>& rebuild);          // KLAVYE    (app/SystemSettings.cpp)
 void buildDownloadSyncRows(ui::Column* c, const std::function<void()>& rebuild);      // İNDİRME   (app/DownloadSync.cpp)
 void buildRemoteSection(ui::Column* c, const std::function<void()>& rebuild);         // TELEFONDAN KUMANDA (app/RemoteControl.cpp)
+void buildJamRows(ui::Column* c, const std::function<void()>& rebuild);               // BİRLİKTE DİNLE (app/TogetherPanel.cpp)
 
 } // namespace st::app

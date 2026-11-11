@@ -86,6 +86,8 @@ void Settings::load() {
     read(j, "libraryView", libraryView);
     read(j, "librarySort", librarySort);
     read(j, "friendActivityOpen", friendActivityOpen);
+    read(j, "jamName", jamName);
+    read(j, "jamBroker", jamBroker);
     read(j, "newReleaseNotifications", newReleaseNotifications);
     read(j, "remoteEnabled", remoteEnabled);
     read(j, "remotePort", remotePort);
@@ -167,6 +169,8 @@ void Settings::save() const {
         {"libraryView", libraryView},
         {"librarySort", librarySort},
         {"friendActivityOpen", friendActivityOpen},
+        {"jamName", jamName},
+        {"jamBroker", jamBroker},
         {"newReleaseNotifications", newReleaseNotifications},
         {"remoteEnabled", remoteEnabled},
         {"remotePort", remotePort},

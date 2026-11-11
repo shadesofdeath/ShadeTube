@@ -168,9 +168,40 @@ public:
     // a position > 0 starts it there (podcast episodes continue where they were left).
     std::function<int64_t(const Track&)> startPositionFor;
 
-    // Resume support (last session). Set liveStreamFor first, so a restored station shows as live.
+    // Resume support (last session). Set liveStreamFor first, so a restored station shows as live. Whatever plays is
+    // stopped first (listen together gives a guest its own queue back this way).
     void restoreSession();
     void saveSession() const;
+
+    // ---- Listen together (app/Together) ----------------------------------------------------------------------------
+    // While set, every command that changes what plays is offered to the filter first (UI thread): true = it took the
+    // command and the player does nothing. Volume and the audio settings are never filtered. Commands given inside a
+    // Unfiltered scope (the session itself following the host) skip it.
+    enum class Command {
+        PlayContext, ReplaceUpcoming, PlayNext, Enqueue, InsertAt, Extend, Play, Pause, TogglePause, Next, Previous,
+        Seek, JumpTo, RemoveAt, Move, ClearQueue, Shuffle, Repeat, Speed, UseMatch,
+    };
+    struct CommandArgs {
+        const std::vector<Track>* tracks = nullptr;   // PlayContext / ReplaceUpcoming / Enqueue / InsertAt / Extend;
+                                                      // PlayNext: its one track
+        int index = -1;                               // PlayContext: start index; JumpTo / RemoveAt / Move: the slot
+        int to = -1;                                  // Move: target slot
+        int64_t ms = 0;                               // Seek
+    };
+    std::function<bool(Command, const CommandArgs&)> commandFilter;
+    class Unfiltered {
+    public:
+        explicit Unfiltered(Player& p) : p_(p) { ++p_.unfiltered_; }
+        ~Unfiltered() { --p_.unfiltered_; }
+        Unfiltered(const Unfiltered&) = delete;
+        Unfiltered& operator=(const Unfiltered&) = delete;
+
+    private:
+        Player& p_;
+    };
+    // Replaces the queue with `tracks` and loads `startIndex` at `startMs`, playing or paused (`autoplay`); no shuffle
+    // pick, no resume position. A guest follows the host's queue and position this way.
+    void playContextAt(std::vector<Track> tracks, int startIndex, PlayContext context, int64_t startMs, bool autoplay);
 
 private:
     struct Prepared {
@@ -241,6 +272,12 @@ private:
     bool live_ = false;                 // current item plays through liveStreamFor (internet radio)
     bool direct_ = false;               // current item plays through directStreamFor (podcast episode)
     std::wstring liveTitle_;            // ICY StreamTitle of the current live item
+    int unfiltered_ = 0;                // Unfiltered scopes open (commandFilter skipped)
+    bool filtered(Command c, const CommandArgs& a = {}) {
+        if (!commandFilter || unfiltered_ > 0) return false;
+        const auto filter = commandFilter;   // the filter may end the session (and clear itself)
+        return filter(c, a);
+    }
 };
 
 } // namespace st::player
