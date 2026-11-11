@@ -239,11 +239,13 @@ void FriendPanel::setFriends(std::vector<spotify::FriendActivity> list) {
     }
     rects_.clear();
     hover_ = pressed_ = {};
-    scroll_.snap(std::clamp(scroll_.value(), 0.f, std::max(0.f, contentHeight() - (rect().h - listTop()))));
+    scroll_.setBounds(0, maxScroll());   // fewer rows: the offset follows the new end
     invalidate();
 }
 
 float FriendPanel::contentHeight() const { return static_cast<float>(rows_.size()) * kRowH + 16; }
+
+float FriendPanel::maxScroll() const { return std::max(0.f, contentHeight() - (rect().h - listTop())); }
 
 void FriendPanel::layout() {
     const float w = rect().w;
@@ -252,8 +254,9 @@ void FriendPanel::layout() {
 }
 
 bool FriendPanel::onWheel(float dy, float, const ui::MouseEvent&) {
-    const float maxS = std::max(0.f, contentHeight() - (rect().h - listTop()));
-    scroll_.to(std::clamp(scroll_.target() - dy * 104.f, 0.f, maxS), ui::motion::medium, ui::Ease::Decelerate);
+    if (dy == 0) return false;
+    scroll_.setBounds(0, maxScroll());
+    scroll_.wheel(dy, 104.f, (rect().h - listTop()) * 0.9f);
     invalidate();
     return true;
 }
@@ -322,6 +325,7 @@ void FriendPanel::activate(const Hit& h, gfx::Point) {
 
 void FriendPanel::paint(Canvas& c) {
     const Rect r = rect();
+    scroll_.setBounds(0, maxScroll());
     const auto& col = colors();
     const auto& acc = accent();
     c.fillRect(r, col.bgBase.withAlpha(0.35f));

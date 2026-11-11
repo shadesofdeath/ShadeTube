@@ -405,9 +405,9 @@ public:
     }
 
     bool onWheel(float dy, float, const ui::MouseEvent& e) override {
-        if (list_.contains(e.pos)) {
-            scroll_ -= dy * kRowH * 2;
+        if (list_.contains(e.pos) && dy != 0) {
             clampScroll();
+            scroll_.wheel(dy, kRowH * 2, list_.h * 0.9f);   // ui/ScrollPhysics: glide, touchpad 1:1
             invalidate();
         }
         return true;
@@ -562,7 +562,7 @@ private:
                 sel_ = i;
                 break;
             }
-        scroll_ = 0;
+        scroll_.snap(0);
         requestLayout();
         invalidate();
     }
@@ -613,9 +613,11 @@ private:
         const Row& r = rows_[sel_];
         // Keep the selection (and its group header when it is the first row) in view.
         const float top = sel_ > 0 && rows_[sel_ - 1].header ? rows_[sel_ - 1].y : r.y;
-        if (top < scroll_) scroll_ = top;
-        if (r.y + r.h > scroll_ + list_.h) scroll_ = r.y + r.h - list_.h;
+        float y = scroll_.target();
+        if (top < y) y = top;
+        if (r.y + r.h > y + list_.h) y = r.y + r.h - list_.h;
         clampScroll();
+        if (y != scroll_.target()) scroll_.glideTo(y);
         invalidate();
     }
 
@@ -629,22 +631,23 @@ private:
 
     int rowAt(Point p) const {
         if (!list_.contains(p)) return -1;
-        const float y = p.y - list_.y + scroll_;
+        const float y = p.y - list_.y + scroll_.value();
         for (int i = 0; i < static_cast<int>(rows_.size()); ++i)
             if (!rows_[i].header && y >= rows_[i].y && y < rows_[i].y + rows_[i].h) return i;
         return -1;
     }
 
-    void clampScroll() { scroll_ = std::clamp(scroll_, 0.f, std::max(0.f, contentH_ - list_.h)); }
+    void clampScroll() { scroll_.setBounds(0, std::max(0.f, contentH_ - list_.h)); }
 
     // ---- painting ----
 
     void paintList(Canvas& c) {
         const auto& col = colors();
         c.pushClip(list_);
+        const float off = scroll_.value();
         for (int i = 0; i < static_cast<int>(rows_.size()); ++i) {
             const Row& row = rows_[i];
-            const Rect r{list_.x, list_.y + row.y - scroll_, list_.w, row.h};
+            const Rect r{list_.x, list_.y + row.y - off, list_.w, row.h};
             if (r.bottom() < list_.y || r.y > list_.bottom()) continue;
             if (row.header) {
                 c.text(groupLabel(row.group), type::monoLabel, {r.x + 20, r.y + 10, r.w - 40, r.h - 10},
@@ -681,7 +684,7 @@ private:
             c.text(subs_[row.item], {x, r.y + 26, right - x, 16}, col.fgSecondary, gfx::VAlign::Center);
         }
         // Status line below the rows (or instead of them).
-        const float statusY = list_.y + contentH_ - scroll_;
+        const float statusY = list_.y + contentH_ - off;
         if (searching_ || rows_.empty()) {
             const std::wstring msg = searching_ ? std::wstring(tr(L"Katalogda aranıyor…")) : std::wstring(tr(L"Sonuç bulunamadı"));
             c.text(msg, type::secondary, {list_.x + 20, statusY, list_.w - 40, kRowH}, col.fgTertiary, gfx::TextAlign::Leading,
@@ -703,7 +706,8 @@ private:
     std::vector<Row> rows_;
     std::vector<gfx::Text> titles_, subs_;
     std::wstring catalogFor_;
-    float contentH_ = 0, scroll_ = 0;
+    float contentH_ = 0;
+    ui::SmoothScroll scroll_;
     int sel_ = -1, pressed_ = -1;
     Rect panel_{}, list_{};
     ui::Anim open_;

@@ -451,13 +451,15 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
         y += h + gap;
     }
     const float total = y;
-    float target;
-    if (ui::frame::realNow() < manualUntil_) target = manualOffset_;
-    else if (synced && active_ >= 0) target = activeTop + activeH * 0.5f - area.h * 0.45f;
-    else if (synced) target = -area.h * 0.3f;
-    else target = scroll_.target();
-    target = std::clamp(target, -area.h * 0.5f, std::max(0.f, total - area.h * 0.5f));
-    if (std::abs(target - scroll_.target()) > 0.5f) scroll_.to(target, ui::motion::lyrics, ui::Ease::Standard);
+    const float lo = -area.h * 0.5f, hi = std::max(0.f, total - area.h * 0.5f);
+    scroll_.setBounds(lo, hi);
+    if (ui::frame::realNow() >= manualUntil_) {   // the wheel's offset holds for 3 s, then the active line leads again
+        float target = scroll_.target();
+        if (synced && active_ >= 0) target = activeTop + activeH * 0.5f - area.h * 0.45f;
+        else if (synced) target = -area.h * 0.3f;
+        target = std::clamp(target, lo, hi);
+        if (std::abs(target - scroll_.target()) > 0.5f) scroll_.glideTo(target, ui::ScrollFeel::Follow);
+    }
     const float off = scroll_.value();
 
     c.pushClip(area);
@@ -648,7 +650,8 @@ int NowPlayingView::lineAt(gfx::Point p) const {
 bool NowPlayingView::onWheel(float dy, float, const ui::MouseEvent& e) {
     const gfx::Point lp{e.pos.x - rect().x, e.pos.y - rect().y};
     if (!lyricsRect_.contains(lp) || lines_.empty()) return false;
-    manualOffset_ = (ui::frame::realNow() < manualUntil_ ? manualOffset_ : scroll_.value()) - dy * 90.f;
+    if (dy == 0) return false;
+    scroll_.wheel(dy, 90.f, lyricsRect_.h * 0.8f);   // glides on from wherever the follow motion is
     manualUntil_ = ui::frame::realNow() + 3000;   // snap back to the active line after 3 s
     invalidate();
     return true;

@@ -59,9 +59,8 @@ private:
     float transHW_ = -1;
     gfx::Text activeText_;
     int active_ = -2;
-    ui::Anim scroll_;
+    ui::SmoothScroll scroll_;            // follows the active line; the wheel takes over for 3 s (manualUntil_)
     double manualUntil_ = 0;
-    float manualOffset_ = 0;
     std::vector<Rect> lineRects_;        // last painted (for hit testing)
     int hoverLine_ = -1;
     Rect artRect_{}, lyricsRect_{}, matchRect_{};

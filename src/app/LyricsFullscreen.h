@@ -67,9 +67,9 @@ private:
     std::vector<Rect> lineRects_;        // last painted (hit testing), translation included
     int active_ = -1;
     int hoverLine_ = -1;
-    ui::Anim scroll_, open_, controls_;
+    ui::SmoothScroll scroll_;            // follows the active line; the wheel takes over for 3 s (manualUntil_)
+    ui::Anim open_, controls_;
     double manualUntil_ = 0;
-    float manualOffset_ = 0;
     double lastMove_ = 0;
     Rect lyricsArea_{};
 

@@ -151,10 +151,11 @@ private:
     int rowAt(gfx::Point p) const;       // order index or -1
     Rect rowRect(int orderIndex) const;
     float listTop() const;
+    float maxScroll() const;             // the upcoming rows below the current one
     void saveAsPlaylist();               // "Kuyruğu kaydet": current + upcoming, in play order
     gfx::Text title_, meta_, blockedBadge_;
     ui::Button* save_;
-    ui::Anim scroll_;
+    ui::SmoothScroll scroll_;            // the upcoming rows (ui/ScrollPhysics: wheel glide, touchpad 1:1)
     int hover_ = -1;
     int dragFrom_ = -1, dragTo_ = -1;
     float dragStartY_ = 0;

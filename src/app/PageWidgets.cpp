@@ -178,7 +178,7 @@ ui::Column* ScrollPage::resetContent(float gap) {
 
 void ScrollPage::layout() { scroll_->setRect({0, 0, rect().w, rect().h}); }
 
-float ScrollPage::scrollOffset() const { return scroll_->scrollY(); }
+float ScrollPage::scrollOffset() const { return scroll_->scrollTarget(); }   // where a glide in flight settles
 
 // The router calls restoreScroll() right after creating the page. A page that built its content synchronously (in
 // its constructor) has already called contentReady(), so the offset is applied now; otherwise it waits for the

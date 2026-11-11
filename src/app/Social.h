@@ -59,6 +59,7 @@ private:
     Hit hitAt(gfx::Point local) const;
     float listTop() const { return 20 + 36 + 12; }
     float contentHeight() const;
+    float maxScroll() const;
     void activate(const Hit& h, gfx::Point windowPos);
 
     ui::Button *refresh_, *close_;
@@ -68,7 +69,7 @@ private:
         Rect row, track, artist, context;
     };
     std::vector<Rects> rects_;   // panel-local, from the last paint
-    ui::Anim scroll_;
+    ui::SmoothScroll scroll_;    // ui/ScrollPhysics: wheel glide, touchpad 1:1
     Hit hover_, pressed_;
     bool loaded_ = false, inFlight_ = false;
     std::wstring error_;         // last failure ("" = fine)

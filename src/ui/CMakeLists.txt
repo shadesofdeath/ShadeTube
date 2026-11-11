@@ -3,6 +3,8 @@
     Controls.cpp Controls.h
     Layout.cpp Layout.h
     Popups.cpp Popups.h
+    ScrollDemo.cpp
+    ScrollPhysics.cpp ScrollPhysics.h
     TextBox.cpp TextBox.h
     Widget.cpp Widget.h
     Window.cpp Window.h

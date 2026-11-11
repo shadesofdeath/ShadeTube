@@ -61,9 +61,11 @@ public:
     }
 };
 
-// Scroll container with a single content widget. Smooth wheel scrolling (decelerate easing), custom
-// auto-hiding scrollbar (6 px, inset 2), draggable thumb. Content is laid out once at its preferred
-// height; scrolling only changes contentOffset().
+// Scroll container with a single content widget. Smooth scrolling through SmoothScroll / ScrollPhysics (see
+// ScrollPhysics.h): wheel notches glide and accelerate, touchpads follow 1:1, keys, track clicks, scrollTo(animate)
+// and revealRect glide with the same spring, the thumb drags 1:1. Custom auto-hiding scrollbar (6 px, inset 2).
+// Content is laid out once at its preferred height; scrolling only changes contentOffset() (children off screen are
+// neither painted nor hit-tested: Widget::paintChildren / hitTest skip what the clip / point misses).
 class ScrollView : public Widget {
 public:
     ScrollView();
@@ -82,7 +84,11 @@ public:
     void revealRect(const Rect& r) override;
     void paint(Canvas& c) override;
     Widget* hitTest(Point p) override;
+    // Vertical wheel input (dy in notches, fractional from touchpads); horizontal-only input is left to the parents.
     bool onWheel(float dy, float dx, const MouseEvent& e) override;
+    // PageUp / PageDown (90 % of the visible height), Home / End, Up / Down (a line): reached when the focused widget
+    // inside leaves them, or from the Window for the view the user last clicked in / points at.
+    bool onKeyDown(const KeyEvent& e) override;
     bool onMouseDown(const MouseEvent& e) override;
     void onMouseMove(const MouseEvent& e) override;
     void onMouseUp(const MouseEvent& e) override;
@@ -90,28 +96,42 @@ public:
     void onMouseLeave() override;
 
     float scrollY() const { return offset_.value(); }
+    float scrollTarget() const { return offset_.target(); }   // where a glide in flight settles
+    bool scrolling() const { return offset_.moving(); }
     float maxScroll() const;
+    // Glides there (ScrollFeel::Glide), or jumps with animate = false (instant with reduce-motion either way).
     void scrollTo(float y, bool animate = true);
     // Visible region in content coordinates.
     Rect viewport() const;
+    // Called with the offset on every frame it changed (wheel, glide, drag, jump).
     std::function<void(float)> onScroll;
     // Content height changed (e.g. more rows loaded): re-measure without resetting the offset.
     void contentChanged() { requestLayout(); }
-    float topInset = 0;   // area covered by a sticky header (scrollbar starts below it)
+    float topInset = 0;     // area covered by a sticky header (scrollbar starts below it)
+    float notchDip = 120;   // one wheel notch at Windows' default 3 lines (a line: notchDip / 3)
 
 private:
     Rect thumbRect() const;
     void clampOffset();
     void showScrollbar();
+    float pageStep() const;
 
     Widget* content_ = nullptr;
     float contentH_ = 0;
-    Anim offset_;
+    SmoothScroll offset_;
     Anim barAlpha_;
     double lastActivity_ = 0;
     bool draggingThumb_ = false;
     float dragStartY_ = 0, dragStartOffset_ = 0;
     bool thumbHover_ = false;
+    float reported_ = -1;   // offset last passed to onScroll
+    bool wasMoving_ = false;
 };
+
+// Dev (docs/DEVELOPMENT.md 5.4): SHADETUBE_SCROLL_DEMO=<steps>[@x,y] injects wheel / key input into `w` 2.5 s later
+// and logs every frame of each moving ScrollView meanwhile ("scroll" log lines, a summary per view at the end).
+void startScrollDemo(Window& w);
+bool scrollTraceOn();
+void traceScrollFrame(const ScrollView* view, float y, float target, float velocity, ScrollFeel feel, bool moving);
 
 } // namespace st::ui

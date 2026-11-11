@@ -530,6 +530,7 @@ void App::showShell() {
     });
     if (player_) wirePlayer();
     initFeatures();
+    ui::startScrollDemo(*window_);   // dev: SHADETUBE_SCROLL_DEMO (docs/DEVELOPMENT.md 5.4)
     commands::initSystemFeatures();   // key bindings cleanup + the "Windows ile başlat" Run value
     // Lyrics are timed to the song: the parts of a music video SponsorBlock skips (intro skits, sponsor spots) aren't
     // in it, so they come out of the lyrics' clock.

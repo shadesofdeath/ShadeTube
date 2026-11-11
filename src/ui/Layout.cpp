@@ -110,16 +110,16 @@ void ScrollView::layout() {
 
 float ScrollView::maxScroll() const { return std::max(0.f, contentH_ - rect().h); }
 
-void ScrollView::clampOffset() {
-    const float m = maxScroll();
-    if (offset_.target() > m || offset_.target() < 0) offset_.snap(std::clamp(offset_.value(), 0.f, m));
-}
+// Content got shorter (or the view taller): the offset follows the new end without bouncing.
+void ScrollView::clampOffset() { offset_.setBounds(0, maxScroll()); }
+
+float ScrollView::pageStep() const { return std::max(40.f, (rect().h - topInset) * 0.9f); }
 
 void ScrollView::scrollTo(float y, bool animate) {
+    clampOffset();
     y = std::clamp(y, 0.f, maxScroll());
-    if (animate) offset_.to(y, motion::medium, Ease::Decelerate);
+    if (animate) offset_.glideTo(y);
     else offset_.snap(y);
-    if (onScroll) onScroll(y);
     invalidate();
 }
 
@@ -137,7 +137,7 @@ void ScrollView::revealRect(const Rect& r) {
     if (r.y >= top && r.h + kMargin * 2 <= bottom - top) target = r.bottom() + kMargin - rect().h;   // below
     target = std::clamp(target, 0.f, m);
     if (std::abs(target - t) < 0.5f) return;
-    scrollTo(target);   // motion::medium decelerate; instant when reduce-motion is on (Anim)
+    scrollTo(target);   // the Glide spring; instant when reduce-motion is on
     showScrollbar();
 }
 
@@ -148,13 +148,28 @@ void ScrollView::showScrollbar() {
 }
 
 bool ScrollView::onWheel(float dy, float, const MouseEvent&) {
+    if (dy == 0) return false;   // horizontal only: not ours
     if (maxScroll() <= 0) return false;
-    // Accumulate onto the in-flight target for smooth, fast flicks.
-    const float target = std::clamp(offset_.target() - dy * 120.f, 0.f, maxScroll());
-    if (target == offset_.target()) return true;
-    offset_.to(target, motion::medium, Ease::Decelerate);
+    clampOffset();
+    if (offset_.wheel(dy, notchDip, pageStep())) showScrollbar();
+    invalidate();
+    return true;
+}
+
+bool ScrollView::onKeyDown(const KeyEvent& e) {
+    if (e.ctrl || e.alt || e.shift || maxScroll() <= 0) return false;
+    clampOffset();
+    const float line = notchDip / 3.f;
+    switch (e.vk) {
+    case VK_PRIOR: offset_.scrollBy(-pageStep()); break;
+    case VK_NEXT: offset_.scrollBy(pageStep()); break;
+    case VK_UP: offset_.scrollBy(-line); break;
+    case VK_DOWN: offset_.scrollBy(line); break;
+    case VK_HOME: offset_.glideTo(0); break;
+    case VK_END: offset_.glideTo(maxScroll()); break;
+    default: return false;
+    }
     showScrollbar();
-    if (onScroll) onScroll(target);
     invalidate();
     return true;
 }
@@ -165,7 +180,7 @@ Rect ScrollView::thumbRect() const {
     const float ratio = r.h / std::max(contentH_, 1.f);
     const float h = std::max(32.f, trackH * ratio);
     const float m = maxScroll();
-    const float y = trackTop + (m > 0 ? (offset_.value() / m) * (trackH - h) : 0);
+    const float y = trackTop + (m > 0 ? (std::clamp(offset_.value(), 0.f, m) / m) * (trackH - h) : 0);
     return {r.right() - 6 - 2, y, 6, h};
 }
 
@@ -182,11 +197,13 @@ bool ScrollView::onMouseDown(const MouseEvent& e) {
     if (e.pos.y < thumb.y || e.pos.y > thumb.bottom()) {
         // Page jump toward the click.
         scrollTo(offset_.target() + (e.pos.y < thumb.y ? -rect().h : rect().h) * 0.9f);
+        showScrollbar();
         return false;
     }
     draggingThumb_ = true;
     dragStartY_ = e.pos.y;
     dragStartOffset_ = offset_.value();
+    offset_.snap(dragStartOffset_);   // the thumb takes over from a glide in flight
     return true;
 }
 
@@ -202,9 +219,8 @@ void ScrollView::onMouseMove(const MouseEvent& e) {
     const float trackH = rect().h - topInset - 4 - thumb.h;
     if (trackH <= 0) return;
     const float y = dragStartOffset_ + (e.pos.y - dragStartY_) / trackH * maxScroll();
-    offset_.snap(std::clamp(y, 0.f, maxScroll()));
+    offset_.snap(std::clamp(y, 0.f, maxScroll()));   // 1:1 with the pointer
     showScrollbar();
-    if (onScroll) onScroll(offset_.value());
     invalidate();
 }
 
@@ -217,9 +233,20 @@ void ScrollView::onMouseLeave() {
 }
 
 void ScrollView::paint(Canvas& c) {
-    // Keep onScroll listeners in sync while an eased scroll is in flight (sticky headers etc.).
-    if (offset_.running() && onScroll) onScroll(offset_.value());
+    const float y = offset_.value();   // advances the spring to this frame (and asks for the next while it moves)
+    const bool moving = offset_.moving();
+    if (y != reported_) {
+        reported_ = y;
+        if (onScroll) onScroll(y);   // sticky headers etc. stay in sync with every frame of a glide
+    }
+    // Settled after a glide: what is under the pointer now gets its hover (rows slid under a still pointer).
+    if (wasMoving_ && !moving && !draggingThumb_ && !scrollTraceOn()) {
+        if (auto* w = window()) w->refreshHover();
+    }
     paintChildren(c);
+    if (scrollTraceOn() && (moving || wasMoving_))
+        traceScrollFrame(this, y, offset_.target(), offset_.velocity(), offset_.feel(), moving);
+    wasMoving_ = moving;
     if (maxScroll() <= 0) return;
     if (frame::realNow() - lastActivity_ > 1200 && !draggingThumb_ && !thumbHover_ && barAlpha_.target() > 0)
         barAlpha_.to(0, 400);

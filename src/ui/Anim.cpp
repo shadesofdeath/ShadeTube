@@ -8,7 +8,7 @@
 namespace st::ui {
 
 namespace {
-double g_now = 0;
+double g_now = 0, g_begunAt = 0;
 bool g_request = false;
 bool g_reduced = false;
 
@@ -54,7 +54,11 @@ float bezier(float x1, float y1, float x2, float y2, float t) {
 
 namespace frame {
 double now() { return g_now; }
-void begin() { g_now = qpcMs(); }
+void begin() { g_now = g_begunAt = qpcMs(); }
+void begin(double ms) {
+    g_now = ms;
+    g_begunAt = qpcMs();
+}
 void requestNext() { g_request = true; }
 bool consumeRequest() {
     const bool r = g_request;
@@ -62,6 +66,7 @@ bool consumeRequest() {
     return r;
 }
 double realNow() { return qpcMs(); }
+double begunAt() { return g_begunAt; }
 } // namespace frame
 
 namespace motion {
@@ -105,6 +110,45 @@ float Anim::value() const {
     frame::requestNext();
     if (t <= 0) return from_;
     return from_ + (to_ - from_) * ease(ease_, static_cast<float>(t));
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Wheel steps and SmoothScroll
+
+float wheel::step(float notchDip, float page) {
+    UINT lines = 3;
+    if (!SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0)) lines = 3;
+    if (lines == 0) return 0;
+    const float fullPage = page > 0 ? page : 1e9f;
+    if (lines == WHEEL_PAGESCROLL) return page > 0 ? page : notchDip;
+    return std::min(fullPage, notchDip * static_cast<float>(lines) / 3.f);
+}
+
+float SmoothScroll::value() const {
+    p_.advance(frame::now());
+    if (p_.moving()) frame::requestNext();
+    return p_.position();
+}
+
+bool SmoothScroll::moving() const {
+    p_.advance(frame::now());
+    return p_.moving();
+}
+
+void SmoothScroll::setBounds(float lo, float hi) { p_.setBounds(lo, hi, frame::now()); }
+
+bool SmoothScroll::wheel(float notches, float notchDip, float page) {
+    const float step = wheel::step(notchDip, page);
+    p_.setInstant(motion::reduced());
+    const bool moved = p_.wheel(notches, step, frame::realNow());
+    if (p_.moving()) frame::requestNext();
+    return moved;
+}
+
+void SmoothScroll::glideTo(float y, ScrollFeel feel) {
+    p_.setInstant(motion::reduced());
+    p_.glideTo(y, feel, frame::realNow());
+    if (p_.moving()) frame::requestNext();
 }
 
 } // namespace st::ui
