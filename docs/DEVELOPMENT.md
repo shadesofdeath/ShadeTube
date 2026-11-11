@@ -86,7 +86,8 @@ ShadeTube/
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
 │                                ConnectScreen, MiniPlayer
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats, LibrarySort +
-│                                LibraryView (Library views, 3.22), Radio, Blacklist,
+│                                LibraryView (Library views, 3.22), Display (interface scale + list density, 3.25),
+│                                Radio, Blacklist,
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
@@ -159,7 +160,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 - `gfx::Device`: D3D11 device → DXGI flip-model swap chain (`FLIP_DISCARD`, waitable) → `ID2D1DeviceContext`.
   Device loss (`D2DERR_RECREATE_TARGET`) recreates all device resources.
 - Invalidation-driven frames: vsync while animating, otherwise the loop sleeps in `MsgWaitForMultipleObjects`
-  (0 % CPU when idle); hidden windows never render. Everything is in DIPs (Per-Monitor V2 DPI aware).
+  (0 % CPU when idle); hidden windows never render. Everything is in DIPs (Per-Monitor V2 DPI aware); the main
+  window's DIP scale is the monitor's DPI times the user's interface scale ([3.25](#325-interface-scale-and-list-density)).
 - `gfx::Theme` loads `assets/tokens/tokens.dark.json` / `tokens.light.json`. The accent is dynamic (extracted from
   the album art, cross-faded) or fixed (`Settings.accentMode`).
 - Theme mode Dark / Light / System (`Settings.theme`; System follows `AppsUseLightTheme` and is re-read on
@@ -467,6 +469,9 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
   form (`"Ctrl+Shift+Right"`, `"Ctrl+Comma"`, `"Oem4"`) and the bindings: `Settings::shortcuts` maps an id to a combo
   (missing = default, `""` = unbound) and `"global:<id>"` to a global one (no defaults). One combo triggers one action
   per scope; `assign()` takes it from the previous owner, `normalize()` cleans a hand-edited file at startup.
+  `fallback()`: a press nothing is bound to also counts as another combo, so the zoom keys work on every layout: the
+  numeric keypad's + / - / 0 as Plus / Minus / 0, and the key that types "+" / "=", "-" or "0" on the current layout
+  as Plus, Minus or 0 without Shift (Turkish Q has no Plus key: Ctrl+Shift+4 types "+"; US: Ctrl+Shift+=).
 - **Dispatch** (`app/Commands`): `App::handleKey` keeps only Esc (leave Now Playing) and the browser keys hard-coded;
   every other key the widgets did not take goes through `commands::dispatchKey` (the mini player's keys too, `kMini`
   actions only). Handlers are built in (player, router, ctx hooks such as `toggleLyricsFullscreen` /
@@ -890,6 +895,33 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
 - **Measured** (two sandbox instances on one PC, EMQX, Debug): ~0.7-1.3 s to connect, guest requests reach the host in
   ~100-250 ms, clock offset within a few ms, drift after the first correction +20 .. +50 ms (-110 ms after a resume).
 
+### 3.25 Interface scale and list density
+
+- **Interface scale** ("Arayüz ölçeği", `app/Display`): `Settings::uiZoom` in percent, one of 80 / 90 / 100 / 110 / 125 /
+  150 (a hand-edited value snaps to the nearest). `ui::Window::setZoom()` multiplies the window target's DPI by it, so
+  the DIP → pixel scale (`Window::scale()`) is the monitor's DPI / 96 × zoom: the window keeps its size in pixels and
+  the client area becomes that many fewer / more DIPs, so everything reflows and renders crisp (Direct2D draws at the
+  target DPI, text layouts are DIP-based, icon masks are dropped and rasterised again at the new pixel sizes, images
+  are requested at the new pixel sizes). Mouse input, `WM_NCHITTEST` (caption, snap layouts' maximize button) and
+  drag and drop divide by the same scale; the resize borders stay system metrics. The minimum track size is the
+  960 × 600 DIP minimum at the zoomed scale, capped at the monitor's work area. `WM_DPICHANGED` keeps the zoom (only
+  the DPI part changes). The saved window size stays in monitor DIPs (`Window::dpiScale()`), independent of the zoom.
+  The **mini player stays at 100 %**: its fixed layout is sized for the DPI alone.
+- Changed by the `zoom-in` / `zoom-out` / `zoom-reset` actions (Ctrl+Plus / Ctrl+Minus / Ctrl+0, also while typing;
+  the keypad's + / - / 0 and the layout's "+" key through `shortcuts::fallback`, 3.10.1), Ctrl + mouse wheel
+  (`Window::onCtrlWheel`; notches add up to a step, so a touchpad pinch works too) and Ayarlar › GÖRÜNÜM (a segmented
+  control that keeps its row in view after the page reflows). The keys and the wheel show a short badge under the
+  title bar ("ARAYÜZ ÖLÇEĞİ %110", an overlay updated in place; no fades with "Hareketi azalt").
+- **List density** ("Liste yoğunluğu": Rahat / Sıkı, `Settings::compactLists`, also the `compact-lists` action in the
+  palette): `TrackTable::rowMetrics()` is read at every layout and paint, so every track list follows (playlists,
+  albums, Liked Songs, history, search, artist top songs, local files, smart lists, downloads): Rahat = the spec's 56
+  DIP row (art 40, title 14/600, artist 12), Sıkı = 40 DIP (art 28, title 13/600, artist 11). Virtualization, hit
+  tests, drag and drop, the reorder line and the keyboard cursor all use the runtime row height; the cached row texts
+  are rebuilt for the other styles. The queue panel's upcoming rows go from 52 to 40 DIP (art 36 → 28). A change
+  calls `Window::relayoutAll()` (every widget lays out again, also those whose size did not change).
+- `settings.json`: `"uiZoom": 100`, `"compactLists": false`. Dev: write them into a sandbox profile's settings file
+  before a `--screenshot` run; `SHADETUBE_KEYS_DEMO` (5.4) presses the zoom keys / runs actions live.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -964,7 +996,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
-| `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the Run value (in a test key) | offline |
+| `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 
@@ -1031,6 +1063,7 @@ apps*).
 | `SHADETUBE_JAM_INVITE_FILE` | `<path>`: the host writes its invite link there (and again when it changes) |
 | `SHADETUBE_JAM_JOIN` | `<invite link>`: joins that session at startup (a guest in a second sandbox profile) |
 | `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest) |
+| `SHADETUBE_KEYS_DEMO` | `<ms>:<combo>[,<combo>…]`: presses these key combos (text form: `Ctrl+NumAdd`, `Ctrl+Shift+4`) through the main window's shortcut dispatch, the first after `<ms>`, then every 300 ms; `action:<id>` runs that action (e.g. `action:compact-lists`). For `--screenshot` checks of the zoom badge / live relayout |
 | `SHADETUBE_PROTOCOL_KEY` | HKCU key used instead of `Software\Classes\shadetube` for the URL protocol (tests); without it a sandbox profile never registers it |
 
 ## 6. Release process
