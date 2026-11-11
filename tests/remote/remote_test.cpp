@@ -336,7 +336,7 @@ static std::map<std::wstring, std::string> g_assets = {
     {L"fonts/JetBrainsMono.ttf", "FONT"},
     {L"logo/logo-mark.svg", "<svg/>"},
     {L"icons/24/play.svg", "<svg>play</svg>"},
-    {L"tokens/tokens.dark.json", R"J({"color":{"bg":{"base":"#0F0D0B"},"accent":{"onAccent":"#000000","name":"Volt","glowRgba":"rgba(1,2,3,0.18)"},"x":{"bad":"#0F0;}body{"}},"radius":{"surface":2}})J"},
+    {L"tokens/tokens.dark.json", R"J({"color":{"bg":{"base":"#0F0D0B"},"accent":{"onAccent":"#000000","name":"Volt","glowRgba":"rgba(1,2,3,0.18)"},"x":{"bad":"#0F0;}body{"}},"radius":{"surface":2},"effects":{"menuShadow":{"type":"shadow","blurRadius":32,"offsetX":0,"offsetY":16,"color":"#000000","opacity":0.55},"glow":{"type":"glow","color":"accent.base"}},"motion":{"easing":{"standard":"cubic-bezier(0.2, 0, 0, 1)","evil":"x;}"},"duration":{"fast":120}}})J"},
     {L"tokens/tokens.light.json", R"({"color":{"bg":{"base":"#F4EFE6"}}})"},
 };
 
@@ -418,6 +418,10 @@ static void testRouter() {
         CHECK(css.body.find("--accent-glow-rgba:rgba(1,2,3,0.18);") != std::string::npos);
         CHECK(css.body.find("Volt") == std::string::npos && css.body.find("}body{") == std::string::npos);
         CHECK(css.body.find("--radius-surface:2px;") != std::string::npos);
+        CHECK(css.body.find("--effect-menu-shadow:0px 16px 32px rgba(0,0,0,0.55);") != std::string::npos);
+        CHECK(css.body.find("--effect-glow") == std::string::npos && css.body.find("x;}") == std::string::npos);
+        CHECK(css.body.find("--ease-standard:cubic-bezier(0.2, 0, 0, 1);") != std::string::npos);
+        CHECK(css.body.find("--dur-fast:120ms;") != std::string::npos);
         CHECK(css.body.find("@media (prefers-color-scheme: light){:root{color-scheme:light;--bg-base:#F4EFE6;}}") != std::string::npos);
     }
     CHECK(run(req("GET", "/api/i18n")).response.body == "{\"lang\":\"tr\"}");
@@ -548,14 +552,16 @@ static void testState() {
     s.liked = true;
     s.canLike = true;
     s.volume = 0.42f;
-    s.accent = hexColor(221 / 255.f, 1.f, 71 / 255.f);
+    s.accentDark = {hexColor(221 / 255.f, 1.f, 71 / 255.f), "#0F0D0B"};
+    s.accentLight = {"#8DAD00", "#0F0D0B"};
     s.contextName = "Gece S\xC3\xBCr\xC3\xBC\xC5\x9F\xC3\xBC";
     const json j = json::parse(stateJson(s, covers), nullptr, false);
     CHECK(j.is_object());
     if (!j.is_object()) return;
     CHECK(j["playing"] == true && j["status"] == "playing" && j["positionMs"] == 12345 && j["durationMs"] == 240000);
     CHECK(j["shuffle"] == "smart" && j["repeat"] == "one" && j["liked"] == true && j["canSeek"] == true);
-    CHECK(j["accent"] == "#DDFF47" && j["context"] == s.contextName);
+    CHECK(j["accent"]["dark"]["base"] == "#DDFF47" && j["accent"]["light"]["on"] == "#0F0D0B");
+    CHECK(j["context"].get<std::string>() == s.contextName);
     CHECK(std::abs(j["volume"].get<double>() - 0.42) < 1e-6);
     CHECK(j["track"]["title"] == t.name && j["track"]["artist"] == "Bar\xC4\xB1\xC5\x9F Man\xC3\xA7o, Kurtalan Ekspres");
     CHECK(j["track"]["artists"].size() == 2 && j["track"]["artists"][0]["id"] == "spotify:artist:1");

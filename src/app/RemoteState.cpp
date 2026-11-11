@@ -92,10 +92,12 @@ std::string stateJson(const NowPlaying& s, const CoverMapper& covers) {
         {"shuffle", s.shuffle},
         {"repeat", s.repeat},
         {"volume", std::round(std::clamp(s.volume, 0.f, 1.f) * 1000) / 1000},
-        {"accent", s.accent},
         {"hasNext", s.hasNext},
         {"context", s.contextName},
     };
+    if (!s.accentDark.base.empty() && !s.accentLight.base.empty())
+        j["accent"] = {{"dark", {{"base", s.accentDark.base}, {"on", s.accentDark.on}}},
+                       {"light", {{"base", s.accentLight.base}, {"on", s.accentLight.on}}}};
     if (s.track) {
         json t = trackJson(*s.track, covers, kCoverPx);
         t["thumb"] = coverUrl(s.track->album.images, kThumbPx, covers);

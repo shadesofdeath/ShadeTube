@@ -6,7 +6,7 @@
 //   GET  /api/i18n                              the page's texts in the UI language (no token: the pairing screen)
 //   POST /api/pair      {"secret"}              -> {"token", "device": {id, name}}  (throttled)
 //   ---- Authorization: Bearer <device token> from here on (unknown tokens are throttled) ----
-//   GET  /api/state                             the player state
+//   GET  /api/state                             {"state", "queue"}: the newest events (for browsers that only poll)
 //   GET  /api/events                            text/event-stream: "state", "queue", "pos" events
 //   POST /api/cmd       {"cmd", ...}            a command (see RemoteControl.cpp)
 //   GET  /api/search?q=  /api/album?id=  /api/playlist?id=  /api/artist?id=  /api/library
@@ -53,7 +53,7 @@ public:
         // An embedded file by its resource name ("remote/index.html", "fonts/JetBrainsMono.ttf"); empty = missing.
         std::function<std::string_view(std::wstring_view name)> asset;
         std::function<std::string()> strings;   // /api/i18n body (JSON)
-        std::function<std::string()> state;     // /api/state body (JSON)
+        std::function<std::string()> state;     // /api/state body (JSON: the newest "state" and "queue" events)
     };
     Router(DeviceStore& store, Config config, Throttle::Config throttle = {});
 

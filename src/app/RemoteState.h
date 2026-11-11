@@ -52,7 +52,12 @@ struct NowPlaying {
     bool canLike = false;
     bool hasNext = false;
     float volume = 0.7f;
-    std::string accent;                      // "#RRGGBB": the app's accent color right now ("" = the theme's)
+    // The app's accent color right now as the dark and the light theme show it ("#RRGGBB" base + the color of text
+    // on it); empty = the theme's own accent.
+    struct Accent {
+        std::string base, on;
+    };
+    Accent accentDark, accentLight;
     std::string contextName;                 // what the queue plays ("Gece Sürüşü")
 };
 std::string stateJson(const NowPlaying& s, const CoverMapper& covers);

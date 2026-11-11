@@ -60,24 +60,40 @@ std::string kebab(std::string_view camel) {
     return s;
 }
 
-// "--bg-base:#0F0D0B;" for every color string under color.<group>.<name>, and the radii.
+// Only characters a CSS value of ours needs: no ';', '{', '}', quotes or '/' (a token file can't break out).
+bool safeCss(const std::string& v) {
+    return std::all_of(v.begin(), v.end(), [](char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '#' || c == '(' ||
+               c == ')' || c == ',' || c == '.' || c == ' ' || c == '%' || c == '-';
+    });
+}
+
+std::string number(double v) {
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "%g", v);
+    return buf;
+}
+
+// "#RRGGBB" + opacity -> "rgba(r,g,b,a)" ("" when not a hex color).
+std::string rgba(const std::string& hex, double opacity) {
+    unsigned r = 0, g = 0, b = 0;
+    if (hex.size() != 7 || hex[0] != '#' || std::sscanf(hex.c_str() + 1, "%02x%02x%02x", &r, &g, &b) != 3) return {};
+    return "rgba(" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "," + number(opacity) + ")";
+}
+
+// "--bg-base:#0F0D0B;" for every color string under color.<group>.<name>; the radii (--radius-surface), the shadows
+// (--effect-menu-shadow: x y blur color) and the motion curves / durations (--ease-standard, --dur-fast).
 std::string cssVariables(std::string_view tokensJson) {
     const json j = json::parse(tokensJson, nullptr, false);
     std::string out;
     if (!j.is_object()) return out;
-    const auto safe = [](const std::string& v) {
-        return std::all_of(v.begin(), v.end(), [](char c) {
-            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '#' || c == '(' ||
-                   c == ')' || c == ',' || c == '.' || c == ' ' || c == '%';
-        });
-    };
     if (const auto colors = j.find("color"); colors != j.end() && colors->is_object()) {
         for (const auto& [group, values] : colors->items()) {
             if (!values.is_object()) continue;
             for (const auto& [name, v] : values.items()) {
                 if (!v.is_string()) continue;
                 const std::string value = v.get<std::string>();
-                if ((value.rfind('#', 0) != 0 && value.rfind("rgba(", 0) != 0) || !safe(value)) continue;
+                if ((value.rfind('#', 0) != 0 && value.rfind("rgba(", 0) != 0) || !safeCss(value)) continue;
                 out += "--" + kebab(group) + "-" + kebab(name) + ":" + value + ";";
             }
         }
@@ -85,6 +101,22 @@ std::string cssVariables(std::string_view tokensJson) {
     if (const auto radius = j.find("radius"); radius != j.end() && radius->is_object())
         for (const auto& [name, v] : radius->items())
             if (v.is_number()) out += "--radius-" + kebab(name) + ":" + std::to_string(v.get<int>()) + "px;";
+    if (const auto effects = j.find("effects"); effects != j.end() && effects->is_object())
+        for (const auto& [name, e] : effects->items()) {
+            if (!e.is_object() || e.value("type", "") != "shadow") continue;
+            const std::string color = rgba(e.value("color", ""), e.value("opacity", 1.0));
+            if (color.empty()) continue;
+            out += "--effect-" + kebab(name) + ":" + number(e.value("offsetX", 0.0)) + "px " + number(e.value("offsetY", 0.0)) +
+                   "px " + number(e.value("blurRadius", 0.0)) + "px " + color + ";";
+        }
+    if (const auto motion = j.find("motion"); motion != j.end() && motion->is_object()) {
+        if (const auto easing = motion->find("easing"); easing != motion->end() && easing->is_object())
+            for (const auto& [name, v] : easing->items())
+                if (v.is_string() && safeCss(v.get<std::string>())) out += "--ease-" + kebab(name) + ":" + v.get<std::string>() + ";";
+        if (const auto duration = motion->find("duration"); duration != motion->end() && duration->is_object())
+            for (const auto& [name, v] : duration->items())
+                if (v.is_number()) out += "--dur-" + kebab(name) + ":" + number(v.get<double>()) + "ms;";
+    }
     return out;
 }
 
