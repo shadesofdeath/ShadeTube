@@ -1530,5 +1530,11 @@
   "Sürüm, güncellemeler, kurulum": "Versi, pembaruan, instalasi",
   "Sonuç yok": "Tidak ada hasil",
   "\"{}\" ile eşleşen bir ayar yok. Başka bir kelime dene.": "Tidak ada pengaturan yang cocok dengan \"{}\". Coba kata lain.",
-  "Kenar çubuğunu daralt / genişlet": "Ciutkan / bentangkan bilah samping"
+  "Kenar çubuğunu daralt / genişlet": "Ciutkan / bentangkan bilah samping",
+  "Mica arka plan": "Latar Mica",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "Latar jendela memakai material Mica tembus pandang dari Windows 11: warna desktopmu sedikit terlihat. Kartu, menu, dan Sedang Diputar tetap pekat.",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Material Mica tembus pandang dari Windows 11. Tidak tersedia di versi Windows ini: perlu Windows 11 22H2 atau yang lebih baru.",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Sedang tidak aktif karena efek transparansi di Windows dimatikan (Pengaturan › Personalisasi › Warna). Setelah dinyalakan, latar Mica diterapkan dengan sendirinya.",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Tidak tersedia selama tema kontras aktif; jendela tetap pekat.",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Diterapkan setelah dimulai ulang: latar jendela memakai material Mica tembus pandang dari Windows 11 dan warna desktopmu sedikit terlihat."
 }

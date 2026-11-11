@@ -48,6 +48,7 @@ struct Settings {
     bool reduceMotion = false;
     int uiZoom = 100;                    // "Arayüz ölçeği" in percent: 80, 90, 100, 110, 125, 150 (app/Display)
     bool compactLists = false;           // "Liste yoğunluğu": Sıkı = lower track rows (app/Display)
+    bool micaBackdrop = false;           // Windows 11 Mica behind the main window (ui::Window::setBackdrop)
 
     // Misc
     std::string downloadsDir;            // empty = default (Music\ShadeTube)

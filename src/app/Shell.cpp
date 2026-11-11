@@ -1022,7 +1022,7 @@ void PlayerBar::paint(Canvas& c) {
     const auto& col = colors();
     const auto& acc = accent();
     auto* p = ctx().player;
-    c.fillRect(r, col.bgBase);
+    c.fillSurface(r);   // bg.base (Mica: its translucent tint)
     c.hline(r.x, r.right(), r.y, col.hairSubtle);   // the bar's top edge
     c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
 
@@ -1654,7 +1654,7 @@ void Shell::layout() {
 
 void Shell::paint(Canvas& c) {
     if (connectMode_) {
-        c.fillRect(rect(), colors().bgBase);
+        c.fillSurface(rect());
         connect_->paint(c);
         titleBar_->paint(c);
         return;

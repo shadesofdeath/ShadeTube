@@ -1407,7 +1407,9 @@ public:
         const Rect r = rect();
         const auto& col = colors();
         const Rect banner{r.x - 48, r.y - 36, r.w + 96, 340 + 36 - 80};
-        if (!artist_.images.empty()) {
+        if (c.translucent()) {
+            paintBannerTranslucent(c, banner);
+        } else if (!artist_.images.empty()) {
             c.pushClip(banner);
             drawArtwork(c, artist_.images, {banner.x + banner.w * 0.4f, banner.y - banner.w * 0.08f, banner.w * 0.6f, banner.w * 0.6f}, 0,
                         Placeholder::Artist);
@@ -1423,7 +1425,8 @@ public:
                 c.strokeCircle({banner.right() - 160, banner.cy() + 40}, 220.f - i * 34.f, accent().base.withAlpha(0.10f + i * 0.04f), 1.f);
             c.popClip();
         }
-        c.fillLinearGradient(banner, {0, banner.y + banner.h * 0.4f}, {0, banner.bottom()}, col.bgBase.withAlpha(0), col.bgBase);
+        if (!c.translucent())
+            c.fillLinearGradient(banner, {0, banner.y + banner.h * 0.4f}, {0, banner.bottom()}, col.bgBase.withAlpha(0), col.bgBase);
         std::wstring label = artist_.type == "Group" ? toUpperTr(tr(L"Grup")) : toUpperTr(tr(L"Sanatçı"));
         if (!artist_.country.empty()) label += L" · " + toWide(artist_.country);
         if (!artist_.beginYear.empty()) label += L" · " + toWide(artist_.beginYear);
@@ -1448,6 +1451,24 @@ public:
     Button *follow_, *radio_, *more_;
 
 private:
+    // The banner on a translucent window (Mica): the photo / rings dissolve by their own opacity (same masks as the
+    // bg.base gradients of the opaque path), so the backdrop shows through below them instead of an opaque band.
+    void paintBannerTranslucent(Canvas& c, const Rect& banner) {
+        c.pushFade(banner, {0, banner.y + banner.h * 0.4f}, {0, banner.bottom()}, 1.f, 0.f);
+        c.pushClip(banner);
+        if (!artist_.images.empty()) {
+            c.pushFade(banner, {banner.x + banner.w * 0.4f, 0}, {banner.x + banner.w * 0.8f, 0}, 0.f, 0.85f);
+            drawArtwork(c, artist_.images, {banner.x + banner.w * 0.4f, banner.y - banner.w * 0.08f, banner.w * 0.6f, banner.w * 0.6f}, 0,
+                        Placeholder::Artist);
+            c.popLayer();
+        } else {
+            for (int i = 0; i < 5; ++i)
+                c.strokeCircle({banner.right() - 160, banner.cy() + 40}, 220.f - i * 34.f, accent().base.withAlpha(0.10f + i * 0.04f), 1.f);
+        }
+        c.popClip();
+        c.popLayer();
+    }
+
     Artist artist_;
     gfx::Text name_;
     bool blocked_ = false;

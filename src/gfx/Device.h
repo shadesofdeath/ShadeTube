@@ -1,7 +1,8 @@
 #pragma once
 // Process-wide graphics objects: factories (D2D, DirectWrite, WIC) and ONE D3D11/D2D device shared by
 // every window (main window + mini player), so device-dependent resources (bitmaps, icon masks) can be
-// shared. WindowTarget owns the per-HWND flip-model swap chain and device context.
+// shared. WindowTarget owns the per-HWND flip-model swap chain and device context (an opaque HWND swap chain, or a
+// premultiplied composition swap chain on a DirectComposition visual for a window with a system backdrop).
 //
 // Device loss: when EndDraw/Present reports D2DERR_RECREATE_TARGET / DXGI_ERROR_DEVICE_REMOVED the
 // device is recreated and `generation()` increments; caches compare generations and drop stale resources.
@@ -12,6 +13,7 @@
 // it: one object left behind would keep the whole device alive. The next frame's ensure() creates a new device.
 #include <d2d1_3.h>
 #include <d3d11_1.h>
+#include <dcomp.h>
 #include <dwrite_3.h>
 #include <dxgi1_3.h>
 #include <wincodec.h>
@@ -108,6 +110,15 @@ public:
     // Blocks until the swap chain can accept a new frame (low-latency pacing). Handle for MsgWait.
     HANDLE frameLatencyWaitable() const { return waitable_; }
 
+    // Composition mode, for a window with a DWM system backdrop (Mica): the swap chain has premultiplied alpha and is
+    // shown through DirectComposition (one visual on the HWND), so pixels with alpha < 1 let the backdrop show
+    // through; opaque frames look exactly as with the HWND swap chain. Chosen before the first frame and kept for the
+    // window's lifetime (device loss and idle release recreate it the same way): a live window switched from its
+    // HWND swap chain to a composition one keeps showing the released swap chain's last frame underneath. If
+    // DirectComposition fails, the target falls back to the HWND swap chain and composition() turns false.
+    void useComposition();
+    bool composition() const { return composition_; }
+
     bool hasSwapChain() const { return swapChain_ != nullptr; }
     float dpi() const { return dpi_; }
     float scale() const { return dpi_ / 96.f; }
@@ -116,17 +127,24 @@ public:
 
 private:
     void createSwapChain();
+    void createComposition(IDXGIFactory2* factory, DXGI_SWAP_CHAIN_DESC1& desc, ComPtr<IDXGISwapChain1>& sc);   // throws
     void createTargetBitmap();
     void releaseDeviceResources();
 
     HWND hwnd_;
     ComPtr<IDXGISwapChain2> swapChain_;
+    // Composition mode: the DirectComposition device, the HWND target and the visual showing the swap chain. The DComp
+    // device references the DXGI device, so they go with the swap chain on every release (device loss, idle release).
+    ComPtr<IDCompositionDevice> dcomp_;
+    ComPtr<IDCompositionTarget> dcompTarget_;
+    ComPtr<IDCompositionVisual> dcompVisual_;
     ComPtr<ID2D1DeviceContext5> dc_;
     ComPtr<ID2D1Bitmap1> target_;
     HANDLE waitable_ = nullptr;
     UINT width_ = 0, height_ = 0;
     float dpi_ = 96.f;
     uint64_t generation_ = 0;
+    bool composition_ = false;
     DeviceHook hook_{[this] { releaseDeviceResources(); }};
 };
 

@@ -289,9 +289,11 @@ public:
         if (t <= 0.01f) return;
         const Rect r = rect();
         const auto& col = colors();
-        c.pushOpacity(t);
         const Rect bar{r.x, r.y, r.w, kPinnedH};
-        c.fillRect(bar, col.bgBase);
+        // Translucent window (Mica): the rows scrolled under the bar are replaced by the surface, not blended over.
+        if (c.translucent()) c.fillSurface(bar, t);
+        c.pushOpacity(t);
+        if (!c.translucent()) c.fillRect(bar, col.bgBase);
         c.fillRect(bar, accent().headerWash.mulAlpha(0.6f));
         const float px = r.x + gfx::metrics::pageX;
         c.fillCircle({px + 18, r.y + 32}, 18, accent().base);

@@ -1697,5 +1697,11 @@
   "Sürüm, güncellemeler, kurulum": "Version, updates, installation",
   "Sonuç yok": "No results",
   "\"{}\" ile eşleşen bir ayar yok. Başka bir kelime dene.": "No setting matches \"{}\". Try another word.",
-  "Kenar çubuğunu daralt / genişlet": "Collapse / expand sidebar"
+  "Kenar çubuğunu daralt / genişlet": "Collapse / expand sidebar",
+  "Mica arka plan": "Mica background",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "The window background uses Windows 11's translucent Mica material: your desktop's color shows through slightly. Cards, menus and Now Playing stay opaque.",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Windows 11's translucent Mica material. Not available on this version of Windows: it needs Windows 11 22H2 or later.",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Not active right now because transparency effects are off in Windows (Settings › Personalization › Colors). Once they're on, the Mica background applies by itself.",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Not available while a contrast theme is on; the window stays opaque.",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Applies after a restart: the window background uses Windows 11's translucent Mica material and your desktop's color shows through slightly."
 }

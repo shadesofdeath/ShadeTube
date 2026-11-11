@@ -1848,5 +1848,11 @@
   "Sürüm, güncellemeler, kurulum": "Версия, обновления, установка",
   "Sonuç yok": "Ничего не найдено",
   "\"{}\" ile eşleşen bir ayar yok. Başka bir kelime dene.": "Нет настроек, подходящих под «{}». Попробуйте другое слово.",
-  "Kenar çubuğunu daralt / genişlet": "Свернуть / развернуть боковую панель"
+  "Kenar çubuğunu daralt / genişlet": "Свернуть / развернуть боковую панель",
+  "Mica arka plan": "Фон Mica",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "Фон окна использует полупрозрачный материал Mica из Windows 11: цвет рабочего стола слегка просвечивает. Карточки, меню и «Сейчас играет» остаются непрозрачными.",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Полупрозрачный материал Mica из Windows 11. В этой версии Windows недоступен: нужна Windows 11 22H2 или новее.",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Сейчас не действует: в Windows выключены эффекты прозрачности (Параметры › Персонализация › Цвета). Как только их включат, фон Mica применится сам.",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, пока включена контрастная тема; окно остаётся непрозрачным.",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Применится после перезапуска: фон окна использует полупрозрачный материал Mica из Windows 11, и цвет рабочего стола слегка просвечивает."
 }

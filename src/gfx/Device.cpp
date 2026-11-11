@@ -149,9 +149,35 @@ void WindowTarget::releaseDeviceResources() {
     if (dc_) dc_->SetTarget(nullptr);
     target_.Reset();
     dc_.Reset();
+    // The visual leaves the window before its device and swap chain go.
+    if (dcompTarget_) dcompTarget_->SetRoot(nullptr);
+    if (dcomp_) dcomp_->Commit();
+    dcompVisual_.Reset();
+    dcompTarget_.Reset();
+    dcomp_.Reset();
     swapChain_.Reset();
     if (waitable_) CloseHandle(waitable_);
     waitable_ = nullptr;
+}
+
+void WindowTarget::useComposition() {
+    if (!swapChain_) composition_ = true;   // a window that has presented keeps its swap chain kind
+}
+
+void WindowTarget::createComposition(IDXGIFactory2* factory, DXGI_SWAP_CHAIN_DESC1& desc, ComPtr<IDXGISwapChain1>& sc) {
+    // Flip sequential, stretch scaling (the visual shows the buffer 1:1 anyway) and premultiplied alpha, which DWM
+    // blends over the window's system backdrop.
+    auto& dev = Device::get();
+    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+    desc.Scaling = DXGI_SCALING_STRETCH;
+    desc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+    check(factory->CreateSwapChainForComposition(dev.d3d(), &desc, nullptr, &sc), "CreateSwapChainForComposition");
+    check(DCompositionCreateDevice(dev.dxgi(), IID_PPV_ARGS(&dcomp_)), "DCompositionCreateDevice");
+    check(dcomp_->CreateTargetForHwnd(hwnd_, TRUE, &dcompTarget_), "CreateTargetForHwnd");
+    check(dcomp_->CreateVisual(&dcompVisual_), "CreateVisual");
+    check(dcompVisual_->SetContent(sc.Get()), "IDCompositionVisual::SetContent");
+    check(dcompTarget_->SetRoot(dcompVisual_.Get()), "IDCompositionTarget::SetRoot");
+    check(dcomp_->Commit(), "IDCompositionDevice::Commit");
 }
 
 void WindowTarget::createSwapChain() {
@@ -168,15 +194,29 @@ void WindowTarget::createSwapChain() {
     desc.SampleDesc.Count = 1;
     desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     desc.BufferCount = 2;
-    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    desc.Scaling = DXGI_SCALING_NONE;
-    desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     desc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
     ComPtr<IDXGISwapChain1> sc;
-    HRESULT hr = factory->CreateSwapChainForHwnd(dev.d3d(), hwnd_, &desc, nullptr, nullptr, &sc);
-    check(hr, "CreateSwapChainForHwnd");
-    factory->MakeWindowAssociation(hwnd_, DXGI_MWA_NO_ALT_ENTER);
+    if (composition_) {
+        try {
+            createComposition(factory.Get(), desc, sc);
+        } catch (const std::exception&) {
+            ST_LOG_WARN("gfx", "composition swap chain unavailable, using the window swap chain");
+            dcompVisual_.Reset();
+            dcompTarget_.Reset();
+            dcomp_.Reset();
+            sc.Reset();
+            composition_ = false;
+        }
+    }
+    if (!composition_) {
+        desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        desc.Scaling = DXGI_SCALING_NONE;
+        desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+        HRESULT hr = factory->CreateSwapChainForHwnd(dev.d3d(), hwnd_, &desc, nullptr, nullptr, &sc);
+        check(hr, "CreateSwapChainForHwnd");
+        factory->MakeWindowAssociation(hwnd_, DXGI_MWA_NO_ALT_ENTER);
+    }
     check(sc.As(&swapChain_), "IDXGISwapChain2");
     swapChain_->SetMaximumFrameLatency(1);
     waitable_ = swapChain_->GetFrameLatencyWaitableObject();
@@ -191,9 +231,9 @@ void WindowTarget::createSwapChain() {
 void WindowTarget::createTargetBitmap() {
     ComPtr<IDXGISurface> surface;
     check(swapChain_->GetBuffer(0, IID_PPV_ARGS(&surface)), "GetBuffer");
+    const auto alpha = composition_ ? D2D1_ALPHA_MODE_PREMULTIPLIED : D2D1_ALPHA_MODE_IGNORE;
     const auto props = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
-                                               dpi_, dpi_);
+                                               D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, alpha), dpi_, dpi_);
     check(dc_->CreateBitmapFromDxgiSurface(surface.Get(), &props, target_.ReleaseAndGetAddressOf()), "target bitmap");
     dc_->SetTarget(target_.Get());
     dc_->SetDpi(dpi_, dpi_);

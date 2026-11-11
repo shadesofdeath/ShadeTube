@@ -175,6 +175,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     wo.y = s.window.y >= 0 ? s.window.y : CW_USEDEFAULT;
     wo.maximized = s.window.maximized;
     wo.zoom = static_cast<float>(display::snapZoom(s.uiZoom)) / 100.f;   // "Arayüz ölçeği" (app/Display)
+    wo.backdrop = s.micaBackdrop;   // Ayarlar › Görünüm › Mica arka plan (Windows 11)
     window_ = std::make_unique<ui::Window>(wo);
     c.window = window_.get();
     // A second launch (main.cpp) posts this to bring the running instance back from the tray / mini player.

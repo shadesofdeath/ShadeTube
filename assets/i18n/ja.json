@@ -1530,5 +1530,11 @@
   "Sürüm, güncellemeler, kurulum": "バージョン、アップデート、インストール",
   "Sonuç yok": "結果なし",
   "\"{}\" ile eşleşen bir ayar yok. Başka bir kelime dene.": "「{}」に一致する設定はありません。別のキーワードを試してください。",
-  "Kenar çubuğunu daralt / genişlet": "サイドバーを折りたたむ / 展開する"
+  "Kenar çubuğunu daralt / genişlet": "サイドバーを折りたたむ / 展開する",
+  "Mica arka plan": "Mica背景",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "ウィンドウの背景にWindows 11の半透明素材Micaを使います。デスクトップの色がほのかに透けて見えます。カード、メニュー、再生中の画面は不透明のままです。",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Windows 11の半透明素材Mica。このバージョンのWindowsでは使えません。Windows 11 22H2以降が必要です。",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Windowsの透明効果がオフになっているため、現在は無効です（設定 › 個人用設定 › 色）。オンにするとMica背景が自動的に適用されます。",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "コントラストテーマがオンの間は使えません。ウィンドウは不透明のままです。",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "再起動後に適用されます。ウィンドウの背景にWindows 11の半透明素材Micaを使い、デスクトップの色がほのかに透けて見えます。"
 }

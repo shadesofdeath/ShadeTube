@@ -1530,5 +1530,11 @@
   "Sürüm, güncellemeler, kurulum": "버전, 업데이트, 설치",
   "Sonuç yok": "결과 없음",
   "\"{}\" ile eşleşen bir ayar yok. Başka bir kelime dene.": "\"{}\"와(과) 일치하는 설정이 없어요. 다른 단어로 검색해 보세요.",
-  "Kenar çubuğunu daralt / genişlet": "사이드바 접기 / 펼치기"
+  "Kenar çubuğunu daralt / genişlet": "사이드바 접기 / 펼치기",
+  "Mica arka plan": "Mica 배경",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "창 배경에 Windows 11의 반투명 Mica 소재를 사용해요. 바탕 화면 색이 은은하게 비쳐요. 카드, 메뉴, 재생 중 화면은 불투명하게 유지돼요.",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Windows 11의 반투명 Mica 소재. 이 Windows 버전에서는 사용할 수 없어요. Windows 11 22H2 이상이 필요해요.",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Windows에서 투명 효과가 꺼져 있어서 지금은 적용되지 않아요(설정 › 개인 설정 › 색). 켜면 Mica 배경이 자동으로 적용돼요.",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "대비 테마가 켜져 있는 동안에는 사용할 수 없어요. 창은 불투명하게 유지돼요.",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "다시 시작하면 적용돼요. 창 배경에 Windows 11의 반투명 Mica 소재를 사용해 바탕 화면 색이 은은하게 비쳐요."
 }

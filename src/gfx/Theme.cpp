@@ -54,6 +54,10 @@ void Theme::load(bool light) {
     p.bgOverlay = col(c, "bg.overlay", Color::rgb(0x211D19));
     p.bgSunken = col(c, "bg.sunken", Color::rgb(0x0A0908));
     p.bgElevated = col(c, "bg.elevated", Color::rgb(0x2A251F));
+    // Mica shows through 45-50 %: the desktop's hue comes through while the warm paper tone stays, and fg.primary
+    // keeps its contrast on Mica's dark (#202020 luminosity) / light (#F3F3F3) base. Window inactive or energy saver:
+    // Mica is its solid fallback color and the surface just reads a shade lighter / cooler.
+    p.bgBackdrop = p.bgBase.withAlpha(light ? 0.5f : 0.55f);
     p.fgPrimary = col(c, "fg.primary", Color::rgb(0xF3EDE4));
     p.fgSecondary = col(c, "fg.secondary", Color::rgb(0xA69E93));
     p.fgTertiary = col(c, "fg.tertiary", Color::rgb(0x6B645B));

@@ -61,6 +61,7 @@ void Settings::load() {
     read(j, "reduceMotion", reduceMotion);
     read(j, "uiZoom", uiZoom);
     read(j, "compactLists", compactLists);
+    read(j, "micaBackdrop", micaBackdrop);
     read(j, "downloadsDir", downloadsDir);
     read(j, "downloadMp3Kbps", downloadMp3Kbps);
     read(j, "syncPaused", syncPaused);
@@ -150,6 +151,7 @@ void Settings::save() const {
         {"reduceMotion", reduceMotion},
         {"uiZoom", uiZoom},
         {"compactLists", compactLists},
+        {"micaBackdrop", micaBackdrop},
         {"downloadsDir", downloadsDir},
         {"downloadMp3Kbps", downloadMp3Kbps},
         {"syncPaused", syncPaused},

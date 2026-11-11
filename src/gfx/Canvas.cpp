@@ -14,7 +14,7 @@ namespace {
 struct Shared {
     uint64_t generation = 0;
     ComPtr<ID2D1BitmapBrush1> bitmapBrush;
-    ComPtr<ID2D1Effect> shadow, blur, saturation, scale;
+    ComPtr<ID2D1Effect> shadow, blur, saturation, scale, flood;
     ComPtr<ID2D1StrokeStyle1> roundCaps;
 
     void reset() {
@@ -24,6 +24,7 @@ struct Shared {
         blur.Reset();
         saturation.Reset();
         scale.Reset();
+        flood.Reset();
         roundCaps.Reset();
     }
 
@@ -39,6 +40,7 @@ struct Shared {
         dc->CreateEffect(CLSID_D2D1GaussianBlur, blur.ReleaseAndGetAddressOf());
         dc->CreateEffect(CLSID_D2D1Saturation, saturation.ReleaseAndGetAddressOf());
         dc->CreateEffect(CLSID_D2D1Scale, scale.ReleaseAndGetAddressOf());
+        dc->CreateEffect(CLSID_D2D1Flood, flood.ReleaseAndGetAddressOf());
         const D2D1_STROKE_STYLE_PROPERTIES1 props{D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND,
                                                   D2D1_LINE_JOIN_ROUND, 10.f, D2D1_DASH_STYLE_SOLID, 0.f,
                                                   D2D1_STROKE_TRANSFORM_TYPE_NORMAL};
@@ -70,6 +72,40 @@ ID2D1SolidColorBrush* Canvas::brush(const Color& c) {
 }
 
 void Canvas::clear(const Color& c) { dc_->Clear(c.d2d()); }
+
+Color Canvas::surface() const { return translucent_ ? colors().bgBackdrop : colors().bgBase; }
+
+void Canvas::fillSurface(const Rect& r, float opacity) {
+    if (!translucent_) return fillRect(r, colors().bgBase.mulAlpha(opacity));
+    if (r.empty() || opacity <= 0.001f) return;
+    const Color s = colors().bgBackdrop;
+    pushClip(r);   // aliased: whole pixels, no seam along the edges
+    if (opacity >= 0.999f) {
+        dc_->Clear(s.d2d());   // limited to the clip: the pixels become exactly the surface
+    } else if (auto* flood = g_shared.flood.Get()) {
+        // (1 - t) * dst + t * surface: destination-out by t, then add t times the surface's premultiplied color.
+        const D2D1_RECT_F area = r.inset(-2).d2d();
+        flood->SetValue(D2D1_FLOOD_PROP_COLOR, D2D1::Vector4F(0, 0, 0, opacity));
+        dc_->DrawImage(flood, nullptr, &area, D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_DESTINATION_OUT);
+        dc_->SetPrimitiveBlend(D2D1_PRIMITIVE_BLEND_ADD);
+        dc_->FillRectangle(area, brush(s.mulAlpha(opacity)));
+        dc_->SetPrimitiveBlend(D2D1_PRIMITIVE_BLEND_SOURCE_OVER);
+    }
+    popClip();
+}
+
+void Canvas::pushFade(const Rect& bounds, Point from, Point to, float opacityFrom, float opacityTo) {
+    const D2D1_GRADIENT_STOP stops[] = {{0.f, D2D1::ColorF(0, 0, 0, opacityFrom)}, {1.f, D2D1::ColorF(0, 0, 0, opacityTo)}};
+    ComPtr<ID2D1GradientStopCollection> coll;
+    dc_->CreateGradientStopCollection(stops, 2, &coll);
+    ComPtr<ID2D1LinearGradientBrush> mask;
+    dc_->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties({from.x, from.y}, {to.x, to.y}), coll.Get(), &mask);
+    // The layer keeps its own reference to the opacity brush until PopLayer.
+    dc_->PushLayer(D2D1::LayerParameters1(bounds.d2d(), nullptr, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::IdentityMatrix(),
+                                          1.f, mask.Get()),
+                   nullptr);
+    ++layerDepth_;
+}
 
 void Canvas::fillRect(const Rect& r, const Color& c) {
     if (c.a <= 0.001f || r.empty()) return;

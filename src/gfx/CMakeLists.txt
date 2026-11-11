@@ -7,4 +7,5 @@
     Theme.cpp Theme.h
     Types.cpp Types.h
 )
-target_link_libraries(st_gfx PUBLIC st_core)
+# dcomp: DirectComposition, the swap chain of a window with a system backdrop (Mica, WindowTarget::useComposition).
+target_link_libraries(st_gfx PUBLIC st_core dcomp)
