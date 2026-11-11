@@ -94,6 +94,7 @@ Window::Window(const WindowOptions& options) : options_(options) {
 
     applyTheme();
 
+    zoom_ = std::clamp(options.zoom, 0.5f, 3.f);
     target_ = std::make_unique<gfx::WindowTarget>(hwnd_);
     resized();
 }
@@ -533,10 +534,34 @@ bool Window::renderToPng(const std::wstring& path) {
     return ok;
 }
 
+float Window::dpiScale() const { return hwnd_ ? static_cast<float>(GetDpiForWindow(hwnd_)) / 96.f : 1.f; }
+
+void Window::setZoom(float zoom) {
+    zoom = std::clamp(zoom, 0.5f, 3.f);
+    if (zoom == zoom_) return;
+    zoom_ = zoom;
+    gfx::Icons::clear();   // masks rasterised for the old pixel sizes
+    tipWidget_ = nullptr;  // a tooltip placed in the old layout
+    tipText_.clear();
+    if (target_) resized();
+    invalidate();
+}
+
+void Window::relayoutAll() {
+    const std::function<void(Widget*)> mark = [&](Widget* w) {
+        w->layoutPending_ = true;
+        for (auto& child : w->children_) mark(child.get());
+    };
+    if (root_) mark(root_.get());
+    for (auto& o : overlays_) mark(o.widget.get());
+    scheduleLayout();
+}
+
 void Window::resized() {
     RECT rc;
     GetClientRect(hwnd_, &rc);
-    const float dpi = static_cast<float>(GetDpiForWindow(hwnd_));
+    // The target's DPI carries the zoom: Direct2D then draws every DIP at the effective scale.
+    const float dpi = static_cast<float>(GetDpiForWindow(hwnd_)) * zoom_;
     target_->resize(static_cast<UINT>(rc.right - rc.left), static_cast<UINT>(rc.bottom - rc.top), dpi);
     widthDip_ = (rc.right - rc.left) * 96.f / dpi;
     heightDip_ = (rc.bottom - rc.top) * 96.f / dpi;
@@ -886,8 +911,15 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
         break;
     case WM_GETMINMAXINFO: {
         auto* mmi = reinterpret_cast<MINMAXINFO*>(lp);
-        const float s = hwnd_ ? static_cast<float>(GetDpiForWindow(hwnd_)) / 96.f : 1.f;
-        mmi->ptMinTrackSize = {static_cast<LONG>(options_.minWidth * s), static_cast<LONG>(options_.minHeight * s)};
+        // The layout needs minWidth x minHeight DIPs: zoomed in that is more pixels, but never more than the
+        // monitor's work area (a 150 % zoom on a small screen must still fit).
+        const float s = dpiScale() * zoom_;
+        LONG w = static_cast<LONG>(options_.minWidth * s), h = static_cast<LONG>(options_.minHeight * s);
+        if (MONITORINFO mi{sizeof mi}; hwnd_ && GetMonitorInfoW(MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST), &mi)) {
+            w = std::min(w, std::max(static_cast<LONG>(options_.minWidth * dpiScale()), mi.rcWork.right - mi.rcWork.left));
+            h = std::min(h, std::max(static_cast<LONG>(options_.minHeight * dpiScale()), mi.rcWork.bottom - mi.rcWork.top));
+        }
+        mmi->ptMinTrackSize = {w, h};
         return 0;
     }
     case WM_DPICHANGED: {
@@ -957,6 +989,9 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
         }
         return 0;
     case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL: {
+        if (msg == WM_MOUSEWHEEL && (GET_KEYSTATE_WPARAM(wp) & MK_CONTROL) && onCtrlWheel &&
+            onCtrlWheel(GET_WHEEL_DELTA_WPARAM(wp) / static_cast<float>(WHEEL_DELTA)))
+            return 0;
         POINT pt{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
         ScreenToClient(hwnd_, &pt);
         const Point p{pt.x / scale(), pt.y / scale()};
