@@ -75,6 +75,9 @@ kalır.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
 - 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, görev çubuğu düğmeleri ve ilerlemesi,
   her zaman üstte mini oynatıcı, sistem tepsisi, koyu / açık / sistem teması, Windows ile başlatma (istersen tepside).
+- 🎨 **Sana göre görünüm** — vurgu rengi kapağa uyar (başlık çubuğu, görev çubuğu ve tepsi ikonları da); genişliği
+  ayarlanan ya da ikon şeridine daralan kenar çubuğu (Ctrl+B), %80–150 arayüz ölçeği (Ctrl + / −), sıkı şarkı
+  listeleri, her yerde akıcı kaydırma ve isteğe bağlı Windows 11 Mica arka planı.
 - ⌨️ **Klavyeyle her şey** — her şeye ulaşan komut paleti (Ctrl+K), tam klavye desteği, değiştirilebilir kısayollar
   ve uygulama arka plandayken de çalışan isteğe bağlı genel kısayollar.
 - 🔗 **Scrobble ve durum** — Last.fm, ListenBrainz ve Discord'da "dinliyor" (isteğe bağlı).

@@ -78,6 +78,9 @@ starts instantly and stays light.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
 - 🪟 **Made for Windows** — media keys and lock-screen controls, taskbar buttons and progress, always-on-top mini
   player, system tray, dark / light / system theme, start with Windows (optionally in the tray).
+- 🎨 **Make it yours** — the accent color follows the album art (title bar, taskbar and tray icons too), a sidebar
+  you can resize or fold into an icon rail (Ctrl+B), interface scale from 80 to 150 % (Ctrl + / −), compact song lists,
+  smooth scrolling everywhere and an optional Windows 11 Mica background.
 - ⌨️ **Keyboard first** — a command palette (Ctrl+K) for everything, full keyboard navigation, shortcuts you can
   change and optional global hotkeys that work in the background.
 - 🔗 **Scrobbling & presence** — Last.fm, ListenBrainz and Discord "Listening to" (optional).

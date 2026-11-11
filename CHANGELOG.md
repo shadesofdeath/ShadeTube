@@ -2,6 +2,27 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.9.0 — 2026-11-11
+
+- **A new player bar**: thin outline controls with an outline play / pause ring, and a wave seek bar: the played part is
+  a gentle wave in the accent color that flows while music plays and settles into a line when paused. Elapsed and total
+  time sit on either side. On a song change the cover and title slide over to the next song. The mini player matches.
+- **Smooth scrolling everywhere**: every page and panel (queue, friends, lyrics, command palette) glides with one
+  spring-based engine: mouse wheels get a short glide that speeds up when you spin, touchpads follow your finger
+  without lag, and PageUp / PageDown / Home / End scroll the page.
+- **Resizable sidebar**: drag its edge to make it wider or narrower (double-click resets it); drag it all the way in,
+  or press Ctrl+B, and it folds into an icon rail with your playlists as cover tiles.
+- **Settings in cards**: Settings are now grouped into collapsible category cards, with a search box that finds any
+  setting (Ctrl+F on the Settings page).
+- **Accent everywhere**: the title bar logo, the close button, the taskbar / Alt+Tab icon and the tray icon now take
+  the color of the song that's playing.
+- **Interface scale**: make everything bigger or smaller (80–150 %) with Ctrl + / Ctrl − / Ctrl+0, Ctrl + mouse wheel
+  or Settings › Appearance, independent of Windows' display scale.
+- **Compact lists**: Settings › Appearance › List density › Compact shows lower rows in every song list and the queue,
+  so more songs fit on screen.
+- **Mica** (Windows 11, optional): Settings › Appearance › Mica background lets the desktop color show faintly through
+  the window. It needs Windows' transparency effects; turning it on takes effect after a restart.
+
 ## 0.8.0 — 2026-11-11
 
 - **Listen together**: start a session from the player bar (or the command palette) and share the invite link; friends
