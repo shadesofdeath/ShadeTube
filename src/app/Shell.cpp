@@ -958,12 +958,17 @@ int QueuePanel::rowAt(gfx::Point pt) const {
     return idx < static_cast<int>(p->order().size()) ? idx : -1;
 }
 
-bool QueuePanel::onWheel(float dy, float, const ui::MouseEvent&) {
+float QueuePanel::maxScroll() const {
     auto* p = ctx().player;
-    if (!p) return false;
+    if (!p || p->currentOrderIndex() < 0) return 0;
     const int upcoming = static_cast<int>(p->order().size()) - p->currentOrderIndex() - 1;
-    const float maxS = std::max(0.f, upcoming * 52.f - (rect().h - listTop()) + 16);
-    scroll_.to(std::clamp(scroll_.target() - dy * 104.f, 0.f, maxS), ui::motion::medium, ui::Ease::Decelerate);
+    return std::max(0.f, upcoming * 52.f - (rect().h - listTop()) + 16);
+}
+
+bool QueuePanel::onWheel(float dy, float, const ui::MouseEvent&) {
+    if (!ctx().player || dy == 0) return false;
+    scroll_.setBounds(0, maxScroll());
+    scroll_.wheel(dy, 104.f, (rect().h - listTop()) * 0.9f);   // two rows a notch
     invalidate();
     return true;
 }
@@ -1045,9 +1050,8 @@ bool QueuePanel::dragOver(const DragPayload& payload, gfx::Point windowPos) {
         if (y >= top && y < top + edge) v = -(1 - (y - top) / edge);
         else if (y > bottom - edge && y <= bottom) v = 1 - (bottom - y) / edge;
         if (v != 0) {
-            const int upcoming = static_cast<int>(p->order().size()) - p->currentOrderIndex() - 1;
-            const float maxS = std::max(0.f, upcoming * 52.f - (rect().h - listTop()) + 16);
-            scroll_.snap(std::clamp(scroll_.value() + v * 700.f * dt, 0.f, maxS));
+            scroll_.setBounds(0, maxScroll());
+            scroll_.snap(scroll_.value() + v * 700.f * dt);   // clamped to the bounds
         }
     }
     lastScrollTick_ = now;
@@ -1076,6 +1080,7 @@ void QueuePanel::paint(Canvas& c) {
     const auto& col = colors();
     const auto& acc = accent();
     auto* p = ctx().player;
+    scroll_.setBounds(0, maxScroll());   // the queue changed / the panel resized: the offset follows the new end
     c.fillRect(r, col.bgBase.withAlpha(0.35f));
     c.vline(r.x, r.y, r.bottom(), col.hairSubtle);
     c.pushClip(r);

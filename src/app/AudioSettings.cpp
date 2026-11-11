@@ -121,8 +121,14 @@ public:
         invalidate();
     }
     bool onWheel(float dy, float, const ui::MouseEvent&) override {
-        if (!enabled() || hot_ < 0) return false;
-        setValue(hot_, value(hot_) + (dy > 0 ? 0.5f : -0.5f));
+        if (!enabled() || hot_ < 0 || dy == 0) return false;
+        // 0.5 dB a notch; a touchpad's small deltas add up to a notch first (else every tiny delta would be a step).
+        if ((wheelAcc_ > 0) != (dy > 0)) wheelAcc_ = 0;
+        wheelAcc_ += dy;
+        if (const float steps = std::trunc(wheelAcc_); steps != 0) {
+            wheelAcc_ -= steps;
+            setValue(hot_, value(hot_) + 0.5f * steps);
+        }
         return true;
     }
     bool onKeyDown(const ui::KeyEvent& e) override {
@@ -248,6 +254,7 @@ private:
     }
 
     int hot_ = -1, dragging_ = -1, selected_ = 1;
+    float wheelAcc_ = 0;   // notches not yet turned into a step
 };
 
 // Crossfade length: a slider (0 = off .. 12 s) with its value.
