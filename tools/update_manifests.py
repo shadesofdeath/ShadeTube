@@ -121,7 +121,6 @@ def winget_files(version: str, sha: str, date: str) -> dict:
         "NestedInstallerFiles:\n"
         "- RelativeFilePath: ShadeTube.exe\n"
         "  PortableCommandAlias: shadetube\n"
-        "Scope: user\n"
         f"ReleaseDate: {date}\n"
         "Installers:\n"
         "- Architecture: x64\n"

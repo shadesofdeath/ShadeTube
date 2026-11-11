@@ -7,7 +7,6 @@ NestedInstallerType: portable
 NestedInstallerFiles:
 - RelativeFilePath: ShadeTube.exe
   PortableCommandAlias: shadetube
-Scope: user
 ReleaseDate: 2026-11-12
 Installers:
 - Architecture: x64
