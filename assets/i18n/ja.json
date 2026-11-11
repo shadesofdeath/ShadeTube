@@ -1504,5 +1504,18 @@
   "Çıkar": "外す",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "任意：wss:// で始まる MQTT WebSocket のアドレス。セッション開始時に最初に試され、次に公開サーバー（broker.emqx.io、test.mosquitto.org、broker.hivemq.com）が使われます。サーバーは招待リンクに含まれ、セッションの全員が使います。",
   "İzinler": "権限",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "参加中のセッションを抜けて、自分の一緒に聴くセッションを開始しますか？"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "参加中のセッションを抜けて、自分の一緒に聴くセッションを開始しますか？",
+  "Arayüz ölçeği": "インターフェースの拡大率",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "Windows の拡大縮小とは別に、文字・アイコン・余白を拡大または縮小します。ウィンドウのサイズは変わりません。",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "キーボードでは {} と {}、{} で既定に戻ります。Ctrl + マウスホイールでも変更できます。",
+  "Ctrl + fare tekerleği de çalışır.": "Ctrl + マウスホイールでも変更できます。",
+  "Liste yoğunluğu": "リストの密度",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "曲リストの行の高さです。コンパクトでは行が低くなりカバーも小さくなるため、画面により多くの曲が表示されます。",
+  "Rahat": "標準",
+  "Sıkı": "コンパクト",
+  "Liste yoğunluğu: {}": "リストの密度: {}",
+  "Arayüzü büyüt": "拡大",
+  "Arayüzü küçült": "縮小",
+  "Arayüz ölçeğini sıfırla": "インターフェースの拡大率をリセット",
+  "Sıkı / rahat liste görünümü": "コンパクト / 標準のリスト表示"
 }

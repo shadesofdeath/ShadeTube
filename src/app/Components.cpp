@@ -1,6 +1,7 @@
 #include "app/Components.h"
 
 #include "app/Blacklist.h"
+#include "app/Display.h"
 #include "app/DragDrop.h"
 #include "app/SmartShuffle.h"
 #include "app/Router.h"
@@ -338,8 +339,14 @@ std::vector<catalog::Track> TrackTable::displayedTracks() const {
     return out;
 }
 
+TrackTable::RowMetrics TrackTable::rowMetrics() {
+    // Sıkı: the two text lines (16.9 + 14.3 DIP line boxes) sit 4 DIP from the row's edges, the art 6.
+    if (display::compactLists()) return {true, 40, 28, 10, 4, 17, 21, 15};
+    return {false, gfx::metrics::trackRowH, gfx::metrics::trackArt, 12, 9, 20, 29, 16};
+}
+
 float TrackTable::preferredHeight(float) {
-    return headerHeight() + (static_cast<float>(view_.size()) + static_cast<float>(loadingRows_)) * gfx::metrics::trackRowH + 8;
+    return headerHeight() + (static_cast<float>(view_.size()) + static_cast<float>(loadingRows_)) * rowMetrics().h + 8;
 }
 
 TrackTable::Columns TrackTable::columns() const {
@@ -365,25 +372,30 @@ TrackTable::Columns TrackTable::columns() const {
 
 Rect TrackTable::rowRect(int i) const {
     const Rect r = rect();
-    return {r.x, r.y + headerHeight() + i * gfx::metrics::trackRowH, r.w, gfx::metrics::trackRowH};
+    const float h = rowMetrics().h;
+    return {r.x, r.y + headerHeight() + i * h, r.w, h};
 }
 
 int TrackTable::rowAt(float y) const {
     const float top = rect().y + headerHeight();
     if (y < top) return -1;
-    const int i = static_cast<int>((y - top) / gfx::metrics::trackRowH);
+    const int i = static_cast<int>((y - top) / rowMetrics().h);
     return i < static_cast<int>(view_.size()) ? i : -1;
 }
 
 TrackTable::RowText& TrackTable::rowText(int di) {
+    if (const bool compact = display::compactLists(); compact != textsCompact_) {   // density changed: new styles
+        texts_.clear();
+        textsCompact_ = compact;
+    }
     auto it = texts_.find(di);
     if (it != texts_.end()) return it->second;
     // Bound the cache: drop everything when it grows past a few screens of rows.
     if (texts_.size() > 160) texts_.clear();
     const auto& t = tracks_[view_[di]];
     RowText rt;
-    rt.title = gfx::Text(toWide(t.name), type::body);
-    rt.artist = gfx::Text(toWide(t.artistLine()), type::caption);
+    rt.title = gfx::Text(toWide(t.name), textsCompact_ ? type::body.withSize(13) : type::body);
+    rt.artist = gfx::Text(toWide(t.artistLine()), textsCompact_ ? type::tiny : type::caption);
     rt.album = gfx::Text(toWide(t.album.name), type::secondary);
     rt.added = gfx::Text(relativeTime(t.addedAt), type::caption);
     rt.dur = gfx::Text(ui::formatDuration(t.durationMs), type::monoDuration);
@@ -426,6 +438,8 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     const bool playing = isCurrent && ctx().player->isPlaying();
     const bool hot = i == hover_;
     auto& tx = rowText(i);
+    const RowMetrics m = rowMetrics();
+    const float titleCy = r.y + m.titleY + m.titleH * 0.5f;   // badges are centered on the title line
     // Unplayable and blocked (kara liste) rows are dimmed; a blocked row still plays when picked directly.
     const float alpha = t.playable && !tx.blocked ? 1.f : 0.38f;
 
@@ -453,10 +467,10 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     // Title (+ art) and artist.
     float tx0 = cl.title;
     if (opts_.showArt) {
-        const Rect art{cl.title, r.cy() - 20, 40, 40};
+        const Rect art{cl.title, r.cy() - m.art * 0.5f, m.art, m.art};
         drawArtwork(c, t.album.images, art, 2, Placeholder::Album, false, Priority::High);
         if (alpha < 1) c.fillRect(art, col.bgBase.withAlpha(0.6f));
-        tx0 += 40 + 12;
+        tx0 += m.art + m.artGap;
     }
     const float titleW = cl.title + cl.titleW - tx0;
     float titleTextW = titleW;
@@ -464,27 +478,28 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     if (t.explicitContent) titleTextW -= 22;
     if (tx.blocked) titleTextW -= blockedW + 8;
     if (t.recommended) titleTextW -= smartshuffle::badgeWidth() + 8;
-    c.text(tx.title, {tx0, r.y + 9, titleTextW, 20}, (isCurrent ? acc.base : col.fgPrimary).mulAlpha(alpha), gfx::VAlign::Center);
+    c.text(tx.title, {tx0, r.y + m.titleY, titleTextW, m.titleH}, (isCurrent ? acc.base : col.fgPrimary).mulAlpha(alpha),
+           gfx::VAlign::Center);
     float badgeX = tx0 + std::min(titleTextW, std::ceil(tx.title.measure().w)) + 8;
     if (t.explicitContent) {
-        const Rect badge{badgeX, r.y + 12, 14, 14};
+        const Rect badge{badgeX, titleCy - 7, 14, 14};
         c.fillRounded(badge, 2, col.fgPrimary.withAlpha(0.14f));
         c.text(L"E", type::monoBadge, badge, col.fgSecondary, gfx::TextAlign::Center, gfx::VAlign::Center);
         badgeX += 14 + 6;
     }
     if (tx.blocked) {   // full strength on the dimmed row, like the explicit badge
-        const Rect badge{badgeX, r.y + 12, blockedW, 14};
+        const Rect badge{badgeX, titleCy - 7, blockedW, 14};
         c.fillRounded(badge, 2, col.fgPrimary.withAlpha(0.14f));
         c.text(blockedBadge_, badge.inset(5, 0), col.fgSecondary, gfx::VAlign::Center);
         badgeX += blockedW + 6;
     }
-    if (t.recommended) smartshuffle::drawBadge(c, badgeX, r.y + 19);
+    if (t.recommended) smartshuffle::drawBadge(c, badgeX, titleCy);
     const Color artistCol = (hot && hoverArtist_) ? col.fgPrimary : col.fgSecondary;
-    c.text(tx.artist, {tx0, r.y + 29, titleW, 16}, artistCol.mulAlpha(alpha), gfx::VAlign::Center);
+    c.text(tx.artist, {tx0, r.y + m.artistY, titleW, m.artistH}, artistCol.mulAlpha(alpha), gfx::VAlign::Center);
     if (!t.playable)
         c.text(toUpperTr(tr(L"Kullanılamıyor")), type::monoBadge,
-               {tx0 + std::min(titleW - 90, std::ceil(tx.artist.measure().w) + 10), r.y + 29, 100, 16}, col.fgTertiary,
-               gfx::TextAlign::Leading, gfx::VAlign::Center);
+               {tx0 + std::min(titleW - 90, std::ceil(tx.artist.measure().w) + 10), r.y + m.artistY, 100, m.artistH},
+               col.fgTertiary, gfx::TextAlign::Leading, gfx::VAlign::Center);
     if (cl.albumW > 0) c.text(tx.album, {cl.album, r.y, cl.albumW, r.h}, col.fgSecondary.mulAlpha(alpha), gfx::VAlign::Center);
     if (cl.addedW > 0) c.text(tx.added, {cl.added, r.y, cl.addedW, r.h}, col.fgTertiary.mulAlpha(alpha), gfx::VAlign::Center);
     // A recommendation of a "Geliştir" list: "+" (always) and "×" (on hover) instead of the heart.
@@ -515,8 +530,9 @@ void TrackTable::paint(Canvas& c) {
     // Only rows intersecting the visible clip are painted (virtualization).
     const Rect vis = c.clip();
     const float top = r.y + headerHeight();
-    const int first = std::max(0, static_cast<int>((vis.y - top) / gfx::metrics::trackRowH));
-    const int last = std::min(static_cast<int>(view_.size()) - 1, static_cast<int>((vis.bottom() - top) / gfx::metrics::trackRowH));
+    const RowMetrics m = rowMetrics();
+    const int first = std::max(0, static_cast<int>((vis.y - top) / m.h));
+    const int last = std::min(static_cast<int>(view_.size()) - 1, static_cast<int>((vis.bottom() - top) / m.h));
     for (int i = first; i <= last; ++i) paintRow(c, i, rowRect(i), cl);
     if (dropAt_ >= 0) {   // own rows dragged over the list: they go in front of this row
         const float y = rowRect(dropAt_).y;
@@ -528,10 +544,10 @@ void TrackTable::paint(Canvas& c) {
         const Rect rr = rowRect(static_cast<int>(view_.size()) + k);
         if (!rr.intersects(vis)) continue;
         const double now = ui::frame::now();
-        if (opts_.showArt) c.skeleton({cl.title, rr.cy() - 20, 40, 40}, 2, now);
-        const float x = cl.title + (opts_.showArt ? 52 : 0);
-        c.skeleton({x, rr.y + 14, 180, 12}, 2, now);
-        c.skeleton({x, rr.y + 32, 110, 10}, 2, now);
+        if (opts_.showArt) c.skeleton({cl.title, rr.cy() - m.art * 0.5f, m.art, m.art}, 2, now);
+        const float x = cl.title + (opts_.showArt ? m.art + m.artGap : 0);
+        c.skeleton({x, rr.y + m.titleY + m.titleH * 0.5f - 6, 180, 12}, 2, now);   // the title and artist lines
+        c.skeleton({x, rr.y + m.artistY + m.artistH * 0.5f - 5, 110, 10}, 2, now);
         ui::frame::requestNext();
     }
     // Ask for more when the bottom 1.5 screens become visible.
@@ -567,9 +583,10 @@ bool TrackTable::artistHit(int i, gfx::Point p) {
     if (i < 0) return false;
     const Columns cl = columns();
     const Rect rr = rowRect(i);
-    const float x0 = cl.title + (opts_.showArt ? 52 : 0);
+    const RowMetrics m = rowMetrics();
+    const float x0 = cl.title + (opts_.showArt ? m.art + m.artGap : 0);
     const float w = std::ceil(rowText(i).artist.measure().w);
-    return Rect{x0, rr.y + 29, w, 16}.contains(p);
+    return Rect{x0, rr.y + m.artistY, w, m.artistH}.contains(p);
 }
 
 void TrackTable::onMouseMove(const ui::MouseEvent& e) {
@@ -742,7 +759,7 @@ void TrackTable::drop(const DragPayload&, gfx::Point windowPos) {
 int TrackTable::dropIndexAt(gfx::Point windowPos) const {
     const gfx::Point p = fromWindow(windowPos);
     const float top = rect().y + headerHeight();
-    const int i = static_cast<int>(std::floor((p.y - top) / gfx::metrics::trackRowH + 0.5f));
+    const int i = static_cast<int>(std::floor((p.y - top) / rowMetrics().h + 0.5f));
     return std::clamp(i, 0, static_cast<int>(view_.size()));
 }
 

@@ -1671,5 +1671,18 @@
   "Çıkar": "Entfernen",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Optional: eine MQTT-WebSocket-Adresse, die mit wss:// beginnt. Sie wird beim Starten einer Sitzung zuerst versucht, danach die öffentlichen Server (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Der Server steckt im Einladungslink; alle in der Sitzung nutzen ihn.",
   "İzinler": "Berechtigungen",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Die aktuelle Sitzung verlassen und eine eigene Sitzung zum gemeinsamen Hören starten?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Die aktuelle Sitzung verlassen und eine eigene Sitzung zum gemeinsamen Hören starten?",
+  "Arayüz ölçeği": "Oberflächenskalierung",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "Text, Symbole und Abstände werden unabhängig von der Windows-Skalierung größer oder kleiner; die Fenstergröße bleibt gleich.",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "Auf der Tastatur {} und {}, {} stellt den Standard wieder her; Strg + Mausrad funktioniert ebenfalls.",
+  "Ctrl + fare tekerleği de çalışır.": "Strg + Mausrad funktioniert ebenfalls.",
+  "Liste yoğunluğu": "Listendichte",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "Zeilenhöhe der Songlisten. Kompakt macht die Zeilen niedriger und die Cover kleiner, sodass mehr Songs auf den Bildschirm passen.",
+  "Rahat": "Komfortabel",
+  "Sıkı": "Kompakt",
+  "Liste yoğunluğu: {}": "Listendichte: {}",
+  "Arayüzü büyüt": "Vergrößern",
+  "Arayüzü küçült": "Verkleinern",
+  "Arayüz ölçeğini sıfırla": "Oberflächenskalierung zurücksetzen",
+  "Sıkı / rahat liste görünümü": "Kompakte / komfortable Listenansicht"
 }

@@ -1822,5 +1822,18 @@
   "Çıkar": "Удалить",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Необязательно: адрес MQTT WebSocket, начинающийся с wss://. При запуске сеанса он пробуется первым, затем публичные серверы (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Сервер входит в ссылку-приглашение, его используют все участники.",
   "İzinler": "Разрешения",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Покинуть текущий сеанс и начать своё совместное прослушивание?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Покинуть текущий сеанс и начать своё совместное прослушивание?",
+  "Arayüz ölçeği": "Масштаб интерфейса",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "Текст, значки и отступы увеличиваются или уменьшаются независимо от масштаба Windows; размер окна не меняется.",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "С клавиатуры: {} и {}, {} возвращает масштаб по умолчанию; также работает Ctrl + колесо мыши.",
+  "Ctrl + fare tekerleği de çalışır.": "Также работает Ctrl + колесо мыши.",
+  "Liste yoğunluğu": "Плотность списков",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "Высота строк в списках треков. В компактном виде строки ниже, а обложки меньше — на экране помещается больше треков.",
+  "Rahat": "Обычная",
+  "Sıkı": "Компактная",
+  "Liste yoğunluğu: {}": "Плотность списков: {}",
+  "Arayüzü büyüt": "Увеличить масштаб",
+  "Arayüzü küçült": "Уменьшить масштаб",
+  "Arayüz ölçeğini sıfırla": "Сбросить масштаб интерфейса",
+  "Sıkı / rahat liste görünümü": "Компактный / обычный вид списков"
 }

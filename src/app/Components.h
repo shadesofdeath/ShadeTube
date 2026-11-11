@@ -141,6 +141,15 @@ public:
 
     static constexpr float kHeaderH = 28;
     float headerHeight() const { return opts_.showHeader ? kHeaderH + 8 : 0; }
+    // Row geometry of the density in effect (Ayarlar › Liste yoğunluğu, app/Display), read at every layout / paint:
+    // Rahat = the spec's track row (h 56, art 40, title B 14/600, artist B 12), Sıkı = h 40, art 28, title B 13/600,
+    // artist B 11. Offsets are from the row's top.
+    struct RowMetrics {
+        bool compact;
+        float h, art, artGap;
+        float titleY, titleH, artistY, artistH;
+    };
+    static RowMetrics rowMetrics();
     void paintHeader(Canvas& c, const Rect& r);      // also used for the sticky copy
 
     float preferredHeight(float width) override;
@@ -202,6 +211,7 @@ private:
     int loadingRows_ = 0;
     std::string playlistId_;
     std::unordered_map<int, RowText> texts_;
+    bool textsCompact_ = false;      // the density the cached rows' text styles are for
     uint64_t blockRev_ = 0;          // blacklist::revision() the cached rows were built with
     gfx::Text blockedBadge_;         // "ENGELLİ"
     std::vector<ui::Anim> dummy_;

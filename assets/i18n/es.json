@@ -1671,5 +1671,18 @@
   "Çıkar": "Quitar",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Opcional: una dirección MQTT WebSocket que empiece por wss://. Se prueba primero al empezar una sesión y después los servidores públicos (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). El servidor va dentro del enlace de invitación; todos en la sesión lo usan.",
   "İzinler": "Permisos",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "¿Salir de la sesión en la que estás y empezar la tuya para escuchar juntos?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "¿Salir de la sesión en la que estás y empezar la tuya para escuchar juntos?",
+  "Arayüz ölçeği": "Escala de la interfaz",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "El texto, los iconos y los espacios se agrandan o se reducen independientemente del escalado de Windows; la ventana mantiene su tamaño.",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "En el teclado, {} y {}; {} vuelve al valor predeterminado. Ctrl + rueda del ratón también funciona.",
+  "Ctrl + fare tekerleği de çalışır.": "Ctrl + rueda del ratón también funciona.",
+  "Liste yoğunluğu": "Densidad de las listas",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "Altura de las filas de las listas de canciones. La vista compacta reduce las filas y las portadas, así caben más canciones en la pantalla.",
+  "Rahat": "Cómoda",
+  "Sıkı": "Compacta",
+  "Liste yoğunluğu: {}": "Densidad de las listas: {}",
+  "Arayüzü büyüt": "Ampliar",
+  "Arayüzü küçült": "Reducir",
+  "Arayüz ölçeğini sıfırla": "Restablecer la escala de la interfaz",
+  "Sıkı / rahat liste görünümü": "Vista de lista compacta / cómoda"
 }

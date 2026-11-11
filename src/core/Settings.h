@@ -46,6 +46,8 @@ struct Settings {
     ThemeMode theme = ThemeMode::Dark;   // settings.json "theme": "dark" | "light" | "system" (was bool "lightTheme")
     bool grain = true;
     bool reduceMotion = false;
+    int uiZoom = 100;                    // "Arayüz ölçeği" in percent: 80, 90, 100, 110, 125, 150 (app/Display)
+    bool compactLists = false;           // "Liste yoğunluğu": Sıkı = lower track rows (app/Display)
 
     // Misc
     std::string downloadsDir;            // empty = default (Music\ShadeTube)

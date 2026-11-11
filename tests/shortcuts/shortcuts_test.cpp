@@ -6,16 +6,21 @@
 //                separately), reset / resetAll, normalize() on a hand-edited map
 //   check      : reserved keys, Win combos in-app, global combos need Ctrl / Alt / Win (F-keys excepted), media keys
 //   fuzzy      : Turkish-aware folding, exact > prefix > word start > substring > subsequence, multi-word queries
+//   zoom       : the zoom keys' defaults and their fallbacks (numeric keypad; the key typing "+" on US / Turkish Q /
+//                German layouts), the zoom steps of app/Display
 //   autostart  : Run command composition / parsing; write / read / sync / remove and the StartupApproved switch in a
 //                test key (SHADETUBE_RUN_KEY, removed afterwards); a sandbox profile never touches the real value
 #include "app/Autostart.h"
+#include "app/Display.h"
 #include "app/Shortcuts.h"
 
 #include <windows.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <set>
 #include <string>
+#include <vector>
 
 using namespace st::app;
 using shortcuts::Combo;
@@ -214,6 +219,57 @@ static void testFuzzy() {
     CHECK(score(L"   ", L"anything") == 0);
 }
 
+// "Arayüz ölçeği": the zoom actions' keys on every layout (shortcuts::fallback) and the steps they walk (app/Display).
+static void testZoom() {
+    std::printf("zoom\n");
+    const shortcuts::Overrides none;
+    CHECK(shortcuts::actionFor(none, combo(VK_OEM_PLUS, true), false) == "zoom-in");
+    CHECK(shortcuts::actionFor(none, combo(VK_OEM_MINUS, true), false) == "zoom-out");
+    CHECK(shortcuts::actionFor(none, combo('0', true), false) == "zoom-reset");
+    CHECK(shortcuts::find("zoom-in")->flags & shortcuts::kInText);   // also while the search box has focus
+    CHECK(shortcuts::display(combo(VK_OEM_PLUS, true)).size() > 5);    // "Ctrl+=" / "Ctrl++", never "Ctrl+Plus"
+    CHECK(shortcuts::display(combo(VK_OEM_PLUS, true)).find(L"Plus") == std::wstring::npos);
+    // The numeric keypad, on any layout.
+    auto fb = [](const Combo& c, HKL layout) { return shortcuts::fallback(c, layout).value_or(Combo{}); };
+    // Layouts loaded here join the session's input switcher: the ones the user didn't have are unloaded again below.
+    auto loaded = [] {
+        std::vector<HKL> list(static_cast<size_t>(std::max(0, GetKeyboardLayoutList(0, nullptr))));
+        list.resize(static_cast<size_t>(GetKeyboardLayoutList(static_cast<int>(list.size()), list.data())));
+        return std::set<HKL>(list.begin(), list.end());
+    };
+    const std::set<HKL> before = loaded();
+    const HKL us = LoadKeyboardLayoutW(L"00000409", KLF_NOTELLSHELL);
+    const HKL trq = LoadKeyboardLayoutW(L"0000041F", KLF_NOTELLSHELL);
+    const HKL de = LoadKeyboardLayoutW(L"00000407", KLF_NOTELLSHELL);
+    CHECK(us && trq && de);
+    CHECK(fb(combo(VK_ADD, true), us) == combo(VK_OEM_PLUS, true));
+    CHECK(fb(combo(VK_SUBTRACT, true), trq) == combo(VK_OEM_MINUS, true));
+    CHECK(fb(combo(VK_NUMPAD0, true), de) == combo('0', true));
+    // By the character: Turkish Q types "+" with Shift+4 (it has no Plus key), US with Shift+"=".
+    CHECK(fb(combo('4', true, false, true), trq) == combo(VK_OEM_PLUS, true));
+    CHECK(fb(combo(VK_OEM_PLUS, true, false, true), us) == combo(VK_OEM_PLUS, true));
+    CHECK(fb(combo('0', true, false, true), de) == combo(VK_OEM_PLUS, true));   // "=" on a German layout
+    CHECK(fb(combo(VK_OEM_MINUS, true), trq).empty());                         // already the combo itself
+    CHECK(fb(combo('4', true), trq).empty());                                   // "4": nothing to stand in for
+    CHECK(fb(combo('K', true), us).empty());
+    CHECK(fb(combo(VK_CONTROL, true), us).empty());
+    CHECK(!shortcuts::fallback(combo(VK_SPACE), us).has_value());
+    for (HKL h : loaded())
+        if (!before.count(h)) UnloadKeyboardLayout(h);
+    CHECK(loaded() == before);
+    // A key bound itself keeps its own action (dispatch asks fallback() only for unbound presses).
+    shortcuts::Overrides o;
+    shortcuts::assign(o, "mute", combo(VK_ADD, true), false);
+    CHECK(shortcuts::actionFor(o, combo(VK_ADD, true), false) == "mute");
+
+    using namespace display;
+    static_assert(snapZoom(100) == 100 && snapZoom(104) == 100 && snapZoom(106) == 110 && snapZoom(1) == 80 &&
+                  snapZoom(500) == 150 && snapZoom(137) == 125 && snapZoom(138) == 150);
+    static_assert(stepZoom(100, 1) == 110 && stepZoom(110, 1) == 125 && stepZoom(125, 1) == 150 &&
+                  stepZoom(150, 1) == 150 && stepZoom(100, -1) == 90 && stepZoom(80, -1) == 80 && stepZoom(97, 0) == 100);
+    CHECK(zoomIndex(100) == 2 && kZoomSteps[zoomIndex(125)] == 125);
+}
+
 static std::wstring env(const wchar_t* name) {
     wchar_t buf[512];
     const DWORD n = GetEnvironmentVariableW(name, buf, 512);
@@ -295,6 +351,7 @@ int main() {
     testBindings();
     testCheck();
     testFuzzy();
+    testZoom();
     testAutostart();
     if (g_failures) {
         std::printf("\n%d check(s) FAILED\n", g_failures);

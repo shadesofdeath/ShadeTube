@@ -27,6 +27,7 @@ struct WindowOptions {
     bool topmost = false;
     bool toolWindow = false;     // no taskbar button and no minimize box (mini player)
     bool maximized = false;
+    float zoom = 1.f;            // user zoom on top of the monitor DPI (see Window::setZoom)
 };
 
 class Overlay;
@@ -63,7 +64,22 @@ public:
     // Renders the current UI into a PNG (dev screenshots / docs). Returns false on failure.
     bool renderToPng(const std::wstring& path);
 
+    // DIP -> pixel scale of everything drawn and hit-tested: the monitor's DPI / 96 times zoom().
     float scale() const { return target_ ? target_->scale() : 1.f; }
+    // The monitor's DPI / 96 alone (window sizes that are saved in DIPs must not depend on the zoom).
+    float dpiScale() const;
+    // User zoom (Ayarlar › Arayüz ölçeği), clamped to 0.5..3. The window keeps its pixel size and the content
+    // reflows: the client area is that many fewer / more DIPs, text and icons are rendered (icon masks re-rasterised)
+    // at the new pixel sizes, mouse input, NC hit-testing and the minimum track size follow. A DPI change
+    // (WM_DPICHANGED) keeps the zoom.
+    void setZoom(float zoom);
+    float zoom() const { return zoom_; }
+    // Ctrl + mouse wheel (a touchpad pinch too), offered before the widgets see the wheel: delta in notches
+    // (+ = away from the user). True = taken.
+    std::function<bool(float delta)> onCtrlWheel;
+    // Lays out the whole tree again before the next frame, also widgets whose size did not change (a setting that
+    // changes preferred heights everywhere, e.g. the track list density).
+    void relayoutAll();
     Rect clientRect() const { return {0, 0, widthDip_, heightDip_}; }
     bool isMaximized() const;
     bool isMinimized() const;
@@ -151,6 +167,7 @@ private:
     std::vector<std::unique_ptr<Widget>> graveyard_;
 
     float widthDip_ = 0, heightDip_ = 0;
+    float zoom_ = 1.f;
     bool dirty_ = true;
     bool layoutDirty_ = true;
     bool animating_ = false;

@@ -276,6 +276,7 @@ private:
                        Settings::get().reduceMotion = v;
                        ui::motion::setReduced(v);
                    });
+            buildDisplayRows(c, rebuilder());   // "Arayüz ölçeği", "Liste yoğunluğu" (app/Display.cpp)
         }
 
         section(c, tr(L"PENCERE"));
