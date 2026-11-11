@@ -82,6 +82,10 @@ struct Settings {
     std::vector<std::string> expandedFolders;   // sidebar: Spotify library folders left open (rootlist group ids)
     bool friendActivityOpen = false;     // "Arkadaş etkinliği" panel open (Spotify; app/FriendActivity)
     bool newReleaseNotifications = false;   // Windows notification for new releases of followed artists
+    // Phone remote control (app/RemoteControl): a LAN web server the phone's browser talks to. Off by default.
+    bool remoteEnabled = false;
+    int remotePort = 48484;              // the first port tried (the next free ones follow)
+    std::string remoteAddress;           // the adapter IPv4 the QR code points at; "" = picked automatically
     // Updates (GitHub releases): check at startup at most once a day; a version the user dismissed stays quiet.
     bool updateCheck = true;
     int64_t lastUpdateCheck = 0;         // unix seconds

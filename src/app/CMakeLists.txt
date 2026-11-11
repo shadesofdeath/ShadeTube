@@ -74,6 +74,12 @@ add_executable(ShadeTube WIN32
     PlaylistTransfer.cpp PlaylistTransfer.h
     Radio.cpp Radio.h
     RadioPage.cpp
+    RemoteApi.cpp RemoteApi.h
+    RemoteAuth.cpp RemoteAuth.h
+    RemoteControl.cpp
+    RemoteHttp.cpp RemoteHttp.h
+    RemoteServer.cpp RemoteServer.h
+    RemoteState.cpp RemoteState.h
     PodcastsPage.cpp PodcastUi.h
     Podcasts.cpp Podcasts.h
     InternetRadio.cpp InternetRadio.h
@@ -103,8 +109,9 @@ add_executable(ShadeTube WIN32
     ${CMAKE_CURRENT_BINARY_DIR}/resources.rc
 )
 # windowsapp: C++/WinRT SystemMediaTransportControls (Smtc). bcrypt: MD5 for Last.fm signatures. crypt32: DPAPI.
+# ws2_32 + iphlpapi + qrcodegen: the phone remote control (LAN server, adapter addresses, pairing QR code).
 target_link_libraries(ShadeTube PRIVATE st_ui st_player st_lyrics st_musicbrainz st_spotify st_youtube st_catalog st_audio st_core webview2
-    windowsapp bcrypt crypt32)
+    windowsapp bcrypt crypt32 ws2_32 iphlpapi qrcodegen)
 # "ShadeTube 0.3" in Ayarlar > Hakkında.
 target_compile_definitions(ShadeTube PRIVATE ST_VERSION_SHORT="${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")
 # The WebView2 static loader is built with the release static CRT; in a Debug (/MTd) build let the debug CRT win.
