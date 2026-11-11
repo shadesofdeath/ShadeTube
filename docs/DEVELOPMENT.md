@@ -56,11 +56,13 @@ ShadeTube/
 ├─ assets/                       embedded in the exe
 │   fonts/        Bricolage Grotesque + JetBrains Mono (variable, OFL.txt)
 │   i18n/         <code>.json translations (en de es fr pt ru uk id ja ko); _keys.json is a local dump
+│   remote/       the phone remote's web page (index.html, app.js, app.css; served by the app, see 3.22)
 │   icons/16|20|24, logo/, placeholders/, animations/ (SVG frames), textures/, tokens/ (dark/light), app.ico
 ├─ docs/                         DEVELOPMENT.md, screenshots/
 ├─ packaging/winget/             winget-pkgs manifest of the current release (tools/update_manifests.py)
 ├─ bucket/shadetube.json         Scoop manifest: the repository doubles as a Scoop bucket
 ├─ external/YoutubeExplode/      C++ YoutubeExplode (dependency; change it upstream)
+├─ external/qrcodegen/           Nayuki's QR Code generator (C++, MIT, vendored unchanged; the remote's pairing code)
 ├─ tools/
 │   package.ps1                  Release build -> dist\ShadeTube-<ver>-win64.zip + .sha256
 │   update_manifests.py          winget + Scoop manifests for the packaged release (see 6)
@@ -85,10 +87,11 @@ ShadeTube/
 │                                ConnectScreen, MiniPlayer
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, ListenStats, Radio, Blacklist,
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
-│                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list)
+│                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
+│                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
-                                 links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts, radio, scrobble,
-                                 shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync, updater, winshell
+                                 links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts, radio, remote,
+                                 scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -109,6 +112,7 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 | `st-worker-N` pool (4–8 threads, 3 priority lanes) | network, JSON, image decode, matching, scans | `st::async(prio, lifetime.ref(), work, done)` |
 | audio engine thread | MF source reader, WASAPI | events marshalled to the UI with `Dispatcher::post` |
 | download, Discord RPC, crash-dump threads | range downloads, pipe I/O, minidump writer | private to their modules |
+| `st-remote` (only while the phone remote is on) | the LAN server's sockets, HTTP, event streams | requests go to the UI thread with `Dispatcher::post` (3.22) |
 
 - **Never block the UI thread**: no network, no disk beyond a few KB, no `future.get()`.
 - Anything that touches widgets or Direct2D runs on the UI thread; other threads use `st::Dispatcher::post`.
@@ -481,7 +485,7 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 ### 3.14 User data
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
-`scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
+`scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
 `listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
 `radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`,
 `spotify-hashes.json`,
@@ -678,6 +682,63 @@ history (`ListenStats`: this PC's plays and the imported Spotify history, stream
   with the songs that have Spotify ids (100 per request). Reading and resolving run on a worker (`collections_test`
   times 10 000 songs per format: about 0.25 - 1.2 s written and read back in a Debug build).
 
+### 3.22 Phone remote control
+
+*Ayarlar › TELEFONDAN KUMANDA* (`Settings.remoteEnabled`, off by default; `remotePort`, `remoteAddress`): the phone's
+browser controls the app over the LAN, nothing to install. `app/RemoteControl.cpp` is the app side (settings section,
+QR code, commands, state); the server parts are standalone and tested (`remote_test`): `RemoteHttp` (HTTP/1.1 parser,
+responses, SSE framing), `RemoteAuth` (pairing secret, device tokens, throttle), `RemoteApi` (routes), `RemoteState`
+(JSON), `RemoteServer` (sockets, adapter addresses).
+
+- **Server** (`st-remote` thread, started / stopped by the toggle, stopped at exit by a `persistHooks` entry): Winsock
+  IPv4 on all interfaces (`SHADETUBE_REMOTE_BIND` narrows it), `SO_EXCLUSIVEADDRUSE`, the configured port (default
+  48484) or the next free one of 10; non-blocking sockets + `WSAPoll`, woken by a datagram to its own UDP socket on
+  127.0.0.1. HTTP/1.1 keep-alive and pipelining (one request at a time per connection), at most 32 connections and 8
+  event streams; request line + headers ≤ 8 KB / 48 headers, target ≤ 2 KB, bodies ≤ 16 KB with Content-Length only
+  (chunked: 501), malformed input or a TLS hello: 400 at once; a request that doesn't arrive whole within 10 s: 408,
+  idle connections close after 30 s, an API answer the app doesn't give within 25 s: 504, a stream that stops reading
+  (512 KB backlog) is dropped. The Host header must be an IPv4 literal or `localhost` (DNS rebinding). The first
+  `listen` on all interfaces makes Windows Firewall ask (the section says to allow private networks).
+- **Pairing**: `remote.dat` (DPAPI) holds a 128-bit pairing secret and the devices. The QR code (`external/qrcodegen`,
+  ECC M, drawn dark on white in both themes with a 4-module quiet zone, every module a whole number of device pixels
+  on pixel edges) encodes `http://<LAN IPv4>:<port>/#p=<secret>`; the fragment never reaches the server or a Referer.
+  The page posts it once to `/api/pair` and gets its own 256-bit device token (kept in `localStorage`); only the
+  token's SHA-256 is stored, compared in constant time against every device. The secret can also be typed on the
+  page. "Yeni bağlantı kodu" rotates the secret (paired phones stay); "Bağlantıyı kes" revokes one device and drops its
+  streams; a phone can forget itself (`/api/unpair`). Names come from the User-Agent ("iPhone · Safari"); at most 16
+  devices; last-seen times are saved every 5 minutes. A new pairing toasts (important: a tray notification when
+  hidden). Bad tokens and bad secrets are counted per address: 8 within a minute block it for 30 s, doubling up to
+  15 minutes (429 + Retry-After).
+- **Address**: `RemoteServer::lanAddresses()` lists up IPv4 adapters (no loopback / 169.254.x) and ranks them: Wi-Fi
+  and Ethernet with a default gateway first, virtual ones (Hyper-V, WSL, VMware, VirtualBox, VPNs, Tailscale…) last;
+  with several the section offers a picker (`remoteAddress`, "" = automatic).
+- **Page** (`assets/remote/`, served from the embedded resources by a fixed table: `/`, `/app.js`, `/app.css`,
+  `/fonts/*.ttf`, `/icons/<name>.svg` from `icons/24`, `/logo.svg`; strict CSP, ETags): `/theme.css` turns
+  `tokens.dark.json` / `tokens.light.json` into CSS variables (colors, radii, shadows, motion) with
+  `prefers-color-scheme`, the app's fonts and icons (as CSS masks) are the app's own, and every text comes from
+  `/api/i18n` (`tr()` on the UI thread). Tabs: Now playing (cover, title, artist / album links, seek, lyrics line,
+  shuffle / previous / play / next / repeat, like, volume), Queue (tap to play, remove), Search (`source::search` +
+  the library's playlists matched with `shortcuts::fuzzyScore`; songs / albums / playlists / artists), Library;
+  albums, playlists (Spotify pages: up to 300 songs) and artists open over the tab (`#album=<id>`… in the address, so
+  back and reload work). A song's menu: play, play next, add to queue, go to album / artist.
+- **Live state**: Server-Sent Events read with `fetch` (the token stays in a header): `state` (track, status,
+  position, shuffle / repeat, like, volume, the app's accent as both themes show it), `queue` (the playing slot and
+  the next 100 with their play-order indices) on every `playerChangedHooks` event (coalesced per UI turn, unchanged
+  queues not resent), and `pos` once a second only while a stream is open (the server's tick, posted to the UI
+  thread; it also catches changes without a player event: the volume knob, the accent fade, likes made elsewhere).
+  `pos` carries the synced lyrics line at `lyricsClockMs()` (fetched once per track while a phone is looking).
+  New streams start with the newest `state` / `queue`; the page extrapolates the position between ticks, reconnects
+  with a backoff, closes the stream while hidden and polls `/api/state` where streaming bodies are missing.
+- **Commands** (`POST /api/cmd`, JSON, posted to the UI thread) take the app's own paths: `commands::run` for play /
+  pause, next, previous and like; `smartshuffle::cycleMode` and `Player::cycleRepeat` like the player bar; `seek`,
+  `volume` (+ `onChanged` like the volume shortcuts); `jump` / `remove` like the queue panel, refused with 409 when
+  the slot no longer holds the named song; `playList` / `playNext` / `enqueue` on a list the phone got (search,
+  album, playlist, artist answers are kept as handles, the newest 16) with the collection page's contexts
+  (`album:<id>`, `playlist:<id>`, `liked`, `search`).
+- **Covers**: http(s) images load straight from their hosts; a `file:///` cover the app extracted itself (local files,
+  downloads, local playlists) is registered under a hash handle and served by `/api/cover/<handle>` with the token
+  (read on a worker, ≤ 8 MB, image types only); the page fetches it with the header and shows a blob URL.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -697,7 +758,8 @@ history (`ListenStats`: this PC's plays and the imported Spotify history, stream
   yourself: the Window draws the ring. Text fields and lists that need every key stay non-activatable. Callbacks
   that may navigate (and so destroy the widget) are called through a local copy.
 - App files that tests compile directly (`Blacklist`, `ListenStats`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
-  `SponsorBlock`, `Smtc`, `Updater`, `Installer`) must stay standalone: no `App`, `AppContext` or UI headers.
+  `SponsorBlock`, `Smtc`, `Updater`, `Installer`, `RemoteHttp`, `RemoteAuth`, `RemoteApi`, `RemoteState`,
+  `RemoteServer`) must stay standalone: no `App`, `AppContext` or UI headers.
 
 ## 5. Testing
 
@@ -750,6 +812,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the Run value (in a test key) | offline |
+| `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -764,7 +827,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...) |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `remote`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...) |
 | `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
@@ -798,6 +861,7 @@ apps*).
 | `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
+| `SHADETUBE_REMOTE_BIND` | the phone remote listens on this IPv4 address only (e.g. `127.0.0.1`: no Windows Firewall prompt while testing) and the QR code points at it |
 
 ## 6. Release process
 
@@ -841,6 +905,10 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   code signature.
 - **Ogg / Opus local files**: stock Windows has no Media Foundation Ogg handler, so `.ogg` / `.oga` / `.opus` files
   are scanned and played only when one is installed. Passthrough `.m4a` downloads are not SponsorBlock-trimmed.
+- **Phone remote** is plain HTTP on the local network (no TLS: tokens and commands can be seen by anyone sniffing
+  that network; the pairing secret stays in the URL fragment and the page). The phone's token belongs to the page's
+  origin, so a new LAN address (DHCP) or port means scanning the QR code again; on iOS a page added to the home
+  screen as a web app has its own storage and pairs separately.
 - **Playback speed** uses time-domain stretching (WSOLA): transparent for speech and fine for music around 0.75-1.5x,
   with some phasing on dense music at extreme speeds.
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
