@@ -174,6 +174,7 @@ void initLibraryViews();       // app/LibraryView.cpp    (Kitaplık: when each c
 void initPodcasts();           // app/PodcastsPage.cpp   (Podcastler: RSS feeds, progress, downloads)
 void initSmartShuffle();       // app/SmartShuffle.cpp   (smart shuffle: recommendations mixed into the queue)
 void initNewReleases();        // app/NewReleasesPage.cpp (Yeni çıkanlar: followed artists' releases, notifications)
+void initRemote();             // app/RemoteControl.cpp  (Telefondan kumanda: the LAN server for the phone's browser)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -188,6 +189,7 @@ inline void initFeatures() {
     initPodcasts();
     initSmartShuffle();
     initNewReleases();
+    initRemote();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the

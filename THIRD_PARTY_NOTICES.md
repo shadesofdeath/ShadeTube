@@ -7,6 +7,7 @@ the following third-party components, which keep their own licenses.
 |---|---|---|
 | **YoutubeExplode (C++)** | `external/YoutubeExplode` — C++ library for YouTube video metadata and streams by the ShadeTube author ([shadesofdeath/YoutubeExplode](https://github.com/shadesofdeath/YoutubeExplode)), modelled on [Tyrrrz/YoutubeExplode](https://github.com/Tyrrrz/YoutubeExplode) | The C# library it is modelled on is LGPL-3.0. |
 | **nlohmann/json** | `external/YoutubeExplode/third_party/nlohmann` | MIT — `external/YoutubeExplode/third_party/nlohmann/LICENSE.MIT` |
+| **QR Code generator** (C++) by Project Nayuki | `external/qrcodegen` — [nayuki/QR-Code-generator](https://github.com/nayuki/QR-Code-generator), vendored unchanged; draws the phone remote control's pairing code | MIT — `external/qrcodegen/LICENSE` |
 | **Bricolage Grotesque** (font) | `assets/fonts/BricolageGrotesque.ttf`, embedded in the exe | SIL Open Font License 1.1 — [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt) |
 | **JetBrains Mono** (font) | `assets/fonts/JetBrainsMono.ttf`, embedded in the exe | SIL Open Font License 1.1 — [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt) |
 | **Microsoft Edge WebView2 SDK** | downloaded at build time (`cmake/WebView2.cmake`); the static loader is linked into the exe | [WebView2 SDK license](https://www.nuget.org/packages/Microsoft.Web.WebView2/) |

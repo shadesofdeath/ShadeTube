@@ -16,6 +16,8 @@ set(YTE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(YTE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(YTE_HTTP_BACKEND "WINHTTP" CACHE STRING "" FORCE)
 add_subdirectory(external/YoutubeExplode EXCLUDE_FROM_ALL)
+# QR codes (the phone remote control's pairing code): Nayuki's generator, vendored unchanged (MIT).
+add_subdirectory(external/qrcodegen EXCLUDE_FROM_ALL)
 
 # ---- Common compile settings for our own targets ----------------------------------------------
 add_library(st_options INTERFACE)

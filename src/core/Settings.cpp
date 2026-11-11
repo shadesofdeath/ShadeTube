@@ -85,6 +85,10 @@ void Settings::load() {
     read(j, "librarySort", librarySort);
     read(j, "friendActivityOpen", friendActivityOpen);
     read(j, "newReleaseNotifications", newReleaseNotifications);
+    read(j, "remoteEnabled", remoteEnabled);
+    read(j, "remotePort", remotePort);
+    read(j, "remoteAddress", remoteAddress);
+    if (remotePort < 1024 || remotePort > 65535) remotePort = 48484;
     read(j, "updateCheck", updateCheck);
     read(j, "lastUpdateCheck", lastUpdateCheck);
     read(j, "skippedVersion", skippedVersion);
@@ -160,6 +164,9 @@ void Settings::save() const {
         {"librarySort", librarySort},
         {"friendActivityOpen", friendActivityOpen},
         {"newReleaseNotifications", newReleaseNotifications},
+        {"remoteEnabled", remoteEnabled},
+        {"remotePort", remotePort},
+        {"remoteAddress", remoteAddress},
         {"updateCheck", updateCheck},
         {"lastUpdateCheck", lastUpdateCheck},
         {"skippedVersion", skippedVersion},

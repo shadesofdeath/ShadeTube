@@ -212,6 +212,7 @@ std::vector<Item> staticItems() {
     const std::pair<const char*, const wchar_t*> sections[] = {
         {"spotify", tr(L"Spotify hesabı")},
         {"connections", tr(L"Bağlantılar: Last.fm, ListenBrainz, Discord")},
+        {"remote", tr(L"Telefondan kumanda")},
         {"playback", tr(L"Oynatma ayarları")},
         {"audio", tr(L"Ses ayarları")},
         {"blocklist", tr(L"Kara liste")},
