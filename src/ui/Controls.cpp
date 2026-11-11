@@ -388,7 +388,8 @@ bool PlayButton::onActivate() {
 void PlayButton::setPlaying(bool playing) {
     if (playing_ == playing) return;
     playing_ = playing;
-    morph_.to(playing ? 1.f : 0.f, motion::medium, Ease::Linear);
+    // The filled look steps through 9 frames (linear); the outline glyph morphs continuously (eased).
+    morph_.to(playing ? 1.f : 0.f, motion::medium, look_ == Look::Outline ? Ease::Standard : Ease::Linear);
     invalidate();
 }
 
@@ -409,6 +410,49 @@ void PlayButton::onMouseUp(const MouseEvent& e) {
     if (rect().contains(e.pos) && onClick) onClick();
 }
 
+// The outline play / pause glyph (24-unit design box, `size` DIP): the play triangle is cut at x = 13 into a quad and
+// a triangle that move into the two pause bars. While they part, the cut edges fade in and the pieces of the
+// triangle's outline between them fade out, so neither state shows a seam.
+void PlayButton::paintOutlineGlyph(Canvas& c, Point center, float size, Color color, float stroke) {
+    struct P {
+        float x, y;
+    };
+    // Play: (7.5, 5.5) (18.5, 12) (7.5, 18.5) (box center 13: the usual optical shift); pause: bars 4.5 wide.
+    static constexpr P playL[4] = {{7.5f, 5.5f}, {13.f, 8.75f}, {13.f, 15.25f}, {7.5f, 18.5f}};
+    static constexpr P playR[4] = {{13.f, 8.75f}, {18.5f, 12.f}, {18.5f, 12.f}, {13.f, 15.25f}};
+    static constexpr P pauseL[4] = {{6.f, 5.5f}, {10.5f, 5.5f}, {10.5f, 18.5f}, {6.f, 18.5f}};
+    static constexpr P pauseR[4] = {{13.5f, 5.5f}, {18.f, 5.5f}, {18.f, 18.5f}, {13.5f, 18.5f}};
+    const float m = std::clamp(morph_.value(), 0.f, 1.f);
+    const float k = size / 24.f;
+    auto at = [&](P a, P b) {
+        return Point{center.x + (a.x + (b.x - a.x) * m - 12.f) * k, center.y + (a.y + (b.y - a.y) * m - 12.f) * k};
+    };
+    Point L[4], R[4];
+    for (int i = 0; i < 4; ++i) {
+        L[i] = at(playL[i], pauseL[i]);
+        R[i] = at(playR[i], pauseR[i]);
+    }
+    if (m <= 0.001f) {   // play: one closed triangle
+        const Point tri[3] = {L[0], R[1], L[3]};
+        c.polyline(tri, 3, color, stroke, true);
+        return;
+    }
+    if (m >= 0.999f) {   // pause: two closed bars
+        c.polyline(L, 4, color, stroke, true);
+        c.polyline(R, 4, color, stroke, true);
+        return;
+    }
+    const float t = std::clamp(m / 0.4f, 0.f, 1.f);
+    const float a = t * t * (3 - 2 * t);
+    const Point leftOuter[4] = {L[1], L[0], L[3], L[2]};
+    c.polyline(leftOuter, 4, color, stroke);
+    c.polyline(R, 4, color, stroke);
+    c.line(L[1], L[2], color.mulAlpha(a), stroke);
+    c.line(R[3], R[0], color.mulAlpha(a), stroke);
+    c.line(L[1], R[0], color.mulAlpha(1 - a), stroke);
+    c.line(L[2], R[3], color.mulAlpha(1 - a), stroke);
+}
+
 void PlayButton::paint(Canvas& c) {
     const Rect r = rect();
     const float d = std::min(r.w, r.h);
@@ -416,8 +460,32 @@ void PlayButton::paint(Canvas& c) {
     const auto& acc = accent();
     const auto& col = colors();
     // Disabled (a listen-together guest without control): faded like the other controls.
-    const Color bg = (look_ == Look::Accent ? Color::lerp(acc.base, acc.hover, hover_) : col.fgPrimary).mulAlpha(enabled() ? 1.f : 0.38f);
-    const Color fg = look_ == Look::Accent ? acc.onAccent : col.fgInverse;
+    const float alpha = enabled() ? 1.f : 0.38f;
+    if (look_ == Look::Outline) {
+        const Point center{r.cx(), r.cy()};
+        const float h = hover_;
+        constexpr float ring = 1.25f;
+        c.pushScale(s, center);
+        c.fillCircle(center, d * 0.5f, acc.tint12.mulAlpha(h * alpha));
+        const Color fg = Color::lerp(col.fgPrimary, acc.base, h).mulAlpha(alpha);
+        const float glyph = std::round(d * 0.5f);
+        const float stroke = d >= 44 ? 1.6f : 1.5f;
+        if (loading_) {
+            // Loading: an accent arc runs around the faint ring; the glyph stays, dimmed.
+            const float t = static_cast<float>(std::fmod(frame::now(), 1100.0) / 1100.0);
+            c.strokeCircle(center, d * 0.5f, col.hairControl.mulAlpha(alpha), ring);
+            c.arc(center, d * 0.5f - ring * 0.5f, t * 360.f, 100.f, acc.base.mulAlpha(alpha), ring + 0.25f);
+            paintOutlineGlyph(c, center, glyph, fg.mulAlpha(0.45f), stroke);
+            frame::requestNext();
+        } else {
+            c.strokeCircle(center, d * 0.5f, fg, ring);
+            paintOutlineGlyph(c, center, glyph, fg, stroke);
+        }
+        c.popTransform();
+        return;
+    }
+    const Color bg = Color::lerp(acc.base, acc.hover, hover_).mulAlpha(alpha);
+    const Color fg = acc.onAccent;
     c.pushScale(s, {r.cx(), r.cy()});
     c.fillCircle({r.cx(), r.cy()}, d * 0.5f, bg);
     const float is = d >= 56 ? 20.f : d >= 48 ? 16.f : 14.f;
@@ -476,7 +544,7 @@ Slider::Slider(Look look) : look_(look) { focusable = true; }
 
 bool Slider::onKeyDown(const KeyEvent& e) {
     if (e.ctrl || e.alt || dragging_ || !enabled()) return false;
-    const float step = keyStep > 0 ? keyStep : (look_ == Look::Seek ? 0.02f : 0.05f);
+    const float step = keyStep > 0 ? keyStep : (look_ == Look::Seek || look_ == Look::Wave ? 0.02f : 0.05f);
     float v = value_;
     switch (e.vk) {
     case VK_LEFT:
@@ -497,6 +565,7 @@ bool Slider::onKeyDown(const KeyEvent& e) {
 
 Rect Slider::focusRect() const {
     const Rect r = rect();
+    if (look_ == Look::Wave) return {r.x + r.w * value() - 9, r.cy() - 9, 18, 18};   // around the playhead
     const float cy = look_ == Look::Seek ? r.y + 1 : r.cy();   // same geometry as paint()
     const float d = look_ == Look::Seek ? 8.f : 12.f;           // the full-size thumb
     return {r.x + r.w * value() - d * 0.5f, cy - d * 0.5f, d, d};
@@ -554,7 +623,92 @@ bool Slider::onWheel(float dy, float, const MouseEvent&) {
     return true;
 }
 
+void Slider::setFlowing(bool on) {
+    const float target = on ? 1.f : 0.f;
+    if (flow_.target() == target) return;
+    flow_.to(target, motion::lyrics, Ease::Standard);   // 420 ms: the wave settles into a line, or rises from it
+    invalidate();
+}
+
+bool Slider::waveMoving() const { return look_ == Look::Wave && flow_.target() > 0.5f && !motion::reduced(); }
+
+float wavePhase(double ms) {
+    if (motion::reduced()) return 0.f;
+    constexpr double period = 1900;
+    return static_cast<float>(std::fmod(ms, period) / period * 2.0 * std::numbers::pi);
+}
+
+void drawWaveLine(Canvas& c, float x, float y, float w, const WaveLine& s) {
+    if (w <= 0) return;
+    const float x1 = x + w;
+    const float xv = s.full ? x1 : x + w * std::clamp(s.value, 0.f, 1.f);
+    // The rest of the line, its buffered part brighter.
+    const float restFrom = std::min(x1, xv + s.gap);
+    if (!s.full && x1 - restFrom > 0.5f) {
+        c.line({restFrom, y}, {x1, y}, s.rest, s.restStroke);
+        const float xb = x + w * std::clamp(s.buffered, 0.f, 1.f);
+        if (xb > restFrom + 0.5f) c.line({restFrom, y}, {xb, y}, s.bufferedColor, s.restStroke);
+    }
+    // The played part: a sine wave tapered to the line at both ends (so it leaves the start and meets the playhead
+    // on the line).
+    const float end = s.full ? x1 : std::max(x, xv - s.gap);
+    if (end - x < 0.5f) return;
+    if (s.amp < 0.05f) {
+        c.line({x, y}, {end, y}, s.played, s.stroke);
+        return;
+    }
+    const float k = 2.f * std::numbers::pi_v<float> / s.wavelength;
+    const float rampIn = s.wavelength * 0.5f, rampOut = s.wavelength * 0.75f;
+    const float step = s.wavelength / 16.f;
+    auto smooth = [](float t) {
+        t = std::clamp(t, 0.f, 1.f);
+        return t * t * (3 - 2 * t);
+    };
+    static std::vector<Point> pts;   // UI thread only; reused every frame
+    pts.clear();
+    for (float px = x;; px += step) {
+        const bool last = px >= end;
+        if (last) px = end;
+        const float env = smooth((px - x) / rampIn) * smooth((end - px) / rampOut);
+        pts.push_back({px, y - s.amp * env * std::sin(k * (px - x) - s.phase)});
+        if (last) break;
+    }
+    c.polyline(pts.data(), pts.size(), s.played, s.stroke);
+}
+
+void Slider::paintWave(Canvas& c) {
+    const auto& col = colors();
+    const auto& acc = accent();
+    const Rect r = rect();
+    // Keyboard focus shows the hover state (the bigger playhead) so the value being changed is visible.
+    const float h = std::max({hover_.value(), dragging_ ? 1.f : 0.f, keyboardFocused() ? 1.f : 0.f});
+    const bool on = enabled();
+    // A listen-together guest without control: faded, no playhead (a live stream is disabled too, but not faded).
+    const float alpha = on || live_ ? 1.f : 0.38f;
+    const bool head = on && !live_;
+    const float headW = 3.f + 1.f * h, headH = 12.f + 6.f * h;
+    WaveLine s;
+    s.value = value();
+    s.buffered = buffered_;
+    s.full = live_;
+    s.amp = kWaveAmp * flow_.value();
+    s.phase = wavePhase(frame::now());
+    s.stroke = 1.75f;
+    s.restStroke = 1.75f;
+    s.gap = head ? headW * 0.5f + 3.f : 0.f;
+    s.played = acc.base.mulAlpha(alpha);
+    s.rest = col.hairStrong.mulAlpha(alpha);
+    s.bufferedColor = col.fgTertiary.mulAlpha(0.7f * alpha);   // neutral: the accent belongs to what was heard
+    const float cy = r.cy();
+    drawWaveLine(c, r.x, cy, r.w, s);
+    if (head) {
+        const float x = r.x + r.w * s.value;
+        c.fillPill({x - headW * 0.5f, cy - headH * 0.5f, headW, headH}, acc.base);
+    }
+}
+
 void Slider::paint(Canvas& c) {
+    if (look_ == Look::Wave) return paintWave(c);
     const auto& col = colors();
     const auto& acc = accent();
     const Rect r = rect();

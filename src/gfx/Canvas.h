@@ -37,6 +37,9 @@ public:
     void vline(float x, float y0, float y1, const Color& c, float width = 1.f);
     void line(Point a, Point b, const Color& c, float width = 1.f, bool roundCaps = true);
     void arc(Point center, float radius, float startDeg, float sweepDeg, const Color& c, float width);
+    // Stroked polyline through `pts` (closed = back to the first point) with round caps and joins: glyphs drawn in
+    // code (the player's play / pause morph) and the seek bar's wave.
+    void polyline(const Point* pts, size_t count, const Color& c, float width, bool closed = false);
     void fillLinearGradient(const Rect& r, Point from, Point to, const Color& a, const Color& b);
     void fillRadialGradient(const Rect& r, Point center, float radius, const Color& inner, const Color& outer);
 

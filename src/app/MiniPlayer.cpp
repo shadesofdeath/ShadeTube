@@ -83,11 +83,12 @@ public:
         wrap.wrap = true;
         wrap.maxLines = 2;
         toastText_.setOptions(wrap);
-        prev_ = add<Button>(ButtonKind::Icon, L"", "prev");
-        play_ = add<ui::PlayButton>(ui::PlayButton::Look::Light);
-        next_ = add<Button>(ButtonKind::Icon, L"", "next");
-        expand_ = add<Button>(ButtonKind::Icon, L"", "expand");
-        close_ = add<Button>(ButtonKind::Icon, L"", "close");
+        // The player bar's thin outline set.
+        prev_ = add<Button>(ButtonKind::Icon, L"", "prev-thin");
+        play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
+        next_ = add<Button>(ButtonKind::Icon, L"", "next-thin");
+        expand_ = add<Button>(ButtonKind::Icon, L"", "expand-thin");
+        close_ = add<Button>(ButtonKind::Icon, L"", "close-thin");
         expand_->setIconSize(14);
         close_->setIconSize(14);
         prev_->setTooltip(tr(L"Önceki"));
@@ -116,11 +117,23 @@ public:
     void sync() {
         auto* p = ctx().player;
         const auto* t = p ? p->current() : nullptr;
+        // A new track: the cover and lines shown so far slide out (TrackSwap, like the player bar).
+        if (swap_.update(p)) {
+            old_ = shown_;
+            oldTitle_.setText(title_.text());
+            oldArtist_.setText(artist_.text());
+        }
+        shown_.images = t ? t->album.images : std::vector<catalog::Image>{};
+        shown_.live = t && radio::isStationId(t->id);
+        shown_.has = t != nullptr;
         // A station: the song it announces (ICY) over the station name, else the station over its country / genres.
         const std::wstring song = t && radio::isStationId(t->id) ? p->liveTitle() : std::wstring();
         title_.setText(!t ? std::wstring(tr(L"Çalan şarkı yok")) : song.empty() ? toWide(t->name) : song);
         artist_.setText(!t ? std::wstring(tr(L"Bir şarkı seçtiğinde burada görünür")) : song.empty() ? toWide(t->artistLine()) : toWide(t->name));
         const bool playing = p && p->isPlaying();
+        // The progress wave flows only while sound plays (the player bar's rule).
+        const float flow = p && p->status() == player::Status::Playing ? 1.f : 0.f;
+        if (flow_.target() != flow) flow_.to(flow, ui::motion::lyrics, ui::Ease::Standard);
         play_->setPlaying(playing);
         play_->setLoading(p && p->status() == player::Status::Resolving);
         play_->setTooltip(playing ? tr(L"Duraklat") : tr(L"Oynat"));
@@ -172,10 +185,8 @@ public:
         c.fillRect(r, col.bgRaised);
         c.fillRadialGradient(r, {art_.cx(), art_.cy()}, 240, acc.tint12, acc.tint12.withAlpha(0));
         const bool live = t && radio::isStationId(t->id);
-        if (live) drawStationArt(c, t->album.images, art_, 2);
-        else drawArtwork(c, t ? t->album.images : std::vector<catalog::Image>{}, art_, 2);
-        c.text(title_, titleRect_, t ? col.fgPrimary : col.fgSecondary, gfx::VAlign::Center);
-        c.text(artist_, artistRect_, col.fgSecondary, gfx::VAlign::Center);
+        if (swap_.running()) paintTrack(c, true);
+        paintTrack(c, false);
 
         const int64_t pos = p ? p->positionMs() : 0;
         int64_t dur = p ? p->durationMs() : 0;
@@ -186,23 +197,54 @@ public:
             time_.setText(ui::formatDuration(pos) + L" / " + ui::formatDuration(dur));
             c.text(time_, timeRect_, col.fgTertiary, gfx::VAlign::Center);
         }
-        // 2 px progress line on the bottom edge (spec: seek 2px at bottom edge); just the track for a stream.
-        const float frac = !live && dur > 0 ? std::clamp(static_cast<float>(pos) / static_cast<float>(dur), 0.f, 1.f) : 0.f;
-        c.fillRect({r.x, r.bottom() - 2, r.w, 2}, col.hairDefault);
-        if (frac > 0) c.fillRect({r.x, r.bottom() - 2, r.w * frac, 2}, acc.base);
+        // Progress under the artwork: the player bar's wave (flowing while playing, a line otherwise), no playhead;
+        // a stream is all "now" (a wave end to end).
+        ui::WaveLine wave;
+        wave.value = !live && dur > 0 ? std::clamp(static_cast<float>(pos) / static_cast<float>(dur), 0.f, 1.f) : 0.f;
+        wave.full = live;
+        wave.amp = 2.5f * flow_.value();
+        wave.wavelength = 22;
+        wave.phase = ui::wavePhase(ui::frame::now());
+        wave.stroke = wave.restStroke = 1.5f;
+        wave.played = acc.base;
+        wave.rest = col.hairStrong;
+        wave.bufferedColor = col.hairStrong;
+        ui::drawWaveLine(c, art_.x, progressY(), r.right() - kPad - art_.x, wave);
         paintChildren(c);
         if (entering) {
             c.popTransform();
             c.popLayer();
         }
         paintToast(c);
-        // Keep the time / progress line moving while playing; paused = no wake-ups at all.
+        // Keep the time / progress moving while playing: the wave flows at ~30 fps (not with reduce motion), else the
+        // time ticks 4 times a second; paused = no wake-ups at all.
         if (p && p->isPlaying()) {
-            if (auto* w = window()) w->invalidateAfter(250);
+            const bool flowing = flow_.target() > 0.5f && !ui::motion::reduced();
+            if (auto* w = window()) w->invalidateAfter(flowing ? ui::kWaveFrameMs : 250);
         }
     }
 
 private:
+    float progressY() const { return std::round(art_.bottom() + (rect().bottom() - art_.bottom()) * 0.5f); }
+
+    // Cover, title and artist of the current track, or of the outgoing one during a track change.
+    void paintTrack(Canvas& c, bool outgoing) {
+        const auto& col = colors();
+        const auto layer = outgoing ? swap_.outgoing() : swap_.incoming();
+        if (layer.alpha <= 0.001f) return;
+        const Shown& s = outgoing ? old_ : shown_;
+        const bool group = layer.alpha < 0.999f;
+        if (group) c.pushOpacity(layer.alpha);
+        c.pushTransform(D2D1::Matrix3x2F::Translation(0, layer.dy));
+        if (s.live) drawStationArt(c, s.images, art_, 2);
+        else if (outgoing) drawArtwork(c, s.images, art_, 2);
+        else artFade_.draw(c, s.images, art_, 2);
+        c.text(outgoing ? oldTitle_ : title_, titleRect_, s.has ? col.fgPrimary : col.fgSecondary, gfx::VAlign::Center);
+        c.text(outgoing ? oldArtist_ : artist_, artistRect_, col.fgSecondary, gfx::VAlign::Center);
+        c.popTransform();
+        if (group) c.popLayer();
+    }
+
     void paintToast(Canvas& c) {
         if (toastAt_ < 0) return;
         const double age = ui::frame::realNow() - toastAt_;
@@ -233,9 +275,17 @@ private:
     MiniPlayer& owner_;
     Button *prev_, *next_, *expand_, *close_;
     ui::PlayButton* play_;
-    gfx::Text title_, artist_, time_, toastText_;
+    gfx::Text title_, artist_, time_, toastText_, oldTitle_{{}, type::body}, oldArtist_{{}, type::caption};
     Rect art_{}, titleRect_{}, artistRect_{}, timeRect_{}, toastRect_{};
     ui::Anim appear_;
+    ui::Anim flow_;   // progress wave amplitude 0..1
+    TrackSwap swap_;
+    FadingArt artFade_;
+    struct Shown {
+        std::vector<catalog::Image> images;
+        bool live = false, has = false;
+    };
+    Shown shown_, old_;
     double toastAt_ = -1;
     bool toastError_ = false;
 };

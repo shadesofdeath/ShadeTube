@@ -138,6 +138,19 @@ void Canvas::arc(Point center, float radius, float startDeg, float sweepDeg, con
     dc_->DrawGeometry(geo.Get(), brush(c), width, g_shared.roundCaps.Get());
 }
 
+void Canvas::polyline(const Point* pts, size_t count, const Color& c, float width, bool closed) {
+    if (count < 2 || c.a <= 0.001f || width <= 0) return;
+    ComPtr<ID2D1PathGeometry> geo;
+    if (FAILED(Device::get().d2dFactory()->CreatePathGeometry(&geo))) return;
+    ComPtr<ID2D1GeometrySink> sink;
+    if (FAILED(geo->Open(&sink))) return;
+    sink->BeginFigure({pts[0].x, pts[0].y}, D2D1_FIGURE_BEGIN_HOLLOW);
+    for (size_t i = 1; i < count; ++i) sink->AddLine({pts[i].x, pts[i].y});
+    sink->EndFigure(closed ? D2D1_FIGURE_END_CLOSED : D2D1_FIGURE_END_OPEN);
+    if (FAILED(sink->Close())) return;
+    dc_->DrawGeometry(geo.Get(), brush(c), width, g_shared.roundCaps.Get());
+}
+
 void Canvas::fillLinearGradient(const Rect& r, Point from, Point to, const Color& a, const Color& b) {
     if (r.empty()) return;
     const D2D1_GRADIENT_STOP stops[] = {{0.f, a.d2d()}, {1.f, b.d2d()}};

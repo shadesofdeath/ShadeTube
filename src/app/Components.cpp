@@ -102,6 +102,77 @@ Color tileFill(Color tone) {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// TrackSwap / FadingArt
+
+namespace {
+constexpr float kSwapShift = 10;   // DIP
+}
+
+bool TrackSwap::update(const player::Player* p) {
+    const auto* t = p ? p->current() : nullptr;
+    const std::string id = t ? t->id : std::string();
+    const int index = p ? p->currentOrderIndex() : -1;
+    const uint64_t gen = p ? p->queueGeneration() : 0;
+    const bool animate = started_ && id != id_ && !id.empty() && !id_.empty();
+    if (animate) {
+        // Forward unless an earlier slot of the same queue plays (previous, a queue row above); repeat-all wrapping
+        // from the last slot to the first still counts as forward, and back from the first to the last as previous.
+        const int last = p ? static_cast<int>(p->order().size()) - 1 : -1;
+        bool back = gen == gen_ && index >= 0 && index_ >= 0 && index < index_;
+        if (gen == gen_ && index == 0 && index_ == last && last > 1) back = false;
+        if (gen == gen_ && index_ == 0 && index == last && last > 1) back = true;
+        dir_ = back ? -1.f : 1.f;
+        t_.snap(0);
+        t_.to(1, ui::motion::slow, ui::Ease::Linear);
+    }
+    started_ = true;
+    id_ = id;
+    index_ = index;
+    gen_ = gen;
+    return animate && t_.running();
+}
+
+TrackSwap::Layer TrackSwap::outgoing() const {
+    const float t = t_.value();
+    if (t >= 1.f) return {0, 0};
+    const float u = std::clamp(t / 0.55f, 0.f, 1.f);
+    return {1 - u, -dir_ * kSwapShift * ui::ease(ui::Ease::Accelerate, u)};
+}
+
+TrackSwap::Layer TrackSwap::incoming() const {
+    const float u = std::clamp((t_.value() - 0.3f) / 0.7f, 0.f, 1.f);
+    const float e = ui::ease(ui::Ease::Decelerate, u);
+    return {e, dir_ * kSwapShift * (1 - e)};
+}
+
+float TrackSwap::progress() const { return ui::ease(ui::Ease::Standard, std::clamp(t_.value(), 0.f, 1.f)); }
+
+void FadingArt::draw(Canvas& c, const std::vector<catalog::Image>& images, const Rect& r, float radius) {
+    const int px = static_cast<int>(std::ceil(std::max(r.w, r.h) * c.scale()));
+    const auto* img = catalog::pickImage(images, px);
+    const std::string url = img ? img->url : std::string();
+    if (url != url_) {   // another cover: shown at once if it is cached, else faded in when it arrives
+        url_ = url;
+        waiting_ = false;
+        in_.snap(1);
+    }
+    ID2D1Bitmap1* bmp = img ? gfx::ImageCache::get().request(img->url, px, Priority::High) : nullptr;
+    if (!bmp) {
+        waiting_ = !url.empty();
+        drawArtwork(c, {}, r, radius);
+        return;
+    }
+    if (waiting_) {
+        waiting_ = false;
+        in_.snap(0);
+        in_.to(1, ui::motion::slow, ui::Ease::Standard);
+    }
+    const float a = in_.value();
+    if (a < 0.999f) drawArtwork(c, {}, r, radius);
+    c.image(bmp, r, radius, a);
+}
+
+// ---------------------------------------------------------------------------------------------------
 // MediaCard
 
 MediaCard::MediaCard(std::wstring title, std::wstring subtitle, std::vector<catalog::Image> images, Shape shape,
