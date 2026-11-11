@@ -1,14 +1,22 @@
 // Yerel dosyalar: the user's own music folders (app/LocalLibrary) — the page, the Ayarlar › YEREL MÜZİK rows and
 // the wiring (player resolver, startup scan, exit).
+//
+// Views (tabs): Şarkılar, Albümler, Sanatçılar and Klasörler, which browses the listed folders as trees (breadcrumb,
+// subfolder cards, the folder's own songs). The view and the open folder are remembered (Settings::localView /
+// localFolder) and are part of the route ({LocalFiles, "songs" | "albums" | "artists" | "folders" | "folder:<path>"};
+// "" = the remembered one), so Back / Forward walk the folders.
 #include "app/AppContext.h"
 #include "app/LocalLibrary.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/PlaylistTransfer.h"
 #include "app/SettingsWidgets.h"
+#include "app/TagEditor.h"
 #include "core/I18n.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
 #include "gfx/Theme.h"
+#include "ui/Popups.h"
 #include "ui/TextBox.h"
 #include "ui/Window.h"
 
@@ -70,7 +78,7 @@ std::wstring songCount(int64_t n) { return i18n::plural(L"{} şarkı", n); }   /
 // "1.234 şarkı · 3 sa 12 dk"
 std::wstring countLine(size_t n, int64_t ms) {
     std::wstring s = songCount(static_cast<int64_t>(n));
-    if (ms > 0) s += L" · " + totalDuration(ms);
+    if (ms >= 60'000) s += L" · " + totalDuration(ms);   // (not "0 dk")
     return s;
 }
 
@@ -126,6 +134,114 @@ private:
     std::vector<Button*> buttons_;
 };
 
+// ---- Klasörler ----------------------------------------------------------------------------------------------------
+
+// The songs of a folder and its subfolders, in tree order ("" = every listed folder). Resolved when asked (cards keep
+// a path, not tree indices, so they stay right while the tree is rebuilt).
+std::vector<Track> tracksUnder(const std::wstring& path) {
+    auto& lib = LocalLibrary::get();
+    const auto& all = lib.tracks();
+    std::vector<Track> out;
+    if (lib.folderTreeReady()) {
+        const auto tree = lib.folderTree();
+        std::vector<int> nodes;
+        if (path.empty()) nodes = tree->roots;
+        else if (const int n = tree->find(path); n >= 0) nodes.push_back(n);
+        for (int n : nodes)
+            for (int i : tree->subtree(n))
+                if (i < static_cast<int>(all.size())) out.push_back(all[static_cast<size_t>(i)]);
+        return out;
+    }
+    const auto& entries = lib.entries();
+    for (size_t i = 0; i < entries.size() && i < all.size(); ++i)
+        if (path.empty() || local::isUnder(entries[i].path, path)) out.push_back(all[i]);
+    return out;
+}
+
+player::PlayContext folderContext(const std::wstring& path, const std::wstring& name) {
+    return {"local:folder:" + toUtf8(toLowerTr(path)), name.empty() ? std::wstring(tr(L"Yerel dosyalar")) : name};
+}
+
+// A folder's menu (a card's right click / the "⋯" button): the actions the song menus have, for the whole folder.
+void showFolderMenu(const std::wstring& path, const std::wstring& name, gfx::Point at) {
+    auto tracks = std::make_shared<const std::vector<Track>>(tracksUnder(path));
+    if (tracks->empty()) return;
+    std::vector<ui::MenuItem> items;
+    items.push_back({tr(L"Karıştır"), "shuffle", L"", [tracks, context = folderContext(path, name)] {
+                         ctx().player->setShuffle(true);
+                         ctx().player->playContext(*tracks, -1, context);
+                     }});
+    items.push_back({tr(L"Sonra çal"), "queue", L"", [tracks] {
+                         for (auto it = tracks->rbegin(); it != tracks->rend(); ++it) ctx().player->playNext(*it);
+                         toast(tr(L"Sıradaki olarak eklendi"));
+                     }});
+    items.push_back({tr(L"Tümünü sıraya ekle"), "plus", L"", [tracks] {
+                         ctx().player->enqueue(*tracks);
+                         toast(tr(L"Sıraya eklendi"));
+                     }});
+    items.push_back({tr(L"Çalma listesine ekle…"), "playlist", L"", [tracks, at] {
+                         Dispatcher::post([tracks, at] { showAddToPlaylistMenu(*tracks, at); });
+                     }});
+    items.push_back(ui::MenuItem::sep());
+    if (auto edit = tagedit::menuItem(*tracks)) items.push_back(std::move(*edit));
+    items.push_back({tr(L"Dışa aktar…"), "share", L"", [tracks, name] { transfer::exportTracks(toUtf8(name), *tracks); }});
+    if (!path.empty())
+        items.push_back({tr(L"Klasörü aç"), "folder", L"", [path] {
+                             const std::wstring arg = L"\"" + path + L"\"";
+                             ShellExecuteW(nullptr, L"open", L"explorer.exe", arg.c_str(), nullptr, SW_SHOWNORMAL);
+                         }});
+    ui::Menu::open(ctx().window, at, std::move(items));
+}
+
+// The open folder: the way up as a breadcrumb ("Tüm klasörler › Müzik › Rock ›", buttons), then its name with a mono
+// meta line, in the section header style.
+class FolderHead : public ui::Widget {
+public:
+    struct Step {
+        std::wstring label;
+        std::wstring path;   // "" = the top level
+    };
+    FolderHead(const std::vector<Step>& up, std::wstring name, std::wstring meta, std::function<void(const std::wstring&)> open)
+        : name_(std::move(name), type::title), meta_(toUpperTr(meta), type::monoLabel) {
+        hitTestVisible = false;
+        for (const auto& s : up) {
+            auto* b = add<Button>(ButtonKind::Ghost, s.label);
+            b->onClick = [open, path = s.path] {
+                const auto go = open;   // navigates: this widget goes away
+                go(path);
+            };
+            buttons_.push_back(b);
+        }
+    }
+    float preferredHeight(float) override { return crumbsH() + 40; }
+    void layout() override {
+        float x = 0;   // (like the Albümler / Sanatçılar way back: a ghost button at the left edge)
+        chevrons_.clear();
+        for (auto* b : buttons_) {
+            const float w = std::min(b->naturalWidth(), 240.f);
+            b->setRect({x, 0, w, 32});
+            x += w;
+            chevrons_.push_back(x - 4);
+            x += 8;
+        }
+    }
+    void paint(Canvas& c) override {
+        const Rect r = rect();
+        for (float cx : chevrons_) c.icon("chevron-right", {r.x + cx, r.y + 8, 16, 16}, colors().fgTertiary);
+        const float y = r.y + crumbsH();
+        const float tw = std::min(std::ceil(name_.measure().w), r.w * 0.7f);
+        c.text(name_, {r.x, y, tw + 1, 36}, colors().fgPrimary, gfx::VAlign::Center);
+        if (!meta_.empty()) c.text(meta_, {r.x + tw + 14, y + 4, std::max(0.f, r.w - tw - 14), 36}, colors().fgTertiary, gfx::VAlign::Center);
+        paintChildren(c);
+    }
+
+private:
+    float crumbsH() const { return buttons_.empty() ? 0.f : 36.f; }
+    gfx::Text name_, meta_;
+    std::vector<Button*> buttons_;
+    std::vector<float> chevrons_;
+};
+
 // Album / artist group of the library (indices into LocalLibrary::tracks()).
 struct Group {
     std::string key;   // stable identity (survives rescans): lower-cased album + album artist, or artist name
@@ -136,7 +252,14 @@ struct Group {
 
 class LocalFilesPage : public ScrollPage {
 public:
-    LocalFilesPage() {
+    explicit LocalFilesPage(const std::string& routeId) {
+        const auto& s = Settings::get();
+        const std::string view = routeId.empty() ? s.localView : routeId.rfind("folder:", 0) == 0 ? "folders" : routeId;
+        tab_ = view == "albums" ? Albums : view == "artists" ? Artists : view == "folders" ? Folders : Songs;
+        if (routeId.rfind("folder:", 0) == 0) folder_ = toWide(routeId.substr(7));
+        else if (routeId.empty() && tab_ == Folders) folder_ = toWide(s.localFolder);
+        remember();
+        if (ctx().router && ctx().router->current().kind == RouteKind::LocalFiles) ctx().router->retarget(route());
         LocalLibrary::get().subscribe(libLife_.ref(), [this] { onLibraryChanged(); });
         build();
     }
@@ -150,7 +273,27 @@ public:
     }
 
 private:
-    enum Tab { Songs, Albums, Artists };
+    enum Tab { Songs, Albums, Artists, Folders };
+
+    // The route naming what the page shows (Back / Forward come back to it).
+    Route route() const {
+        switch (tab_) {
+        case Albums: return {RouteKind::LocalFiles, "albums"};
+        case Artists: return {RouteKind::LocalFiles, "artists"};
+        case Folders: return {RouteKind::LocalFiles, folder_.empty() ? std::string("folders") : "folder:" + toUtf8(folder_)};
+        default: return {RouteKind::LocalFiles, "songs"};
+        }
+    }
+    // The next visit opens the same view (and folder).
+    void remember() const {
+        auto& s = Settings::get();
+        const std::string view = tab_ == Albums ? "albums" : tab_ == Artists ? "artists" : tab_ == Folders ? "folders" : "songs";
+        if (s.localView != view || (tab_ == Folders && s.localFolder != toUtf8(folder_))) {
+            s.localView = view;
+            if (tab_ == Folders) s.localFolder = toUtf8(folder_);
+            s.markDirty();
+        }
+    }
 
     // Structural state: a change rebuilds the page; anything else (scan progress) only refreshes the labels.
     struct Shape {
@@ -164,9 +307,24 @@ private:
     }
 
     void onLibraryChanged() {
-        if (shape() != built_) {
+        auto& lib = LocalLibrary::get();
+        const Shape now = shape();
+        if (now != built_) {
+            // Klasörler showing a tree: keep it on screen until the new generation's tree is ready (no flicker after a
+            // rescan or a tag edit; its cards resolve their songs when clicked, so nothing goes stale).
+            if (tab_ == Folders && showsTree_ && now.loaded == built_.loaded && now.noFolders == built_.noFolders &&
+                !now.emptyScanning && !lib.tracks().empty() && !lib.folderTreeReady()) {
+                lib.folderTree();   // builds it; its arrival notifies again
+                refreshStatus();
+                return;
+            }
             pendingScroll_ = scroll_->scrollY();   // restored by contentReady()
             build();
+            return;
+        }
+        if (tab_ == Folders && waitingForTree_ && lib.folderTreeReady()) {
+            buildBody();
+            contentReady();
             return;
         }
         refreshStatus();
@@ -197,6 +355,8 @@ private:
         play_ = nullptr;
         table_ = nullptr;
         body_ = nullptr;
+        more_ = nullptr;
+        showsTree_ = waitingForTree_ = false;
         auto* c = resetContent(20.f);
 
         // Title + actions.
@@ -227,7 +387,8 @@ private:
             status_->setVisible(false);
             emptyPanel(c->add<MessagePanel>("folder", tr(L"Bilgisayarındaki müziği ekle"),
                                              tr(L"Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada "
-                                                L"listelenir, internet olmadan çalar. Dosyaların yalnızca okunur."),
+                                                L"listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini "
+                                                L"düzenlediğinde değiştirilir."),
                                              tr(L"Klasör ekle"), [] { addFolderPosted(); }),
                        "plus");
             contentReady();
@@ -254,11 +415,18 @@ private:
         play_->onClick = [this] { playAll(false); };
         auto* shuffle = bar->add<Button>(ButtonKind::Secondary, tr(L"Karıştır"), "shuffle");
         shuffle->onClick = [this] { playAll(true); };
+        more_ = bar->add<Button>(ButtonKind::IconOutline, L"", "more");   // Klasörler: the open folder's menu
+        more_->setTooltip(tr(L"Diğer seçenekler"));
+        more_->setVisible(tab_ == Folders);
+        more_->onClick = [this] {
+            const Rect br = more_->toWindow(more_->rect());
+            showFolderMenu(shownFolder_, shownName_, {br.x, br.bottom() + 6});
+        };
         filterBox_ = bar->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Yerel dosyalarda ara"));
         filterBox_->setText(filter_);
         filterBox_->onChange = [this](const std::wstring& s) {
             filter_ = s;
-            if (table_) {
+            if (table_ && tab_ != Folders) {   // (Klasörler filters its cards too)
                 table_->setFilter(s);
                 syncNoMatch();
                 scroll_->contentChanged();
@@ -270,18 +438,29 @@ private:
             if (!filter_.empty()) filterBox_->setText({}, true);
         };
         bar->onPreferredHeight = [](float) { return 56.f; };
-        bar->onLayout = [p = play_, shuffle, box = filterBox_](ui::Box& b) {
+        bar->onLayout = [p = play_, shuffle, more = more_, box = filterBox_](ui::Box& b) {
             const float w = b.rect().w;
             p->setRect({0, 0, 56, 56});
-            shuffle->setRect({56 + 16, 8, shuffle->naturalWidth(), 40});
-            const float bw = std::min(280.f, std::max(160.f, w - (56 + 16 + shuffle->naturalWidth() + 24)));
+            const float sw = shuffle->naturalWidth();
+            shuffle->setRect({56 + 16, 8, sw, 40});
+            float used = 56 + 16 + sw;
+            if (more->visible()) {
+                more->setRect({used + 14, 8, 40, 40});
+                used += 14 + 40;
+            }
+            const float bw = std::min(280.f, std::max(160.f, w - (used + 24)));
             box->setRect({w - bw, 6, bw, 44});
         };
 
-        auto* tabs = c->add<Tabs>(std::vector<std::wstring>{tr(L"Şarkılar"), tr(L"Albümler"), tr(L"Sanatçılar")}, tab_);
-        tabs->onSelect = [this](int i) {
+        auto* tabs = c->add<Tabs>(std::vector<std::wstring>{tr(L"Şarkılar"), tr(L"Albümler"), tr(L"Sanatçılar"), tr(L"Klasörler")},
+                                  tab_);
+        tabs->onSelect = [this, bar](int i) {
             closeGroup();
             tab_ = static_cast<Tab>(i);
+            remember();
+            if (ctx().router) ctx().router->retarget(route());
+            more_->setVisible(tab_ == Folders);
+            bar->requestLayout();
             buildBody();
         };
         body_ = c->add<ui::Column>(16.f);
@@ -302,8 +481,11 @@ private:
         table_ = nullptr;
         noMatch_ = nullptr;
         gridTracks_.clear();
+        waitingForTree_ = showsTree_ = false;
         const auto& tracks = LocalLibrary::get().tracks();
-        if (tab_ == Songs) {
+        if (tab_ == Folders) {
+            buildFolders();
+        } else if (tab_ == Songs) {
             addTable(tracks, false);
         } else {
             const auto groups = tab_ == Albums ? albumGroups() : artistGroups();
@@ -347,6 +529,113 @@ private:
         scroll_->contentChanged();
     }
 
+    // Klasörler: the way up, the subfolders as cards, the folder's own songs.
+    void buildFolders() {
+        const auto tree = LocalLibrary::get().folderTree();
+        shownFolder_.clear();
+        shownName_.clear();
+        if (!tree) {
+            waitingForTree_ = true;
+            body_->add<ui::Label>(tr(L"Klasörler hazırlanıyor…"), type::secondary, ui::Tone::Tertiary);
+            return;
+        }
+        showsTree_ = true;
+        // The open folder; one that is gone (renamed, emptied) gives way to its nearest parent that still holds songs.
+        int node = -1;
+        for (std::wstring p = folder_; !p.empty() && node < 0;) {
+            node = tree->find(p);
+            const size_t slash = p.find_last_of(L'\\');
+            p = slash == std::wstring::npos || slash < 3 ? std::wstring() : p.substr(0, slash);
+        }
+        if (!folder_.empty()) {
+            const std::wstring now = node >= 0 ? tree->nodes[static_cast<size_t>(node)].path : std::wstring();
+            if (toLowerTr(now) != toLowerTr(folder_)) {
+                folder_ = now;
+                remember();
+                if (ctx().router) ctx().router->retarget(route());
+            }
+        }
+        if (node < 0 && tree->roots.size() == 1) node = tree->roots[0];   // one listed folder: it is the top level
+        if (node < 0 && tree->roots.empty()) {
+            body_->add<ui::Label>(tr(L"Eklenen klasörlerde şarkı yok."), type::secondary, ui::Tone::Tertiary);
+            return;
+        }
+        const auto& nodes = tree->nodes;
+        const auto& all = LocalLibrary::get().tracks();
+        const local::FolderNode* open = node >= 0 ? &nodes[static_cast<size_t>(node)] : nullptr;
+        shownFolder_ = open ? open->path : std::wstring();
+        shownName_ = open ? open->name : std::wstring(tr(L"Tüm klasörler"));
+
+        // Breadcrumb: "Tüm klasörler" (several listed folders) and every parent up to the listed folder.
+        std::vector<FolderHead::Step> up;
+        for (int p = open ? open->parent : -1; p >= 0; p = nodes[static_cast<size_t>(p)].parent)
+            up.insert(up.begin(), {nodes[static_cast<size_t>(p)].name, nodes[static_cast<size_t>(p)].path});
+        if (open && tree->roots.size() > 1) up.insert(up.begin(), {tr(L"Tüm klasörler"), L""});
+
+        const std::vector<int>& kids = open ? open->children : tree->roots;
+        int total = 0;
+        int64_t ms = 0;
+        if (open) {
+            total = open->total;
+            ms = open->totalMs;
+        } else {
+            for (int r : tree->roots) {
+                total += nodes[static_cast<size_t>(r)].total;
+                ms += nodes[static_cast<size_t>(r)].totalMs;
+            }
+        }
+        std::wstring meta = kids.empty() ? std::wstring() : i18n::plural(L"{} klasör", static_cast<long long>(kids.size())) + L" · ";
+        body_->add<FolderHead>(up, shownName_, meta + countLine(static_cast<size_t>(total), ms),
+                               [](const std::wstring& path) { openFolder(path); });
+
+        // Subfolders (the search box narrows them by name).
+        const std::wstring needle = foldForSearch(filter_);
+        std::vector<int> shown;
+        for (int k : kids)
+            if (needle.empty() || foldForSearch(nodes[static_cast<size_t>(k)].name).find(needle) != std::wstring::npos) shown.push_back(k);
+        if (!shown.empty()) {
+            auto* grid = body_->add<ui::Grid>(168.f, gfx::metrics::cardGap, [](float w) { return w + 10 + 18 + 4 + 16; });
+            for (size_t i = 0; i < shown.size() && i < kMaxCards; ++i) {
+                const local::FolderNode& f = nodes[static_cast<size_t>(shown[i])];
+                const std::vector<Image> images = f.cover >= 0 && f.cover < static_cast<int>(all.size())
+                                                      ? all[static_cast<size_t>(f.cover)].album.images
+                                                      : std::vector<Image>{};
+                auto* card = grid->add<MediaCard>(f.name, songCount(f.total), images, MediaCard::Shape::Square, Placeholder::Folder);
+                card->onOpen = [path = f.path] { openFolder(path); };
+                card->onPlay = [path = f.path, name = f.name] {
+                    auto list = tracksUnder(path);
+                    const int start = ctx().player->firstPlayable(list);
+                    ctx().player->playContext(std::move(list), start, folderContext(path, name));
+                };
+                card->onContext = [path = f.path, name = f.name](gfx::Point wp) { showFolderMenu(path, name, wp); };
+            }
+            if (shown.size() > kMaxCards)
+                body_->add<ui::Label>(i18n::plural(L"İlk {} sonuç gösteriliyor; aramayla daralt.", int64_t{kMaxCards}),
+                                      type::secondary, ui::Tone::Tertiary);
+        }
+
+        // The folder's own songs.
+        if (open && !open->tracks.empty()) {
+            std::vector<Track> list;
+            list.reserve(open->tracks.size());
+            for (int i : open->tracks)
+                if (i < static_cast<int>(all.size())) list.push_back(all[static_cast<size_t>(i)]);
+            if (!kids.empty()) body_->add<SectionHeader>(tr(L"Bu klasördeki şarkılar"), songCount(static_cast<int64_t>(list.size())));
+            addTable(list, false);
+        } else if (shown.empty() && !needle.empty()) {
+            body_->add<ui::Label>(tr(L"Aramanla eşleşen sonuç yok."), type::secondary, ui::Tone::Tertiary);
+        }
+    }
+
+    // Opens a folder of the Klasörler view as a new page ("" = the top level), so Back returns here.
+    static void openFolder(const std::wstring& path) {
+        auto& s = Settings::get();
+        s.localView = "folders";
+        s.localFolder = toUtf8(path);
+        s.markDirty();
+        ctx().router->navigate({RouteKind::LocalFiles, path.empty() ? std::string("folders") : "folder:" + toUtf8(path)});
+    }
+
     void addTable(const std::vector<Track>& list, bool albumOrder) {
         TrackTable::Options o;
         o.showAdded = false;
@@ -388,6 +677,7 @@ private:
 
     // Each list plays under its own context, so the big Play button only pauses / resumes what this view started.
     player::PlayContext currentContext() const {
+        if (tab_ == Folders) return folderContext(shownFolder_, shownName_);
         if (!drillKey_.empty()) return groupContext(drillKey_, drillTitle_);
         if (tab_ == Albums) return {"local:albums", tr(L"Yerel dosyalar")};
         if (tab_ == Artists) return {"local:artists", tr(L"Yerel dosyalar")};
@@ -522,7 +812,10 @@ private:
                 return;
             }
         }
-        auto list = table_ ? table_->displayedTracks() : tracksAt(gridTracks_);   // what the view shows
+        // What the view shows; in Klasörler the open folder with its subfolders.
+        auto list = tab_ == Folders ? (showsTree_ ? tracksUnder(shownFolder_) : std::vector<Track>{})
+                    : table_        ? table_->displayedTracks()
+                                    : tracksAt(gridTracks_);
         if (list.empty()) return;
         if (shuffle) p->setShuffle(true);
         // No row picked: -1 = a random / the first track the player may pick (blocked ones never start by themselves).
@@ -533,6 +826,12 @@ private:
     Lifetime libLife_;
     Shape built_{};
     Tab tab_ = Songs;
+    std::wstring folder_;           // Klasörler: the folder asked for ("" = the top level)
+    std::wstring shownFolder_;      // ... the one shown ("" = every listed folder) and its name
+    std::wstring shownName_;
+    bool showsTree_ = false;        // the body shows the folder tree
+    bool waitingForTree_ = false;   // ... or waits for it to be built
+    Button* more_ = nullptr;
     std::string drillKey_;          // opened album / artist (Group::key), "" = the grid
     std::wstring drillTitle_;
     std::wstring filter_;           // the search box
@@ -617,6 +916,7 @@ void initLocalLibrary() {
     ctx().housekeepingHooks.push_back([] { LocalLibrary::get().tick(); });
     ctx().persistHooks.push_back([] { LocalLibrary::get().cancel(); });   // exit: don't keep a scan running
     LocalLibrary::get().start();
+    tagedit::initDevHook();
 }
 
 void buildLocalFilesSection(ui::Column* c, const std::function<void()>& rebuild) {
@@ -643,12 +943,12 @@ void buildLocalFilesSection(ui::Column* c, const std::function<void()>& rebuild)
     auto* add = c->add<SettingRow>(tr(L"Müzik klasörü ekle"),
                                    tr(L"Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel "
                                       L"dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca "
-                                      L"okunur, hiçbir zaman değiştirilmez."));
+                                      L"sen etiketlerini düzenlediğinde değiştirilir."));
     auto* addBtn = add->control<Button>(140.f, ButtonKind::Secondary, tr(L"Klasör ekle"), "plus");
     addBtn->onClick = [rebuild] { addFolderPosted(rebuild); };
     if (!folders.empty()) c->add<ScanRow>(rebuild);
 }
 
-std::unique_ptr<Page> makeLocalFilesPage() { return std::make_unique<LocalFilesPage>(); }
+std::unique_ptr<Page> makeLocalFilesPage(const std::string& id) { return std::make_unique<LocalFilesPage>(id); }
 
 } // namespace st::app

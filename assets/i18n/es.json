@@ -437,7 +437,6 @@
   "Taranacak bir müzik klasörü seç": "Elige una carpeta de música para escanear",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Busca archivos nuevos, modificados y eliminados en las carpetas",
   "Bilgisayarındaki müziği ekle": "Añade la música de tu equipo",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "Elige tus carpetas de música: las canciones aparecerán aquí con sus etiquetas y portadas, y podrás escucharlas sin internet. ShadeTube solo lee tus archivos.",
   "Klasörler taranıyor": "Escaneando carpetas",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Puede tardar un poco; al terminar, tus canciones aparecerán aquí.",
   "Şarkı bulunamadı": "No se han encontrado canciones",
@@ -463,7 +462,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "Quitar de la lista (los archivos no se tocan)",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "Carpeta quitada; tus archivos siguen en su sitio",
   "Müzik klasörü ekle": "Añadir carpeta de música",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "Se escanean también las subcarpetas: MP3, M4A, AAC, FLAC, WAV, WMA. Las canciones aparecen en Archivos locales con sus etiquetas y portadas. Tus archivos solo se leen; nunca se modifican.",
   "Önceki": "Anterior",
   "Sonraki": "Siguiente",
   "Büyüt": "Expandir",
@@ -1497,5 +1495,60 @@
   "Çok fazla hatalı deneme. Biraz bekleyip yeniden dene.": "Demasiados intentos fallidos. Espera un momento y vuelve a intentarlo.",
   "Şimdi bağlı": "Conectado ahora",
   "Şimdi çalıyor": "Reproduciendo",
-  "Şu an bir şey çalmıyor": "No suena nada ahora mismo"
+  "Şu an bir şey çalmıyor": "No suena nada ahora mismo",
+  "Klasörler": "Carpetas",
+  "Tüm klasörler": "Todas las carpetas",
+  "Klasörler hazırlanıyor…": "Preparando carpetas…",
+  "Bu klasördeki şarkılar": "Canciones de esta carpeta",
+  "Eklenen klasörlerde şarkı yok.": "Las carpetas añadidas no tienen canciones.",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Elige tus carpetas de música: las canciones aparecerán aquí con sus etiquetas y portadas, y podrás escucharlas sin internet. Tus archivos solo se modifican cuando editas sus etiquetas.",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Se escanean también las subcarpetas: MP3, M4A, AAC, FLAC, WAV, WMA. Las canciones aparecen en Archivos locales con sus etiquetas y portadas. Tus archivos solo se modifican cuando editas sus etiquetas.",
+  "Etiketleri düzenle…": "Editar etiquetas…",
+  "Etiketleri düzenle": "Editar etiquetas",
+  "Albüm sanatçısı": "Artista del álbum",
+  "Parça no": "N.º de pista",
+  "Disk no": "N.º de disco",
+  "Yıl": "Año",
+  "Tür": "Género",
+  "Farklı değerler": "Valores distintos",
+  "Farklı kapaklar": "Portadas distintas",
+  "Kapağı dosyadan kaldır": "Quitar la portada del archivo",
+  "{} dosya": {
+    "one": "{} archivo",
+    "other": "{} archivos"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{} · {}. Los campos que dicen «Valores distintos» se quedan como están a menos que escribas algo.",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "one": "Se omite {} archivo: su formato no se puede editar.",
+    "other": "Se omiten {} archivos: su formato no se puede editar."
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "El n.º de pista, el n.º de disco y el año solo pueden contener cifras",
+  "Bu dosyaların etiketleri okunamadı": "No se han podido leer las etiquetas de estos archivos",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Las etiquetas de este formato no se pueden editar (las de MP3, M4A y FLAC sí)",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Las etiquetas de estos formatos no se pueden editar (las de MP3, M4A y FLAC sí)",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "one": "Puedes editar las etiquetas de {} archivo como máximo a la vez",
+    "other": "Puedes editar las etiquetas de {} archivos como máximo a la vez"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "Las etiquetas aún se están guardando; vuelve a intentarlo en un momento",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "one": "Guardando las etiquetas de {} archivo…",
+    "other": "Guardando las etiquetas de {} archivos…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "one": "Etiquetas de {} archivo guardadas",
+    "other": "Etiquetas de {} archivos guardadas"
+  },
+  "Etiketler kaydedildi": "Etiquetas guardadas",
+  "Etiketler kaydedilemedi": "No se han podido guardar las etiquetas",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "No se han podido guardar las etiquetas: {} El archivo no se ha modificado.",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "Sin guardar: {} de {}. {} Esos archivos no se han modificado.",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "El archivo es de solo lectura o no se puede escribir en la carpeta.",
+  "Dosya başka bir uygulamada açık.": "El archivo está abierto en otra aplicación.",
+  "Dosyanın etiketleri bozuk.": "Las etiquetas del archivo están dañadas.",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "Las etiquetas de este formato de archivo no se pueden editar.",
+  "Dosya bulunamadı.": "No se ha encontrado el archivo.",
+  "Yeni dosya doğrulanamadı.": "No se ha podido verificar el archivo nuevo.",
+  "Dosya bu sırada başka bir programca değiştirildi.": "Otro programa ha modificado el archivo mientras tanto.",
+  "Dosyaya yazılamadı.": "No se ha podido escribir en el archivo."
 }

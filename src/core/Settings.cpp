@@ -80,6 +80,8 @@ void Settings::load() {
     read(j, "altSourceInstance", altSourceInstance);
     read(j, "altSoundCloud", altSoundCloud);
     read(j, "localFolders", localFolders);
+    read(j, "localView", localView);
+    read(j, "localFolder", localFolder);
     read(j, "expandedFolders", expandedFolders);
     read(j, "libraryView", libraryView);
     read(j, "librarySort", librarySort);
@@ -159,6 +161,8 @@ void Settings::save() const {
         {"altSourceInstance", altSourceInstance},
         {"altSoundCloud", altSoundCloud},
         {"localFolders", localFolders},
+        {"localView", localView},
+        {"localFolder", localFolder},
         {"expandedFolders", expandedFolders},
         {"libraryView", libraryView},
         {"librarySort", librarySort},

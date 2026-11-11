@@ -740,12 +740,24 @@ std::vector<Entry> scan(const ScanOptions& o, const std::vector<Entry>& previous
     stats.read -= std::min(stats.read, stats.failed);
 
     // 4. Artist (album artist first, so compilations stay together), album, disc, track, title.
+    std::vector<Entry> sorted = std::move(out);
+    sortLibrary(sorted);
+
+    stats.files = static_cast<int>(sorted.size());
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
+    ST_LOG_INFO("local", "scan: {} files ({} unchanged, {} read, {} unreadable, {} removed, {} kept from unreachable folders) in {} ms",
+                stats.files, stats.reused, stats.read, stats.failed, stats.removed, stats.carried, ms);
+    if (statsOut) *statsOut = stats;
+    return sorted;
+}
+
+void sortLibrary(std::vector<Entry>& entries) {
     struct Key {
         std::wstring artist, album, title;
     };
-    std::vector<Key> keys(out.size());
-    for (size_t i = 0; i < out.size(); ++i) {
-        const auto& e = out[i];
+    std::vector<Key> keys(entries.size());
+    for (size_t i = 0; i < entries.size(); ++i) {
+        const auto& e = entries[i];
         keys[i] = {toWide(!e.albumArtist.empty() ? e.albumArtist : e.artists.empty() ? std::string{} : e.artists[0]),
                    toWide(e.album), toWide(e.title)};
     }
@@ -755,27 +767,166 @@ std::vector<Entry> scan(const ScanOptions& o, const std::vector<Entry>& previous
                                static_cast<int>(a.size()), b.c_str(), static_cast<int>(b.size()), nullptr, nullptr, 0) -
                CSTR_EQUAL;
     };
-    std::vector<size_t> order(out.size());
+    std::vector<size_t> order(entries.size());
     for (size_t i = 0; i < order.size(); ++i) order[i] = i;
     std::sort(order.begin(), order.end(), [&](size_t x, size_t y) {
         if (int c = cmp(keys[x].artist, keys[y].artist)) return c < 0;
         if (int c = cmp(keys[x].album, keys[y].album)) return c < 0;
-        const int dx = std::max(out[x].discNumber, 1), dy = std::max(out[y].discNumber, 1);   // untagged disc = disc 1
+        const int dx = std::max(entries[x].discNumber, 1), dy = std::max(entries[y].discNumber, 1);   // untagged disc = disc 1
         if (dx != dy) return dx < dy;
-        if (out[x].trackNumber != out[y].trackNumber) return out[x].trackNumber < out[y].trackNumber;
+        if (entries[x].trackNumber != entries[y].trackNumber) return entries[x].trackNumber < entries[y].trackNumber;
         if (int c = cmp(keys[x].title, keys[y].title)) return c < 0;
-        return out[x].path < out[y].path;
+        return entries[x].path < entries[y].path;
     });
     std::vector<Entry> sorted;
-    sorted.reserve(out.size());
-    for (size_t i : order) sorted.push_back(std::move(out[i]));
+    sorted.reserve(entries.size());
+    for (size_t i : order) sorted.push_back(std::move(entries[i]));
+    entries = std::move(sorted);
+}
 
-    stats.files = static_cast<int>(sorted.size());
-    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
-    ST_LOG_INFO("local", "scan: {} files ({} unchanged, {} read, {} unreadable, {} removed, {} kept from unreachable folders) in {} ms",
-                stats.files, stats.reused, stats.read, stats.failed, stats.removed, stats.carried, ms);
-    if (statsOut) *statsOut = stats;
-    return sorted;
+bool refreshEntry(Entry& e, const fs::path& coverDir) {
+    WIN32_FILE_ATTRIBUTE_DATA fa{};
+    if (!GetFileAttributesExW(openablePath(e.path).c_str(), GetFileExInfoStandard, &fa)) return false;
+    e.size = (static_cast<int64_t>(fa.nFileSizeHigh) << 32) | fa.nFileSizeLow;
+    e.mtime = (static_cast<uint64_t>(fa.ftLastWriteTime.dwHighDateTime) << 32) | fa.ftLastWriteTime.dwLowDateTime;
+    if (!readFile(e, coverDir)) return false;
+    if (!e.embeddedCover) e.cover = FolderArt().find(e.path);
+    return true;
+}
+
+// ---- folder tree ----------------------------------------------------------------------------------------------
+
+namespace {
+
+int naturalCompare(std::wstring_view a, std::wstring_view b) {
+    return CompareStringEx(LOCALE_NAME_USER_DEFAULT, LINGUISTIC_IGNORECASE | SORT_DIGITSASNUMBERS, a.data(),
+                           static_cast<int>(a.size()), b.data(), static_cast<int>(b.size()), nullptr, nullptr, 0) -
+           CSTR_EQUAL;
+}
+
+// "C:\Music\Rock" -> "C:\Music"; "C:\Music" -> "C:\" (a drive root keeps its separator).
+std::wstring parentDir(const std::wstring& dir) {
+    const size_t slash = dir.find_last_of(L'\\');
+    if (slash == std::wstring::npos) return {};
+    if (slash == 2 && dir[1] == L':') return dir.substr(0, 3);
+    return dir.substr(0, slash);
+}
+
+std::wstring_view fileNameOf(const std::wstring& path) {
+    const size_t slash = path.find_last_of(L'\\');
+    return slash == std::wstring::npos ? std::wstring_view(path) : std::wstring_view(path).substr(slash + 1);
+}
+
+} // namespace
+
+int FolderTree::find(const std::wstring& path) const {
+    std::wstring key = lower(path);
+    while (key.size() > 3 && key.back() == L'\\') key.pop_back();
+    const auto it = index.find(key);
+    return it == index.end() ? -1 : it->second;
+}
+
+std::vector<int> FolderTree::subtree(int node) const {
+    std::vector<int> out;
+    if (node < 0 || node >= static_cast<int>(nodes.size())) return out;
+    out.reserve(static_cast<size_t>(nodes[static_cast<size_t>(node)].total));
+    std::vector<int> stack{node};
+    while (!stack.empty()) {
+        const FolderNode& n = nodes[static_cast<size_t>(stack.back())];
+        stack.pop_back();
+        out.insert(out.end(), n.tracks.begin(), n.tracks.end());
+        for (auto it = n.children.rbegin(); it != n.children.rend(); ++it) stack.push_back(*it);   // first child next
+    }
+    return out;
+}
+
+FolderTree buildFolderTree(const std::vector<Entry>& entries, const std::vector<std::wstring>& rootsIn) {
+    FolderTree t;
+    struct Root {
+        std::wstring path, low;
+    };
+    std::vector<Root> roots;
+    for (const auto& r : rootsIn)
+        if (std::wstring n = normalizeFolder(r); !n.empty()) roots.push_back({n, lower(n)});
+    std::vector<size_t> deepest(roots.size());   // nested roots: the innermost one takes its files
+    for (size_t i = 0; i < deepest.size(); ++i) deepest[i] = i;
+    std::sort(deepest.begin(), deepest.end(), [&](size_t a, size_t b) { return roots[a].low.size() > roots[b].low.size(); });
+
+    // The node of `dir` (lower-cased `low`) under `root`, creating it and its missing parents. A parent is always
+    // created before its children, so children have higher indices.
+    std::function<int(const std::wstring&, const std::wstring&, const Root&)> ensure;
+    ensure = [&](const std::wstring& dir, const std::wstring& low, const Root& root) -> int {
+        if (const auto it = t.index.find(low); it != t.index.end()) return it->second;
+        FolderNode n;
+        n.path = dir;
+        if (low == root.low) {
+            const std::wstring name = fs::path(dir).filename().wstring();
+            n.name = name.empty() ? dir : name;
+        } else {
+            const std::wstring up = parentDir(dir);
+            if (up.empty() || up.size() >= dir.size()) return -1;
+            n.parent = ensure(up, lower(up), root);
+            if (n.parent < 0) return -1;
+            n.name = std::wstring(fileNameOf(dir));
+        }
+        const int id = static_cast<int>(t.nodes.size());
+        if (n.parent >= 0) t.nodes[static_cast<size_t>(n.parent)].children.push_back(id);
+        t.nodes.push_back(std::move(n));
+        t.index.emplace(low, id);
+        return id;
+    };
+
+    std::wstring lastLow;
+    int lastNode = -1;
+    for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
+        const std::wstring dir = parentDir(entries[static_cast<size_t>(i)].path);
+        if (dir.empty()) continue;
+        std::wstring low = lower(dir);
+        if (low != lastLow) {
+            lastLow = low;
+            lastNode = -1;
+            if (const auto it = t.index.find(low); it != t.index.end()) {
+                lastNode = it->second;
+            } else {
+                for (size_t r : deepest)
+                    if (underLower(low, roots[r].low)) {
+                        lastNode = ensure(dir, low, roots[r]);
+                        break;
+                    }
+            }
+        }
+        if (lastNode >= 0) t.nodes[static_cast<size_t>(lastNode)].tracks.push_back(i);
+    }
+    for (const auto& r : roots)
+        if (const auto it = t.index.find(r.low); it != t.index.end()) t.roots.push_back(it->second);
+
+    // Order, then totals and covers bottom-up (children first: they have the higher indices).
+    for (auto& n : t.nodes) {
+        std::sort(n.children.begin(), n.children.end(), [&](int a, int b) {
+            return naturalCompare(t.nodes[static_cast<size_t>(a)].name, t.nodes[static_cast<size_t>(b)].name) < 0;
+        });
+        std::sort(n.tracks.begin(), n.tracks.end(), [&](int a, int b) {
+            const int c = naturalCompare(fileNameOf(entries[static_cast<size_t>(a)].path), fileNameOf(entries[static_cast<size_t>(b)].path));
+            return c != 0 ? c < 0 : a < b;
+        });
+    }
+    for (int i = static_cast<int>(t.nodes.size()) - 1; i >= 0; --i) {
+        FolderNode& n = t.nodes[static_cast<size_t>(i)];
+        n.total += static_cast<int>(n.tracks.size());
+        for (int k : n.tracks) n.totalMs += entries[static_cast<size_t>(k)].durationMs;
+        for (int k : n.tracks)
+            if (!entries[static_cast<size_t>(k)].cover.empty()) {
+                n.cover = k;
+                break;
+            }
+        for (int c : n.children) {
+            const FolderNode& child = t.nodes[static_cast<size_t>(c)];
+            n.total += child.total;
+            n.totalMs += child.totalMs;
+            if (n.cover < 0 && child.cover >= 0) n.cover = child.cover;
+        }
+    }
+    return t;
 }
 
 catalog::Track toTrack(const Entry& e) {
@@ -853,7 +1004,7 @@ bool saveIndex(const fs::path& file, const std::vector<Entry>& entries, const In
                     {"capped", meta.capped},
                     {"files", std::move(files)}};
     fs::path tmp = file;
-    tmp += L".tmp";
+    tmp += L"." + std::to_wstring(GetCurrentThreadId()) + L".tmp";   // a scan and a tag edit may save at once
     {
         std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
         if (!f) return false;
@@ -862,6 +1013,7 @@ bool saveIndex(const fs::path& file, const std::vector<Entry>& entries, const In
     }
     std::error_code ec;
     fs::rename(tmp, file, ec);
+    if (ec) fs::remove(tmp, ec);
     return !ec;
 }
 
@@ -894,6 +1046,7 @@ struct LocalLibrary::Snapshot {
     std::shared_ptr<const std::vector<local::Entry>> entries;
     std::vector<catalog::Track> tracks;
     std::unordered_map<std::string, std::wstring> paths;
+    std::unordered_map<std::string, size_t> positions;
     int64_t totalMs = 0;
     local::IndexMeta meta;       // of the index / of the scan that produced it
     local::ScanStats stats;
@@ -916,6 +1069,7 @@ std::shared_ptr<LocalLibrary::Snapshot> makeSnapshot(std::vector<local::Entry> e
     for (const auto& e : entries) {
         s->tracks.push_back(local::toTrack(e));
         s->paths.emplace(s->tracks.back().id, e.path);
+        s->positions.emplace(s->tracks.back().id, s->tracks.size() - 1);
         s->totalMs += e.durationMs;
     }
     s->entries = std::make_shared<const std::vector<local::Entry>>(std::move(entries));
@@ -962,6 +1116,7 @@ void LocalLibrary::apply(std::shared_ptr<Snapshot> s) {
     entries_ = s->entries;
     tracks_ = std::move(s->tracks);
     paths_ = std::move(s->paths);
+    positions_ = std::move(s->positions);
     totalMs_ = s->totalMs;
     ++generation_;
 }
@@ -1076,6 +1231,10 @@ void LocalLibrary::startScan() {
                 scannedFolders_ = (*r)->meta.folders;
                 apply(*r);
             }
+            if (editedDuringScan_) {   // it may have read a file before its tags were rewritten
+                editedDuringScan_ = false;
+                rescanQueued_ = true;
+            }
             if (rescanQueued_) {
                 rescanQueued_ = false;
                 startScan();   // notifies below with scanning_ = true again
@@ -1088,6 +1247,81 @@ void LocalLibrary::startScan() {
 std::wstring LocalLibrary::pathFor(const std::string& trackId) const {
     const auto it = paths_.find(trackId);
     return it == paths_.end() ? std::wstring{} : local::openablePath(it->second);
+}
+
+const local::Entry* LocalLibrary::entry(const std::string& trackId) const {
+    const auto it = positions_.find(trackId);
+    return it == positions_.end() || it->second >= entries_->size() ? nullptr : &(*entries_)[it->second];
+}
+
+fs::path LocalLibrary::coverFolder() { return coverDir(); }
+
+std::shared_ptr<const local::FolderTree> LocalLibrary::folderTree() {
+    if (folderTreeReady()) return tree_;
+    if (treeBuilding_ != generation_ + 1) {
+        treeBuilding_ = generation_ + 1;
+        const uint64_t gen = generation_;
+        async(
+            Priority::Normal, life_.ref(),
+            [entries = entries_, roots = listedFolders(), gen] {
+                const auto started = std::chrono::steady_clock::now();
+                auto tree = std::make_shared<local::FolderTree>(local::buildFolderTree(*entries, roots));
+                tree->generation = gen;
+                ST_LOG_INFO("local", "folder tree: {} folders for {} tracks in {} ms", tree->nodes.size(), entries->size(),
+                            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count());
+                return std::shared_ptr<const local::FolderTree>(std::move(tree));
+            },
+            [this, gen](Result<std::shared_ptr<const local::FolderTree>> r) {
+                if (treeBuilding_ == gen + 1) treeBuilding_ = 0;
+                if (!r || gen != generation_) return;   // the library changed meanwhile: the next request builds again
+                tree_ = *r;
+                notify();
+            });
+    }
+    return nullptr;
+}
+
+void LocalLibrary::updateEntries(std::vector<local::Entry> fresh) {
+    if (fresh.empty()) return;
+    std::unordered_map<std::wstring, const local::Entry*> byPath;
+    for (const auto& e : fresh) byPath.emplace(local::lower(e.path), &e);
+    std::vector<local::Entry> next = *entries_;
+    size_t changed = 0;
+    for (auto& e : next) {
+        const auto it = byPath.find(local::lower(e.path));
+        if (it == byPath.end()) continue;
+        const std::wstring path = e.path;   // the library's spelling (ids and the index use it)
+        e = *it->second;
+        e.path = path;
+        ++changed;
+    }
+    if (changed == 0) return;
+    local::sortLibrary(next);
+    apply(makeSnapshot(std::move(next), nullptr));
+    if (scanning_) editedDuringScan_ = true;
+    ST_LOG_INFO("local", "{} entries updated after a tag edit", changed);
+    saveIndexSoon();
+    notify();
+}
+
+// The index as it is now, on a worker; one save at a time (a save asked for meanwhile follows).
+void LocalLibrary::saveIndexSoon() {
+    if (saving_) {
+        saveAgain_ = true;
+        return;
+    }
+    saving_ = true;
+    const local::IndexMeta meta{lastScanAt_, scannedFolders_, capped()};
+    async(
+        Priority::Low, life_.ref(), [entries = entries_, meta, file = indexFile()] { return local::saveIndex(file, *entries, meta); },
+        [this](Result<bool> r) {
+            saving_ = false;
+            if (!r || !*r) ST_LOG_WARN("local", "could not write {}", toUtf8(indexFile().wstring()));
+            if (saveAgain_) {
+                saveAgain_ = false;
+                saveIndexSoon();
+            }
+        });
 }
 
 int LocalLibrary::countUnder(const std::wstring& folder) const {

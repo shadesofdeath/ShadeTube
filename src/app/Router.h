@@ -34,6 +34,9 @@ public:
     explicit Router(Factory factory) : factory_(std::move(factory)) {}
 
     void navigate(const Route& route, bool replace = false);
+    // The current history entry names `route` from now on, without rebuilding the page (a page that switched its own
+    // view in place, so Back / Forward return to that view).
+    void retarget(const Route& route) { history_[index_].route = route; }
     void back();
     void forward();
     bool canBack() const { return index_ > 0; }

@@ -176,6 +176,75 @@ bool plays(const std::wstring& path, const std::string& mime) {
     return !error && pos >= 800;
 }
 
+// Yerel dosyalar › Klasörler: local::buildFolderTree (pure).
+void testFolderTree() {
+    std::printf("\n[folder tree]\n");
+    const auto entry = [](const wchar_t* path, const wchar_t* cover = L"") {
+        local::Entry e;
+        e.path = path;
+        e.durationMs = 1000;
+        e.cover = cover;
+        return e;
+    };
+    const std::vector<local::Entry> v = {
+        entry(L"C:\\Müzik\\Rock\\Albüm 10\\01.mp3"),
+        entry(L"C:\\Müzik\\Rock\\Albüm 2\\02.mp3", L"c2.jpg"),
+        entry(L"C:\\Müzik\\Rock\\Albüm 2\\10.mp3"),
+        entry(L"C:\\Müzik\\Rock\\Albüm 2\\9.mp3"),
+        entry(L"C:\\Müzik\\gevşek.mp3"),
+        entry(L"D:\\Diğer\\a.flac", L"d.jpg"),
+        entry(L"E:\\Dışarıda\\x.mp3"),   // outside every listed folder
+    };
+    const auto t = local::buildFolderTree(v, {L"C:\\Müzik", L"D:\\Diğer"});
+    CHECK(t.roots.size() == 2);
+    const int muzik = t.find(L"c:\\MÜZIK\\");   // case-insensitive, trailing separator ignored
+    const int rock = t.find(L"C:\\Müzik\\Rock");
+    CHECK(muzik >= 0 && rock >= 0 && t.roots[0] == muzik);
+    if (muzik >= 0 && rock >= 0) {
+        const auto& m = t.nodes[static_cast<size_t>(muzik)];
+        const auto& r = t.nodes[static_cast<size_t>(rock)];
+        CHECK(m.name == L"Müzik" && m.parent == -1 && m.total == 5 && m.totalMs == 5000 && m.tracks == std::vector<int>{4});
+        CHECK(r.tracks.empty() && r.children.size() == 2 && r.parent == muzik);
+        CHECK(r.children.size() == 2 && t.nodes[static_cast<size_t>(r.children[0])].name == L"Albüm 2" &&
+              t.nodes[static_cast<size_t>(r.children[1])].name == L"Albüm 10");   // natural order
+        const int album2 = t.find(L"C:\\Müzik\\Rock\\Albüm 2");
+        CHECK(album2 >= 0 && t.nodes[static_cast<size_t>(album2)].tracks == (std::vector<int>{1, 3, 2}));   // 02, 9, 10
+        CHECK(r.cover == 1 && m.cover == 1);
+        CHECK(t.subtree(muzik) == (std::vector<int>{4, 1, 3, 2, 0}));   // own songs first, then each subfolder
+    }
+    CHECK(t.find(L"E:\\Dışarıda") < 0 && t.find(L"C:\\Yok") < 0);
+    CHECK(t.subtree(-1).empty());
+
+    // Nested listed folders: the inner one takes its songs. A drive root.
+    const auto nested = local::buildFolderTree(v, {L"C:\\Müzik", L"C:\\Müzik\\Rock"});
+    const int outer = nested.find(L"C:\\Müzik"), inner = nested.find(L"C:\\Müzik\\Rock");
+    CHECK(outer >= 0 && inner >= 0 && nested.nodes[static_cast<size_t>(outer)].total == 1 &&
+          nested.nodes[static_cast<size_t>(inner)].total == 4 && nested.nodes[static_cast<size_t>(inner)].parent == -1);
+    const auto drive = local::buildFolderTree({entry(L"D:\\a.mp3"), entry(L"D:\\Alt\\b.mp3")}, {L"D:\\"});
+    CHECK(drive.roots.size() == 1 && drive.nodes[static_cast<size_t>(drive.roots[0])].name == L"D:\\" &&
+          drive.nodes[static_cast<size_t>(drive.roots[0])].total == 2);
+
+    // 50 000 files in 5 000 folders (the library's cap).
+    std::vector<local::Entry> big;
+    big.reserve(50'000);
+    for (int i = 0; i < 50'000; ++i) {
+        local::Entry e;
+        e.path = L"C:\\Arşiv\\Sanatçı " + std::to_wstring(i / 500) + L"\\Albüm " + std::to_wstring(i / 10) + L"\\" +
+                 std::to_wstring(i % 10 + 1) + L" - Şarkı.flac";
+        e.durationMs = 200'000;
+        if (i % 10 == 3) e.cover = L"c.jpg";
+        big.push_back(std::move(e));
+    }
+    const auto t0 = std::chrono::steady_clock::now();
+    const auto bt = local::buildFolderTree(big, {L"C:\\Arşiv"});
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+    std::printf("  50 000 files -> %zu folders in %lld ms\n", bt.nodes.size(), static_cast<long long>(ms));
+    CHECK(bt.roots.size() == 1 && bt.nodes.size() == 1 + 100 + 5000);
+    CHECK(!bt.roots.empty() && bt.nodes[static_cast<size_t>(bt.roots[0])].total == 50'000);
+    CHECK(!bt.roots.empty() && bt.subtree(bt.roots[0]).size() == 50'000);
+    CHECK(ms < 3000);
+}
+
 } // namespace
 
 int wmain(int argc, wchar_t** argv) {
@@ -209,6 +278,8 @@ int wmain(int argc, wchar_t** argv) {
     std::printf("scanned extensions:");
     for (const auto& e : local::audioExtensions()) std::printf(" %s", toUtf8(e).c_str());
     std::printf("\n");
+
+    testFolderTree();
 
     // ---- 1. the test library (copies only) ------------------------------------------------------------
     std::printf("\n[setup]\n");
@@ -319,6 +390,22 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(static_cast<int>(first.size()) == expected);
     CHECK(st.read == expected && st.reused == 0 && st.failed == 0 && !st.capped && !st.cancelled);
     CHECK(progressCalls > 0 && lastDone == lastTotal && lastTotal == expected);
+    // After a tag edit the library re-reads a file with refreshEntry(): it must be exactly what a scan stores, or the
+    // next incremental rescan would read it again (or keep something different).
+    {
+        int same = 0;
+        for (const auto& e : first) {
+            local::Entry r;
+            r.path = e.path;
+            if (!local::refreshEntry(r, covers)) continue;
+            if (r.size == e.size && r.mtime == e.mtime && r.title == e.title && r.artists == e.artists && r.album == e.album &&
+                r.albumArtist == e.albumArtist && r.trackNumber == e.trackNumber && r.discNumber == e.discNumber &&
+                r.year == e.year && r.durationMs == e.durationMs && r.cover == e.cover && r.embeddedCover == e.embeddedCover)
+                ++same;
+            else std::printf("  refreshEntry differs: %s\n", toUtf8(fs::path(e.path).filename().wstring()).c_str());
+        }
+        CHECK(same == static_cast<int>(first.size()));
+    }
     if (const auto* e = byName(first, L"Test Sanatçı - Dalga.wav")) {
         CHECK(e->title == "Dalga");
         CHECK(e->artists.size() == 1 && e->artists[0] == "Test Sanatçı");

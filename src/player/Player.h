@@ -126,6 +126,9 @@ public:
     int dropRecommendations();
     // A recommendation the user added to the collection: its queue items become ordinary ones.
     void clearRecommended(const std::string& trackId);
+    // New metadata for queue items with t.id (a local file whose tags were edited): name, artists, album, number and
+    // duration change, the item stays where it is (and keeps playing). Returns how many items changed.
+    int updateTrackInfo(const Track& t);
 
     // Internet radio: asked (UI thread) before each resolve, like localFileFor. A returned stream makes the item a
     // live, endless stream: no duration, no seeking, no prefetch / gapless handoff; the engine reconnects when the

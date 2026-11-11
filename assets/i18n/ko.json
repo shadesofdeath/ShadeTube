@@ -368,7 +368,6 @@
   "Taranacak bir müzik klasörü seç": "스캔할 음악 폴더 선택",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "폴더에서 새로 추가되거나 바뀌거나 삭제된 파일 찾기",
   "Bilgisayarındaki müziği ekle": "PC에 있는 음악 추가하기",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "음악 폴더를 선택하면 곡이 태그, 커버와 함께 여기에 표시되고 인터넷 없이도 재생돼요. 파일은 읽기만 해요.",
   "Klasörler taranıyor": "폴더를 스캔하는 중",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "시간이 조금 걸릴 수 있어요. 완료되면 곡이 여기에 표시돼요.",
   "Şarkı bulunamadı": "곡을 찾지 못했어요",
@@ -388,7 +387,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "목록에서 제거(파일은 그대로 유지)",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "폴더를 목록에서 제거했어요. 파일은 그대로 있어요",
   "Müzik klasörü ekle": "음악 폴더 추가",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "하위 폴더까지 스캔해요: MP3, M4A, AAC, FLAC, WAV, WMA. 곡은 로컬 파일 페이지에 태그, 커버와 함께 표시돼요. 파일은 읽기만 하고 절대 수정하지 않아요.",
   "Önceki": "이전",
   "Sonraki": "다음",
   "Büyüt": "크게 보기",
@@ -1338,5 +1336,55 @@
   "Çok fazla hatalı deneme. Biraz bekleyip yeniden dene.": "실패한 시도가 너무 많아요. 잠시 기다린 뒤 다시 시도하세요.",
   "Şimdi bağlı": "지금 연결됨",
   "Şimdi çalıyor": "지금 재생 중",
-  "Şu an bir şey çalmıyor": "지금 재생 중인 곡이 없어요"
+  "Şu an bir şey çalmıyor": "지금 재생 중인 곡이 없어요",
+  "Klasörler": "폴더",
+  "Tüm klasörler": "모든 폴더",
+  "Klasörler hazırlanıyor…": "폴더를 준비하는 중…",
+  "Bu klasördeki şarkılar": "이 폴더의 곡",
+  "Eklenen klasörlerde şarkı yok.": "추가한 폴더에 곡이 없어요.",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "음악 폴더를 선택하면 곡이 태그, 커버와 함께 여기에 표시되고 인터넷 없이도 재생돼요. 파일은 태그를 편집할 때만 수정돼요.",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "하위 폴더까지 스캔해요: MP3, M4A, AAC, FLAC, WAV, WMA. 곡은 로컬 파일 페이지에 태그, 커버와 함께 표시돼요. 파일은 태그를 편집할 때만 수정돼요.",
+  "Etiketleri düzenle…": "태그 편집…",
+  "Etiketleri düzenle": "태그 편집",
+  "Albüm sanatçısı": "앨범 아티스트",
+  "Parça no": "트랙 번호",
+  "Disk no": "디스크 번호",
+  "Yıl": "연도",
+  "Tür": "장르",
+  "Farklı değerler": "서로 다른 값",
+  "Farklı kapaklar": "서로 다른 커버",
+  "Kapağı dosyadan kaldır": "파일에서 커버 삭제",
+  "{} dosya": {
+    "other": "파일 {}개"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{} · {}. ‘서로 다른 값’으로 표시된 칸은 무언가 입력하지 않는 한 그대로 유지돼요.",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "other": "파일 {}개는 형식을 편집할 수 없어 건너뛰어요."
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "트랙 번호, 디스크 번호, 연도에는 숫자만 입력할 수 있어요",
+  "Bu dosyaların etiketleri okunamadı": "이 파일들의 태그를 읽지 못했어요",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "이 형식의 태그는 편집할 수 없어요(MP3, M4A, FLAC는 가능해요)",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "이 형식들의 태그는 편집할 수 없어요(MP3, M4A, FLAC는 가능해요)",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "other": "한 번에 최대 {}개 파일의 태그를 편집할 수 있어요"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "태그를 아직 저장하고 있어요. 잠시 후 다시 시도해 주세요",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "other": "파일 {}개의 태그를 저장하는 중…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "other": "파일 {}개의 태그를 저장했어요"
+  },
+  "Etiketler kaydedildi": "태그를 저장했어요",
+  "Etiketler kaydedilemedi": "태그를 저장하지 못했어요",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "태그를 저장하지 못했어요: {} 파일은 그대로예요.",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "저장하지 못함: {}/{}. {} 해당 파일은 그대로예요.",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "파일이 읽기 전용이거나 폴더에 쓸 수 없어요.",
+  "Dosya başka bir uygulamada açık.": "파일이 다른 앱에서 열려 있어요.",
+  "Dosyanın etiketleri bozuk.": "파일의 태그가 손상됐어요.",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "이 파일 형식의 태그는 편집할 수 없어요.",
+  "Dosya bulunamadı.": "파일을 찾지 못했어요.",
+  "Yeni dosya doğrulanamadı.": "새 파일을 검증하지 못했어요.",
+  "Dosya bu sırada başka bir programca değiştirildi.": "그사이 다른 프로그램이 파일을 바꿨어요.",
+  "Dosyaya yazılamadı.": "파일에 쓰지 못했어요."
 }

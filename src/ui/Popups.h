@@ -23,6 +23,7 @@ struct MenuItem {
     bool separator = false;
     bool enabled = true;
     bool checked = false;
+    std::wstring tooltip;   // shown on hover (also over a disabled item: why it is disabled)
 
     static MenuItem sep() {
         MenuItem m;
@@ -57,6 +58,7 @@ private:
     Rect itemRect(int i) const;
     std::vector<MenuItem> items_;
     std::vector<gfx::Text> labels_;
+    std::vector<Widget*> tips_;   // per item: its tooltip zone (children), nullptr = none
     Point anchor_;
     Rect box_{};
     int hot_ = -1;

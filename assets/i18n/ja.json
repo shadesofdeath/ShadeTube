@@ -368,7 +368,6 @@
   "Taranacak bir müzik klasörü seç": "スキャンする音楽フォルダーを選択",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "フォルダー内の新規・変更・削除されたファイルを検出",
   "Bilgisayarındaki müziği ekle": "PC内の音楽を追加",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "音楽フォルダーを選ぶと、曲がタグとジャケット付きで表示され、オフラインで再生できます。ファイルは読み取るだけです。",
   "Klasörler taranıyor": "フォルダーをスキャン中",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "少し時間がかかる場合があります。完了すると曲がここに表示されます。",
   "Şarkı bulunamadı": "曲が見つかりません",
@@ -388,7 +387,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "リストから削除（ファイルはそのまま）",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "フォルダーをリストから削除しました。ファイルはそのまま残っています",
   "Müzik klasörü ekle": "音楽フォルダーを追加",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "サブフォルダーも含めてスキャンします：MP3、M4A、AAC、FLAC、WAV、WMA。曲は「ローカルファイル」ページにタグとジャケット付きで表示されます。ファイルは読み取るだけで、変更されることはありません。",
   "Önceki": "前へ",
   "Sonraki": "次へ",
   "Büyüt": "拡大",
@@ -1338,5 +1336,55 @@
   "Çok fazla hatalı deneme. Biraz bekleyip yeniden dene.": "失敗した試行が多すぎます。しばらく待ってからもう一度お試しください。",
   "Şimdi bağlı": "接続中",
   "Şimdi çalıyor": "再生中",
-  "Şu an bir şey çalmıyor": "現在再生中の曲はありません"
+  "Şu an bir şey çalmıyor": "現在再生中の曲はありません",
+  "Klasörler": "フォルダー",
+  "Tüm klasörler": "すべてのフォルダー",
+  "Klasörler hazırlanıyor…": "フォルダーを準備しています…",
+  "Bu klasördeki şarkılar": "このフォルダーの曲",
+  "Eklenen klasörlerde şarkı yok.": "追加したフォルダーに曲がありません。",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "音楽フォルダーを選ぶと、曲がタグとジャケット付きで表示され、オフラインで再生できます。ファイルが変更されるのは、タグを編集したときだけです。",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "サブフォルダーも含めてスキャンします：MP3、M4A、AAC、FLAC、WAV、WMA。曲は「ローカルファイル」ページにタグとジャケット付きで表示されます。ファイルが変更されるのは、タグを編集したときだけです。",
+  "Etiketleri düzenle…": "タグを編集…",
+  "Etiketleri düzenle": "タグを編集",
+  "Albüm sanatçısı": "アルバムアーティスト",
+  "Parça no": "トラック番号",
+  "Disk no": "ディスク番号",
+  "Yıl": "年",
+  "Tür": "ジャンル",
+  "Farklı değerler": "異なる値",
+  "Farklı kapaklar": "異なるジャケット",
+  "Kapağı dosyadan kaldır": "ファイルからジャケットを削除",
+  "{} dosya": {
+    "other": "{}ファイル"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{}・{}。「異なる値」と表示された欄は、何か入力しない限りそのままです。",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "other": "{}ファイルは形式を編集できないため、スキップします。"
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "トラック番号・ディスク番号・年には数字だけを入力できます",
+  "Bu dosyaların etiketleri okunamadı": "これらのファイルのタグを読み込めませんでした",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "この形式のタグは編集できません（MP3・M4A・FLACは編集できます）",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "これらの形式のタグは編集できません（MP3・M4A・FLACは編集できます）",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "other": "一度にタグを編集できるのは最大{}ファイルまでです"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "タグを保存しています。少し待ってからもう一度お試しください",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "other": "{}ファイルのタグを保存しています…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "other": "{}ファイルのタグを保存しました"
+  },
+  "Etiketler kaydedildi": "タグを保存しました",
+  "Etiketler kaydedilemedi": "タグを保存できませんでした",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "タグを保存できませんでした：{}ファイルは変更していません。",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "保存できなかったファイル：{}／{}。{}それらのファイルは変更していません。",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "ファイルが読み取り専用か、フォルダーに書き込めません。",
+  "Dosya başka bir uygulamada açık.": "ファイルが別のアプリで開かれています。",
+  "Dosyanın etiketleri bozuk.": "ファイルのタグが壊れています。",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "このファイル形式のタグは編集できません。",
+  "Dosya bulunamadı.": "ファイルが見つかりません。",
+  "Yeni dosya doğrulanamadı.": "新しいファイルを検証できませんでした。",
+  "Dosya bu sırada başka bir programca değiştirildi.": "その間に別のプログラムがファイルを変更しました。",
+  "Dosyaya yazılamadı.": "ファイルに書き込めませんでした。"
 }

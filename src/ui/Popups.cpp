@@ -18,7 +18,23 @@ namespace type = gfx::type;
 
 namespace {
 constexpr float kMenuW = 240, kItemH = 34, kPadY = 6, kSepH = 13;
-}
+
+// An item's tooltip: an invisible child over the item, so the Window's hover delay and placement apply. The pointer
+// still drives the menu's own highlight.
+class TipZone : public Widget {
+public:
+    TipZone(Menu* menu, std::wstring tip) : menu_(menu) { setTooltip(std::move(tip)); }
+    void paint(Canvas&) override {}
+    void onMouseMove(const MouseEvent& e) override {
+        MouseEvent m = e;
+        m.pos = menu_->fromWindow(e.windowPos);
+        menu_->onMouseMove(m);
+    }
+
+private:
+    Menu* menu_;
+};
+} // namespace
 
 void Menu::open(Window* window, Point anchor, std::vector<MenuItem> items) {
     if (!window || items.empty()) return;
@@ -53,7 +69,10 @@ void Menu::activate(int i) {
 }
 
 Menu::Menu(std::vector<MenuItem> items, Point anchor) : items_(std::move(items)), anchor_(anchor) {
-    for (auto& it : items_) labels_.emplace_back(it.label, type::secondary);
+    for (auto& it : items_) {
+        labels_.emplace_back(it.label, type::secondary);
+        tips_.push_back(it.tooltip.empty() || it.separator ? nullptr : add<TipZone>(this, it.tooltip));
+    }
     open_.to(1, 160, Ease::Decelerate);
 }
 
@@ -66,6 +85,8 @@ void Menu::layout() {
     const float x = leftward_ ? anchor_.x - kMenuW : anchor_.x;
     const float y = upward_ ? std::max(8.f, anchor_.y - h) : anchor_.y;
     box_ = {std::max(8.f, x), y, kMenuW, h};
+    for (size_t i = 0; i < tips_.size(); ++i)
+        if (tips_[i]) tips_[i]->setRect(itemRect(static_cast<int>(i)));
 }
 
 Rect Menu::itemRect(int i) const {
@@ -81,7 +102,12 @@ int Menu::itemAt(Point p) const {
     return -1;
 }
 
-Widget* Menu::hitTest(Point p) { return visible() ? this : nullptr; }   // full-window: click outside closes
+Widget* Menu::hitTest(Point p) {   // full-window: click outside closes
+    if (!visible()) return nullptr;
+    for (Widget* tip : tips_)   // (the menu covers the window from 0,0: its children share its coordinates)
+        if (tip && !closing_ && tip->rect().contains(p)) return tip;
+    return this;
+}
 
 bool Menu::onMouseDown(const MouseEvent& e) {
     if (!box_.contains(e.pos)) {

@@ -209,6 +209,21 @@ void Player::clearRecommended(const std::string& trackId) {
     if (changed) notify();
 }
 
+int Player::updateTrackInfo(const Track& t) {
+    int changed = 0;
+    for (auto& item : items_) {
+        if (item.id != t.id) continue;
+        item.name = t.name;
+        item.artists = t.artists;
+        item.album = t.album;
+        item.trackNumber = t.trackNumber;
+        if (t.durationMs > 0) item.durationMs = t.durationMs;
+        ++changed;
+    }
+    if (changed) notify();
+    return changed;
+}
+
 bool Player::skipped(int orderIndex) const {
     return shouldSkip && shouldSkip(items_[order_[orderIndex]]);
 }

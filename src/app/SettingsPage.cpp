@@ -33,7 +33,7 @@ std::unique_ptr<Page> makeLibraryPage(const std::string& id);
 std::unique_ptr<Page> makeArtistPage(const std::string& id);
 std::unique_ptr<Page> makeDownloadsPage();
 std::unique_ptr<Page> makeStatsPage();
-std::unique_ptr<Page> makeLocalFilesPage();
+std::unique_ptr<Page> makeLocalFilesPage(const std::string& id);
 std::unique_ptr<Page> makeRadioPage(const std::string& id);
 std::unique_ptr<Page> makePodcastsPage(const std::string& id);
 std::unique_ptr<Page> makeSmartListPage(const std::string& id);
@@ -653,7 +653,7 @@ std::unique_ptr<Page> createPage(const Route& route) {
     case RouteKind::Downloads: return makeDownloadsPage();
     case RouteKind::Settings: return std::make_unique<SettingsPage>(route.id);
     case RouteKind::Stats: return makeStatsPage();
-    case RouteKind::LocalFiles: return makeLocalFilesPage();
+    case RouteKind::LocalFiles: return makeLocalFilesPage(route.id);
     case RouteKind::Radio: return makeRadioPage(route.id);
     case RouteKind::Podcasts: return makePodcastsPage(route.id);
     case RouteKind::SmartList: return makeSmartListPage(route.id);

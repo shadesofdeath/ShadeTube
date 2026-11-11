@@ -368,7 +368,6 @@
   "Taranacak bir müzik klasörü seç": "Pilih folder musik untuk dipindai",
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Temukan file yang baru, diubah, atau dihapus di folder",
   "Bilgisayarındaki müziği ekle": "Tambahkan musik dari komputermu",
-  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca okunur.": "Pilih folder musikmu; lagu akan muncul di sini lengkap dengan tag dan sampulnya, dan bisa diputar tanpa internet. File kamu hanya dibaca.",
   "Klasörler taranıyor": "Memindai folder",
   "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Ini mungkin perlu waktu; setelah selesai, lagu-lagumu akan muncul di sini.",
   "Şarkı bulunamadı": "Lagu tidak ditemukan",
@@ -388,7 +387,6 @@
   "Listeden kaldır (dosyalara dokunulmaz)": "Hapus dari daftar (file tidak diubah)",
   "Klasör kaldırıldı; dosyaların yerinde duruyor": "Folder dihapus dari daftar; file kamu tetap di tempatnya",
   "Müzik klasörü ekle": "Tambahkan folder musik",
-  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca okunur, hiçbir zaman değiştirilmez.": "Subfolder ikut dipindai: MP3, M4A, AAC, FLAC, WAV, WMA. Lagu ditampilkan di halaman File lokal lengkap dengan tag dan sampulnya. File kamu hanya dibaca, tidak pernah diubah.",
   "Önceki": "Sebelumnya",
   "Sonraki": "Berikutnya",
   "Büyüt": "Perbesar",
@@ -1338,5 +1336,55 @@
   "Çok fazla hatalı deneme. Biraz bekleyip yeniden dene.": "Terlalu banyak percobaan yang gagal. Tunggu sebentar lalu coba lagi.",
   "Şimdi bağlı": "Terhubung sekarang",
   "Şimdi çalıyor": "Sedang diputar",
-  "Şu an bir şey çalmıyor": "Tidak ada yang diputar sekarang"
+  "Şu an bir şey çalmıyor": "Tidak ada yang diputar sekarang",
+  "Klasörler": "Folder",
+  "Tüm klasörler": "Semua folder",
+  "Klasörler hazırlanıyor…": "Menyiapkan folder…",
+  "Bu klasördeki şarkılar": "Lagu di folder ini",
+  "Eklenen klasörlerde şarkı yok.": "Folder yang ditambahkan tidak berisi lagu.",
+  "Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Pilih folder musikmu; lagu akan muncul di sini lengkap dengan tag dan sampulnya, dan bisa diputar tanpa internet. File kamu hanya diubah saat kamu mengedit tag-nya.",
+  "Alt klasörler dahil taranır: MP3, M4A, AAC, FLAC, WAV, WMA. Şarkılar Yerel dosyalar sayfasında etiketleri ve kapaklarıyla listelenir. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir.": "Subfolder ikut dipindai: MP3, M4A, AAC, FLAC, WAV, WMA. Lagu ditampilkan di halaman File lokal lengkap dengan tag dan sampulnya. File kamu hanya diubah saat kamu mengedit tag-nya.",
+  "Etiketleri düzenle…": "Edit tag…",
+  "Etiketleri düzenle": "Edit tag",
+  "Albüm sanatçısı": "Artis album",
+  "Parça no": "No. trek",
+  "Disk no": "No. disk",
+  "Yıl": "Tahun",
+  "Tür": "Genre",
+  "Farklı değerler": "Nilai berbeda-beda",
+  "Farklı kapaklar": "Sampul berbeda-beda",
+  "Kapağı dosyadan kaldır": "Hapus sampul dari file",
+  "{} dosya": {
+    "other": "{} file"
+  },
+  "{} · {}. \"Farklı değerler\" yazan alanlar, bir şey yazmadıkça olduğu gibi kalır.": "{} · {}. Kolom bertuliskan \"Nilai berbeda-beda\" tetap seperti semula kecuali kamu mengetik sesuatu.",
+  "{} dosyanın biçimi düzenlenemediği için atlanıyor.": {
+    "other": "{} file dilewati karena formatnya tidak bisa diedit."
+  },
+  "Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir": "No. trek, no. disk, dan tahun hanya boleh berisi angka",
+  "Bu dosyaların etiketleri okunamadı": "Tag file-file ini tidak dapat dibaca",
+  "Bu biçimin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Tag format ini tidak bisa diedit (MP3, M4A, dan FLAC bisa)",
+  "Bu biçimlerin etiketleri düzenlenemiyor (MP3, M4A ve FLAC düzenlenebilir)": "Tag format-format ini tidak bisa diedit (MP3, M4A, dan FLAC bisa)",
+  "En fazla {} dosyanın etiketleri birlikte düzenlenebilir": {
+    "other": "Kamu bisa mengedit tag maksimal {} file sekaligus"
+  },
+  "Etiketler hâlâ kaydediliyor; biraz sonra yeniden dene": "Tag masih disimpan; coba lagi sebentar lagi",
+  "{} dosyanın etiketleri kaydediliyor…": {
+    "other": "Menyimpan tag {} file…"
+  },
+  "{} dosyanın etiketleri kaydedildi": {
+    "other": "Tag {} file disimpan"
+  },
+  "Etiketler kaydedildi": "Tag disimpan",
+  "Etiketler kaydedilemedi": "Tag tidak dapat disimpan",
+  "Etiketler kaydedilemedi: {} Dosyaya dokunulmadı.": "Tag tidak dapat disimpan: {} File tidak diubah.",
+  "Kaydedilemeyen: {} / {}. {} O dosyalara dokunulmadı.": "Tidak tersimpan: {} dari {}. {} File-file itu tidak diubah.",
+  "Dosya salt okunur ya da klasöre yazılamıyor.": "File bersifat hanya-baca, atau folder tidak bisa ditulisi.",
+  "Dosya başka bir uygulamada açık.": "File sedang dibuka di aplikasi lain.",
+  "Dosyanın etiketleri bozuk.": "Tag file rusak.",
+  "Bu dosya biçiminin etiketleri düzenlenemiyor.": "Tag format file ini tidak bisa diedit.",
+  "Dosya bulunamadı.": "File tidak ditemukan.",
+  "Yeni dosya doğrulanamadı.": "File baru gagal diverifikasi.",
+  "Dosya bu sırada başka bir programca değiştirildi.": "Program lain mengubah file itu sementara itu.",
+  "Dosyaya yazılamadı.": "Tidak bisa menulis ke file."
 }
