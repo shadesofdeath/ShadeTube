@@ -891,6 +891,11 @@ void PlayerBar::paint(Canvas& c) {
 // ===================================================================================================
 // QueuePanel
 
+namespace {
+// Upcoming rows: 52 DIP, 40 with "Liste yoğunluğu: Sıkı" (Settings::compactLists, app/Display); the playing row keeps 56.
+float queueRowH() { return Settings::get().compactLists ? 40.f : 52.f; }
+} // namespace
+
 QueuePanel::QueuePanel()
     : title_(tr(L"Sıradaki"), type::title), meta_({}, type::monoLabel), blockedBadge_(toUpperTr(tr(L"Engelli")), type::monoBadge) {
     clipsChildren = true;
@@ -944,7 +949,7 @@ Rect QueuePanel::rowRect(int orderIndex) const {
     const int cur = p ? p->currentOrderIndex() : 0;
     if (orderIndex == cur) return {0, 20 + 36 + 8 + 20, rect().w, 56};
     const int k = orderIndex - cur - 1;
-    return {0, listTop() + k * 52.f - scroll_.value(), rect().w, 52};
+    return {0, listTop() + k * queueRowH() - scroll_.value(), rect().w, queueRowH()};
 }
 
 int QueuePanel::rowAt(gfx::Point pt) const {
@@ -953,7 +958,7 @@ int QueuePanel::rowAt(gfx::Point pt) const {
     const gfx::Point lp{pt.x - rect().x, pt.y - rect().y};
     if (rowRect(p->currentOrderIndex()).contains(lp)) return p->currentOrderIndex();
     if (lp.y < listTop()) return -1;
-    const int k = static_cast<int>((lp.y - listTop() + scroll_.value()) / 52.f);
+    const int k = static_cast<int>((lp.y - listTop() + scroll_.value()) / queueRowH());
     const int idx = p->currentOrderIndex() + 1 + k;
     return idx < static_cast<int>(p->order().size()) ? idx : -1;
 }
@@ -962,7 +967,7 @@ bool QueuePanel::onWheel(float dy, float, const ui::MouseEvent&) {
     auto* p = ctx().player;
     if (!p) return false;
     const int upcoming = static_cast<int>(p->order().size()) - p->currentOrderIndex() - 1;
-    const float maxS = std::max(0.f, upcoming * 52.f - (rect().h - listTop()) + 16);
+    const float maxS = std::max(0.f, upcoming * queueRowH() - (rect().h - listTop()) + 16);
     scroll_.to(std::clamp(scroll_.target() - dy * 104.f, 0.f, maxS), ui::motion::medium, ui::Ease::Decelerate);
     invalidate();
     return true;
@@ -1028,7 +1033,7 @@ int QueuePanel::dropIndexAt(gfx::Point windowPos) const {
     auto* p = ctx().player;
     if (!p || p->currentOrderIndex() < 0) return 0;
     const gfx::Point pp = fromWindow(windowPos);
-    return dropped::queueDropIndex(pp.y - rect().y - listTop() + scroll_.value(), 52.f, p->currentOrderIndex(),
+    return dropped::queueDropIndex(pp.y - rect().y - listTop() + scroll_.value(), queueRowH(), p->currentOrderIndex(),
                                    static_cast<int>(p->order().size()));
 }
 
@@ -1046,7 +1051,7 @@ bool QueuePanel::dragOver(const DragPayload& payload, gfx::Point windowPos) {
         else if (y > bottom - edge && y <= bottom) v = 1 - (bottom - y) / edge;
         if (v != 0) {
             const int upcoming = static_cast<int>(p->order().size()) - p->currentOrderIndex() - 1;
-            const float maxS = std::max(0.f, upcoming * 52.f - (rect().h - listTop()) + 16);
+            const float maxS = std::max(0.f, upcoming * queueRowH() - (rect().h - listTop()) + 16);
             scroll_.snap(std::clamp(scroll_.value() + v * 700.f * dt, 0.f, maxS));
         }
     }
@@ -1109,7 +1114,7 @@ void QueuePanel::paint(Canvas& c) {
         // the badge also marks a blocked track that plays because the user picked it.
         const bool blocked = blacklist::isBlocked(t);
         const float alpha = blocked && !current ? 0.38f : 1.f;
-        const float art = current ? 40.f : 36.f;
+        const float art = current ? 40.f : Settings::get().compactLists ? 28.f : 36.f;
         const Rect artR{x, rr.cy() - art * 0.5f, art, art};
         const bool station = radio::isStationId(t.id);
         if (station) drawStationArt(c, t.album.images, artR, 2, current ? Priority::High : Priority::Normal);
@@ -1155,7 +1160,7 @@ void QueuePanel::paint(Canvas& c) {
     c.text(nextLabel, type::monoLabel, {padX, listTop() - 24, r.w - padX * 2, 16}, col.fgTertiary);
     c.pushClip({0, listTop() - 4, r.w, r.h - listTop() + 4});
     const int n = static_cast<int>(p->order().size());
-    const int firstVisible = p->currentOrderIndex() + 1 + std::max(0, static_cast<int>(scroll_.value() / 52.f));
+    const int firstVisible = p->currentOrderIndex() + 1 + std::max(0, static_cast<int>(scroll_.value() / queueRowH()));
     for (int i = firstVisible; i < n; ++i) {
         const Rect rr = rowRect(i);
         if (rr.y > r.h) break;
@@ -1170,7 +1175,7 @@ void QueuePanel::paint(Canvas& c) {
         c.fillRect({padX, dragTo_ > dragFrom_ ? tr.bottom() - 1 : tr.y - 1, r.w - padX * 2, 2}, acc.base);
     }
     if (dropAt_ >= 0) {   // songs dragged in from a list / files from Explorer go in front of this slot
-        const float y = listTop() + static_cast<float>(dropAt_ - p->currentOrderIndex() - 1) * 52.f - scroll_.value();
+        const float y = listTop() + static_cast<float>(dropAt_ - p->currentOrderIndex() - 1) * queueRowH() - scroll_.value();
         c.fillRect({padX, y - 1, r.w - padX * 2, 2}, acc.base);
     }
     c.popClip();
