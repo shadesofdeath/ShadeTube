@@ -80,7 +80,8 @@ ShadeTube/
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
-│   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim
+│   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
+│                                ScrollPhysics (smooth scrolling, 3.25), ScrollDemo (SHADETUBE_SCROLL_DEMO)
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
@@ -160,6 +161,12 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   Device loss (`D2DERR_RECREATE_TARGET`) recreates all device resources.
 - Invalidation-driven frames: vsync while animating, otherwise the loop sleeps in `MsgWaitForMultipleObjects`
   (0 % CPU when idle); hidden windows never render. Everything is in DIPs (Per-Monitor V2 DPI aware).
+- Frame clock: `frame::now()` is the time the frame will be **shown** at, the next vblank on DWM's refresh grid
+  (`Window::frameTime()`, `DwmGetCompositionTimingInfo`), not when it started: frames start unevenly after the swap
+  chain's wait (2.5 / 5.5 ms apart at 240 Hz) but appear on whole refresh periods, so animations and scrolling advance
+  by the same amount per refresh. Two frames in one period go a period apart; without DWM timing the plain clock is
+  used. `frame::begunAt()` is the real start (profiling).
+- Scrolling: every scrolling surface shares one smooth-scroll engine (3.25).
 - `gfx::Theme` loads `assets/tokens/tokens.dark.json` / `tokens.light.json`. The accent is dynamic (extracted from
   the album art, cross-faded) or fixed (`Settings.accentMode`).
 - Theme mode Dark / Light / System (`Settings.theme`; System follows `AppsUseLightTheme` and is re-read on
@@ -890,6 +897,49 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
 - **Measured** (two sandbox instances on one PC, EMQX, Debug): ~0.7-1.3 s to connect, guest requests reach the host in
   ~100-250 ms, clock offset within a few ms, drift after the first correction +20 .. +50 ms (-110 ms after a resume).
 
+### 3.25 Smooth scrolling
+
+`ui/ScrollPhysics` (standalone, times passed in, tested by `scroll_test`) is the one engine behind every scrolling
+surface; `ui::SmoothScroll` (`ui/Anim.h`) puts it on the frame clock: `value()` advances it to `frame::now()` and asks
+for the next frame only while it moves (idle and 0 % CPU once settled, like `Anim`); input is stamped with the real
+time of the event.
+
+- **Model**: the offset follows a target through a critically damped spring, solved in closed form for the elapsed time
+  (the same motion at 60, 144, 240 Hz or with uneven frames). Input moves the target; position and velocity carry over,
+  so a new notch never restarts a curve or jerks the speed. From rest it never overshoots; a position past a bound
+  (only possible after a reversal or a change of feel) stops there with its velocity dropped. Bounds that shrink
+  (content got shorter, a Settings card collapsing) clamp the offset without a bounce.
+- **Feels** (stiffness ω, time to 95 %): `Wheel` 27/s (~180 ms) for notched wheels, `Precision` 120/s (~40 ms, ~1 frame
+  of lag) for touchpads and high-resolution wheels, `Glide` 22/s (~215 ms) for keys, scrollbar track clicks,
+  `scrollTo(y, true)` and focus reveal, `Follow` 11/s (~430 ms) for the lyrics following the active line.
+- **Wheel**: `Window` passes `WM_MOUSEWHEEL` deltas as notches (delta / 120). A delta that is not a whole notch marks a
+  precision device for 400 ms after its last delta: its deltas move the target 1:1 (the spring only smooths their
+  rhythm; Windows' own touchpad inertia arrives as more deltas). Whole notches accumulate on the in-flight target;
+  reversing mid-glide starts from the current position. Notches less than 80 ms apart in one direction build a streak:
+  after 3 plain ones each adds 0.12× to the step, up to 2.5× (a long page crosses quickly, unhurried scrolling never
+  accelerates). A notch is `notchDip` (ScrollView 120 DIP, panels their own) at Windows' default 3 lines, scaled by
+  `SPI_GETWHEELSCROLLLINES` (read per event; "one screen at a time" = 90 % of the view). `WM_MOUSEHWHEEL` arrives as
+  `dx`: a vertical `ScrollView` leaves horizontal-only input to its parents (there are no horizontal scrollers; one
+  would take `dx`, or `dy` with `MouseEvent::shift`, through the same physics).
+- **Keys**: `ScrollView::onKeyDown` takes PageUp / PageDown (90 % of the view below `topInset`), Home / End and Up /
+  Down (a line, `notchDip / 3`) when the focused widget inside leaves them (lists and fields keep theirs); keys nobody
+  took go to the scroll view last clicked in, else the one under the pointer, else the biggest one on screen
+  (`Window::scrollByKey`, after the global shortcuts, never behind a modal overlay). Key repeat retargets the glide.
+- **Immediate**: thumb drag (1:1), drag-and-drop autoscroll and restoring a page's offset jump (`snap` /
+  `scrollTo(y, false)`). The history keeps where a glide in flight was heading (`ScrollPage::scrollOffset()` = target).
+- **Reduce motion** ("Hareketi azalt"): every move lands at once.
+- **Surfaces**: `ScrollView` (every page, the sidebar list, Jam panel, podcasts / radio dialogs), the queue panel, the
+  friend activity panel, the command palette list, Now Playing's and the full-screen lyrics. The equalizer's wheel adds
+  touchpad deltas up to a notch before it steps 0.5 dB.
+- **Consumers**: `revealRect` / `scrollIntoView` use the target, sticky headers read the offset in `paint()`, lazy
+  loading (`TrackTable::onNearEnd`) is driven by what is painted, `onScroll` fires with the offset on every frame it
+  changed. When a glide settles the pointer's position is re-sent as a mouse move (`Window::refreshHover`), so rows
+  that slid under a still pointer get their hover.
+- **Painting** stays cheap while scrolling: `Widget::paintChildren` skips children outside the clip, `hitTest` children
+  outside the point, and the long lists paint only their visible rows (`TrackTable`, `LibraryView`, the queue). Measured
+  with `SHADETUBE_SCROLL_DEMO` on Stats with 25 000 imported plays (Release, 240 Hz): 97 % of frames on consecutive
+  vblanks, frame CPU up to the page's paint 1.3 ms median / 3.9 ms p99.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -966,6 +1016,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
+| `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -1031,6 +1082,7 @@ apps*).
 | `SHADETUBE_JAM_INVITE_FILE` | `<path>`: the host writes its invite link there (and again when it changes) |
 | `SHADETUBE_JAM_JOIN` | `<invite link>`: joins that session at startup (a guest in a second sandbox profile) |
 | `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest) |
+| `SHADETUBE_SCROLL_DEMO` | `<steps>[@x,y]`: 2.5 s after startup posts wheel / key input to the window at window DIPs x,y (default: 60 % across, middle) from a timer thread, at real device rhythm, and logs every frame of each moving `ScrollView` once done (`scroll` lines: frame gap, offset, step, velocity, target, feel, frame CPU so far) plus a summary per view (frames, gaps over 1.5× the median, longest gap, direction changes, largest speed change between frames). Steps, comma separated (default `notch,spin,touch,keys`): `notch` (6 notches 140 ms apart), `spin` (24 notches 20 ms apart, then 3 back), `touch` (a precision-touchpad swipe with inertia, then one back), `keys` (PageDown ×2, End, Home, Down ×8 repeated), `end` (80 fast notches into the end, 80 into the top). Use with `--route` and `--screenshot`; hover refresh is off meanwhile |
 | `SHADETUBE_PROTOCOL_KEY` | HKCU key used instead of `Software\Classes\shadetube` for the URL protocol (tests); without it a sandbox profile never registers it |
 
 ## 6. Release process
