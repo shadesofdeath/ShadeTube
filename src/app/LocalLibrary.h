@@ -7,7 +7,8 @@
 // is the fallback) and copies embedded cover art (System.ThumbnailStream: ID3 APIC / MP4 covr / FLAC PICTURE /
 // WM/Picture) once into a cover folder; files without one use the folder's cover.jpg / folder.jpg. The index
 // (%LOCALAPPDATA%\ShadeTube\local-library.json: path, size, mtime + tags) lets a rescan skip unchanged files.
-// The user's files are only ever read.
+// The user's files are only read here; the tag editor (app/TagEditor, audio/TagWriter) writes them when the user
+// edits their tags, and hands the re-read entries back through LocalLibrary::updateEntries().
 //
 // A folder that can't be listed (unplugged drive, offline share, access denied) is not "empty": its indexed tracks
 // are carried over unchanged and no cover is pruned, so they come back as soon as it is reachable again. Only a
@@ -127,10 +128,38 @@ std::wstring openablePath(const std::wstring& path);
 // Tags + embedded cover of one file into `e` (path/size/mtime already set). COM must be initialized on the calling
 // thread. Returns false when the file can't be opened at all (or `cancel` was requested meanwhile).
 bool readFile(Entry& e, const std::filesystem::path& coverDir, const ScanCancel* cancel = nullptr);
+// readFile() plus what a scan adds: the file's current size and mtime, and the folder's cover.jpg when the file has
+// no picture of its own. After a tag edit this is exactly the entry the next incremental rescan would keep.
+bool refreshEntry(Entry& e, const std::filesystem::path& coverDir);
 // Blocking (worker thread): walks the folders, keeps `previous` entries whose size + mtime still match and reads
-// the rest. Result sorted by artist, album, disc, track number, title.
+// the rest. Result sorted by artist, album, disc, track number, title (sortLibrary).
 std::vector<Entry> scan(const ScanOptions& o, const std::vector<Entry>& previous, ScanStats* stats = nullptr);
+void sortLibrary(std::vector<Entry>& entries);
 catalog::Track toTrack(const Entry& e);
+
+// ---- Folders view ------------------------------------------------------------------------------------------------
+// The listed folders as trees of the folders that hold tracks (directly or below).
+struct FolderNode {
+    std::wstring name;          // the folder's own name (a drive root: "D:\")
+    std::wstring path;          // full path, spelled like the entries / Settings::localFolders
+    int parent = -1;            // -1 = a listed folder
+    std::vector<int> children;  // natural name order ("2" before "10")
+    std::vector<int> tracks;    // entries directly inside (indices into the entries), natural file name order
+    int total = 0;              // tracks here and below
+    int64_t totalMs = 0;
+    int cover = -1;             // the first track (in tree order) with a cover, -1 = none
+};
+struct FolderTree {
+    uint64_t generation = 0;    // LocalLibrary::generation() it was built for
+    std::vector<FolderNode> nodes;
+    std::vector<int> roots;     // the listed folders that hold tracks, in Settings order
+    std::unordered_map<std::wstring, int> index;   // lower-cased path -> node
+    int find(const std::wstring& path) const;      // -1 = no such folder (or it holds no tracks)
+    // The tracks of a folder and everything below it, in tree order (its own first, then each subfolder's).
+    std::vector<int> subtree(int node) const;
+};
+// Pure (no disk access). Entries outside every root are left out; nested roots take their own entries.
+FolderTree buildFolderTree(const std::vector<Entry>& entries, const std::vector<std::wstring>& roots);
 
 std::vector<Entry> loadIndex(const std::filesystem::path& file, IndexMeta* meta = nullptr);
 bool saveIndex(const std::filesystem::path& file, const std::vector<Entry>& entries, const IndexMeta& meta);   // tmp + rename
@@ -177,7 +206,19 @@ public:
     uint64_t generation() const { return generation_; }   // bumps whenever tracks() changes
     // The file of a "local:" id, ready for Win32 file APIs (see local::openablePath); "" when unknown.
     std::wstring pathFor(const std::string& trackId) const;
+    const local::Entry* entry(const std::string& trackId) const;   // nullptr when unknown (valid until the next change)
     int countUnder(const std::wstring& folder) const;      // tracks inside a (normalized) folder
+    static std::filesystem::path coverFolder();           // extracted covers (cache\local-covers)
+
+    // Yerel dosyalar › Klasörler: the folder tree of tracks(), built on a worker once per generation. nullptr while it
+    // is being built; subscribers are notified when it is ready.
+    std::shared_ptr<const local::FolderTree> folderTree();
+    bool folderTreeReady() const { return tree_ && tree_->generation == generation_; }
+
+    // Tag edits (app/TagEditor): entries re-read after their files were rewritten (local::refreshEntry) replace the
+    // ones with the same path, without a rescan; the library re-sorts, saves its index (on a worker) and notifies.
+    // Paths it doesn't hold are ignored. A scan that ran meanwhile (it may have read the old tags) gets a follow-up.
+    void updateEntries(std::vector<local::Entry> fresh);
 
     // Settings::localFolders. Both save the settings and rescan. addFolder: false when the folder is already
     // scanned (itself, or it is walked from a listed folder); listed folders the new one walks into are dropped.
@@ -195,10 +236,16 @@ private:
     void notify();
     void apply(std::shared_ptr<Snapshot> s);
     void startScan();
+    void saveIndexSoon();
 
     std::shared_ptr<const std::vector<local::Entry>> entries_ = std::make_shared<std::vector<local::Entry>>();
     std::vector<catalog::Track> tracks_;
     std::unordered_map<std::string, std::wstring> paths_;   // track id -> file
+    std::unordered_map<std::string, size_t> positions_;     // track id -> index in entries_ / tracks_
+    std::shared_ptr<const local::FolderTree> tree_;
+    uint64_t treeBuilding_ = 0;    // generation + 1 of the tree being built (0 = none)
+    bool editedDuringScan_ = false;
+    bool saving_ = false, saveAgain_ = false;
     int64_t totalMs_ = 0;
     uint64_t generation_ = 0;
     bool loaded_ = false;
