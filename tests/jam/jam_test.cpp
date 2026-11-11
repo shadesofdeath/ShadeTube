@@ -1019,6 +1019,7 @@ int main(int argc, char** argv) {
         testProtocol();
     }
     RegDeleteTreeW(HKEY_CURRENT_USER, key.c_str());
+    RegDeleteKeyW(HKEY_CURRENT_USER, L"Software\\ShadeTubeTest");   // only when empty
     st::log::shutdown();
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
