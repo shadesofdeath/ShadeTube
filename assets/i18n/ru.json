@@ -1822,5 +1822,11 @@
   "Çıkar": "Удалить",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Необязательно: адрес MQTT WebSocket, начинающийся с wss://. При запуске сеанса он пробуется первым, затем публичные серверы (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Сервер входит в ссылку-приглашение, его используют все участники.",
   "İzinler": "Разрешения",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Покинуть текущий сеанс и начать своё совместное прослушивание?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Покинуть текущий сеанс и начать своё совместное прослушивание?",
+  "Mica arka plan": "Фон Mica",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "Фон окна использует полупрозрачный материал Mica из Windows 11: цвет рабочего стола слегка просвечивает. Карточки, меню и «Сейчас играет» остаются непрозрачными.",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Полупрозрачный материал Mica из Windows 11. В этой версии Windows недоступен: нужна Windows 11 22H2 или новее.",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Сейчас не действует: в Windows выключены эффекты прозрачности (Параметры › Персонализация › Цвета). Как только их включат, фон Mica применится сам.",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, пока включена контрастная тема; окно остаётся непрозрачным.",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Применится после перезапуска: фон окна использует полупрозрачный материал Mica из Windows 11, и цвет рабочего стола слегка просвечивает."
 }

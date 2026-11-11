@@ -83,7 +83,7 @@ void ConnectScreen::paint(ui::Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
     const auto& acc = accent();
-    c.fillRect(r, col.bgBase);
+    c.fillSurface(r);
     // Faint concentric accent glow from the lower-left, echoing the design's tick rings.
     c.fillRadialGradient(r, {r.x + r.w * 0.18f, r.bottom() + 40}, r.h * 1.15f, acc.base.withAlpha(0.10f),
                          acc.base.withAlpha(0));

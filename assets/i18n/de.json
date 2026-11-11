@@ -1671,5 +1671,11 @@
   "Çıkar": "Entfernen",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Optional: eine MQTT-WebSocket-Adresse, die mit wss:// beginnt. Sie wird beim Starten einer Sitzung zuerst versucht, danach die öffentlichen Server (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Der Server steckt im Einladungslink; alle in der Sitzung nutzen ihn.",
   "İzinler": "Berechtigungen",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Die aktuelle Sitzung verlassen und eine eigene Sitzung zum gemeinsamen Hören starten?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Die aktuelle Sitzung verlassen und eine eigene Sitzung zum gemeinsamen Hören starten?",
+  "Mica arka plan": "Mica-Hintergrund",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "Der Fensterhintergrund nutzt das durchscheinende Mica-Material von Windows 11: Die Farbe deines Desktops schimmert leicht durch. Karten, Menüs und „Läuft gerade“ bleiben deckend.",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Das durchscheinende Mica-Material von Windows 11. In dieser Windows-Version nicht verfügbar: Windows 11 22H2 oder neuer ist nötig.",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Gerade nicht aktiv, weil die Transparenzeffekte in Windows ausgeschaltet sind (Einstellungen › Personalisierung › Farben). Sobald sie an sind, wird der Mica-Hintergrund automatisch verwendet.",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Nicht verfügbar, solange ein Kontrastdesign aktiv ist; das Fenster bleibt deckend.",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Wird nach einem Neustart wirksam: Der Fensterhintergrund nutzt das durchscheinende Mica-Material von Windows 11, und die Farbe deines Desktops schimmert leicht durch."
 }

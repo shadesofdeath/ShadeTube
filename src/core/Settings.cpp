@@ -58,6 +58,7 @@ void Settings::load() {
     }
     read(j, "grain", grain);
     read(j, "reduceMotion", reduceMotion);
+    read(j, "micaBackdrop", micaBackdrop);
     read(j, "downloadsDir", downloadsDir);
     read(j, "downloadMp3Kbps", downloadMp3Kbps);
     read(j, "syncPaused", syncPaused);
@@ -142,6 +143,7 @@ void Settings::save() const {
         {"theme", theme == ThemeMode::Light ? "light" : theme == ThemeMode::System ? "system" : "dark"},
         {"grain", grain},
         {"reduceMotion", reduceMotion},
+        {"micaBackdrop", micaBackdrop},
         {"downloadsDir", downloadsDir},
         {"downloadMp3Kbps", downloadMp3Kbps},
         {"syncPaused", syncPaused},

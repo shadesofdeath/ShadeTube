@@ -1822,5 +1822,11 @@
   "Çıkar": "Видалити",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Необов'язково: адреса MQTT WebSocket, що починається з wss://. Під час запуску сеансу її пробують першою, потім публічні сервери (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Сервер входить до посилання-запрошення, його використовують усі учасники.",
   "İzinler": "Дозволи",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Вийти з поточного сеансу й почати своє спільне прослуховування?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Вийти з поточного сеансу й почати своє спільне прослуховування?",
+  "Mica arka plan": "Тло Mica",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "Тло вікна використовує напівпрозорий матеріал Mica з Windows 11: колір робочого столу трохи просвічує. Картки, меню та «Зараз грає» лишаються непрозорими.",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Напівпрозорий матеріал Mica з Windows 11. У цій версії Windows недоступний: потрібна Windows 11 22H2 або новіша.",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Зараз не діє, бо у Windows вимкнено ефекти прозорості («Настройки › Персоналізація › Кольори»). Щойно їх увімкнуть, тло Mica застосується саме.",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, поки ввімкнено контрастну тему; вікно лишається непрозорим.",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Застосується після перезапуску: тло вікна використовує напівпрозорий матеріал Mica з Windows 11, і колір робочого столу трохи просвічує."
 }

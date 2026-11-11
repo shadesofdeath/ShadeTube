@@ -1671,5 +1671,11 @@
   "Çıkar": "Quitar",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Opcional: una dirección MQTT WebSocket que empiece por wss://. Se prueba primero al empezar una sesión y después los servidores públicos (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). El servidor va dentro del enlace de invitación; todos en la sesión lo usan.",
   "İzinler": "Permisos",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "¿Salir de la sesión en la que estás y empezar la tuya para escuchar juntos?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "¿Salir de la sesión en la que estás y empezar la tuya para escuchar juntos?",
+  "Mica arka plan": "Fondo Mica",
+  "Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.": "El fondo de la ventana usa el material Mica translúcido de Windows 11: el color de tu escritorio se deja ver ligeramente. Las tarjetas, los menús y Reproduciendo siguen opacos.",
+  "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "El material Mica translúcido de Windows 11. No está disponible en esta versión de Windows: requiere Windows 11 22H2 o posterior.",
+  "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Ahora no está activo porque los efectos de transparencia están desactivados en Windows (Configuración › Personalización › Colores). Cuando los actives, el fondo Mica se aplicará solo.",
+  "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "No está disponible mientras haya un tema de contraste activo; la ventana sigue opaca.",
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Se aplica al reiniciar: el fondo de la ventana usa el material Mica translúcido de Windows 11 y el color de tu escritorio se deja ver ligeramente."
 }

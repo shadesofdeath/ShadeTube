@@ -171,6 +171,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     wo.x = s.window.x >= 0 ? s.window.x : CW_USEDEFAULT;
     wo.y = s.window.y >= 0 ? s.window.y : CW_USEDEFAULT;
     wo.maximized = s.window.maximized;
+    wo.backdrop = s.micaBackdrop;   // Ayarlar › GÖRÜNÜM › Mica arka plan (Windows 11)
     window_ = std::make_unique<ui::Window>(wo);
     c.window = window_.get();
     // A second launch (main.cpp) posts this to bring the running instance back from the tray / mini player.

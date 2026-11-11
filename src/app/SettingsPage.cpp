@@ -276,6 +276,34 @@ private:
                        Settings::get().reduceMotion = v;
                        ui::motion::setReduced(v);
                    });
+            // Mica (Windows 11 22H2+) behind the main window; the mini player stays opaque. Live once the window was
+            // created with it (ui::Window::backdropLive), else from the next start.
+            {
+                using Avail = ui::Window::BackdropAvailability;
+                const Avail avail = ui::Window::backdropAvailability();
+                const bool live = ctx().window && ctx().window->backdropLive();
+                const wchar_t* desc =
+                    avail == Avail::NeedsWindows11
+                        ? tr(L"Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 "
+                             L"22H2 ya da daha yenisi gerekir.")
+                    : avail == Avail::HighContrast
+                        ? tr(L"Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.")
+                    : avail == Avail::TransparencyOff
+                        ? tr(L"Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › "
+                             L"Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.")
+                    : s.micaBackdrop && !live
+                        ? tr(L"Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica "
+                             L"malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.")
+                        : tr(L"Pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır: masaüstünün "
+                             L"rengi hafifçe görünür. Kartlar, menüler ve Şimdi Çalıyor opak kalır.");
+                auto* mica = settingsToggle(c, tr(L"Mica arka plan"), desc, s.micaBackdrop && avail != Avail::NeedsWindows11,
+                                            [rebuild = rebuilder(), live](bool v) {
+                                                Settings::get().micaBackdrop = v;
+                                                if (ctx().window) ctx().window->setBackdrop(v);
+                                                if (!live) rebuild();   // "Yeniden başlatınca uygulanır" note
+                                            });
+                mica->setEnabled(avail != Avail::NeedsWindows11);
+            }
         }
 
         section(c, tr(L"PENCERE"));

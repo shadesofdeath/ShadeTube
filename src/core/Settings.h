@@ -46,6 +46,7 @@ struct Settings {
     ThemeMode theme = ThemeMode::Dark;   // settings.json "theme": "dark" | "light" | "system" (was bool "lightTheme")
     bool grain = true;
     bool reduceMotion = false;
+    bool micaBackdrop = false;           // Windows 11 Mica behind the main window (ui::Window::setBackdrop)
 
     // Misc
     std::string downloadsDir;            // empty = default (Music\ShadeTube)
