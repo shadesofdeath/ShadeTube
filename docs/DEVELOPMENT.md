@@ -74,7 +74,7 @@ ShadeTube/
 │   spotify/     st_spotify      Totp, Auth, SpotifyApi (Pathfinder + spclient), HashRegistry, Session
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
-│                                Track, Downloader (MP3 transcode + trimming)
+│                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core)
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
@@ -83,12 +83,12 @@ ShadeTube/
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
 │                                ConnectScreen, MiniPlayer
-│                                features: LoginWindow, Source, Downloads, LocalLibrary, ListenStats, Radio, Blacklist,
+│                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats, Radio, Blacklist,
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
                                  links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts, radio, scrobble,
-                                 shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync, updater, winshell
+                                 shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync, tags, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -322,9 +322,54 @@ error and backoff, plus per-track download attempts.
 - **Local files** (`app/LocalLibrary`): `local::scan()` walks `Settings.localFolders` on workers (up to 50 000 files),
   reads tags through the Windows property system (file name "Artist - Title" as fallback) and extracts embedded
   covers once. The index (`local-library.json`: path, size, mtime, tags) makes rescans incremental; an unreachable
-  folder keeps its tracks. Ids are `local:<FNV-1a of the lower-cased path>`. User files are only ever read. Scanned
-  extensions: `.mp3 .m4a .aac .flac .wav .wma`, plus `.ogg .oga .opus` when a Media Foundation handler for them
-  is installed.
+  folder keeps its tracks. Ids are `local:<FNV-1a of the lower-cased path>`. User files are only read, except when the
+  user edits their tags (below). Scanned extensions: `.mp3 .m4a .aac .flac .wav .wma`, plus `.ogg .oga .opus` when a
+  Media Foundation handler for them is installed.
+- **Views** (`app/LocalFilesPage.cpp`): Şarkılar, Albümler, Sanatçılar and **Klasörler**. The view and the open folder
+  are remembered (`Settings.localView`, `localFolder`) and named in the route (`{LocalFiles, "songs" | "albums" |
+  "artists" | "folders" | "folder:<path>"}`, `""` = the remembered one; a tab switch rewrites the current history entry
+  with `Router::retarget`, opening a folder navigates), so Back / Forward walk the folders. Klasörler shows a breadcrumb
+  (the listed folders' parent "Tüm klasörler" only when there are several), the subfolders as cards (song count, the
+  first cover found below) and the folder's own songs in the usual track table; Play / Karıştır and the "⋯" / card
+  menus (play next, queue, add to playlist, export, edit tags, open in Explorer) act on the folder with its
+  subfolders. The tree (`local::buildFolderTree`: natural order, totals, covers) is built on a worker once per library
+  generation (`LocalLibrary::folderTree()`; 50 000 files in 5 000 folders take ~130 ms in a Debug build); while a new
+  one is built the page keeps showing the old one, and cards resolve their songs by path when clicked.
+- **Tag editor** ("Etiketleri düzenle…" in the song menus of local files, dropped files and downloads, also for a
+  multi-selection or a whole folder; `app/TagEditor` = menu entry + dialog + what follows a write, `audio/TagWriter` =
+  the standalone core, `tags_test`). Fields: title, artist (several joined with "; "), album, album artist, track /
+  disc number, year, genre, cover (a picked JPEG / PNG / WebP... goes through the playlist cover scaling: a centered
+  square JPEG, at most 1000 px / 600 KB; "Kaldır" removes every embedded picture). In a multi-selection, fields whose
+  values differ show "Farklı değerler" and stay as they are unless something is typed in; at most 2 000 files per
+  edit. Reads and writes run on a worker, one file after the other.
+  - **Writable**: MP3 (ID3v2: v2.3 stays v2.3, v2.4 stays v2.4, v2.2 becomes v2.3; every other frame - USLT, SYLT,
+    TXXX ReplayGain, POPM, PRIV, COMM... - is copied byte for byte, a tag-wide unsynchronisation is undone, the
+    extended header dropped; text is Latin-1 when ASCII, else UTF-16 with a BOM; a grown tag gets 2 KB of padding, a
+    shrunk one keeps its size; an ID3v1 tag at the end is updated too, Latin-1 best fit), FLAC (the VORBIS_COMMENT
+    block, other comments and the vendor kept; PICTURE blocks; the padding absorbs the change when it fits so the
+    frames stay put, else the metadata is rewritten with 4 KB of padding; a full DATE gets a YEAR next to it, since
+    Windows' FLAC handler reads only a bare year) and MP4 / M4A (AAC, ALAC: `moov/udta/meta/ilst`, created when
+    missing; other items such as freeform `----` ReplayGain or `©lyr` kept; when moov changes size, a `free` box right
+    behind it absorbs the change, a shrink leaves a `free` box, else `stco` / `co64` entries behind moov move along,
+    and so do the `tfhd` base offsets / `tfra` entries of fragmented files). WAV, WMA, ADTS AAC and Ogg / Opus are not
+    writable: their menu entry is disabled with a tooltip (`MenuItem::tooltip`).
+  - **Safety**: the new file is written next to the original (`~<name>.<random>.shadetube.tmp`, hidden), flushed,
+    read back and checked - the edited fields, every frame / block / item that wasn't edited (byte for byte), a SHA-256
+    of the audio payload (MP3: between the tags; FLAC: the frames; MP4: every mdat) and, for MP4, the first bytes at a
+    sample of chunk offsets - and the original must still have the size and mtime it had when it was read. Only then
+    `ReplaceFileW` swaps it in, with a backup name, so even a failed swap never leaves the original missing (on
+    `ERROR_UNABLE_TO_MOVE_REPLACEMENT_2` the backup is moved back); the backup is then deleted and the original's
+    attributes restored. Any failure deletes the temporary file and leaves the original untouched; the toast says why
+    (read-only file or folder, open in another program without delete sharing, damaged tags, changed meanwhile...).
+    The playing file needs no special case: the engine opens local files with `FILE_SHARE_DELETE` and memory-maps them,
+    and `ReplaceFileW` keeps that mapping on the old data, so playback goes on undisturbed.
+  - **After a write**: the file is re-read with `local::refreshEntry` (exactly what a scan stores: tags through the
+    property system, size, mtime, the cover extracted again into `cache\local-covers` under its new hash, folder art
+    otherwise), `LocalLibrary::updateEntries` puts it in place without a rescan (re-sorted, `local-library.json` saved
+    on a worker), and `Player::updateTrackInfo` / `Library::updateTrackInfo` update the queue, Now Playing, liked songs,
+    local playlists and the history. The next incremental rescan sees the new size and mtime in the index and keeps
+    the entry; a scan that was running during the write is followed by another one. A dropped file's remembered entry
+    is updated too; a download keeps its catalog (Spotify / MusicBrainz) metadata in the app - only its file changes.
 - **Listening stats** (`app/ListenStats`, `listening.json`): a play accumulates real playback time from position
   deltas, never more than the wall clock (pauses and seeks do not count). A play is a *stream* at ≥ 30 s, or ≥ 50 %
   for tracks shorter than 60 s. Aggregates for 7 days / 30 days / all time; the same song from two sources is merged.
@@ -730,7 +775,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, memory) | network; `[videoA] [videoB]` |
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
-| `localfiles_test` | scanner, tags, covers, index, incremental rescan, files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
+| `localfiles_test` | scanner, tags, covers, index, incremental rescan, `refreshEntry` = what a scan stores, folder tree (natural order, covers, nested / drive roots, 50 000 files timed), files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
+| `tags_test` | tag editor core (`audio/TagWriter`) on generated files: MP3 (MF download with APIC / USLT / SYLT / TXXX, hand-built v2.4 + ID3v1, v2.2, no tag, ID3v1 only, padding, unsynchronisation, junk), FLAC (MF encoder, else ffmpeg, plus a hand-built one; padding used / rewritten, no comment block), M4A (MF AAC / ALAC, moov before / after mdat, free box absorbing a change, fragmented MF / ffmpeg files, injected freeform items); Turkish / Japanese text, covers up to ~2 MB, PNG, every other frame / block / item kept, payload SHA-256, the result decodes to the same PCM, the property system's view; corrupt, read-only, in-use, playing (mapped), tampered and changed-meanwhile files, no leftovers | offline; `--keep`; ffmpeg variants when on PATH |
 | `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album, silent ending, 2x speed), decoding to 48 kHz | offline; `[<audio dir>]`; needs an audio device |
 | `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), limiter (ceiling, latency, release), time stretch (length, pitch, positions, flush), output-device enumeration | offline |
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
@@ -764,7 +810,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...) |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `local:<view>` (`songs`, `albums`, `artists`, `folders`, `folder:<path>`), `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...) |
 | `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
@@ -798,6 +844,7 @@ apps*).
 | `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
+| `SHADETUBE_TAG_EDITOR` | `<n>` or `<first>,<n>`: opens the tag editor for n Yerel dosyalar songs (from index `first`) once the library has loaded (screenshots) |
 
 ## 6. Release process
 
@@ -841,6 +888,10 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   code signature.
 - **Ogg / Opus local files**: stock Windows has no Media Foundation Ogg handler, so `.ogg` / `.oga` / `.opus` files
   are scanned and played only when one is installed. Passthrough `.m4a` downloads are not SponsorBlock-trimmed.
+- **Tag editor**: WAV, WMA, ADTS AAC and Ogg / Opus tags can't be written (the Windows property system writes in place,
+  which the verify-then-swap rule doesn't allow). An ID3v2 extended header is dropped and an enhanced `TAG+` block is
+  left as it is; an ID3v2.2 frame without a v2.3 form is dropped (logged); a compressed v2.2 tag is refused. A
+  download's catalog name in the app doesn't follow its edited file tags.
 - **Playback speed** uses time-domain stretching (WSOLA): transparent for speech and fine for music around 0.75-1.5x,
   with some phasing on dense music at extreme speeds.
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
