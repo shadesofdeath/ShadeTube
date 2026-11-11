@@ -171,8 +171,11 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     wo.title = L"ShadeTube";
     wo.width = s.window.width;
     wo.height = s.window.height;
-    wo.x = s.window.x >= 0 ? s.window.x : CW_USEDEFAULT;
-    wo.y = s.window.y >= 0 ? s.window.y : CW_USEDEFAULT;
+    // -1, -1 = never saved (first start: centered). A monitor left of / above the primary one has negative
+    // coordinates; ui::Window keeps any saved rect inside a monitor's work area (one that was unplugged, too).
+    const bool savedPos = !(s.window.x == -1 && s.window.y == -1);
+    wo.x = savedPos ? s.window.x : CW_USEDEFAULT;
+    wo.y = savedPos ? s.window.y : CW_USEDEFAULT;
     wo.maximized = s.window.maximized;
     wo.zoom = static_cast<float>(display::snapZoom(s.uiZoom)) / 100.f;   // "Arayüz ölçeği" (app/Display)
     wo.backdrop = s.micaBackdrop;   // Ayarlar › Görünüm › Mica arka plan (Windows 11)

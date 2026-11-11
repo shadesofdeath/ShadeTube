@@ -1536,5 +1536,7 @@
   "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Windows 11の半透明素材Mica。このバージョンのWindowsでは使えません。Windows 11 22H2以降が必要です。",
   "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Windowsの透明効果がオフになっているため、現在は無効です（設定 › 個人用設定 › 色）。オンにするとMica背景が自動的に適用されます。",
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "コントラストテーマがオンの間は使えません。ウィンドウは不透明のままです。",
-  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "再起動後に適用されます。ウィンドウの背景にWindows 11の半透明素材Micaを使い、デスクトップの色がほのかに透けて見えます。"
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "再起動後に適用されます。ウィンドウの背景にWindows 11の半透明素材Micaを使い、デスクトップの色がほのかに透けて見えます。",
+  "Yeniden başlatma gerekiyor": "再起動が必要です",
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 背景は ShadeTube の再起動後に適用されます。"
 }

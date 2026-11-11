@@ -1854,5 +1854,7 @@
   "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Полупрозрачный материал Mica из Windows 11. В этой версии Windows недоступен: нужна Windows 11 22H2 или новее.",
   "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Сейчас не действует: в Windows выключены эффекты прозрачности (Параметры › Персонализация › Цвета). Как только их включат, фон Mica применится сам.",
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, пока включена контрастная тема; окно остаётся непрозрачным.",
-  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Применится после перезапуска: фон окна использует полупрозрачный материал Mica из Windows 11, и цвет рабочего стола слегка просвечивает."
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Применится после перезапуска: фон окна использует полупрозрачный материал Mica из Windows 11, и цвет рабочего стола слегка просвечивает.",
+  "Yeniden başlatma gerekiyor": "Нужен перезапуск",
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica применится после перезапуска ShadeTube."
 }

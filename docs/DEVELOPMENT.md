@@ -165,6 +165,10 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 - Invalidation-driven frames: vsync while animating, otherwise the loop sleeps in `MsgWaitForMultipleObjects`
   (0 % CPU when idle); hidden windows never render. Everything is in DIPs (Per-Monitor V2 DPI aware); the main
   window's DIP scale is the monitor's DPI times the user's interface scale ([3.25](#325-interface-scale-and-list-density)).
+- Window placement (`ui::Window` constructor): the first start centers the default 1440 × 900 DIPs on the primary
+  work area, or 92 % of it when that does not fit (1920 × 1080 at 150 % has only 1280 × 688 DIPs); a saved rect (`-1, -1`
+  = none; negative coordinates are a monitor left of / above the primary) is moved and shrunk into the work area of
+  the monitor it is mostly on, the nearest one if that monitor is gone, so the title bar is always reachable.
 - Frame clock: `frame::now()` is the time the frame will be **shown** at, the next vblank on DWM's refresh grid
   (`Window::frameTime()`, `DwmGetCompositionTimingInfo`), not when it started: frames start unevenly after the swap
   chain's wait (2.5 / 5.5 ms apart at 240 Hz) but appear on whole refresh periods, so animations and scrolling advance

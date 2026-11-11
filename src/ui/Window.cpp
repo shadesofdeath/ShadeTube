@@ -105,6 +105,17 @@ void Window::setClassName(std::wstring name) {
 
 const std::wstring& Window::className() { return classNameStorage(); }
 
+// `r` (screen pixels) moved and, if needed, shrunk into the work area of the monitor it is mostly on (the nearest one
+// when it is on none, e.g. a saved position on a monitor that was unplugged).
+static RECT fitToWorkArea(const RECT& r) {
+    MONITORINFO mi{sizeof mi};
+    if (!GetMonitorInfoW(MonitorFromRect(&r, MONITOR_DEFAULTTONEAREST), &mi)) return r;
+    const RECT& wa = mi.rcWork;
+    const LONG w = std::min(r.right - r.left, wa.right - wa.left), h = std::min(r.bottom - r.top, wa.bottom - wa.top);
+    const LONG x = std::clamp(r.left, wa.left, wa.right - w), y = std::clamp(r.top, wa.top, wa.bottom - h);
+    return {x, y, x + w, y + h};
+}
+
 Window::Window(const WindowOptions& options) : options_(options) {
     registerClass();
     DWORD style = WS_OVERLAPPEDWINDOW;
@@ -116,16 +127,39 @@ Window::Window(const WindowOptions& options) : options_(options) {
 
     hwnd_ = CreateWindowExW(exStyle, classNameStorage().c_str(), options.title.c_str(), style, CW_USEDEFAULT,
                             CW_USEDEFAULT, 100, 100, nullptr, nullptr, GetModuleHandleW(nullptr), this);
-    const float s = static_cast<float>(GetDpiForWindow(hwnd_)) / 96.f;
-    const int w = static_cast<int>(options.width * s), h = static_cast<int>(options.height * s);
+    const UINT dpi = GetDpiForWindow(hwnd_);
+    const float s = static_cast<float>(dpi) / 96.f;
+    int w = static_cast<int>(options.width * s), h = static_cast<int>(options.height * s);
     int x = options.x, y = options.y;
     if (x == CW_USEDEFAULT || y == CW_USEDEFAULT) {   // center on the primary work area
         RECT work{};
         SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
-        x = work.left + (work.right - work.left - w) / 2;
-        y = work.top + (work.bottom - work.top - h) / 2;
+        const int ww = work.right - work.left, wh = work.bottom - work.top;
+        // The default size (1440 x 900 DIPs) is more than a small or highly scaled screen has (1920 x 1080 at 150 % is
+        // 1280 x 688 DIPs of work area): take 92 % of the work area then, never less than the minimum size that fits.
+        if (w > ww * 95 / 100 || h > wh * 95 / 100) {
+            const int minW = std::min(static_cast<int>(options.minWidth * s), ww);
+            const int minH = std::min(static_cast<int>(options.minHeight * s), wh);
+            w = std::max(std::min(w, ww * 92 / 100), minW);
+            h = std::max(std::min(h, wh * 92 / 100), minH);
+        }
+        x = work.left + (ww - w) / 2;
+        y = work.top + (wh - h) / 2;
     }
-    SetWindowPos(hwnd_, nullptr, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    // Never off screen: a size larger than the work area or a saved position on a monitor that is gone would leave
+    // the title bar (the only way to move the window) out of reach.
+    RECT fit = fitToWorkArea({x, y, x + w, y + h});
+    SetWindowPos(hwnd_, nullptr, fit.left, fit.top, fit.right - fit.left, fit.bottom - fit.top,
+                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    // On a monitor with another DPI, WM_DPICHANGED has rescaled the window: check it fits there too.
+    if (GetDpiForWindow(hwnd_) != dpi) {
+        RECT now{};
+        GetWindowRect(hwnd_, &now);
+        fit = fitToWorkArea(now);
+        if (!EqualRect(&fit, &now))
+            SetWindowPos(hwnd_, nullptr, fit.left, fit.top, fit.right - fit.left, fit.bottom - fit.top,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+    }
 
     applyTheme();
 

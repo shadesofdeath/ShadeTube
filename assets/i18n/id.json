@@ -1536,5 +1536,7 @@
   "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "Material Mica tembus pandang dari Windows 11. Tidak tersedia di versi Windows ini: perlu Windows 11 22H2 atau yang lebih baru.",
   "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Sedang tidak aktif karena efek transparansi di Windows dimatikan (Pengaturan › Personalisasi › Warna). Setelah dinyalakan, latar Mica diterapkan dengan sendirinya.",
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Tidak tersedia selama tema kontras aktif; jendela tetap pekat.",
-  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Diterapkan setelah dimulai ulang: latar jendela memakai material Mica tembus pandang dari Windows 11 dan warna desktopmu sedikit terlihat."
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Diterapkan setelah dimulai ulang: latar jendela memakai material Mica tembus pandang dari Windows 11 dan warna desktopmu sedikit terlihat.",
+  "Yeniden başlatma gerekiyor": "Perlu dimulai ulang",
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Latar Mica diterapkan setelah ShadeTube dimulai ulang."
 }

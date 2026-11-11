@@ -430,6 +430,17 @@ private:
                                                 if (!live) rebuild();   // "Yeniden başlatınca uygulanır" note
                                             });
                 mica->setEnabled(avail != Avail::NeedsWindows11);
+                // Turned on in a window created without it: only a new start gets the composition swap chain. Closing
+                // the window may not end ShadeTube (tray, a quit still saving), so offer the restart right here.
+                if (s.micaBackdrop && !live && avail != Avail::NeedsWindows11 && avail != Avail::HighContrast) {
+                    auto* again = c->add<SettingRow>(tr(L"Yeniden başlatma gerekiyor"),
+                                                     tr(L"Mica arka plan ShadeTube yeniden başlatılınca uygulanır."));
+                    auto* restart = again->control<Button>(170.f, ButtonKind::Primary, tr(L"Yeniden başlat"), "refresh");
+                    restart->onClick = [] {
+                        Settings::get().save();
+                        if (ctx().restartApp) ctx().restartApp();
+                    };
+                }
             }
         }
 

@@ -1703,5 +1703,7 @@
   "Windows 11'in yarı saydam Mica malzemesi. Bu Windows sürümünde kullanılamaz: Windows 11 22H2 ya da daha yenisi gerekir.": "El material Mica translúcido de Windows 11. No está disponible en esta versión de Windows: requiere Windows 11 22H2 o posterior.",
   "Windows'ta saydamlık efektleri kapalı olduğu için şu an etkin değil (Ayarlar › Kişiselleştirme › Renkler). Açıldığında Mica arka plan kendiliğinden uygulanır.": "Ahora no está activo porque los efectos de transparencia están desactivados en Windows (Configuración › Personalización › Colores). Cuando los actives, el fondo Mica se aplicará solo.",
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "No está disponible mientras haya un tema de contraste activo; la ventana sigue opaca.",
-  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Se aplica al reiniciar: el fondo de la ventana usa el material Mica translúcido de Windows 11 y el color de tu escritorio se deja ver ligeramente."
+  "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Se aplica al reiniciar: el fondo de la ventana usa el material Mica translúcido de Windows 11 y el color de tu escritorio se deja ver ligeramente.",
+  "Yeniden başlatma gerekiyor": "Hay que reiniciar",
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "El fondo Mica se aplica al reiniciar ShadeTube."
 }

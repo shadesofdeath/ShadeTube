@@ -2,6 +2,15 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.9.1 — 2026-11-12
+
+- **Fixed: the window could open with its title bar above the screen.** On the first start the window was 1440 × 900
+  at the display scale, which is taller than many screens (e.g. 1920 × 1080 at 150 %, or any laptop at 175 %), so
+  its top edge was off screen and it could not be moved. It now fits the screen, and a saved position on a monitor
+  that is no longer connected is brought back too. Windows on a monitor left of or above the main one now reopen there.
+- **Mica**: after turning it on, Settings shows a "Restart" button right below it (Mica needs a new start of
+  ShadeTube; closing the window alone may not be enough).
+
 ## 0.9.0 — 2026-11-11
 
 - **A new player bar**: thin outline controls with an outline play / pause ring, and a wave seek bar: the played part is
