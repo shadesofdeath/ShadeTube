@@ -1288,5 +1288,12 @@
   "{} şarkı listeden kaldırıldı": {
     "other": "플레이리스트에서 {}곡을 제거했어요"
   },
-  "Şarkılar listeye geri eklenemedi": "곡을 플레이리스트에 되돌리지 못했어요"
+  "Şarkılar listeye geri eklenemedi": "곡을 플레이리스트에 되돌리지 못했어요",
+  "Kitaplıkta ara": "라이브러리에서 검색",
+  "Sırala": "정렬",
+  "Izgara": "그리드",
+  "Liste": "목록",
+  "Son eklenenler": "최근 추가한 항목",
+  "Alfabetik": "가나다순",
+  "Oluşturan": "만든 사람"
 }

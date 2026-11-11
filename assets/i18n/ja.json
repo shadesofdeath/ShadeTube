@@ -1288,5 +1288,12 @@
   "{} şarkı listeden kaldırıldı": {
     "other": "{}曲をプレイリストから削除しました"
   },
-  "Şarkılar listeye geri eklenemedi": "曲をプレイリストに戻せませんでした"
+  "Şarkılar listeye geri eklenemedi": "曲をプレイリストに戻せませんでした",
+  "Kitaplıkta ara": "ライブラリ内を検索",
+  "Sırala": "並べ替え",
+  "Izgara": "グリッド",
+  "Liste": "リスト",
+  "Son eklenenler": "最近追加した項目",
+  "Alfabetik": "アルファベット順",
+  "Oluşturan": "作成者"
 }

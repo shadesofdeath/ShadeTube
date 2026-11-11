@@ -1447,5 +1447,12 @@
     "one": "{} canción quitada de la playlist",
     "other": "{} canciones quitadas de la playlist"
   },
-  "Şarkılar listeye geri eklenemedi": "No se han podido volver a añadir las canciones"
+  "Şarkılar listeye geri eklenemedi": "No se han podido volver a añadir las canciones",
+  "Kitaplıkta ara": "Buscar en la biblioteca",
+  "Sırala": "Ordenar",
+  "Izgara": "Cuadrícula",
+  "Liste": "Lista",
+  "Son eklenenler": "Añadido recientemente",
+  "Alfabetik": "Alfabético",
+  "Oluşturan": "Creador"
 }

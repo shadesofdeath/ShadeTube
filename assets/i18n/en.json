@@ -1447,5 +1447,12 @@
     "one": "{} song removed from the playlist",
     "other": "{} songs removed from the playlist"
   },
-  "Şarkılar listeye geri eklenemedi": "Couldn't put the songs back"
+  "Şarkılar listeye geri eklenemedi": "Couldn't put the songs back",
+  "Kitaplıkta ara": "Search in Your Library",
+  "Sırala": "Sort",
+  "Izgara": "Grid",
+  "Liste": "List",
+  "Son eklenenler": "Recently added",
+  "Alfabetik": "Alphabetical",
+  "Oluşturan": "Creator"
 }
