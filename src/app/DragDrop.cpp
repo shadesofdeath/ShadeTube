@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 namespace st::app {
 
@@ -421,10 +422,74 @@ void scheduleDemo() {
     });
 }
 
+// Dev check of the player without a mouse (docs/DEVELOPMENT.md 5.4): SHADETUBE_PLAY_FILES="path|path" plays those
+// files / folders at startup as if dropped on the window; SHADETUBE_PLAYER_DEMO="<step>;<step>..." then runs each step
+// <ms> after startup: play@ms, pause@ms, next@ms, prev@ms, like@ms (toggles the current song's like), seekfocus@ms (the
+// seek wave gets the keyboard focus), seek@ms=<seconds>, hover@ms=<x>,<y> (a simulated pointer at window DIPs).
+void schedulePlayDemo() {
+    wchar_t files[4096] = {};
+    if (GetEnvironmentVariableW(L"SHADETUBE_PLAY_FILES", files, 4096)) {
+        std::vector<std::wstring> list;
+        const std::wstring all = files;
+        for (size_t start = 0; start <= all.size();) {
+            const size_t bar = std::min(all.find(L'|', start), all.size());
+            if (bar > start) list.push_back(all.substr(start, bar - start));
+            start = bar + 1;
+        }
+        ST_LOG_INFO("dragdrop", "play demo: {} paths", list.size());
+        if (!list.empty()) playDropped(std::move(list), -1);
+    }
+    wchar_t spec[1024] = {};
+    if (!GetEnvironmentVariableW(L"SHADETUBE_PLAYER_DEMO", spec, 1024)) return;
+    struct Step {
+        std::wstring action, arg;
+    };
+    static std::unordered_map<UINT_PTR, Step> steps;
+    const std::wstring all = spec;
+    for (size_t start = 0; start < all.size();) {
+        const size_t end = std::min(all.find(L';', start), all.size());
+        const std::wstring s = all.substr(start, end - start);
+        start = end + 1;
+        const size_t at = s.find(L'@');
+        if (at == std::wstring::npos) continue;
+        const size_t eq = s.find(L'=', at);
+        Step step{s.substr(0, at), eq == std::wstring::npos ? std::wstring() : s.substr(eq + 1)};
+        const UINT ms = static_cast<UINT>(std::max(1, _wtoi(s.c_str() + at + 1)));
+        const UINT_PTR id = SetTimer(nullptr, 0, ms, [](HWND, UINT, UINT_PTR timer, DWORD) {
+            KillTimer(nullptr, timer);
+            const auto it = steps.find(timer);
+            if (it == steps.end()) return;
+            const Step st = it->second;
+            steps.erase(it);
+            auto* p = ctx().player;
+            ST_LOG_INFO("dragdrop", "player demo: {} {}", toUtf8(st.action), toUtf8(st.arg));
+            if (!p) return;
+            if (st.action == L"play") p->play();
+            else if (st.action == L"pause") p->pause();
+            else if (st.action == L"next") p->next();
+            else if (st.action == L"prev") p->previous();
+            else if (st.action == L"seek") p->seek(static_cast<int64_t>(_wtof(st.arg.c_str()) * 1000));
+            else if (st.action == L"like" && p->current()) ctx().library.toggleLiked(*p->current());
+            else if (st.action == L"seekfocus" && ctx().window) {   // the seek wave with the keyboard focus ring
+                if (auto* shell = dynamic_cast<Shell*>(ctx().window->root()))
+                    ctx().window->focusByKeyboard(shell->playerBar()->seek());
+            }
+            else if (st.action == L"hover" && ctx().window) {
+                const size_t comma = st.arg.find(L',');
+                if (comma != std::wstring::npos)
+                    ctx().window->simulatePointer({static_cast<float>(_wtof(st.arg.c_str())),
+                                                   static_cast<float>(_wtof(st.arg.c_str() + comma + 1))});
+            }
+        });
+        if (id) steps[id] = std::move(step);
+    }
+}
+
 } // namespace
 
 void initDragDrop() {
     scheduleDemo();
+    schedulePlayDemo();
     dropped::Store::get().load();
     // A dropped file outside the local library still plays after a restart (restored queue, history, stats). Asked
     // before the local library's resolver, which answers every "local:" id (an unknown one with a path that fails).

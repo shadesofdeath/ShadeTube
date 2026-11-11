@@ -111,6 +111,9 @@ public:
 
     // Tooltip support (Window draws it in the overlay layer).
     void showTooltipFor(Widget* w);
+    // Dev (screenshots of hover states): hovers the widget at window DIP `pos` and sends it a move, as if the pointer
+    // were there, without touching the real cursor.
+    void simulatePointer(Point pos);
 
     static Window* fromHwnd(HWND hwnd);
     LRESULT handleMessageThunk(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
