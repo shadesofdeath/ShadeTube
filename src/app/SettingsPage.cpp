@@ -3,6 +3,7 @@
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Scrobbler.h"
+#include "app/SettingsCards.h"
 #include "app/SettingsWidgets.h"
 #include "app/Social.h"
 #include "app/Source.h"
@@ -23,6 +24,8 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <set>
+#include <string_view>
 
 namespace st::app {
 
@@ -118,12 +121,65 @@ private:
     int cursor_ = 0;   // keyboard cursor (starts on the current fixed accent)
 };
 
+// The category cards in page order. The ids are the deep links (Route{Settings, <id>}: "--route settings:<id>", the
+// command palette), unchanged from the sections the page had before the cards.
+constexpr const char* kCardIds[] = {"spotify", "connections", "playback", "audio", "appearance", "window", "keyboard",
+                                    "downloads", "local", "storage", "remote", "jam", "blocklist", "about"};
+
+bool isCardId(std::string_view id) {
+    return std::any_of(std::begin(kCardIds), std::end(kCardIds), [&](const char* k) { return id == k; });
+}
+
+// Ids of the open cards, for the whole run: kept across page rebuilds and navigation. Dev: SHADETUBE_SETTINGS_OPEN =
+// "all" or a comma list ("audio,keyboard") starts with those open (screenshots).
+std::set<std::string>& openCards() {
+    static std::set<std::string> open = [] {
+        std::set<std::string> s;
+        wchar_t buf[512];
+        const DWORD n = GetEnvironmentVariableW(L"SHADETUBE_SETTINGS_OPEN", buf, 512);
+        if (n == 0 || n >= 512) return s;
+        const std::string v = toUtf8(std::wstring_view(buf, n));
+        for (size_t i = 0; i <= v.size();) {
+            size_t j = v.find(',', i);
+            if (j == std::string::npos) j = v.size();
+            const std::string id = v.substr(i, j - i);
+            if (id == "all") s.insert(std::begin(kCardIds), std::end(kCardIds));
+            else if (isCardId(id)) s.insert(id);
+            i = j + 1;
+        }
+        return s;
+    }();
+    return open;
+}
+
+// Dev (screenshots): SHADETUBE_SETTINGS_SEARCH = text typed into the search box at startup, SHADETUBE_SETTINGS_SCROLL
+// = DIPs to scroll down once laid out (after a deep link's jump).
+std::wstring devEnv(const wchar_t* name) {
+    wchar_t buf[256];
+    const DWORD n = GetEnvironmentVariableW(name, buf, 256);
+    return n > 0 && n < 256 ? std::wstring(buf, n) : std::wstring{};
+}
+
 class SettingsPage : public ScrollPage {
 public:
-    // `focus`: a section to open scrolled to (sectionId(): "appearance" = GÖRÜNÜM, "keyboard" = KLAVYE...), e.g. the
-    // start route "settings:appearance".
-    explicit SettingsPage(std::string focus = {}) : focus_(std::move(focus)) {
+    // `route`: the id of a card to open scrolled to (kCardIds: "appearance", "keyboard"...), e.g. the start route
+    // "settings:appearance".
+    explicit SettingsPage(std::string route = {}) : route_(std::move(route)) {
+        if (isCardId(route_)) {
+            focus_ = route_;
+            openedByLink_ = openCards().insert(route_).second;
+        }
+        static bool devUsed = false;   // the dev search / scroll apply to the first Settings page only
+        std::wstring devQuery;
+        if (!devUsed) {
+            devUsed = true;
+            const std::wstring scroll = devEnv(L"SHADETUBE_SETTINGS_SCROLL");
+            if (!scroll.empty()) devScroll_ = static_cast<float>(_wtof(scroll.c_str()));
+            devQuery = devEnv(L"SHADETUBE_SETTINGS_SEARCH");
+        }
+        buildFrame();
         build();
+        if (!devQuery.empty()) search_->setText(devQuery, true);
         if (ctx().session)
             ctx().session->subscribe(life_.ref(), [this] {
                 Dispatcher::post([this, ref = life_.ref()] {
@@ -140,24 +196,102 @@ public:
     }
 
     void paint(Canvas& c) override {
-        // Deep link: once laid out, jump (no animation) to the requested section.
-        if (!focus_.empty() && focusLabel_ && rect().w > 0) {
-            scroll_->scrollTo(std::max(0.f, focusLabel_->rect().y - 28), false);
-            focus_.clear();
+        if (rect().w > 0) {
+            // Deep link: once laid out, jump (no animation) to the requested card, opened by the constructor.
+            if (!focus_.empty()) {
+                if (auto* k = findCard(focus_); k && k->visible()) scroll_->scrollTo(std::max(0.f, contentY(k) - 24), false);
+                focus_.clear();
+            }
+            if (devScroll_ >= 0) {
+                scroll_->scrollTo(scroll_->scrollY() + devScroll_, false);
+                devScroll_ = -1;
+            }
         }
         ScrollPage::paint(c);
     }
 
+    // Back / Forward restore where the page was (not its deep link); selecting the current deep link again (y = 0)
+    // opens its card and scrolls to it again instead of to the top.
+    void restoreScroll(float y) override {
+        if (y > 0) {
+            focus_.clear();
+            if (openedByLink_) {   // the card is as it was when the page was left (the offset was measured so)
+                openCards().erase(route_);
+                if (auto* k = findCard(route_)) k->setOpen(false, false);
+                updateAllLink();
+            }
+            openedByLink_ = false;
+            ScrollPage::restoreScroll(y);
+            return;
+        }
+        auto* k = findCard(route_);
+        if (!k) {
+            ScrollPage::restoreScroll(y);
+            return;
+        }
+        if (!filtering()) {
+            openCards().insert(route_);
+            k->setOpen(true, false);
+            updateAllLink();
+        }
+        focus_ = route_;
+        invalidate();
+    }
+
+    // Ctrl+F (the "search" shortcut) on this page: the settings search instead of the Search page.
+    bool focusSearch() override {
+        if (!search_) return false;
+        for (const ui::Widget* w = search_; w; w = w->parent())
+            if (!w->visible()) return false;   // e.g. Now Playing covers the page
+        search_->focus();
+        search_->selectAll();
+        search_->scrollIntoView();
+        return true;
+    }
+
 private:
+    // Title, search box and "Tümünü aç" - built once, so the search keeps its text and focus across rebuilds - and the
+    // column the cards are (re)built into.
+    void buildFrame() {
+        auto* c = resetContent(0.f);
+        auto* top = c->add<ui::Box>();
+        top_ = top;
+        auto* title = top->add<ui::Label>(tr(L"Ayarlar"), type::displayM);
+        title->setVAlign(gfx::VAlign::Center);
+        all_ = top->add<Button>(ButtonKind::Link, tr(L"Tümünü aç"));
+        all_->onClick = [this] { toggleAll(); };
+        search_ = top->add<ui::TextBox>(ui::TextBox::Look::Search, tr(L"Ayarlarda ara"));
+        search_->onChange = [this](const std::wstring& q) { setQuery(q); };
+        // Esc clears the search (back to the cards as they were), a second Esc leaves the box.
+        search_->onEscape = [this] {
+            if (!search_->text().empty()) search_->setText({}, true);
+            else if (auto* w = window()) w->setFocus(nullptr);
+        };
+        top->onPreferredHeight = [](float) { return 72.f; };
+        top->onLayout = [this, title](ui::Box& b) {
+            const float w = b.rect().w, h = b.rect().h;
+            const float bw = std::clamp(w * 0.4f, 240.f, 380.f);
+            search_->setRect({w - bw, h * 0.5f - gfx::metrics::searchH * 0.5f, bw, gfx::metrics::searchH});
+            float x = w - bw;
+            if (all_->visible()) {
+                const float lw = std::ceil(all_->naturalWidth());
+                x -= 20 + lw;
+                all_->setRect({x, h * 0.5f - 16, lw, 32});
+            }
+            title->setRect({0, 0, std::max(0.f, x - 24), h});
+        };
+        c->add<Spacer>(28.f);
+        cards_ = c->add<ui::Column>(8.f);
+    }
+
     void build() {
         auto& s = Settings::get();
-        focusLabel_ = nullptr;
-        auto* c = resetContent(0.f);
-        auto* title = c->add<ui::Label>(tr(L"Ayarlar"), type::displayM);
-        title->setVAlign(gfx::VAlign::Top);
-        c->add<Spacer>(24.f);
+        filter_.forget();   // the old cards and rows die with the rebuild
+        cards_->clearChildren();
+        cardList_.clear();
+        ui::Column* c = nullptr;
 
-        section(c, L"SPOTIFY");   // brand name: the same in every language
+        c = card("spotify", "spotify-link", tr(L"Spotify hesabı"), tr(L"Hesap bağlantısı ve yeni çıkan bildirimleri"));
         {
             auto* sess = ctx().session;
             if (sess && sess->loggedIn()) {
@@ -190,15 +324,10 @@ private:
             }
         }
 
-        section(c, tr(L"BAĞLANTILAR"));
+        c = card("connections", "link", tr(L"Bağlantılar"), tr(L"Last.fm ve ListenBrainz scrobble, Discord durumu"));
         buildConnections(c);
 
-        section(c, tr(L"TELEFONDAN KUMANDA"));
-        buildRemoteSection(c, rebuilder());
-        section(c, tr(L"BİRLİKTE DİNLE"));
-        buildJamRows(c, rebuilder());
-
-        section(c, tr(L"OYNATMA"));
+        c = card("playback", "play", tr(L"Oynatma"), tr(L"Ses kalitesi, şarkı sözleri, sonsuz çalma, yedek kaynak"));
         {
             auto* row = c->add<SettingRow>(tr(L"Ses kalitesi"), tr(L"Yüksek: en yüksek bit hızı (Opus 160 / AAC 128). "
                                                                    L"Veri tasarrufu: en fazla 128 kbps AAC."));
@@ -230,13 +359,10 @@ private:
         }
 
         // Equalizer, crossfade, output device.
-        section(c, tr(L"SES"));
+        c = card("audio", "equalizer", tr(L"Ses"), tr(L"Ses dengeleme, şarkı geçişi, ekolayzer, çıkış aygıtı"));
         buildAudioRows(c, rebuilder());
 
-        section(c, tr(L"KARA LİSTE"));
-        buildBlacklistSection(c, rebuilder());
-
-        section(c, tr(L"GÖRÜNÜM"));
+        c = card("appearance", "palette", tr(L"Görünüm"), tr(L"Tema, dil, vurgu rengi, hareket"));
         {
             auto* themeRow = c->add<SettingRow>(
                 tr(L"Tema"), tr(L"Koyu, açık ya da Windows'un uygulama moduna uyan sistem teması. Değişiklik anında "
@@ -279,7 +405,8 @@ private:
             buildDisplayRows(c, rebuilder());   // "Arayüz ölçeği", "Liste yoğunluğu" (app/Display.cpp)
         }
 
-        section(c, tr(L"PENCERE"));
+        c = card("window", "mini-player", tr(L"Pencere ve sistem"),
+                 tr(L"Sistem tepsisi, mini oynatıcı, Windows ile başlat"));
         {
             toggle(c, tr(L"Kapatınca sistem tepsisine küçült"),
                    tr(L"Pencereyi kapattığında ShadeTube bildirim alanında çalmaya devam eder. Tamamen çıkmak için "
@@ -298,10 +425,10 @@ private:
             buildStartupRows(c, rebuilder());
         }
 
-        section(c, tr(L"KLAVYE"));
+        c = card("keyboard", "keyboard", tr(L"Klavye kısayolları"), tr(L"Uygulama içi ve genel kısayollar"));
         buildShortcutRows(c, rebuilder());
 
-        section(c, tr(L"İNDİRME"));
+        c = card("downloads", "download", tr(L"İndirme ve çevrimdışı"), tr(L"İndirme kalitesi, klasör, çevrimdışı senkron"));
         {
             auto* row = c->add<SettingRow>(
                 tr(L"İndirme kalitesi"),
@@ -334,10 +461,10 @@ private:
             buildDownloadSyncRows(c, rebuilder());
         }
 
-        section(c, tr(L"YEREL MÜZİK"));
+        c = card("local", "folder", tr(L"Yerel müzik"), tr(L"Müzik klasörleri ve tarama"));
         buildLocalFilesSection(c, rebuilder());
 
-        section(c, tr(L"KİTAPLIK VE DEPOLAMA"));
+        c = card("storage", "cache", tr(L"Kitaplık ve depolama"), tr(L"Kitaplık dosyası, önbellek, çökme raporları"));
         {
             auto& lib = ctx().library;
             const auto count = [](size_t n) { return static_cast<long long>(n); };
@@ -382,9 +509,116 @@ private:
             };
         }
 
-        section(c, tr(L"HAKKINDA"));
+        c = card("remote", "wifi", tr(L"Telefondan kumanda"), tr(L"Aynı ağdaki telefonundan ShadeTube'u yönet"));
+        buildRemoteSection(c, rebuilder());
+
+        c = card("jam", "users", tr(L"Birlikte dinle"), tr(L"Görünen ad, MQTT sunucusu, gizlilik"));
+        buildJamRows(c, rebuilder());
+
+        c = card("blocklist", "error", tr(L"Kara liste"), tr(L"Engellenen şarkılar ve sanatçılar"));
+        buildBlacklistSection(c, rebuilder());
+
+        c = card("about", "info", tr(L"Hakkında"), tr(L"Sürüm, güncellemeler, kurulum"));
         buildAboutSection(c, rebuilder());
+
+        updateAllLink();
+        if (filtering()) applyFilter();
         contentReady();
+    }
+
+    // ---- Cards --------------------------------------------------------------------------------------------------
+
+    // Adds a card (open if it was open before) and returns the column its rows go into.
+    ui::Column* card(const char* id, const char* icon, std::wstring title, std::wstring summary) {
+        auto* k = cards_->add<SettingsCard>(id, icon, std::move(title), std::move(summary), openCards().count(id) > 0);
+        cardList_.push_back(k);
+        k->onToggle = [this, k](bool open) {
+            // While searching, a card opens / closes for this search only.
+            if (!filtering()) {
+                if (open) openCards().insert(k->id());
+                else openCards().erase(k->id());
+            }
+            k->setOpen(open, true, true);
+            updateAllLink();
+        };
+        k->onOpened = [this, k, ref = life_.ref()] {
+            Dispatcher::post([this, k, ref] {
+                if (!ref.expired() && std::find(cardList_.begin(), cardList_.end(), k) != cardList_.end()) revealCard(k);
+            });
+        };
+        k->onHeightChanged = [this] { scroll_->contentChanged(); };
+        return k->body();
+    }
+
+    SettingsCard* findCard(std::string_view id) const {
+        for (auto* k : cardList_)
+            if (k->id() == id) return k;
+        return nullptr;
+    }
+
+    // Top of `w` in the ScrollView's content coordinates.
+    float contentY(const ui::Widget* w) const {
+        const ui::Widget* content = scroll_->content();
+        return w->toWindow(w->rect()).y - content->toWindow(content->rect()).y;
+    }
+
+    // A card the user just opened: scroll the least so that its header and as much of its body as fits are visible.
+    void revealCard(SettingsCard* k) {
+        const float h = std::min(k->rect().h, scroll_->viewport().h - 96);
+        scroll_->revealRect({0, contentY(k), k->rect().w, std::max(SettingsCard::kHeaderH, h)});
+    }
+
+    void toggleAll() {
+        const bool open = std::any_of(cardList_.begin(), cardList_.end(), [](auto* k) { return !k->isOpen(); });
+        for (auto* k : cardList_) {
+            if (open) openCards().insert(k->id());
+            else openCards().erase(k->id());
+            k->setOpen(open, true);
+        }
+        updateAllLink();
+    }
+
+    void updateAllLink() {
+        const bool anyClosed = std::any_of(cardList_.begin(), cardList_.end(), [](auto* k) { return !k->isOpen(); });
+        all_->setLabel(anyClosed ? tr(L"Tümünü aç") : tr(L"Tümünü kapat"));
+        all_->setVisible(!filtering());
+        top_->requestLayout();
+    }
+
+    // ---- Search -------------------------------------------------------------------------------------------------
+
+    bool filtering() const { return !words_.empty(); }
+
+    void setQuery(const std::wstring& q) {
+        auto words = settingsQueryWords(q);
+        if (words == words_) return;
+        const bool was = filtering();
+        words_ = std::move(words);
+        applyFilter();
+        if (!was && filtering()) scroll_->scrollTo(0, false);   // the results start under the search box
+    }
+
+    // Filters the cards for the current words; without words, back to the cards as they were (open / closed).
+    void applyFilter() {
+        filter_.restore(cards_, cardList_);
+        if (empty_) {
+            col_->removeChild(empty_);
+            empty_ = nullptr;
+        }
+        if (!filtering()) {
+            for (auto* k : cardList_) k->setOpen(openCards().count(k->id()) > 0, false);
+        } else {
+            const int shown = filter_.apply(cardList_, words_);
+            for (auto* k : cardList_)
+                if (k->visible()) k->setOpen(true, false);
+            if (shown == 0)
+                empty_ = col_->add<MessagePanel>(
+                    "search", tr(L"Sonuç yok"),
+                    i18n::format(tr(L"\"{}\" ile eşleşen bir ayar yok. Başka bir kelime dene."), {search_->text()}));
+        }
+        updateAllLink();
+        scroll_->contentChanged();
+        invalidate();
     }
 
     // Last.fm / ListenBrainz scrobbling + Discord Rich Presence.
@@ -399,7 +633,7 @@ private:
                });
 
         if (auto* sc = ctx().scrobbler) {
-            // --- Last.fm ---
+            settingsSubheading(c, L"Last.fm");   // brand names: the same in every language
             if (sc->lastfmConnected()) {
                 auto* row = c->add<SettingRow>(
                     L"Last.fm", i18n::format(tr(L"{} olarak bağlısın. Dinlediklerin Last.fm profiline işlenir."),
@@ -456,7 +690,7 @@ private:
                 }
             }
 
-            // --- ListenBrainz ---
+            settingsSubheading(c, L"ListenBrainz");
             if (sc->listenbrainzConnected()) {
                 auto* row = c->add<SettingRow>(
                     L"ListenBrainz",
@@ -488,7 +722,7 @@ private:
             }
         }
 
-        // --- Discord ---
+        settingsSubheading(c, L"Discord");
         toggle(c, tr(L"Discord'da göster"),
                tr(L"Çalan şarkı Discord profilinde \"dinliyor\" olarak görünür. Discord kapalıysa hiçbir şey "
                   L"yapılmaz."),
@@ -605,27 +839,6 @@ private:
         }
     }
 
-    // Deep links (Route{Settings, <id>}: --route settings:<id>, the command palette) open scrolled to a section,
-    // named by the id of its header.
-    ui::Label* section(ui::Column* c, const wchar_t* label) {
-        auto* l = settingsSection(c, label);
-        if (!focus_.empty() && focus_ == sectionId(label)) focusLabel_ = l;
-        return l;
-    }
-    static std::string sectionId(const wchar_t* label) {
-        const std::pair<const wchar_t*, const char*> ids[] = {
-            {L"SPOTIFY", "spotify"},             {tr(L"BAĞLANTILAR"), "connections"}, {tr(L"OYNATMA"), "playback"},
-            {tr(L"TELEFONDAN KUMANDA"), "remote"},
-            {tr(L"BİRLİKTE DİNLE"), "jam"},
-            {tr(L"SES"), "audio"},               {tr(L"KARA LİSTE"), "blocklist"},    {tr(L"GÖRÜNÜM"), "appearance"},
-            {tr(L"PENCERE"), "window"},          {tr(L"KLAVYE"), "keyboard"},         {tr(L"İNDİRME"), "downloads"},
-            {tr(L"YEREL MÜZİK"), "local"},       {tr(L"KİTAPLIK VE DEPOLAMA"), "storage"}, {tr(L"HAKKINDA"), "about"},
-        };
-        for (const auto& [text, id] : ids)
-            if (std::wstring_view(label) == text) return id;
-        return {};
-    }
-
     void toggle(ui::Column* c, const wchar_t* title, const wchar_t* desc, bool value, std::function<void(bool)> apply) {
         settingsToggle(c, title, desc, value, std::move(apply));
     }
@@ -639,8 +852,18 @@ private:
         };
     }
 
-    std::string focus_;
-    ui::Label* focusLabel_ = nullptr;
+    std::string route_;               // the deep link this page was opened with ("" = none)
+    std::string focus_;               // card to jump to at the next paint
+    bool openedByLink_ = false;       // the deep link opened its card (it was closed)
+    float devScroll_ = -1;            // SHADETUBE_SETTINGS_SCROLL, applied at the first paint
+    ui::Box* top_ = nullptr;          // title, "Tümünü aç", search box
+    Button* all_ = nullptr;
+    ui::TextBox* search_ = nullptr;
+    ui::Column* cards_ = nullptr;     // rebuilt by build()
+    std::vector<SettingsCard*> cardList_;
+    std::vector<std::wstring> words_; // folded search words (empty = no search)
+    SettingsSearch filter_;
+    MessagePanel* empty_ = nullptr;   // "Sonuç yok"
 };
 
 } // namespace

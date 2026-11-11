@@ -108,7 +108,12 @@ bool builtin(std::string_view id) {
         toggleCommandPalette();
         return true;
     }
-    if (id == "search") return navigate(RouteKind::Search);
+    if (id == "search") {
+        // A page with its own search box (Ayarlar) takes it; elsewhere it opens the Search page.
+        if (auto* r = ctx().router; r && r->currentPage)
+            if (auto* page = r->currentPage(); page && page->focusSearch()) return true;
+        return navigate(RouteKind::Search);
+    }
     if (id == "go-back") return ctx().router && (ctx().router->back(), true);
     if (id == "go-forward") return ctx().router && (ctx().router->forward(), true);
     if (id == "go-home") return navigate(RouteKind::Home);

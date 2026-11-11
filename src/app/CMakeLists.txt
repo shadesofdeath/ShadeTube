@@ -95,6 +95,7 @@ add_executable(ShadeTube WIN32
     TogetherPanel.cpp
     Router.cpp Router.h
     Scrobbler.cpp Scrobbler.h
+    SettingsCards.cpp SettingsCards.h
     SettingsPage.cpp
     SettingsWidgets.h
     Shortcuts.cpp Shortcuts.h

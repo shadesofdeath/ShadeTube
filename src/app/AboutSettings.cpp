@@ -120,8 +120,9 @@ std::wstring releaseDate(const std::string& iso) {
 class AboutRow;
 AboutRow* g_progressRow = nullptr;   // the row showing the download (UI thread; cleared by its destructor)
 
-class AboutRow : public ui::Widget {
+class AboutRow : public ui::Widget, public SettingsSearchable {
 public:
+    std::wstring searchText() const override { return title_.text() + L"\n" + desc_.text(); }
     AboutRow(std::wstring title, std::wstring desc) : title_(std::move(title), gfx::type::body), desc_(std::move(desc), gfx::type::secondary) {
         hitTestVisible = false;
         gfx::TextOptions wrap;

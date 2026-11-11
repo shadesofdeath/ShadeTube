@@ -26,6 +26,9 @@ public:
     virtual float scrollOffset() const { return 0; }
     virtual void restoreScroll(float) {}
     virtual void onShown() {}
+    // Ctrl+F (the "search" shortcut): a page with a search box of its own focuses it and returns true; otherwise the
+    // Search page opens.
+    virtual bool focusSearch() { return false; }
 };
 
 class Router {

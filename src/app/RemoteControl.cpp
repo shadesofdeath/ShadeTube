@@ -824,8 +824,9 @@ private:
 
 // The QR code (dark modules on white in both themes, a 4-module quiet zone, every module a whole number of device
 // pixels on pixel edges), the address and the pairing code, and the copy / renew buttons.
-class PairingCard : public ui::Widget {
+class PairingCard : public ui::Widget, public SettingsSearchable {
 public:
+    std::wstring searchText() const override { return title_.text() + L"\n" + desc_.text() + L"\n" + address_.text(); }
     PairingCard(const std::string& url, const std::string& base, const std::string& code)
         : url_(url), title_(tr(L"Telefonunla tara"), type::sectionTitle), desc_(tr(L"QR kodu telefonunun kamerasıyla tara ya da "
                                                                                     L"adresi telefonundaki tarayıcıya yazıp "
