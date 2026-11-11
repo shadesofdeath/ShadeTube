@@ -182,14 +182,14 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
    Piped / Invidious (3.9).
 4. `AudioEngine::open()`: `ProgressiveBuffer` (ranged download) → `MfByteStream` → MF Source Reader → float PCM →
    [crossfade mix] → equalizer → volume ramp / loudness gain → look-ahead limiter → WASAPI shared, event-driven, on
-   the Windows default device or the one picked in *Ayarlar › SES*.
+   the Windows default device or the one picked in *Ayarlar › Ses*.
 5. The next queue item is resolved at Low priority and preloaded 25 s before the end (`Settings.preloadNext`, implied
    by a crossfade) for a gapless handoff; downloads and local files are preloaded straight from disk. The queue is
    saved to `session.json` and restored at startup.
 6. *Wrong match?* lists `MatchService::candidates()`; choosing one pins it in the cache. SponsorBlock
    (`app/SponsorBlock`, k-anonymity hash-prefix lookups) skips non-music segments of the matched video.
 
-**Sound settings** (*Ayarlar › SES*, `app/AudioSettings.cpp`; applied by `Player::applyAudioSettings()` or per track):
+**Sound settings** (*Ayarlar › Ses*, `app/AudioSettings.cpp`; applied by `Player::applyAudioSettings()` or per track):
 
 - **Loudness normalisation** (`Settings.normalizeVolume`, target `loudnessTarget` -19 / -14 / -11 LUFS): YouTube
   reports each stream's `loudnessDb` against its -14 LUFS reference (YoutubeExplode parses it per format, with
@@ -325,7 +325,7 @@ error and backoff, plus per-track download attempts.
   menu) marks the rule changed so the next pass downloads it.
 - **UI**: the header toggle shows the progress as an arc around the icon (accent while working, tertiary while
   waiting) and a check when complete; the Downloads page lists the rules ("Senkronize edilenler": done / total,
-  queued, errors, last sync, why sync waits) instead of one row per queued sync download; Ayarlar › İNDİRME has the
+  queued, errors, last sync, why sync waits) instead of one row per queued sync download; Ayarlar › İndirme ve çevrimdışı has the
   pause, metered, cleanup and storage cap rows.
 
 ### 3.8 Local files and listening stats
@@ -478,7 +478,7 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
   chord; Esc cancels, Backspace unbinds; reserved keys, Win combos in-app and plain keys as global hotkeys are refused
   with a reason), reset per row and for all.
 - **Command palette** (`app/CommandPalette`, Ctrl+K): commands (shortcut actions with their keys, the settings
-  sections through `Route{Settings, <section id>}`, themes, a few app commands), the library snapshot and, 300 ms after
+  cards through `Route{Settings, <card id>}`, see 3.25), themes, a few app commands), the library snapshot and, 300 ms after
   the last keystroke, `source::search` on a worker. `shortcuts::fuzzyScore` ranks (exact > prefix > word start >
   substring > subsequence; `foldForSearch` makes it accent / case / I-ı insensitive); recent picks are kept in
   `palette-recent.json`.
@@ -769,7 +769,7 @@ history (`ListenStats`: this PC's plays and the imported Spotify history, stream
 
 ### 3.23 Phone remote control
 
-*Ayarlar › TELEFONDAN KUMANDA* (`Settings.remoteEnabled`, off by default; `remotePort`, `remoteAddress`): the phone's
+*Ayarlar › Telefondan kumanda* (`Settings.remoteEnabled`, off by default; `remotePort`, `remoteAddress`): the phone's
 browser controls the app over the LAN, nothing to install. `app/RemoteControl.cpp` is the app side (settings section,
 QR code, commands, state); the server parts are standalone and tested (`remote_test`): `RemoteHttp` (HTTP/1.1 parser,
 responses, SSE framing), `RemoteAuth` (pairing secret, device tokens, throttle), `RemoteApi` (routes), `RemoteState`
@@ -885,10 +885,47 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
   `--open-link` and the `shadetube:` URL protocol: `HKCU\Software\Classes\shadetube` → `"<exe>" --open-link "%1"`,
   written at startup for the real profile only (sandbox profiles leave it alone unless `SHADETUBE_PROTOCOL_KEY` names
   a test key) and removed by the uninstaller; a second launch hands the link to the running instance as `WM_COPYDATA`.
-  Ayarlar › BİRLİKTE DİNLE (`settings:jam`): the display name (`Settings::jamName`; default: the Spotify display name,
+  Ayarlar › Birlikte dinle (`settings:jam`): the display name (`Settings::jamName`; default: the Spotify display name,
   else the Windows user's first name) and the own broker (`Settings::jamBroker`).
 - **Measured** (two sandbox instances on one PC, EMQX, Debug): ~0.7-1.3 s to connect, guest requests reach the host in
   ~100-250 ms, clock offset within a few ms, drift after the first correction +20 .. +50 ms (-110 ms after a resume).
+
+### 3.25 Settings page
+
+`app/SettingsPage.cpp` builds *Ayarlar* as a compact list of collapsible category cards (`app/SettingsCards`); the
+rows come from `SettingsWidgets.h` (`SettingRow`, `settingsToggle`, `Segmented`, `settingsSubheading`) and from the
+feature files' `build*Rows()` hooks.
+
+- **Cards** (`SettingsCard`), in page order with their ids: Spotify hesabı `spotify`, Bağlantılar `connections`,
+  Oynatma `playback`, Ses `audio`, Görünüm `appearance`, Pencere ve sistem `window`, Klavye kısayolları `keyboard`,
+  İndirme ve çevrimdışı `downloads`, Yerel müzik `local`, Kitaplık ve depolama `storage`, Telefondan kumanda `remote`,
+  Birlikte dinle `jam`, Kara liste `blocklist`, Hakkında `about`. A card is a `bg.raised` surface (radius
+  `radiusSurface`, `hairline.default` border); its header (icon tile, title, one-line summary, chevron) is one Tab
+  stop that opens / closes it on click, Enter or Space. The height eases over `motion::medium` (instant with
+  *Hareketi azalt*): while it runs the card re-measures itself every frame (`requestLayout()` from `layout()`, also
+  when scrolled out of view) and calls `ScrollView::contentChanged()`; when it ends a closed body is hidden, so its
+  controls leave the Tab order (collapsing around the keyboard focus moves it to the header). A card the user opens
+  is then revealed with `ScrollView::revealRect` (header plus as much of the body as fits).
+- **State**: all cards start closed. The open ones are remembered for the run (`openCards()`): across `rebuilder()`
+  rebuilds, navigation and Back / Forward (a card a deep link opened is closed again when history restores the
+  scroll offset measured without it). *Tümünü aç / Tümünü kapat* next to the title opens or closes them all.
+- **Deep links**: `Route{Settings, <card id>}` (`--route settings:<id>`, the command palette) opens that card and
+  jumps to it at the first paint; selecting the same link again re-opens and re-scrolls instead of going to the top.
+  The ids are those of the former section headers, so older links keep working.
+- **Search**: the box next to the title is built once (`buildFrame()`), so it keeps its text and focus across
+  rebuilds. Typing filters live (`SettingsSearch`): the query is folded (`foldForSearch`: case, accents, Turkish
+  İ/ı) and every word must occur in a row's text in the UI language. A row is a `SettingsSearchable`
+  (`searchText()`: `SettingRow` gives title + description; `AboutRow`, `ShortcutRow` (name + keys), `ScanRow` and
+  `PairingCard` implement it too); the filter walks each card's body: matching rows stay and get a 2 px accent bar on
+  an `accent.tint06` wash, a `ui::Label` is a sub-heading that stays with its group (a matching heading keeps the
+  whole group), nested columns are filtered recursively, any other widget (equalizer, QR card, spacers) goes with the
+  row or heading above it. A card whose title matches stays whole; one whose summary matches only when none of its
+  rows does; cards without a match hide; "Sonuç yok" when nothing is left. The cards found are open for the search
+  only (their headers still toggle them); Esc or the clear button restores the cards as they were, a second Esc
+  leaves the box. A rebuild while searching re-applies the filter. **New rows are found automatically** when they
+  are `SettingRow`s / `settingsToggle`s; a custom row widget with its own texts should implement `SettingsSearchable`.
+- **Ctrl+F** (the `search` action) calls `Page::focusSearch()` on the current page first: the Settings page focuses
+  its box (unless Now Playing covers it); every other page keeps opening the Search page.
 
 ## 4. Coding conventions
 
@@ -989,7 +1026,7 @@ guest with `SHADETUBE_JAM_DEV=control` on the host), `--open-link <YouTube URL>`
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz / `shadetube://jam/` invite) once a saved Spotify session has connected; with an instance running (not `--preview`) the link is handed to it |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:albums` / `artists` / `history`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `local:<view>` (`songs`, `albums`, `artists`, `folders`, `folder:<path>`), `settings`, `settings:<section>` (`spotify`, `connections`, `remote`, `jam`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...), `jam` (the "Birlikte dinle" panel), `queue` (the queue panel) |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:albums` / `artists` / `history`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `local:<view>` (`songs`, `albums`, `artists`, `folders`, `folder:<path>`), `settings`, `settings:<card>` (that card opened and scrolled into view: `spotify`, `connections`, `playback`, `audio`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `remote`, `jam`, `blocklist`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...), `jam` (the "Birlikte dinle" panel), `queue` (the queue panel) |
 | `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
@@ -1032,6 +1069,9 @@ apps*).
 | `SHADETUBE_JAM_JOIN` | `<invite link>`: joins that session at startup (a guest in a second sandbox profile) |
 | `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest) |
 | `SHADETUBE_PROTOCOL_KEY` | HKCU key used instead of `Software\Classes\shadetube` for the URL protocol (tests); without it a sandbox profile never registers it |
+| `SHADETUBE_SETTINGS_OPEN` | `all` or a comma list of card ids (`audio,keyboard`): those Settings cards start open (screenshots; 3.25) |
+| `SHADETUBE_SETTINGS_SEARCH` | text typed into the Settings search box when the first Settings page opens (screenshots) |
+| `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 
 ## 6. Release process
 
