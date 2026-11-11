@@ -129,8 +129,12 @@ private:
 };
 
 // One action: name on the left, [reset] [combo] on the right, hairline below.
-class ShortcutRow : public ui::Widget {
+class ShortcutRow : public ui::Widget, public SettingsSearchable {
 public:
+    // The search finds an action by its name or its keys ("ctrl+k").
+    std::wstring searchText() const override {
+        return name_.text() + L"\n" + shortcuts::display(shortcuts::binding(Settings::get().shortcuts, action_.id, global_));
+    }
     ShortcutRow(const shortcuts::Action& a, bool global, std::function<void()> refreshAll)
         : action_(a), global_(global), refreshAll_(std::move(refreshAll)), name_(a.name(), type::bodyRegular),
           error_(tr(L"Başka bir uygulama bu birleşimi kullanıyor"), type::caption) {

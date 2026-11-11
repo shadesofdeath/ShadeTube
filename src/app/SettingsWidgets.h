@@ -1,6 +1,6 @@
 #pragma once
 // Building blocks of the Ayarlar page, shared with the feature files that contribute their own rows
-// (see the build*() hooks below; SettingsPage owns the section headers and the order).
+// (see the build*() hooks below; SettingsPage owns the category cards and the order, app/SettingsCards.h).
 // Every text here is shown as given: callers pass it translated (tr(L"Ses kalitesi")).
 #include "app/AppContext.h"
 #include "app/PageWidgets.h"
@@ -22,8 +22,18 @@ namespace st::app {
 
 inline void openPath(const std::wstring& path) { ShellExecuteW(nullptr, L"open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL); }
 
+// A row the Ayarlar search can find: its visible texts (title, description...), as shown in the UI language. The
+// filter (app/SettingsCards.h) walks a card's widgets: rows with this interface are matched and hidden one by one,
+// plain ui::Labels are sub-headings, other widgets follow the row above them. A custom row with its own texts should
+// implement it; SettingRow / settingsToggle rows already do.
+class SettingsSearchable {
+public:
+    virtual ~SettingsSearchable() = default;
+    virtual std::wstring searchText() const = 0;
+};
+
 // label + description on the left, a control on the right, hairline below.
-class SettingRow : public ui::Widget {
+class SettingRow : public ui::Widget, public SettingsSearchable {
 public:
     SettingRow(std::wstring title, std::wstring desc) : title_(std::move(title), gfx::type::body), desc_(std::move(desc), gfx::type::secondary) {
         hitTestVisible = false;
@@ -59,6 +69,7 @@ public:
         c.hline(r.x, r.right(), r.bottom() - 1, col.hairSubtle);
         paintChildren(c);
     }
+    std::wstring searchText() const override { return title_.text() + L"\n" + desc_.text(); }
 
 private:
     gfx::Text title_, desc_;
@@ -140,11 +151,10 @@ private:
     int selected_;
 };
 
-// Section label ("OYNATMA") with the page's spacing. Returns the label (deep-link target).
-inline ui::Label* settingsSection(ui::Column* c, const wchar_t* label) {
-    c->add<Spacer>(28.f);
-    auto* l = c->add<ui::Label>(label, gfx::type::monoLabel, ui::Tone::Tertiary);
-    l->setVAlign(gfx::VAlign::Top);
+// Sub-heading inside a category card ("Last.fm"): a group of rows. The search shows it with any of its rows.
+inline ui::Label* settingsSubheading(ui::Column* c, std::wstring text) {
+    c->add<Spacer>(20.f);
+    auto* l = c->add<ui::Label>(std::move(text), gfx::type::secondary.withWeight(600), ui::Tone::Secondary);
     c->add<Spacer>(4.f);
     return l;
 }

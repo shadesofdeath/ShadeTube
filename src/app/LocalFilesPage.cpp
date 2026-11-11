@@ -848,8 +848,9 @@ private:
 
 // Ayarlar: "Kitaplığı tara" with a live status line (repaints on scan progress; the page is rebuilt when the
 // library changes so the per-folder counts follow).
-class ScanRow : public ui::Widget {
+class ScanRow : public ui::Widget, public SettingsSearchable {
 public:
+    std::wstring searchText() const override { return title_.text() + L"\n" + desc_; }
     explicit ScanRow(std::function<void()> rebuild)
         : title_(tr(L"Klasörleri tara"), type::body), rebuild_(std::move(rebuild)) {
         hitTestVisible = false;
