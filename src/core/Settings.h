@@ -81,6 +81,10 @@ struct Settings {
     std::vector<std::string> localFolders;   // "Yerel dosyalar": folders scanned for the user's own music files
     std::vector<std::string> expandedFolders;   // sidebar: Spotify library folders left open (rootlist group ids)
     bool friendActivityOpen = false;     // "Arkadaş etkinliği" panel open (Spotify; app/FriendActivity)
+    // "Birlikte dinle" (app/Together): the name others see ("" = Spotify / Windows name) and a broker of the user's own
+    // tried before the built-in public ones (wss://host[:port]/path, "" = none).
+    std::string jamName;
+    std::string jamBroker;
     bool newReleaseNotifications = false;   // Windows notification for new releases of followed artists
     // Updates (GitHub releases): check at startup at most once a day; a version the user dismissed stays quiet.
     bool updateCheck = true;

@@ -14,6 +14,7 @@ namespace st::app {
 class NowPlayingView;
 class ConnectScreen;
 class FriendPanel;
+class JamPanel;   // "Birlikte dinle" (app/Together.h)
 
 // ---- Internet radio (defined in app/RadioPage.cpp) --------------------------------------------------------------
 // Shared by the Radyo page and the live displays (player bar, queue, Now Playing, mini player). A station plays as a
@@ -94,6 +95,8 @@ private:
     ui::Button *shuffle_, *prev_, *next_, *repeat_, *heart_;
     ui::PlayButton* play_;
     ui::Button *lyrics_, *queue_, *mini_, *expand_, *sleep_, *speed_;
+    ui::Button *jam_, *jamLabel_;   // "Birlikte dinle": the icon, or the session pill ("Birlikte dinleniyor · Ayşe")
+    bool lockedHover_ = false;      // the pointer is on a transport control a guest may not use (its tooltip says why)
     ui::Knob* knob_;
     gfx::Text title_, artist_, time_;
     Rect infoRect_{}, artRect_{}, timeRect_{};
@@ -106,6 +109,9 @@ public:
     void onMouseMove(const ui::MouseEvent& e) override;
     void onMouseLeave() override;
     LPCWSTR cursor() const override { return infoHover_ ? IDC_HAND : IDC_ARROW; }
+    // A guest's disabled transport controls still explain themselves: the bar takes the pointer over them.
+    Widget* hitTest(gfx::Point pos) override;
+    std::wstring tooltip() const override;
 };
 
 class QueuePanel : public ui::Widget, public DropTarget {
@@ -170,6 +176,9 @@ public:
     // The friend activity panel takes the queue's place: opening one closes the other.
     void setFriendsOpen(bool on);
     bool friendsOpen() const { return friendsOpen_; }
+    // "Birlikte dinle" takes the same slot (opening it closes the queue and the friend activity).
+    void setJamOpen(bool on);
+    bool jamOpen() const { return jamOpen_; }
     void setConnect(bool on);                     // full-window Spotify connect overlay
     bool connectMode() const { return connectMode_; }
 
@@ -179,6 +188,7 @@ public:
     PageHost* pageHost() const { return pageHost_; }
     QueuePanel* queuePanel() const { return queue_; }
     FriendPanel* friendPanel() const { return friends_; }
+    JamPanel* jamPanel() const { return jam_; }
     NowPlayingView* nowPlayingView() const { return nowPlayingView_; }
 
 private:
@@ -187,10 +197,12 @@ private:
     PageHost* pageHost_;
     QueuePanel* queue_;
     FriendPanel* friends_;
+    JamPanel* jam_;
     PlayerBar* playerBar_;
     NowPlayingView* nowPlayingView_;
     ConnectScreen* connect_ = nullptr;
     bool nowPlaying_ = false, queueOpen_ = false, friendsOpen_ = false, connectMode_ = false;
+    bool jamOpen_ = false;
     bool npActive_ = false;   // Now Playing holds its resources (activate() ran, deactivate() not yet)
     ui::Anim npAnim_, queueAnim_;
     Lifetime life_;

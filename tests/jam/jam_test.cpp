@@ -578,13 +578,20 @@ static void testReconcile() {
         CHECK(expectedPosition(p, 10'000 + 400'000) == 200'000);   // clamped to the length
     }
 
-    // Nothing local yet: the host's queue at the host's position (+ the seek lead), playing.
+    // Nothing local yet: the host's queue at the host's position (+ the load lead), playing.
     {
         SyncMemory mem;
         LocalView l;
         auto d = decide(s, hostNow, 0, l, mem);
-        CHECK(d.load == Decision::Load::Queue && d.autoplay && d.seekMs == 32'000 + mem.seekLeadMs);
-        CHECK(mem.attemptId == "A" && mem.attempts == 1);
+        CHECK(d.load == Decision::Load::Queue && d.autoplay && d.seekMs == 32'000 + mem.loadLeadMs);
+        CHECK(mem.attemptId == "A" && mem.attempts == 1 && mem.pending == SyncMemory::Pending::Load);
+        // It started 1.2 s later, 500 ms behind: measured 0.8 s into playback, the load lead grows by half of that.
+        l = LocalView{"A", {"B", "C"}, true, false, false, 32'700, 200'000};
+        d = decide(s, hostNow + 1'200, 1'200, l, mem);   // expected 33.2 s: -500, starts the 0.8 s wait
+        CHECK(d.seekMs < 0 && mem.pending == SyncMemory::Pending::Load);
+        l.positionMs = 33'500;
+        d = decide(s, hostNow + 2'000, 2'000, l, mem);   // expected 34.0 s: still -500
+        CHECK(mem.pending == SyncMemory::Pending::None && mem.loadLeadMs == 950 && d.seekMs < 0);
     }
     // Host paused: loaded paused at its position.
     {
@@ -595,18 +602,24 @@ static void testReconcile() {
         auto d = decide(p, hostNow, 0, LocalView{}, mem);
         CHECK(d.load == Decision::Load::Queue && !d.autoplay && d.seekMs == 30'000);
     }
-    // Same item: drift beyond 1 s seeks (once per cool-down), small drift doesn't.
+    // Same item: drift beyond 1 s seeks (once per cool-down); a steady smaller offset gets a few fine corrections.
     {
         SyncMemory mem;
         LocalView l{"A", {"B", "C"}, true, false, false, 33'500, 200'000};
         auto d = decide(s, hostNow, 50'000, l, mem);
         CHECK(d.load == Decision::Load::None && !d.replaceUpcoming && d.hasDrift && d.driftMs == 1500);
-        CHECK(d.seekMs == 32'000 + mem.seekLeadMs && mem.seekPending);
-        d = decide(s, hostNow, 51'000, l, mem);   // 1 s later, still off: cooling down
+        CHECK(d.seekMs == 32'000 + mem.seekLeadMs && mem.pending == SyncMemory::Pending::Seek);
+        mem.pending = SyncMemory::Pending::None;   // (no lead learning in this case)
+        d = decide(s, hostNow, 51'000, l, mem);    // 1 s later, still off: cooling down
         CHECK(d.seekMs < 0);
-        l.positionMs = 32'400;
+        l.positionMs = 32'200;                     // 200 ms: close enough
         d = decide(s, hostNow, 60'000, l, mem);
-        CHECK(d.seekMs < 0 && d.driftMs == 400 && !d.play && !d.pause);
+        CHECK(d.seekMs < 0 && d.driftMs == 200 && !d.play && !d.pause);
+        l.positionMs = 32'400;                     // 400 ms, steady, settled: a fine correction
+        d = decide(s, hostNow, 61'000, l, mem);
+        CHECK(d.seekMs == 32'000 + mem.seekLeadMs && mem.fineSeeks == 1);
+        for (int i = 0; i < 5; ++i) decide(s, hostNow, 70'000 + i * 5'000, l, mem);
+        CHECK(mem.fineSeeks == SyncTuning{}.maxFineSeeks);   // capped per song
     }
     // Same item, local paused while the host plays: play, lined up.
     {
@@ -614,6 +627,8 @@ static void testReconcile() {
         LocalView l{"A", {"B", "C"}, false, false, false, 20'000, 200'000};
         auto d = decide(s, hostNow, 0, l, mem);
         CHECK(d.play && d.seekMs == 32'000 + mem.seekLeadMs);
+        d = decide(s, hostNow, 50, l, mem);   // the player hasn't reported it yet: nothing twice
+        CHECK(!d.play && d.seekMs < 0);
         l.positionMs = 32'050;   // already there: just play
         d = decide(s, hostNow, 10'000, l, mem);
         CHECK(d.play && d.seekMs < 0);
@@ -627,6 +642,8 @@ static void testReconcile() {
         LocalView l{"A", {"B", "C"}, true, false, false, 45'000, 200'000};
         auto d = decide(p, hostNow, 0, l, mem);
         CHECK(d.pause && d.seekMs == 30'000);
+        d = decide(p, hostNow, 100, l, mem);   // still reported playing a moment later: not paused twice
+        CHECK(!d.pause && d.seekMs < 0);
     }
     // The host moved on to the item local plays next: jump (prepared, gapless); unless local is about to get there.
     {
@@ -724,14 +741,16 @@ static void testReconcile() {
         SyncMemory mem;
         LocalView l{"A", {"B", "C"}, true, false, false, 34'000, 200'000};
         auto d = decide(s, hostNow, 0, l, mem);
-        CHECK(d.seekMs == 32'250 && mem.seekPending);
+        CHECK(d.seekMs == 32'100 && mem.pending == SyncMemory::Pending::Seek);
         l.positionMs = 32'000 + 1'000 - 400;   // a second later, 400 ms behind
         d = decide(s, hostNow + 1'000, 1'000, l, mem);
-        CHECK(!mem.seekPending && mem.seekLeadMs == 450);
+        CHECK(mem.pending == SyncMemory::Pending::None && mem.seekLeadMs == 300);
         learnSeekLead(mem, -10'000);
         CHECK(mem.seekLeadMs == 1500);
         learnSeekLead(mem, 10'000);
         CHECK(mem.seekLeadMs == 0);
+        learnLoadLead(mem, -20'000);
+        CHECK(mem.loadLeadMs == 4000);
     }
     // No seeks into the last seconds of a track.
     {
@@ -925,7 +944,19 @@ bool liveBroker(const std::string& url) {
         const auto e = openEnvelope(inv.key, t.guest, lost->payload);
         CHECK(e && e->seq == guestSeq.willSeq() && e->body["reason"] == "lost");
     }
+    // It reconnects by itself; a goodbye published right before stop() still arrives (flushed, then a clean close).
+    CHECK(guestIn.waitState(mq::Client::State::Connecting, 5'000) || guestIn.waitState(mq::Client::State::Connected, 1));
+    CHECK(guestIn.waitState(mq::Client::State::Connected, 30'000));
+    guestSeq.newEpoch(std::time(nullptr) + 1);
+    CHECK(guest.publish(t.guest, sealEnvelope(inv.key, t.guest, Envelope{"bye", guestDev, guestSeq.next(), {{"reason", "leave"}}})));
     guest.stop(std::chrono::milliseconds(500));
+    auto bye = hostIn.take(
+        [&](const mq::Publish& p) {
+            const auto e = p.topic == t.guest ? openEnvelope(inv.key, t.guest, p.payload) : std::nullopt;
+            return e && e->type == "bye" && e->body["reason"] == "leave";
+        },
+        10'000);
+    CHECK(bye.has_value());
 
     // Ending: an empty retained message clears the state for later guests.
     CHECK(host.publish(t.state, {}, true));

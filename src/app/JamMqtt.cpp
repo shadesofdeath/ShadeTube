@@ -686,7 +686,7 @@ struct Client::Impl : std::enable_shared_from_this<Impl> {
                 co.clientId = cfg.clientIdPrefix + randomHex(16);
                 co.keepAliveSec = cfg.keepAliveSec;
                 co.cleanSession = true;
-                co.will = cfg.will;
+                co.will = cfg.willProvider ? cfg.willProvider() : cfg.will;
                 bool accepted = false;
                 if (!sendRaw(c, encodeConnect(co))) {
                     err = "CONNECT not sent";
@@ -715,6 +715,15 @@ struct Client::Impl : std::enable_shared_from_this<Impl> {
                     }
                     setState(State::Connected, url, {});
                     err = session(c, cfg, gen);
+                    if (err.empty()) {
+                        // Left on purpose (stop / restart) after a DISCONNECT: closing the socket at once could drop
+                        // what is still in flight (the last messages of a session). Close the WebSocket properly and
+                        // give the broker a moment to read everything and hang up.
+                        if (HINTERNET ws = c->ws.load())
+                            WinHttpWebSocketShutdown(ws, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr, 0);
+                        std::unique_lock lk(m);
+                        cv.wait_for(lk, std::chrono::milliseconds(1500), [&] { return readerDead; });
+                    }
                 }
                 c->abort();
                 reader.join();

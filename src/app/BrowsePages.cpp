@@ -292,7 +292,9 @@ public:
                            : connect   ? tr(L"Spotify'a bağlan")
                                        : linkAction(link_),
                            type::body);
-        sub_ = gfx::Text(unsupported ? tr(L"Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.")
+        sub_ = gfx::Text(unsupported && link_.service == links::Service::ShadeTube
+                             ? tr(L"Birlikte dinleme davetleri shadetube://jam/ ile başlar.")
+                         : unsupported ? tr(L"Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.")
                          : connect   ? i18n::format(tr(L"{} · Açmak için Spotify hesabınla bağlan"), {linkLabel(link_)})
                                      : linkLabel(link_),
                          type::secondary);

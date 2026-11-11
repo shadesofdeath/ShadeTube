@@ -142,6 +142,33 @@ std::string topicBase(const Bytes& roomId) { return "shadetube/jam/v1/" + toHex(
 
 std::string roomTag(const Bytes& roomId) { return toHex(sha256(roomId)).substr(0, 8); }
 
+// ---- A link for the running instance --------------------------------------------------------------------------------
+
+bool forwardOpenLink(const wchar_t* windowClass, std::wstring_view link) {
+    if (link.empty() || link.size() > 4096) return false;
+    HWND target = FindWindowW(windowClass, L"ShadeTube");
+    if (!target) target = FindWindowW(windowClass, nullptr);
+    if (!target) return false;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(target, &pid);
+    if (pid) AllowSetForegroundWindow(pid);   // it may bring itself to the front
+    COPYDATASTRUCT cds{};
+    cds.dwData = kOpenLinkCopyData;
+    cds.cbData = static_cast<DWORD>(link.size() * sizeof(wchar_t));
+    cds.lpData = const_cast<wchar_t*>(link.data());
+    DWORD_PTR result = 0;
+    return SendMessageTimeoutW(target, WM_COPYDATA, 0, reinterpret_cast<LPARAM>(&cds), SMTO_ABORTIFHUNG | SMTO_BLOCK, 5000,
+                               &result) != 0;
+}
+
+std::wstring openLinkFromCopyData(const void* copyDataStruct) {
+    const auto* cds = static_cast<const COPYDATASTRUCT*>(copyDataStruct);
+    if (!cds || cds->dwData != kOpenLinkCopyData || !cds->lpData || cds->cbData == 0 || cds->cbData > 4096 * sizeof(wchar_t) ||
+        cds->cbData % sizeof(wchar_t))
+        return {};
+    return std::wstring(static_cast<const wchar_t*>(cds->lpData), cds->cbData / sizeof(wchar_t));
+}
+
 // ---- URL protocol ---------------------------------------------------------------------------------------------------
 
 bool protocolKeyOverridden() { return !wenv(L"SHADETUBE_PROTOCOL_KEY").empty(); }

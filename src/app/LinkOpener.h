@@ -5,6 +5,7 @@
 //                                                     when the album can't be loaded
 //   YouTube video                                 -> plays as a single song pinned to exactly that video (never
 //                                                     re-matched), titled from the video ("Artist - Title")
+//   shadetube://jam/ invite                       -> joins the "Birlikte dinle" session (app/Together)
 //   Unsupported                                   -> a toast; nothing is searched
 #include "app/Links.h"
 

@@ -56,6 +56,7 @@ constexpr Action kActions[] = {
     {"now-playing", [] { return tr(L"Şimdi Çalıyor ekranı"); }, Category::View, "F11", 0, "expand"},
     {"queue", [] { return tr(L"Çalma sırası paneli"); }, Category::View, "", 0, "queue"},
     {"friend-activity", [] { return tr(L"Arkadaş etkinliği paneli"); }, Category::View, "Ctrl+Shift+A", 0, "users"},
+    {"listen-together", [] { return tr(L"Birlikte dinle paneli"); }, Category::View, "", 0, "users"},
     {"lyrics-fullscreen", [] { return tr(L"Tam ekran şarkı sözleri"); }, Category::View, "Ctrl+Shift+L", 0, "lyrics"},
     {"lyrics-earlier", [] { return tr(L"Sözleri 0,25 sn erken göster"); },
      Category::View, "Ctrl+Shift+Left", kRepeat, "chevron-left"},

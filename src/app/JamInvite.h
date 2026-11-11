@@ -53,6 +53,15 @@ std::string topicBase(const Bytes& roomId);
 // The room's short fingerprint for logs (first 8 hex digits of the topic hash; reveals nothing about the key).
 std::string roomTag(const Bytes& roomId);
 
+// ---- A link for the running instance --------------------------------------------------------------------------------
+// A second launch (`ShadeTube.exe --open-link <link>`, e.g. a clicked shadetube: link) hands the link to the running
+// ShadeTube as WM_COPYDATA (dwData = kOpenLinkCopyData, UTF-16 text without the terminator) and exits.
+inline constexpr unsigned long kOpenLinkCopyData = 0x4A414D31;   // 'JAM1'
+// Sends `link` to the main window ("ShadeTube") of `windowClass`, else any window of it. False: none answered.
+bool forwardOpenLink(const wchar_t* windowClass, std::wstring_view link);
+// The text of such a WM_COPYDATA (lParam), "" for anything else (or an oversized one).
+std::wstring openLinkFromCopyData(const void* copyDataStruct);
+
 // ---- URL protocol ---------------------------------------------------------------------------------------------------
 // The HKCU sub key (under HKEY_CURRENT_USER) the protocol lives in: "Software\Classes\shadetube", or
 // SHADETUBE_PROTOCOL_KEY (tests; any HKCU path, a "HKCU\" prefix is stripped).

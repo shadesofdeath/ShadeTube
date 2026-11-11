@@ -174,5 +174,6 @@ void buildAudioRows(ui::Column* c, const std::function<void()>& rebuild);       
 void buildStartupRows(ui::Column* c, const std::function<void()>& rebuild);           // PENCERE   (app/SystemSettings.cpp)
 void buildShortcutRows(ui::Column* c, const std::function<void()>& rebuild);          // KLAVYE    (app/SystemSettings.cpp)
 void buildDownloadSyncRows(ui::Column* c, const std::function<void()>& rebuild);      // İNDİRME   (app/DownloadSync.cpp)
+void buildJamRows(ui::Column* c, const std::function<void()>& rebuild);               // BİRLİKTE DİNLE (app/TogetherPanel.cpp)
 
 } // namespace st::app

@@ -147,6 +147,9 @@ public:
         std::vector<std::string> brokers;        // tried in order (see the header comment)
         std::vector<std::string> subscriptions;  // topic filters, QoS 0
         std::optional<Will> will;
+        // Asked (on the client's thread) before every connection attempt; when set it gives that connection's will
+        // instead of `will` (a fresh sequence number per connection, app/JamProtocol).
+        std::function<std::optional<Will>()> willProvider;
         uint16_t keepAliveSec = 20;
         std::string clientIdPrefix = "st-";      // + 16 random hex digits per connection
         int failuresBeforeNext = 2;              // failed attempts on one broker before the next one is tried

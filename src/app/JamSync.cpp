@@ -63,15 +63,34 @@ void learnSeekLead(SyncMemory& mem, int64_t residualMs) {
     mem.seekLeadMs = std::clamp<int64_t>(mem.seekLeadMs - residualMs / 2, 0, 1500);
 }
 
+void learnLoadLead(SyncMemory& mem, int64_t residualMs) {
+    mem.loadLeadMs = std::clamp<int64_t>(mem.loadLeadMs - residualMs / 2, 0, 4000);
+}
+
 Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs, const LocalView& local, SyncMemory& mem,
                 const SyncTuning& tuning) {
     Decision d;
+    // Play / pause go out once: the player reports the change a moment later, and asking again would only repeat it.
+    auto wantPause = [&] {
+        if (local.playing && guestNowMs - mem.lastPauseAt >= 1000) {
+            d.pause = true;
+            mem.lastPauseAt = guestNowMs;
+        }
+    };
+    auto wantPlay = [&] {
+        if (guestNowMs - mem.lastPlayAt >= 1000) {
+            d.play = true;
+            mem.lastPlayAt = guestNowMs;
+        }
+    };
     const QueueItem* cur = host.currentItem();
     auto holdPaused = [&](Decision::Hold why) {
         d.hold = why;
-        if (local.playing) d.pause = true;
+        wantPause();
         return d;
     };
+    if (!local.playing || local.buffering) mem.playingSince = -1;
+    else if (mem.playingSince < 0) mem.playingSince = guestNowMs;
     if (!cur || (host.status == HostStatus::Idle && !host.playing)) return holdPaused(Decision::Hold::Idle);
     if (cur->kind == ItemKind::Unsupported) return holdPaused(Decision::Hold::Unsupported);
     if (mem.failed.count(cur->id)) return holdPaused(Decision::Hold::Failed);
@@ -84,7 +103,8 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
         return std::clamp<int64_t>(ms, 0, top);
     };
     std::vector<std::string> hostUpcoming;
-    for (size_t i = static_cast<size_t>(host.current) + 1; i < host.queue.size(); ++i) hostUpcoming.push_back(host.queue[i].id);
+    for (size_t i = static_cast<size_t>(host.current) + 1; i < host.queue.size(); ++i)
+        if (host.queue[i].kind != ItemKind::Unsupported) hostUpcoming.push_back(host.queue[i].id);   // never queued here
     auto noteAttempt = [&] {
         if (mem.attemptId == cur->id) ++mem.attempts;
         else {
@@ -93,6 +113,10 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
         }
         mem.errorSeen = false;
     };
+    if (mem.fineItemId != cur->id) {   // a new item: its own fine corrections
+        mem.fineItemId = cur->id;
+        mem.fineSeeks = 0;
+    }
 
     if (local.currentId != cur->id) {
         // The host is still finding the YouTube video of a song: wait for it (the next state names it).
@@ -114,6 +138,7 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
             return d;
         }
         noteAttempt();
+        mem.pending = SyncMemory::Pending::None;
         if (k >= 0) {
             d.load = Decision::Load::Jump;
             d.jumpIndex = k;
@@ -121,9 +146,10 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
         } else {
             d.load = Decision::Load::Queue;
             d.autoplay = advancing;
-            d.seekMs = clampSeek(advancing ? expected + mem.seekLeadMs : host.positionMs);
+            // A load takes a while to be heard (finding the stream, buffering): aim that far ahead.
+            d.seekMs = clampSeek(advancing ? expected + mem.loadLeadMs : host.positionMs);
             mem.lastSeekAt = guestNowMs;
-            mem.seekPending = advancing && d.seekMs > 0;
+            if (advancing && d.seekMs > 0) mem.pending = SyncMemory::Pending::Load;
         }
         return d;
     }
@@ -155,37 +181,42 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
     const int64_t target = advancing ? expected : host.positionMs;
     d.driftMs = local.positionMs - target;
     d.hasDrift = true;
-    const bool cooled = guestNowMs - mem.lastSeekAt >= tuning.seekCooldownMs;
+    const int64_t sinceSeek = guestNowMs - mem.lastSeekAt;
     const bool nearEnd = duration > 0 && expected >= duration - tuning.endGuardMs;
+    auto seekTo = [&](int64_t ms, SyncMemory::Pending measure) {
+        d.seekMs = clampSeek(ms);
+        mem.lastSeekAt = guestNowMs;
+        mem.pending = measure;
+    };
     if (advancing) {
-        if (mem.seekPending && local.playing && guestNowMs - mem.lastSeekAt >= 800) {
-            learnSeekLead(mem, d.driftMs);
-            mem.seekPending = false;
+        // How the last seek / load landed, once it has played a moment: the leads learn from it.
+        if (mem.pending != SyncMemory::Pending::None && mem.playingSince >= 0 &&
+            guestNowMs - std::max(mem.lastSeekAt, mem.playingSince) >= 800) {
+            if (mem.pending == SyncMemory::Pending::Seek) learnSeekLead(mem, d.driftMs);
+            else learnLoadLead(mem, d.driftMs);
+            mem.pending = SyncMemory::Pending::None;
         }
         if (!local.playing) {
-            d.play = true;
+            wantPlay();
             // Starting anyway: line up now (no audible jump) unless it is already close.
-            if (std::llabs(d.driftMs) > 150 && !nearEnd) {
-                d.seekMs = clampSeek(expected + mem.seekLeadMs);
-                mem.lastSeekAt = guestNowMs;
-                mem.seekPending = true;
-            }
-        } else if (std::llabs(d.driftMs) > tuning.driftThresholdMs && cooled && !nearEnd) {
-            d.seekMs = clampSeek(expected + mem.seekLeadMs);
-            mem.lastSeekAt = guestNowMs;
-            mem.seekPending = true;
+            if (std::llabs(d.driftMs) > 150 && !nearEnd && sinceSeek >= 1500) seekTo(expected + mem.seekLeadMs, SyncMemory::Pending::Seek);
+        } else if (std::llabs(d.driftMs) > tuning.driftThresholdMs && sinceSeek >= tuning.seekCooldownMs && !nearEnd) {
+            seekTo(expected + mem.seekLeadMs, SyncMemory::Pending::Seek);
+        } else if (std::llabs(d.driftMs) > tuning.fineThresholdMs && sinceSeek >= tuning.fineSettleMs && mem.playingSince >= 0 &&
+                   guestNowMs - mem.playingSince >= 2000 && mem.fineSeeks < tuning.maxFineSeeks && !nearEnd) {
+            // A steady offset under the threshold (a load that took longer than expected): a few fine corrections
+            // per song, with what the leads have learned.
+            ++mem.fineSeeks;
+            seekTo(expected + mem.seekLeadMs, SyncMemory::Pending::Seek);
         }
         return d;
     }
     // The host doesn't advance: paused (follow the pause and its position) or loading (a short rebuffer: keep going,
     // the next state corrects the position).
     if (host.status == HostStatus::Loading && host.playing) return d;
-    if (local.playing) d.pause = true;
-    if (std::llabs(d.driftMs) > tuning.driftThresholdMs && cooled) {
-        d.seekMs = clampSeek(host.positionMs);
-        mem.lastSeekAt = guestNowMs;
-        mem.seekPending = false;
-    }
+    wantPause();
+    if (std::llabs(d.driftMs) > tuning.driftThresholdMs && sinceSeek >= tuning.seekCooldownMs)
+        seekTo(host.positionMs, SyncMemory::Pending::None);
     return d;
 }
 

@@ -9,9 +9,12 @@
 // Reconciliation: decide() compares the host's state (its current item, where it is now — position + the time since
 // it was sampled, on the estimated host clock — and whether it advances) with what this player does, and says what to
 // change: load the host's queue at the host's position, jump to an upcoming item that became current, replace the
-// upcoming items, seek when the drift passes a threshold (1 s; at most every 3 s, never while buffering, aiming a
-// little ahead to cover the seek itself), play or pause. Items this player failed to play twice are held (paused)
-// until the host moves on; podcasts and radio stations (ItemKind::Unsupported) are not followed.
+// upcoming items, seek when the drift passes a threshold (1 s; at most every 3 s, never while buffering), play or
+// pause. A steady offset under the threshold (typically a load that took longer than its lead) gets up to three fine
+// corrections per song once it has played 2 s and 4 s passed since the last seek (> 250 ms). Seeks and loads aim
+// ahead by what they take to be heard; each one's landing is measured 0.8 s into playback and the lead moves half the
+// error (learnSeekLead / learnLoadLead). Items this player failed to play twice are held (paused) until the host
+// moves on; podcasts and radio stations (ItemKind::Unsupported) are not followed.
 //
 // Standalone and pure (tests/jam compiles it): app/JamProtocol only.
 #include "app/JamProtocol.h"
@@ -60,14 +63,23 @@ struct SyncMemory {
     std::string attemptId;                 // the item the last Load / Jump was for
     int attempts = 0;                      // loads of attemptId that didn't end up playing
     bool errorSeen = false;                // attemptId's current failure was counted
-    int64_t lastSeekAt = -1'000'000;       // guest clock of the last seek
-    bool seekPending = false;              // the last seek's result is still to be measured (learnSeekLead)
-    int64_t seekLeadMs = 250;              // how far ahead a seek aims (the time a seek takes to be heard)
+    int64_t lastSeekAt = -1'000'000;       // guest clock of the last seek / load
+    int64_t lastPlayAt = -1'000'000, lastPauseAt = -1'000'000;
+    int64_t playingSince = -1;             // guest clock since the player plays steadily (-1: it doesn't)
+    enum class Pending { None, Seek, Load };
+    Pending pending = Pending::None;       // the last seek / load is still to be measured
+    int64_t seekLeadMs = 100;              // how far ahead a seek aims (the time a seek takes to be heard)
+    int64_t loadLeadMs = 700;              // ... and a load (finding the stream, buffering)
+    std::string fineItemId;                // fine corrections so far for this item
+    int fineSeeks = 0;
 };
 
 struct SyncTuning {
     int64_t driftThresholdMs = 1000;       // re-seek beyond this
     int64_t seekCooldownMs = 3000;
+    int64_t fineThresholdMs = 250;         // a steady offset beyond this gets a fine correction
+    int64_t fineSettleMs = 4000;           // ... this long after the last seek
+    int maxFineSeeks = 3;                  // ... at most this often per song
     int64_t endGuardMs = 2000;             // no seeks into the last seconds of a track
     int maxLoadAttempts = 2;
     int jumpLookahead = 3;                 // a host item this close in the local upcoming list is jumped to
@@ -98,5 +110,6 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
 // After a seek was heard: `residualMs` = local - expected measured once the player plays again. Moves the lead
 // towards what the seek really took (bounded 0 .. 1500 ms).
 void learnSeekLead(SyncMemory& mem, int64_t residualMs);
+void learnLoadLead(SyncMemory& mem, int64_t residualMs);   // the same for loads (bounded 0 .. 4000 ms)
 
 } // namespace st::app::jam

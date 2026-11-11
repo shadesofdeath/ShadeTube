@@ -166,6 +166,16 @@ Link parse(std::string_view text) {
     }
     if (s.empty() || s.find_first_of(kSpace) != std::string_view::npos) return {};
     if (startsWithNoCase(s, "spotify:")) return parseSpotifyUri(s);
+    if (startsWithNoCase(s, "shadetube:")) {
+        // shadetube://jam/<token>: the token is base64url (60..400 characters); browsers may add a trailing '/'.
+        constexpr std::string_view jam = "shadetube://jam/";
+        std::string_view token = startsWithNoCase(s, jam) ? s.substr(jam.size()) : std::string_view{};
+        while (!token.empty() && token.back() == '/') token.remove_suffix(1);
+        const bool ok = token.size() >= 60 && token.size() <= 400 && std::all_of(token.begin(), token.end(), [](char c) {
+                            return isAlnum(c) || c == '-' || c == '_';
+                        });
+        return ok ? make(Kind::JamInvite, Service::ShadeTube, std::string(s)) : unsupported(Service::ShadeTube);
+    }
 
     if (startsWithNoCase(s, "https://")) s.remove_prefix(8);
     else if (startsWithNoCase(s, "http://")) s.remove_prefix(7);

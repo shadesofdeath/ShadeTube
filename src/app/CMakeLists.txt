@@ -77,6 +77,13 @@ add_executable(ShadeTube WIN32
     PodcastsPage.cpp PodcastUi.h
     Podcasts.cpp Podcasts.h
     InternetRadio.cpp InternetRadio.h
+    JamCrypto.cpp JamCrypto.h
+    JamInvite.cpp JamInvite.h
+    JamMqtt.cpp JamMqtt.h
+    JamProtocol.cpp JamProtocol.h
+    JamSync.cpp JamSync.h
+    Together.cpp Together.h
+    TogetherPanel.cpp
     Router.cpp Router.h
     Scrobbler.cpp Scrobbler.h
     SettingsPage.cpp
@@ -102,9 +109,10 @@ add_executable(ShadeTube WIN32
     ShadeTube.manifest
     ${CMAKE_CURRENT_BINARY_DIR}/resources.rc
 )
-# windowsapp: C++/WinRT SystemMediaTransportControls (Smtc). bcrypt: MD5 for Last.fm signatures. crypt32: DPAPI.
+# windowsapp: C++/WinRT SystemMediaTransportControls (Smtc). bcrypt: MD5 for Last.fm signatures, AES-GCM / ECDH for
+# "Birlikte dinle". crypt32: DPAPI. winhttp: the MQTT WebSocket of "Birlikte dinle". secur32: the Windows display name.
 target_link_libraries(ShadeTube PRIVATE st_ui st_player st_lyrics st_musicbrainz st_spotify st_youtube st_catalog st_audio st_core webview2
-    windowsapp bcrypt crypt32)
+    windowsapp bcrypt crypt32 winhttp secur32)
 # "ShadeTube 0.3" in Ayarlar > Hakkında.
 target_compile_definitions(ShadeTube PRIVATE ST_VERSION_SHORT="${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")
 # The WebView2 static loader is built with the release static CRT; in a Debug (/MTd) build let the debug CRT win.

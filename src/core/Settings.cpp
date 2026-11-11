@@ -82,6 +82,8 @@ void Settings::load() {
     read(j, "localFolders", localFolders);
     read(j, "expandedFolders", expandedFolders);
     read(j, "friendActivityOpen", friendActivityOpen);
+    read(j, "jamName", jamName);
+    read(j, "jamBroker", jamBroker);
     read(j, "newReleaseNotifications", newReleaseNotifications);
     read(j, "updateCheck", updateCheck);
     read(j, "lastUpdateCheck", lastUpdateCheck);
@@ -155,6 +157,8 @@ void Settings::save() const {
         {"localFolders", localFolders},
         {"expandedFolders", expandedFolders},
         {"friendActivityOpen", friendActivityOpen},
+        {"jamName", jamName},
+        {"jamBroker", jamBroker},
         {"newReleaseNotifications", newReleaseNotifications},
         {"updateCheck", updateCheck},
         {"lastUpdateCheck", lastUpdateCheck},

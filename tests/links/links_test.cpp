@@ -6,6 +6,7 @@
 //   youtube     : watch?v= (any parameter order, &list= / &t=), youtu.be, shorts, embed, live, m. / music. hosts,
 //                 youtube-nocookie; /playlist?list= (YouTube and YouTube Music); channels as Unsupported; invalid ids
 //   musicbrainz : release-group, release, artist, recording (+ sub pages); upper-case MBIDs normalized
+//   invites     : shadetube://jam/<token> listen-together invites (case, trailing slash, brackets), broken ones
 //   not links   : plain text, text around a link, other hosts, empty input, the UTF-16 overload
 //   video song  : "Artist - Title (Official Video)" + channel -> artist / title
 //   spotify ids : base62 <-> gid (librespot's vector), invalid input, the metadata JSON parser (synthetic fixture)
@@ -166,6 +167,24 @@ static void testNotLinks() {
     CHECK(!links::isVideoId("dQw4w9WgXc"));
 }
 
+// "Birlikte dinle" invites (app/JamInvite decodes the token; here only the shape is recognized).
+static void testJamInvites() {
+    std::printf("shadetube invites\n");
+    const std::string token = "AQDksWkBc3RhcnQtdGhlLXBhcnR5LW5vdy1wbGVhc2UtYW5kLXRoYW5rcy1tYW55LXRpbWVzYnJva2VyLmVtcXguaW86ODA4NC9tcXR0";
+    const std::string link = "shadetube://jam/" + token;
+    expect(link.c_str(), Kind::JamInvite, link.c_str());
+    const auto l = links::parse(std::string_view(link + "/"));   // browsers add a slash
+    CHECK(l.kind == Kind::JamInvite && l.service == Service::ShadeTube);
+    CHECK(links::parse(std::string_view("  <" + link + ">  ")).kind == Kind::JamInvite);
+    CHECK(links::parse(std::string_view("SHADETUBE://JAM/" + token)).kind == Kind::JamInvite);
+    CHECK(links::parse(std::wstring_view(L"shadetube://jam/" + std::wstring(token.begin(), token.end()))).kind == Kind::JamInvite);
+    expect("shadetube://jam/short", Kind::Unsupported);
+    expect(("shadetube://jam/" + token + "$").c_str(), Kind::Unsupported);
+    expect("shadetube://other/thing", Kind::Unsupported);
+    CHECK(links::parse(std::string_view("shadetube://jam/x")).service == Service::ShadeTube);
+    CHECK(links::parse(std::string_view("join " + link)).kind == Kind::None);   // text around it: searched
+}
+
 static void song(const char* title, const char* channel, const char* artist, const char* name) {
     const auto s = links::videoSong(title, channel);
     if (s.artist != artist || s.title != name) {
@@ -293,6 +312,7 @@ int main(int argc, char** argv) {
         testYouTube();
         testMusicBrainz();
         testNotLinks();
+        testJamInvites();
         testVideoSong();
         testSpotifyIds();
     }

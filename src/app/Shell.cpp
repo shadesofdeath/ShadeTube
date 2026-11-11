@@ -12,6 +12,7 @@
 #include "app/SmartShuffle.h"
 #include "app/Social.h"
 #include "app/Source.h"
+#include "app/Together.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Settings.h"
@@ -594,6 +595,14 @@ PlayerBar::PlayerBar()
         const Rect br = speed_->toWindow(speed_->rect());
         ui::Menu::open(ctx().window, {br.x, br.y - 6}, std::move(items));
     };
+    // "Birlikte dinle" (app/Together): the panel's button; during a session a pill that names it.
+    jam_ = add<Button>(ButtonKind::Icon, L"", "users");
+    jam_->setTooltip(tr(L"Birlikte dinle"));
+    jam_->onClick = [] { commands::run("listen-together"); };
+    jamLabel_ = add<Button>(ButtonKind::Ghost, L"", "users");
+    jamLabel_->setTooltip(tr(L"Birlikte dinle"));
+    jamLabel_->onClick = [] { commands::run("listen-together"); };
+    jamLabel_->setVisible(false);
     sleep_ = add<Button>(ButtonKind::Icon, L"", "clock");
     sleep_->setTooltip(tr(L"Uyku zamanlayıcı"));
     sleep_->onClick = [this] {
@@ -678,6 +687,26 @@ void PlayerBar::sync() {
     sleep_->setTooltip(sleepTimerActive() ? i18n::format(tr(L"Uyku zamanlayıcı · {}"), {sleepTimerLabel()})
                                           : std::wstring(tr(L"Uyku zamanlayıcı")));
     for (auto* b : {prev_, next_}) b->setEnabled(t != nullptr);
+    // Listen together: a guest's transport follows the host (requests when the host allows it, else off), shuffle and
+    // repeat are the host's.
+    {
+        const std::wstring session = together::barLabel();
+        jamLabel_->setLabel(session);
+        jam_->setActive(together::active());
+        jamLabel_->setActive(together::active());
+        if (together::guest()) {
+            const bool control = together::guestCanControl();
+            for (auto* b : {prev_, next_}) b->setEnabled(t && control);
+            play_->setEnabled(t && control);
+            seek_->setEnabled(!live_ && control);
+            shuffle_->setEnabled(false);
+            repeat_->setEnabled(false);
+        } else {
+            play_->setEnabled(true);
+            shuffle_->setEnabled(true);
+            repeat_->setEnabled(true);
+        }
+    }
     if (p) knob_->setValue(p->volume());   // volume / mute shortcuts
     // Keyboard-focused seek bar: arrows step 5 s like the global shortcuts (0 = the slider's 2 % default).
     const int64_t durMs = p ? p->durationMs() : 0;
@@ -713,6 +742,21 @@ void PlayerBar::layout() {
     place(queue_, 32, 6);
     place(lyrics_, 32, 6);
     place(sleep_, 32, 10);
+    // "Birlikte dinle": the pill while a session runs and there is room before the center group, else the icon.
+    {
+        const float centerRight = std::round(r.w * 0.5f + groupW * 0.5f) + 16;
+        const float pillW = std::min(260.f, std::ceil(jamLabel_->naturalWidth()));
+        const bool pill = together::active() && rx - pillW - (speed_->visible() ? 52 : 0) >= centerRight;
+        jamLabel_->setVisible(pill);
+        jam_->setVisible(!pill);
+        if (pill) {
+            rx -= pillW;
+            jamLabel_->setRect({rx, cy - 16, pillW, 32});
+            rx -= 6;
+        } else {
+            place(jam_, 32, 6);
+        }
+    }
     if (speed_->visible()) {
         const float w = std::max(40.f, std::ceil(speed_->naturalWidth()));
         rx -= w;
@@ -759,12 +803,26 @@ void PlayerBar::onMouseMove(const ui::MouseEvent& e) {
         infoHover_ = hot;
         invalidate();
     }
+    bool locked = false;
+    if (!together::lockedReason().empty())
+        for (Widget* w : std::initializer_list<Widget*>{shuffle_, prev_, play_, next_, repeat_, seek_})
+            if (!w->enabled() && w->visible() && w->rect().contains(p)) locked = true;
+    lockedHover_ = locked;
 }
 
 void PlayerBar::onMouseLeave() {
     infoHover_ = false;
+    lockedHover_ = false;
     invalidate();
 }
+
+ui::Widget* PlayerBar::hitTest(gfx::Point pos) {
+    Widget* hit = Widget::hitTest(pos);
+    if (hit && hit != this && !hit->enabled() && hit->parent() == this && !together::lockedReason().empty()) return this;
+    return hit;
+}
+
+std::wstring PlayerBar::tooltip() const { return lockedHover_ ? together::lockedReason() : std::wstring(); }
 
 void PlayerBar::paint(Canvas& c) {
     const Rect r = rect();
@@ -1061,6 +1119,11 @@ void QueuePanel::paint(Canvas& c) {
             smartshuffle::drawBadge(c, r.w - padX - rightW - 8 - bw, rr.cy());
             rightW += bw + 8;
         }
+        if (const std::wstring by = together::addedBy(t); !by.empty()) {   // a listen-together guest queued it
+            const float bw = together::addedBadgeWidth(by);
+            together::drawAddedBadge(c, r.w - padX - rightW - 8 - bw, rr.cy(), by);
+            rightW += bw + 8;
+        }
         if (blocked) {
             const float bw = std::ceil(blockedBadge_.measure().w) + 10;
             const Rect badge{r.w - padX - rightW - 8 - bw, rr.cy() - 7, bw, 14};
@@ -1158,6 +1221,8 @@ Shell::Shell() {
     queue_->setVisible(false);
     friends_ = add<FriendPanel>();
     friends_->setVisible(false);
+    jam_ = add<JamPanel>();
+    jam_->setVisible(false);
     playerBar_ = add<PlayerBar>();
     connect_ = add<ConnectScreen>();
     connect_->setVisible(false);
@@ -1188,7 +1253,7 @@ void Shell::setNowPlaying(bool on) {
 
 void Shell::setQueueOpen(bool on) {
     queueOpen_ = on;
-    if (on) friendsOpen_ = false;
+    if (on) friendsOpen_ = jamOpen_ = false;
     queueAnim_.to(on ? 1.f : 0.f, ui::motion::medium, ui::Ease::Decelerate);
     queue_->setVisible(true);
     requestLayout();
@@ -1196,7 +1261,14 @@ void Shell::setQueueOpen(bool on) {
 
 void Shell::setFriendsOpen(bool on) {
     friendsOpen_ = on;
-    if (on) queueOpen_ = false;
+    if (on) queueOpen_ = jamOpen_ = false;
+    requestLayout();
+    invalidate();
+}
+
+void Shell::setJamOpen(bool on) {
+    jamOpen_ = on;
+    if (on) queueOpen_ = friendsOpen_ = false;
     requestLayout();
     invalidate();
 }
@@ -1208,17 +1280,18 @@ void Shell::layout() {
     if (connectMode_) {
         connect_->setRect({0, top, r.w, r.h - top});
         connect_->setVisible(true);
-        for (Widget* w : std::initializer_list<Widget*>{sidebar_, pageHost_, playerBar_, queue_, friends_, nowPlayingView_})
+        for (Widget* w : std::initializer_list<Widget*>{sidebar_, pageHost_, playerBar_, queue_, friends_, jam_, nowPlayingView_})
             w->setVisible(false);
         return;
     }
     connect_->setVisible(false);
     playerBar_->setVisible(true);   // connect mode hid it (logout -> login again)
     playerBar_->setRect({0, bottom, r.w, metrics::playerBarH});
-    // Right side: the queue or the friend activity (Spotify only), never both.
-    const bool friends = friendsOpen_ && !nowPlaying_ && socialAvailable();
-    const bool queue = queueOpen_ && !nowPlaying_ && !friends;
-    const float q = queue || friends ? metrics::queueW : 0;
+    // Right side: the queue, the friend activity (Spotify only) or "Birlikte dinle", one at a time.
+    const bool jam = jamOpen_ && !nowPlaying_;
+    const bool friends = friendsOpen_ && !nowPlaying_ && socialAvailable() && !jam;
+    const bool queue = queueOpen_ && !nowPlaying_ && !friends && !jam;
+    const float q = queue || friends || jam ? metrics::queueW : 0;
     sidebar_->setRect({0, top, metrics::sidebarW, bottom - top});
     pageHost_->setRect({metrics::sidebarW, top, r.w - metrics::sidebarW - q, bottom - top});
     queue_->setRect({r.w - metrics::queueW, top, metrics::queueW, bottom - top});
@@ -1230,6 +1303,8 @@ void Shell::layout() {
         });
     }
     friends_->setVisible(friends);
+    jam_->setRect({r.w - metrics::queueW, top, metrics::queueW, bottom - top});
+    jam_->setVisible(jam);
     nowPlayingView_->setRect({0, top, r.w, bottom - top});
     nowPlayingView_->setVisible(nowPlaying_ || npAnim_.running());
     sidebar_->setVisible(!nowPlaying_);
@@ -1264,7 +1339,8 @@ void Shell::paint(Canvas& c) {
             c.popLayer();
             continue;
         }
-        if ((child.get() == sidebar_ || child.get() == pageHost_ || child.get() == queue_ || child.get() == friends_) &&
+        if ((child.get() == sidebar_ || child.get() == pageHost_ || child.get() == queue_ || child.get() == friends_ ||
+             child.get() == jam_) &&
             t > 0.999f)
             continue;
         child->paint(c);
