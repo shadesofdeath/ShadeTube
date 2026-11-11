@@ -103,6 +103,7 @@ void Player::rebuildOrder(int keepItemIndex) {
 }
 
 void Player::playContext(std::vector<Track> tracks, int startIndex, PlayContext context) {
+    if (CommandArgs a{&tracks, startIndex}; filtered(Command::PlayContext, a)) return;
     // Skip unplayable (local / region-locked) items when choosing the start.
     std::vector<Track> playable;
     playable.reserve(tracks.size());
@@ -133,6 +134,35 @@ void Player::playContext(std::vector<Track> tracks, int startIndex, PlayContext 
     loadCurrent(0, true);
 }
 
+void Player::playContextAt(std::vector<Track> tracks, int startIndex, PlayContext context, int64_t startMs, bool autoplay) {
+    std::vector<Track> playable;
+    playable.reserve(tracks.size());
+    int start = 0;
+    for (int i = 0; i < static_cast<int>(tracks.size()); ++i) {
+        if (!tracks[i].playable || tracks[i].name.empty()) continue;
+        if (i <= startIndex) start = static_cast<int>(playable.size());
+        playable.push_back(std::move(tracks[i]));
+    }
+    if (playable.empty()) return;
+    items_ = std::move(playable);
+    context_ = std::move(context);
+    ++queueGen_;
+    failStreak_ = 0;
+    dropPrepared();
+    rebuildOrder(start);
+    if (shuffle_ && items_.size() > 1) {   // the given order is the order (a guest mirrors the host's play order)
+        for (size_t i = 0; i < order_.size(); ++i) order_[i] = static_cast<int>(i);
+        pos_ = start;
+    }
+    retries_ = 0;
+    endedAtEnd_ = false;
+    preloadFailed_.clear();
+    clearLiveTitle();
+    startResolve(pos_, std::max<int64_t>(0, startMs), autoplay, false);
+    if (const Track* t = current(); t && onTrackChanged) onTrackChanged(*t);
+    notify();
+}
+
 int Player::firstPlayable(const std::vector<Track>& tracks) const {
     for (int i = 0; i < static_cast<int>(tracks.size()); ++i)
         if (tracks[i].playable && !tracks[i].name.empty() && (!shouldSkip || !shouldSkip(tracks[i]))) return i;
@@ -140,6 +170,7 @@ int Player::firstPlayable(const std::vector<Track>& tracks) const {
 }
 
 int Player::extend(const std::vector<Track>& tracks) {
+    if (CommandArgs a{&tracks}; filtered(Command::Extend, a)) return 0;
     if (items_.empty()) return 0;   // nothing to continue: callers start a context instead
     int added = 0;
     for (const auto& t : tracks) {
@@ -261,6 +292,7 @@ void Player::checkQueueLow() {
 }
 
 void Player::replaceUpcoming(std::vector<Track> tracks, PlayContext context) {
+    if (CommandArgs a{&tracks}; filtered(Command::ReplaceUpcoming, a)) return;
     const Track* cur = current();
     if (!cur) {
         playContext(std::move(tracks), 0, std::move(context));
@@ -280,6 +312,10 @@ void Player::replaceUpcoming(std::vector<Track> tracks, PlayContext context) {
 }
 
 void Player::playNext(const Track& track) {
+    if (commandFilter) {
+        const std::vector<Track> one{track};
+        if (CommandArgs a{&one}; filtered(Command::PlayNext, a)) return;
+    }
     if (items_.empty()) {
         playContext({track}, 0, {"queue", tr(L"Sıra")});
         return;
@@ -291,6 +327,7 @@ void Player::playNext(const Track& track) {
 }
 
 void Player::enqueue(const std::vector<Track>& tracks) {
+    if (CommandArgs a{&tracks}; filtered(Command::Enqueue, a)) return;
     if (items_.empty()) {
         playContext(tracks, 0, {"queue", tr(L"Sıra")});
         return;
@@ -304,6 +341,7 @@ void Player::enqueue(const std::vector<Track>& tracks) {
 }
 
 int Player::insertAt(int orderIndex, const std::vector<Track>& tracks) {
+    if (CommandArgs a{&tracks, orderIndex}; filtered(Command::InsertAt, a)) return 0;
     if (items_.empty()) {
         const int n = static_cast<int>(std::count_if(tracks.begin(), tracks.end(),
                                                      [](const Track& t) { return t.playable && !t.name.empty(); }));
@@ -334,6 +372,7 @@ int Player::insertAt(int orderIndex, const std::vector<Track>& tracks) {
 }
 
 void Player::jumpTo(int orderIndex) {
+    if (CommandArgs a{nullptr, orderIndex}; filtered(Command::JumpTo, a)) return;
     if (orderIndex < 0 || orderIndex >= static_cast<int>(order_.size())) return;
     failStreak_ = 0;
     pos_ = orderIndex;
@@ -341,6 +380,7 @@ void Player::jumpTo(int orderIndex) {
 }
 
 void Player::removeAt(int orderIndex) {
+    if (CommandArgs a{nullptr, orderIndex}; filtered(Command::RemoveAt, a)) return;
     if (orderIndex < 0 || orderIndex >= static_cast<int>(order_.size()) || orderIndex == pos_) return;
     order_.erase(order_.begin() + orderIndex);
     if (orderIndex < pos_) --pos_;
@@ -354,6 +394,7 @@ void Player::removeAt(int orderIndex) {
 }
 
 void Player::move(int from, int to) {
+    if (CommandArgs a{nullptr, from, to}; filtered(Command::Move, a)) return;
     const int n = static_cast<int>(order_.size());
     if (from < 0 || from >= n || to < 0 || to >= n || from == to) return;
     const int item = order_[from];
@@ -369,6 +410,7 @@ void Player::move(int from, int to) {
 }
 
 void Player::clearQueue() {
+    if (filtered(Command::ClearQueue)) return;
     if (pos_ < 0) return;
     const int cur = order_[pos_];
     order_ = {cur};
@@ -378,6 +420,7 @@ void Player::clearQueue() {
 }
 
 void Player::setShuffle(bool on) {
+    if (CommandArgs a{nullptr, on ? 1 : 0}; shuffle_ != on && filtered(Command::Shuffle, a)) return;
     if (shuffle_ == on) return;
     shuffle_ = on;
     Settings::get().shuffle = on;
@@ -391,6 +434,7 @@ void Player::setShuffle(bool on) {
 }
 
 void Player::setRepeat(RepeatMode mode) {
+    if (CommandArgs a{nullptr, static_cast<int>(mode)}; filtered(Command::Repeat, a)) return;
     repeat_ = mode;
     Settings::get().repeat = mode;
     Settings::get().markDirty();
@@ -431,6 +475,7 @@ float Player::speed() const {
 }
 
 void Player::setSpeed(float speed) {
+    if (CommandArgs a{nullptr, -1, -1, static_cast<int64_t>(speed * 1000)}; filtered(Command::Speed, a)) return;
     const Track* t = current();
     if (!t || live_) return;
     speed = std::clamp(speed, 0.5f, 3.f);
@@ -444,12 +489,13 @@ void Player::setSpeed(float speed) {
 }
 
 void Player::togglePause() {
+    if (filtered(Command::TogglePause)) return;
     if (status_ == Status::Playing || status_ == Status::Buffering) pause();
     else play();
 }
 
 void Player::play() {
-    if (!current()) return;
+    if (!current() || filtered(Command::Play)) return;
     // Nothing loaded in the engine (restored session, error, end of queue): resolve and start.
     if (status_ == Status::Error || status_ == Status::Idle || currentTag_ == 0 ||
         engine_->currentTag() != currentTag_) {
@@ -459,10 +505,14 @@ void Player::play() {
     engine_->play();
 }
 
-void Player::pause() { engine_->pause(); }
+void Player::pause() {
+    if (filtered(Command::Pause)) return;
+    engine_->pause();
+}
 
 void Player::seek(int64_t ms) {
     if (!current() || live_) return;
+    if (CommandArgs a{nullptr, -1, -1, ms}; filtered(Command::Seek, a)) return;
     ms = std::clamp<int64_t>(ms, 0, std::max<int64_t>(0, durationMs() - 250));
     if (status_ == Status::Resolving) {
         pendingSeekMs_ = ms;
@@ -475,12 +525,13 @@ void Player::seek(int64_t ms) {
 }
 
 void Player::next() {
+    if (filtered(Command::Next)) return;
     failStreak_ = 0;
     advance(true);
 }
 
 void Player::previous() {
-    if (!current()) return;
+    if (!current() || filtered(Command::Previous)) return;
     failStreak_ = 0;
     const int prev = pos_ > 0 ? playableFrom(pos_ - 1, -1) : -1;
     if (live_ && prev < 0) return;   // a station has no start to go back to
@@ -565,7 +616,7 @@ void Player::advanceAfterError() {
 
 void Player::useMatch(const youtube::Match& match) {
     const Track* t = current();
-    if (!t || live_ || direct_) return;
+    if (!t || live_ || direct_ || filtered(Command::UseMatch)) return;
     matcher_.pin(t->id, match);
     const int64_t at = positionMs();
     loadCurrent(at, status_ != Status::Paused);
@@ -1035,6 +1086,23 @@ void Player::saveSession() const {
 }
 
 void Player::restoreSession() {
+    // Something may play (listen together gives a guest its own queue back this way): it stops, and nothing of the
+    // old queue stays (a missing or empty session.json leaves the queue empty). At startup this changes nothing.
+    const bool hadQueue = !items_.empty();
+    if (resolveCts_) resolveCts_->cancel();
+    dropPrepared();
+    engine_->stop();
+    currentTag_ = 0;
+    match_.reset();
+    stream_ = {};
+    live_ = direct_ = currentLocal_ = false;
+    clearLiveTitle();
+    pendingSeekMs_ = -1;
+    items_.clear();
+    order_.clear();
+    pos_ = -1;
+    status_ = Status::Idle;
+    context_ = {};
     try {
         restoreSessionFile();
     } catch (const std::exception& e) {   // a hand-edited / foreign session.json (wrong field types): start empty
@@ -1043,6 +1111,7 @@ void Player::restoreSession() {
         order_.clear();
         pos_ = -1;
     }
+    if (hadQueue && items_.empty()) notify();
 }
 
 void Player::restoreSessionFile() {

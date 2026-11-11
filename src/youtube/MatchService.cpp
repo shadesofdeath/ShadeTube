@@ -187,14 +187,28 @@ void MatchService::flush() {
 
 std::optional<Match> MatchService::cachedMatch(const std::string& trackId) const {
     std::lock_guard lock(mutex_);
+    if (auto it = sessionPins_.find(trackId); it != sessionPins_.end()) return it->second;
     if (auto it = matches_.find(trackId); it != matches_.end()) return it->second;
     return std::nullopt;
+}
+
+void MatchService::pinForSession(const std::string& trackId, Match match) {
+    match.manual = false;
+    if (match.score <= 0) match.score = 100;
+    std::lock_guard lock(mutex_);
+    sessionPins_[trackId] = std::move(match);
+}
+
+void MatchService::clearSessionPins() {
+    std::lock_guard lock(mutex_);
+    sessionPins_.clear();
 }
 
 void MatchService::pin(const std::string& trackId, Match match) {
     match.manual = true;
     match.score = 100;
     std::lock_guard lock(mutex_);
+    sessionPins_.erase(trackId);   // the user's own pick wins
     matches_[trackId] = std::move(match);
     dirty_ = true;
 }

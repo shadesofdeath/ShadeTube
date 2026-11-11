@@ -101,6 +101,11 @@ public:
     std::vector<Match> candidates(const catalog::Track& track, const CT& ct = {});
 
     void pin(const std::string& trackId, Match match);
+    // Listen together (app/Together): a guest plays exactly the host's video for a track. Kept in memory for this
+    // session only (never in matches.json) and asked before the persisted match; not `manual`, so a video this
+    // machine can't play (region lock) still falls back to a search. clearSessionPins() when the session ends.
+    void pinForSession(const std::string& trackId, Match match);
+    void clearSessionPins();
     std::optional<Match> cachedMatch(const std::string& trackId) const;
     void forgetStream(const std::string& videoId);
 
@@ -151,6 +156,7 @@ private:
     std::atomic<std::chrono::steady_clock::rep> youtubeLimitedUntil_{0};
     mutable std::mutex mutex_;
     std::unordered_map<std::string, Match> matches_;
+    std::unordered_map<std::string, Match> sessionPins_;   // pinForSession(): asked first, never persisted
     std::unordered_map<std::string, StreamInfo> streams_;
     bool dirty_ = false;
 };

@@ -415,7 +415,8 @@ void PlayButton::paint(Canvas& c) {
     const float s = 1 + 0.04f * hover_ - 0.08f * press_;
     const auto& acc = accent();
     const auto& col = colors();
-    const Color bg = look_ == Look::Accent ? Color::lerp(acc.base, acc.hover, hover_) : col.fgPrimary;
+    // Disabled (a listen-together guest without control): faded like the other controls.
+    const Color bg = (look_ == Look::Accent ? Color::lerp(acc.base, acc.hover, hover_) : col.fgPrimary).mulAlpha(enabled() ? 1.f : 0.38f);
     const Color fg = look_ == Look::Accent ? acc.onAccent : col.fgInverse;
     c.pushScale(s, {r.cx(), r.cy()});
     c.fillCircle({r.cx(), r.cy()}, d * 0.5f, bg);
