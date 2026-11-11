@@ -1447,5 +1447,12 @@
     "one": "{} Song aus der Playlist entfernt",
     "other": "{} Songs aus der Playlist entfernt"
   },
-  "Şarkılar listeye geri eklenemedi": "Songs konnten nicht zurückgeholt werden"
+  "Şarkılar listeye geri eklenemedi": "Songs konnten nicht zurückgeholt werden",
+  "Kitaplıkta ara": "In Bibliothek suchen",
+  "Sırala": "Sortieren",
+  "Izgara": "Raster",
+  "Liste": "Liste",
+  "Son eklenenler": "Zuletzt hinzugefügt",
+  "Alfabetik": "Alphabetisch",
+  "Oluşturan": "Ersteller"
 }

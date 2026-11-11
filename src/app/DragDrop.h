@@ -46,6 +46,9 @@ void move(gfx::Point windowPos);
 void finish(gfx::Point windowPos);
 void cancel();
 bool active();
+// A drop target that goes away while a drag may be over it (a page's widget): the drag forgets it. Call from its
+// destructor.
+void forgetTarget(DropTarget* target);
 
 // Drop actions the targets share.
 // The songs a sidebar row (Liked Songs or a playlist route) takes from `tracks`; empty = it isn't a target for them.

@@ -298,6 +298,7 @@ public:
     size_t playCount() const { return plays_.size(); }
     const std::vector<Play>& plays() const { return plays_; }
     const std::vector<Track>& tracks() const { return idx_.tracks; }
+    const Index& index() const { return idx_; }   // the groups the aggregations use (app/LibrarySort's recency)
 
     // Aggregates the period ending at `unixNow`; the current play is included provisionally.
     StatsSummary summarize(StatsPeriod period, int64_t unixNow, size_t topN = 10, size_t recentN = 20) const;

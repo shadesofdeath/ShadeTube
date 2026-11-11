@@ -1447,5 +1447,12 @@
     "one": "{} titre retiré de la playlist",
     "other": "{} titres retirés de la playlist"
   },
-  "Şarkılar listeye geri eklenemedi": "Impossible de remettre les titres dans la playlist"
+  "Şarkılar listeye geri eklenemedi": "Impossible de remettre les titres dans la playlist",
+  "Kitaplıkta ara": "Rechercher dans la bibliothèque",
+  "Sırala": "Trier",
+  "Izgara": "Grille",
+  "Liste": "Liste",
+  "Son eklenenler": "Ajoutés récemment",
+  "Alfabetik": "Alphabétique",
+  "Oluşturan": "Créateur"
 }

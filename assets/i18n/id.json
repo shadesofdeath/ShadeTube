@@ -1288,5 +1288,12 @@
   "{} şarkı listeden kaldırıldı": {
     "other": "{} lagu dihapus dari playlist"
   },
-  "Şarkılar listeye geri eklenemedi": "Lagu tidak dapat dikembalikan ke playlist"
+  "Şarkılar listeye geri eklenemedi": "Lagu tidak dapat dikembalikan ke playlist",
+  "Kitaplıkta ara": "Cari di Koleksi Kamu",
+  "Sırala": "Urutkan",
+  "Izgara": "Petak",
+  "Liste": "Daftar",
+  "Son eklenenler": "Baru ditambahkan",
+  "Alfabetik": "Alfabetis",
+  "Oluşturan": "Pembuat"
 }

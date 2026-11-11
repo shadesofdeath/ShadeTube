@@ -322,6 +322,13 @@ void cancel() { cancelDrag(); }
 
 bool active() { return g_drag.active; }
 
+void forgetTarget(DropTarget* target) {
+    if (target && g_drag.target == target) {
+        g_drag.target = nullptr;
+        g_drag.accepted = false;
+    }
+}
+
 std::vector<catalog::Track> tracksForRow(const Route& row, const std::vector<catalog::Track>& tracks) {
     dropped::DropRow kind;
     if (row.kind == RouteKind::Liked) {

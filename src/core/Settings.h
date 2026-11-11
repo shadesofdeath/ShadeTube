@@ -80,6 +80,9 @@ struct Settings {
     bool altSoundCloud = true;
     std::vector<std::string> localFolders;   // "Yerel dosyalar": folders scanned for the user's own music files
     std::vector<std::string> expandedFolders;   // sidebar: Spotify library folders left open (rootlist group ids)
+    // Kitaplık, per tab ("playlists" | "albums" | "artists"; app/LibrarySort): the view ("grid" | "list") and the sort
+    // ("recents" | "added" | "alpha" | "creator"). Missing = grid, recents.
+    std::map<std::string, std::string> libraryView, librarySort;
     bool friendActivityOpen = false;     // "Arkadaş etkinliği" panel open (Spotify; app/FriendActivity)
     bool newReleaseNotifications = false;   // Windows notification for new releases of followed artists
     // Updates (GitHub releases): check at startup at most once a day; a version the user dismissed stays quiet.

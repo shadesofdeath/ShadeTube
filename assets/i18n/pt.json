@@ -1447,5 +1447,12 @@
     "one": "{} música removida da playlist",
     "other": "{} músicas removidas da playlist"
   },
-  "Şarkılar listeye geri eklenemedi": "Não foi possível devolver as músicas à playlist"
+  "Şarkılar listeye geri eklenemedi": "Não foi possível devolver as músicas à playlist",
+  "Kitaplıkta ara": "Buscar em Sua Biblioteca",
+  "Sırala": "Ordenar",
+  "Izgara": "Grade",
+  "Liste": "Lista",
+  "Son eklenenler": "Adicionados recentemente",
+  "Alfabetik": "Alfabética",
+  "Oluşturan": "Criador"
 }
