@@ -691,10 +691,50 @@ json libraryVariables(const char* filter, int offset = 0, bool flatten = false) 
         {"includeFoldersWhenFlattening", true},
     };
 }
-const json& libraryItems(const json& data) { return at(at(at(data, "me"), "libraryV3"), "items"); }
+// A libraryV3 item's wrapper: { addedAt:{isoString}, playedAt:{isoString}, pinned, item:{...} } (each may be missing).
+LibraryEntry entryOf(const json& entry) {
+    LibraryEntry e;
+    e.addedAt = isoToUnix(str(at(entry, "addedAt"), "isoString"));
+    e.playedAt = isoToUnix(str(at(entry, "playedAt"), "isoString"));
+    const json& pinned = at(entry, "pinned");
+    e.pinned = pinned.is_boolean() && pinned.get<bool>();
+    return e;
+}
+
+// Albums / artists: libraryV3 pages (`fetch(offset)` -> data) until totalCount, capped like the playlists. A later page
+// that fails keeps what the earlier ones gave.
+template <class T, class Fetch, class Parse>
+std::vector<T> libraryPaged(const char* filter, Fetch fetch, Parse parse, LibraryEntries* outEntries) {
+    std::vector<T> out;
+    std::unordered_set<std::string> seen;
+    for (int offset = 0, page = 0; page < 20; ++page) {
+        json data;
+        try {
+            data = fetch(offset);
+        } catch (const std::exception& e) {
+            if (page == 0) throw;
+            ST_LOG_WARN("spotify", "libraryV3 {} page at {} failed: {}", filter, offset, e.what());
+            break;
+        }
+        const json& lib = at(at(data, "me"), "libraryV3");
+        const json& items = at(lib, "items");
+        if (!items.is_array() || items.empty()) break;
+        for (const auto& entry : items) {
+            const json& d = at(at(entry, "item"), "data");
+            if (!d.is_object() || str(d, "uri").empty()) continue;
+            T v = parse(d);
+            if (v.id.empty() || !seen.insert(v.id).second) continue;
+            if (outEntries) (*outEntries)[v.id] = entryOf(entry);
+            out.push_back(std::move(v));
+        }
+        offset += static_cast<int>(items.size());
+        if (offset >= integer(lib, "totalCount")) break;
+    }
+    return out;
+}
 } // namespace
 
-std::vector<Playlist> Api::libraryPlaylists(const CT& ct, PlaylistTree* outTree) {
+std::vector<Playlist> Api::libraryPlaylists(const CT& ct, PlaylistTree* outTree, LibraryEntries* outEntries) {
     const std::string me = username();
     std::vector<Playlist> out;
     std::unordered_set<std::string> seen;
@@ -727,7 +767,14 @@ std::vector<Playlist> Api::libraryPlaylists(const CT& ct, PlaylistTree* outTree)
                 p.images = imagesFrom(at(at(d, "image"), "sources"));
                 p.ownerId = me;   // Liked Songs / Your Episodes: the user's, but not editable as a playlist
             } else {
-                if (str(d, "__typename") != "Playlist") continue;   // folders are flattened away; skip unknowns
+                if (str(d, "__typename") != "Playlist") {   // folders are flattened away; skip unknowns
+                    // A folder (spotify:user:<u>:folder:<group id>): only its pin / times, under the rootlist's id.
+                    std::string fu = str(d, "uri");
+                    if (fu.empty()) fu = str(wrap, "_uri");
+                    if (const size_t k = fu.find(":folder:"); outEntries && k != std::string::npos)
+                        (*outEntries)["folder:" + fu.substr(k + 8)] = entryOf(entry);
+                    continue;
+                }
                 p = playlistFrom(d, me);
                 p.countKnown = false;   // libraryV3 carries no track count; filled from the rootlist below
                 if (!loggedShape.exchange(true)) {
@@ -736,7 +783,10 @@ std::vector<Playlist> Api::libraryPlaylists(const CT& ct, PlaylistTree* outTree)
                                  raw.substr(0, std::min<size_t>(raw.size(), 1200)));
                 }
             }
-            if (!p.id.empty() && seen.insert(p.id).second) out.push_back(std::move(p));
+            if (!p.id.empty() && seen.insert(p.id).second) {
+                if (outEntries) (*outEntries)[p.id] = entryOf(entry);
+                out.push_back(std::move(p));
+            }
         }
         offset += static_cast<int>(items.size());
         libTotal = integer(lib, "totalCount");
@@ -778,28 +828,16 @@ std::vector<Playlist> Api::libraryPlaylists(const CT& ct, PlaylistTree* outTree)
     return out;
 }
 
-std::vector<Album> Api::libraryAlbums(const CT& ct) {
-    const json data = query("libraryV3", libraryVariables("Albums"), ct);
-    std::vector<Album> out;
-    const json& items = libraryItems(data);
-    if (items.is_array())
-        for (const auto& entry : items) {
-            const json& d = at(at(entry, "item"), "data");
-            if (d.is_object() && !str(d, "uri").empty()) out.push_back(albumFrom(d, false));
-        }
-    return out;
+std::vector<Album> Api::libraryAlbums(const CT& ct, LibraryEntries* outEntries) {
+    return libraryPaged<Album>(
+        "Albums", [&](int offset) { return query("libraryV3", libraryVariables("Albums", offset), ct); },
+        [](const json& d) { return albumFrom(d, false); }, outEntries);
 }
 
-std::vector<Artist> Api::libraryArtists(const CT& ct) {
-    const json data = query("libraryV3", libraryVariables("Artists"), ct);
-    std::vector<Artist> out;
-    const json& items = libraryItems(data);
-    if (items.is_array())
-        for (const auto& entry : items) {
-            const json& d = at(at(entry, "item"), "data");
-            if (d.is_object() && !str(d, "uri").empty()) out.push_back(artistFrom(d));
-        }
-    return out;
+std::vector<Artist> Api::libraryArtists(const CT& ct, LibraryEntries* outEntries) {
+    return libraryPaged<Artist>(
+        "Artists", [&](int offset) { return query("libraryV3", libraryVariables("Artists", offset), ct); },
+        [](const json& d) { return artistFrom(d); }, outEntries);
 }
 
 // Liked Songs via the fetchLibraryTracks GraphQL op (the collection URI is not a playlist, so fetchPlaylist

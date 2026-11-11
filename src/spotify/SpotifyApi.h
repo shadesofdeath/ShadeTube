@@ -15,6 +15,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace st::spotify {
@@ -70,6 +71,15 @@ struct PlaylistDetailsChange {
     bool empty() const { return !name && !description && cover == Cover::Keep; }
 };
 
+// What libraryV3 says about a library item beyond the item itself (each field may be missing: 0 / false).
+struct LibraryEntry {
+    int64_t addedAt = 0;    // unix seconds the user saved / followed / created it
+    int64_t playedAt = 0;   // unix seconds it was last played on Spotify
+    bool pinned = false;    // pinned to the top of the library
+};
+// By item URI; folders as "folder:<group id>" (the rootlist id, see PlaylistTree).
+using LibraryEntries = std::unordered_map<std::string, LibraryEntry>;
+
 class Api {
 public:
     // Called by Session whenever the token is (re)minted. Thread-safe.
@@ -84,10 +94,13 @@ public:
     // carries its owner and whether the user may edit it (currentUserCapabilities.canEditItems); track counts
     // come from the rootlist (libraryV3 has none) — `countKnown` is false when that lookup failed. Folders are
     // flattened away (their playlists are listed in libraryV3's order); `outTree`, when non-null, receives the folder
-    // tree from the same rootlist read (empty when it failed or the user has no folders).
-    std::vector<Playlist> libraryPlaylists(const CT& ct = {}, PlaylistTree* outTree = nullptr);
-    std::vector<Album> libraryAlbums(const CT& ct = {});
-    std::vector<Artist> libraryArtists(const CT& ct = {});
+    // tree from the same rootlist read (empty when it failed or the user has no folders). Albums and artists are
+    // paged like the playlists (50 a page, at most 20 pages). `outEntries`, when non-null, receives each item's added /
+    // played times and pin (playlists: their folders too).
+    std::vector<Playlist> libraryPlaylists(const CT& ct = {}, PlaylistTree* outTree = nullptr,
+                                           LibraryEntries* outEntries = nullptr);
+    std::vector<Album> libraryAlbums(const CT& ct = {}, LibraryEntries* outEntries = nullptr);
+    std::vector<Artist> libraryArtists(const CT& ct = {}, LibraryEntries* outEntries = nullptr);
 
     // Tracks of a playlist (uri = spotify:playlist:...). Liked Songs uri = spotify:collection:tracks.
     // On the first page (offset == 0) `outMeta`/`outOwner`, when non-null, receive the playlist's

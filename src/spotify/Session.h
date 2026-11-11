@@ -25,6 +25,7 @@ struct LibrarySnapshot {
     std::vector<catalog::Album> albums;
     std::vector<catalog::Artist> artists;
     std::unordered_set<std::string> likedIds;   // Liked Songs track ids (for heart state)
+    LibraryEntries entries;   // libraryV3's added / played times and pins by URI (folders: "folder:<id>"); may be empty
     bool loaded = false;   // true once the first fetch completes (even if some lists are empty)
 };
 

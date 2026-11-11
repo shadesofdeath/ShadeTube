@@ -126,16 +126,25 @@ bool Session::isSavedAlbum(const std::string& id) const {
 bool Session::isFollowing(const std::string& id) const {
     return std::any_of(library_.artists.begin(), library_.artists.end(), [&](const catalog::Artist& a) { return a.id == id; });
 }
+static int64_t unixNow() {
+    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
 void Session::markAlbumSaved(const catalog::Album& a, bool saved) {
     if (saved) {
-        if (!isSavedAlbum(a.id)) library_.albums.insert(library_.albums.begin(), a);
+        if (!isSavedAlbum(a.id)) {
+            library_.albums.insert(library_.albums.begin(), a);
+            library_.entries[a.id].addedAt = unixNow();
+        }
     } else {
         std::erase_if(library_.albums, [&](const catalog::Album& x) { return x.id == a.id; });
     }
 }
 void Session::markArtistFollowed(const catalog::Artist& a, bool follow) {
     if (follow) {
-        if (!isFollowing(a.id)) library_.artists.insert(library_.artists.begin(), a);
+        if (!isFollowing(a.id)) {
+            library_.artists.insert(library_.artists.begin(), a);
+            library_.entries[a.id].addedAt = unixNow();
+        }
     } else {
         std::erase_if(library_.artists, [&](const catalog::Artist& x) { return x.id == a.id; });
     }
@@ -156,9 +165,9 @@ void Session::reloadLibrary() {
                     ST_LOG_WARN("spotify", "library fetch failed: {}", e.what());
                 }
             };
-            tryFetch([&] { s.playlists = api_.libraryPlaylists({}, &s.tree); });
-            tryFetch([&] { s.albums = api_.libraryAlbums(); });
-            tryFetch([&] { s.artists = api_.libraryArtists(); });
+            tryFetch([&] { s.playlists = api_.libraryPlaylists({}, &s.tree, &s.entries); });
+            tryFetch([&] { s.albums = api_.libraryAlbums({}, &s.entries); });
+            tryFetch([&] { s.artists = api_.libraryArtists({}, &s.entries); });
             // Liked Songs ids for heart state (paged; capped so a huge library can't stall login).
             tryFetch([&] {
                 int off = 0;
@@ -191,17 +200,22 @@ void Session::reloadPlaylists() {
     async(
         Priority::Low, life_.ref(),
         [this] {
-            std::pair<std::vector<catalog::Playlist>, PlaylistTree> out;
-            out.first = api_.libraryPlaylists({}, &out.second);
+            struct Out {
+                std::vector<catalog::Playlist> playlists;
+                PlaylistTree tree;
+                LibraryEntries entries;
+            } out;
+            out.playlists = api_.libraryPlaylists({}, &out.tree, &out.entries);
             return out;
         },
-        [this](Result<std::pair<std::vector<catalog::Playlist>, PlaylistTree>> r) {
+        [this](auto r) {
             if (!r) {
                 ST_LOG_WARN("spotify", "playlists reload failed: {}", r.errorMessage());
                 return;
             }
-            library_.playlists = std::move(r->first);
-            library_.tree = std::move(r->second);
+            library_.playlists = std::move(r->playlists);
+            library_.tree = std::move(r->tree);
+            for (auto& [uri, e] : r->entries) library_.entries.insert_or_assign(uri, e);   // albums' / artists' stay
             notify();
         });
 }
@@ -237,6 +251,7 @@ void Session::applyEdit(const PlaylistEdit& e) {
         p.ownerName = profile_.name;
         p.owned = p.editable = true;
         p.createdAt = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        library_.entries[p.id].addedAt = p.createdAt;   // "Son eklenenler" until the next reload says the same
         // The web player adds new playlists to the top of the rootlist; keep pinned pseudo-playlists (Liked Songs) first.
         auto pos = std::find_if(pls.begin(), pls.end(), [](const catalog::Playlist& x) { return x.id.rfind("spotify:playlist:", 0) == 0; });
         pls.insert(pos, std::move(p));
