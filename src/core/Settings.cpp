@@ -58,6 +58,8 @@ void Settings::load() {
     }
     read(j, "grain", grain);
     read(j, "reduceMotion", reduceMotion);
+    read(j, "uiZoom", uiZoom);
+    read(j, "compactLists", compactLists);
     read(j, "downloadsDir", downloadsDir);
     read(j, "downloadMp3Kbps", downloadMp3Kbps);
     read(j, "syncPaused", syncPaused);
@@ -142,6 +144,8 @@ void Settings::save() const {
         {"theme", theme == ThemeMode::Light ? "light" : theme == ThemeMode::System ? "system" : "dark"},
         {"grain", grain},
         {"reduceMotion", reduceMotion},
+        {"uiZoom", uiZoom},
+        {"compactLists", compactLists},
         {"downloadsDir", downloadsDir},
         {"downloadMp3Kbps", downloadMp3Kbps},
         {"syncPaused", syncPaused},

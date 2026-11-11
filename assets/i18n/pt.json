@@ -1671,5 +1671,18 @@
   "Çıkar": "Remover",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Opcional: um endereço MQTT WebSocket que comece com wss://. Ele é tentado primeiro ao começar uma sessão, depois os servidores públicos (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). O servidor faz parte do link de convite; todos na sessão o usam.",
   "İzinler": "Permissões",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Sair da sessão em que você está e começar sua própria sessão para ouvir juntos?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Sair da sessão em que você está e começar sua própria sessão para ouvir juntos?",
+  "Arayüz ölçeği": "Escala da interface",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "Textos, ícones e espaçamentos ficam maiores ou menores, independentemente da escala do Windows; a janela mantém o tamanho.",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "No teclado, {} e {}; {} volta ao padrão. Ctrl + roda do mouse também funciona.",
+  "Ctrl + fare tekerleği de çalışır.": "Ctrl + roda do mouse também funciona.",
+  "Liste yoğunluğu": "Densidade das listas",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "Altura das linhas das listas de músicas. Na visualização compacta, as linhas ficam mais baixas e as capas menores, e mais músicas cabem na tela.",
+  "Rahat": "Confortável",
+  "Sıkı": "Compacta",
+  "Liste yoğunluğu: {}": "Densidade das listas: {}",
+  "Arayüzü büyüt": "Ampliar",
+  "Arayüzü küçült": "Reduzir",
+  "Arayüz ölçeğini sıfırla": "Redefinir a escala da interface",
+  "Sıkı / rahat liste görünümü": "Visualização de lista compacta / confortável"
 }

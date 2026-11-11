@@ -1671,5 +1671,18 @@
   "Çıkar": "Retirer",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Facultatif : une adresse MQTT WebSocket commençant par wss://. Elle est essayée en premier au démarrage d'une session, puis les serveurs publics (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Le serveur fait partie du lien d'invitation ; tous les participants l'utilisent.",
   "İzinler": "Autorisations",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Quitter la session en cours et démarrer votre propre session d'écoute partagée ?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Quitter la session en cours et démarrer votre propre session d'écoute partagée ?",
+  "Arayüz ölçeği": "Échelle de l'interface",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "Le texte, les icônes et les espacements s'agrandissent ou rétrécissent indépendamment de la mise à l'échelle de Windows ; la fenêtre garde sa taille.",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "Au clavier, {} et {} ; {} revient à la valeur par défaut. Ctrl + molette de la souris fonctionne aussi.",
+  "Ctrl + fare tekerleği de çalışır.": "Ctrl + molette de la souris fonctionne aussi.",
+  "Liste yoğunluğu": "Densité des listes",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "Hauteur des lignes des listes de titres. En mode compact, les lignes sont plus basses et les pochettes plus petites : plus de titres tiennent à l'écran.",
+  "Rahat": "Confortable",
+  "Sıkı": "Compacte",
+  "Liste yoğunluğu: {}": "Densité des listes : {}",
+  "Arayüzü büyüt": "Zoom avant",
+  "Arayüzü küçült": "Zoom arrière",
+  "Arayüz ölçeğini sıfırla": "Réinitialiser l'échelle de l'interface",
+  "Sıkı / rahat liste görünümü": "Vue de liste compacte / confortable"
 }

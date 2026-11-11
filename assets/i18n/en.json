@@ -1671,5 +1671,18 @@
   "Çıkar": "Remove",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Optional: an MQTT WebSocket address starting with wss://. It's tried first when you start a session, then the public servers (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). The server is part of the invite link; everyone in the session uses it.",
   "İzinler": "Permissions",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Leave the session you're in and start your own listen together session?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Leave the session you're in and start your own listen together session?",
+  "Arayüz ölçeği": "Interface scale",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "Makes text, icons and spacing larger or smaller, independent of the Windows scaling; the window keeps its size.",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "On the keyboard {} and {}, {} goes back to the default; Ctrl + mouse wheel works too.",
+  "Ctrl + fare tekerleği de çalışır.": "Ctrl + mouse wheel works too.",
+  "Liste yoğunluğu": "List density",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "Row height of song lists. Compact makes the rows lower and the covers smaller, so more songs fit on the screen.",
+  "Rahat": "Comfortable",
+  "Sıkı": "Compact",
+  "Liste yoğunluğu: {}": "List density: {}",
+  "Arayüzü büyüt": "Zoom in",
+  "Arayüzü küçült": "Zoom out",
+  "Arayüz ölçeğini sıfırla": "Reset interface scale",
+  "Sıkı / rahat liste görünümü": "Compact / comfortable list view"
 }

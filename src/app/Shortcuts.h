@@ -86,6 +86,12 @@ bool isDefault(const Overrides& o, std::string_view id, bool global);
 // The action `c` triggers in that scope ("" = none). In-app lookups skip kGlobalOnly actions; global lookups only
 // see kGlobal ones.
 std::string actionFor(const Overrides& o, const Combo& c, bool global);
+// The combo a key press also counts as when nothing is bound to the press itself (in-app keys only), so the zoom keys
+// work on every layout: the numeric keypad's + / - / 0 as Plus / Minus / 0 (Ctrl+NumAdd zooms in like Ctrl+Plus), and
+// a key that types "+" or "=", "-" or "0" on `layout` (nullptr = the calling thread's) as Plus, Minus or 0 without
+// Shift: Ctrl+Shift+4 on Turkish Q (no Plus key there), Ctrl+Shift+= on US. Same modifiers otherwise; nullopt for
+// every other key.
+std::optional<Combo> fallback(const Combo& c, HKL layout = nullptr);
 // Binds `c` (empty = unbind) to `id`. Any other action of the same scope that had `c` loses it (an explicit ""
 // entry). Returns those actions' ids. A binding equal to the default is stored as "no entry".
 std::vector<std::string> assign(Overrides& o, std::string_view id, const Combo& c, bool global);

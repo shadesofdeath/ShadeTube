@@ -66,6 +66,11 @@ constexpr Action kActions[] = {
     {"show-window", [] { return tr(L"ShadeTube'u göster / gizle"); },
      Category::View, "", kGlobal | kGlobalOnly, "restore"},
     {"toggle-theme", [] { return tr(L"Koyu / açık tema"); }, Category::View, "", 0, "palette"},
+    // "Arayüz ölçeği" (app/Display): also while typing, like a browser's zoom keys.
+    {"zoom-in", [] { return tr(L"Arayüzü büyüt"); }, Category::View, "Ctrl+Plus", kInText, "plus"},
+    {"zoom-out", [] { return tr(L"Arayüzü küçült"); }, Category::View, "Ctrl+Minus", kInText, "minus"},
+    {"zoom-reset", [] { return tr(L"Arayüz ölçeğini sıfırla"); }, Category::View, "Ctrl+0", kInText, "refresh"},
+    {"compact-lists", [] { return tr(L"Sıkı / rahat liste görünümü"); }, Category::View, "", 0, "list"},
 };
 
 // English key names of the text form. Letters and digits are their own name.
@@ -241,6 +246,8 @@ std::wstring display(const Combo& c) {
         if (key.empty()) {
             const std::string name = keyName(c.vk);
             if (c.vk >= VK_NUMPAD0 && c.vk <= VK_NUMPAD9) key = L"Num " + std::to_wstring(c.vk - VK_NUMPAD0);
+            else if (c.vk == VK_OEM_PLUS) key = L"+";    // a layout without that key (Turkish Q): see fallback()
+            else if (c.vk == VK_OEM_MINUS) key = L"-";
             else key = toWide(name.empty() ? "?" : name);
         }
     }
@@ -329,6 +336,34 @@ std::string actionFor(const Overrides& o, const Combo& c, bool global) {
     for (const auto& a : kActions)
         if (binding(o, a.id, global) == c) return a.id;
     return {};
+}
+
+std::optional<Combo> fallback(const Combo& c, HKL layout) {
+    Combo f = c;
+    switch (c.vk) {
+    case VK_ADD: f.vk = VK_OEM_PLUS; return f;
+    case VK_SUBTRACT: f.vk = VK_OEM_MINUS; return f;
+    case VK_NUMPAD0: f.vk = '0'; return f;
+    default: break;
+    }
+    if (c.vk == 0 || isModifierKey(c.vk)) return std::nullopt;
+    // The character the key types on the layout with Shift as held (Ctrl / Alt left out). Flag 4: the keyboard state
+    // (a pending dead key) stays as it is.
+    if (!layout) layout = GetKeyboardLayout(0);
+    BYTE keys[256]{};
+    if (c.shift) keys[VK_SHIFT] = 0x80;
+    wchar_t ch[4]{};
+    const UINT scan = MapVirtualKeyExW(c.vk, MAPVK_VK_TO_VSC, layout);
+    if (ToUnicodeEx(c.vk, scan, keys, ch, 4, 4, layout) != 1) return std::nullopt;
+    switch (ch[0]) {
+    case L'+': case L'=': f.vk = VK_OEM_PLUS; break;   // "=" shares the key with "+" on US-style layouts
+    case L'-': f.vk = VK_OEM_MINUS; break;
+    case L'0': f.vk = '0'; break;
+    default: return std::nullopt;
+    }
+    f.shift = false;
+    if (f == c) return std::nullopt;
+    return f;
 }
 
 std::vector<std::string> assign(Overrides& o, std::string_view id, const Combo& c, bool global) {

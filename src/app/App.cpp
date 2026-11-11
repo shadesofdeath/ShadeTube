@@ -2,6 +2,7 @@
 
 #include "app/CommandPalette.h"
 #include "app/Commands.h"
+#include "app/Display.h"
 #include "app/InternetRadio.h"
 #include "app/JamInvite.h"
 #include "app/LinkOpener.h"
@@ -171,6 +172,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     wo.x = s.window.x >= 0 ? s.window.x : CW_USEDEFAULT;
     wo.y = s.window.y >= 0 ? s.window.y : CW_USEDEFAULT;
     wo.maximized = s.window.maximized;
+    wo.zoom = static_cast<float>(display::snapZoom(s.uiZoom)) / 100.f;   // "Arayüz ölçeği" (app/Display)
     window_ = std::make_unique<ui::Window>(wo);
     c.window = window_.get();
     // A second launch (main.cpp) posts this to bring the running instance back from the tray / mini player.
@@ -224,6 +226,8 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     commands::initGlobalHotkeys(window_->hwnd());
 
     window_->onKey = [this](const ui::KeyEvent& e) { return handleKey(e); };
+    window_->onCtrlWheel = [](float delta) { return display::onCtrlWheel(delta); };   // zoom
+    display::scheduleKeysDemo();   // SHADETUBE_KEYS_DEMO (dev)
     window_->onNavButton = [](ui::MouseButton b) {
         if (!ctx().router) return;
         if (b == ui::MouseButton::Back) ctx().router->back();
@@ -1066,7 +1070,7 @@ void App::saveMainPlacement() {
     auto& st = Settings::get();
     WINDOWPLACEMENT wp{sizeof wp};
     if (!GetWindowPlacement(window_->hwnd(), &wp)) return;   // works while hidden too (tray / mini player)
-    const float sc = window_->scale();
+    const float sc = window_->dpiScale();   // DIPs of the monitor: the zoom (Arayüz ölçeği) never resizes the window
     st.window.maximized = window_->isMaximized();
     st.window.x = wp.rcNormalPosition.left;
     st.window.y = wp.rcNormalPosition.top;

@@ -1822,5 +1822,18 @@
   "Çıkar": "Видалити",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Необов'язково: адреса MQTT WebSocket, що починається з wss://. Під час запуску сеансу її пробують першою, потім публічні сервери (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Сервер входить до посилання-запрошення, його використовують усі учасники.",
   "İzinler": "Дозволи",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Вийти з поточного сеансу й почати своє спільне прослуховування?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Вийти з поточного сеансу й почати своє спільне прослуховування?",
+  "Arayüz ölçeği": "Масштаб інтерфейсу",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "Текст, значки й відступи збільшуються або зменшуються незалежно від масштабу Windows; розмір вікна не змінюється.",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "З клавіатури: {} і {}, {} повертає типовий масштаб; також працює Ctrl + коліщатко миші.",
+  "Ctrl + fare tekerleği de çalışır.": "Також працює Ctrl + коліщатко миші.",
+  "Liste yoğunluğu": "Щільність списків",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "Висота рядків у списках треків. У компактному вигляді рядки нижчі, а обкладинки менші — на екрані вміщується більше треків.",
+  "Rahat": "Звичайна",
+  "Sıkı": "Компактна",
+  "Liste yoğunluğu: {}": "Щільність списків: {}",
+  "Arayüzü büyüt": "Збільшити масштаб",
+  "Arayüzü küçült": "Зменшити масштаб",
+  "Arayüz ölçeğini sıfırla": "Скинути масштаб інтерфейсу",
+  "Sıkı / rahat liste görünümü": "Компактний / звичайний вигляд списків"
 }

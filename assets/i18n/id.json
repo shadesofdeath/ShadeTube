@@ -1504,5 +1504,18 @@
   "Çıkar": "Keluarkan",
   "İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının içindedir; oturumdaki herkes onu kullanır.": "Opsional: alamat MQTT WebSocket yang diawali wss://. Alamat ini dicoba lebih dulu saat memulai sesi, lalu server publik (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Server termasuk dalam tautan undangan; semua orang di sesi memakainya.",
   "İzinler": "Izin",
-  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Keluar dari sesi yang sedang diikuti dan mulai sesi dengar bersamamu sendiri?"
+  "Şu an katıldığın oturumdan ayrılıp kendi birlikte dinleme oturumunu başlatmak istiyor musun?": "Keluar dari sesi yang sedang diikuti dan mulai sesi dengar bersamamu sendiri?",
+  "Arayüz ölçeği": "Skala antarmuka",
+  "Yazılar, simgeler ve boşluklar Windows ölçeğinden bağımsız olarak büyür ya da küçülür; pencerenin boyutu değişmez.": "Teks, ikon, dan jarak menjadi lebih besar atau lebih kecil, terlepas dari skala Windows; ukuran jendela tetap.",
+  "Klavyeden {} ve {}, varsayılana dönmek için {}; Ctrl + fare tekerleği de çalışır.": "Dengan keyboard: {} dan {}, {} untuk kembali ke bawaan; Ctrl + roda mouse juga bisa digunakan.",
+  "Ctrl + fare tekerleği de çalışır.": "Ctrl + roda mouse juga bisa digunakan.",
+  "Liste yoğunluğu": "Kepadatan daftar",
+  "Şarkı listelerinin satır yüksekliği. Sıkı görünümde satırlar alçalır ve kapaklar küçülür; ekrana daha çok şarkı sığar.": "Tinggi baris daftar lagu. Tampilan ringkas membuat baris lebih rendah dan sampul lebih kecil sehingga lebih banyak lagu muat di layar.",
+  "Rahat": "Nyaman",
+  "Sıkı": "Ringkas",
+  "Liste yoğunluğu: {}": "Kepadatan daftar: {}",
+  "Arayüzü büyüt": "Perbesar",
+  "Arayüzü küçült": "Perkecil",
+  "Arayüz ölçeğini sıfırla": "Setel ulang skala antarmuka",
+  "Sıkı / rahat liste görünümü": "Tampilan daftar ringkas / nyaman"
 }

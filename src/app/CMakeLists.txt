@@ -47,6 +47,7 @@ add_executable(ShadeTube WIN32
     Components.cpp Components.h
     ConnectScreen.cpp ConnectScreen.h
     DiscordRpc.cpp DiscordRpc.h
+    Display.cpp Display.h
     Downloads.cpp Downloads.h
     DownloadsPage.cpp
     DownloadSync.cpp DownloadSync.h

@@ -4,6 +4,7 @@
 #include "app/AppContext.h"
 #include "app/Autostart.h"
 #include "app/CommandPalette.h"
+#include "app/Display.h"
 #include "app/Installer.h"
 #include "app/InternetRadio.h"
 #include "app/PlaylistTransfer.h"
@@ -134,6 +135,18 @@ bool builtin(std::string_view id) {
         setThemeMode(gfx::isLightTheme() ? ThemeMode::Dark : ThemeMode::Light);
         return true;
     }
+    if (id == "zoom-in") return display::zoomBy(1);
+    if (id == "zoom-out") return display::zoomBy(-1);
+    if (id == "zoom-reset") {
+        display::setZoom(100, true);
+        return true;
+    }
+    if (id == "compact-lists") {
+        const bool on = !display::compactLists();
+        display::setCompactLists(on);
+        toast(i18n::format(tr(L"Liste yoğunluğu: {}"), {on ? tr(L"Sıkı") : tr(L"Rahat")}));
+        return true;
+    }
     return false;   // "now-playing", "show-window": App's handlers
 }
 
@@ -169,7 +182,9 @@ bool dispatchKey(const ui::KeyEvent& e, Scope scope, bool inTextField) {
     c.alt = e.alt;
     c.shift = e.shift;
     c.win = GetKeyState(VK_LWIN) < 0 || GetKeyState(VK_RWIN) < 0;
-    const std::string id = shortcuts::actionFor(Settings::get().shortcuts, c, false);
+    std::string id = shortcuts::actionFor(Settings::get().shortcuts, c, false);
+    if (id.empty())   // the keypad's + / - / 0 and the layout's "+" key act as Plus / Minus / 0 (zoom), unless bound
+        if (const auto alt = shortcuts::fallback(c)) id = shortcuts::actionFor(Settings::get().shortcuts, *alt, false);
     const auto* a = id.empty() ? nullptr : shortcuts::find(id);
     if (!a) return false;
     if (scope == Scope::Mini && !(a->flags & shortcuts::kMini)) return false;
