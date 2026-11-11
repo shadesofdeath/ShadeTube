@@ -902,8 +902,8 @@ feature files' `build*Rows()` hooks.
   Birlikte dinle `jam`, Kara liste `blocklist`, Hakkında `about`. A card is a `bg.raised` surface (radius
   `radiusSurface`, `hairline.default` border); its header (icon tile, title, one-line summary, chevron) is one Tab
   stop that opens / closes it on click, Enter or Space. The height eases over `motion::medium` (instant with
-  *Hareketi azalt*): while it runs the card re-measures itself every frame (`requestLayout()` from `layout()`, also
-  when scrolled out of view) and calls `ScrollView::contentChanged()`; when it ends a closed body is hidden, so its
+  *Hareketi azalt*): it starts with `ScrollView::contentChanged()`, then the card re-measures itself every frame
+  (`requestLayout()` from `layout()`, also when scrolled out of view); when it ends a closed body is hidden, so its
   controls leave the Tab order (collapsing around the keyboard focus moves it to the header). A card the user opens
   is then revealed with `ScrollView::revealRect` (header plus as much of the body as fits).
 - **State**: all cards start closed. The open ones are remembered for the run (`openCards()`): across `rebuilder()`
