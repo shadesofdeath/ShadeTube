@@ -49,7 +49,8 @@ fs::path previewDir() {
 
 struct Target {
     std::wstring path;
-    Track track;   // one track naming the file (for the library / queue updates)
+    Track track;          // one track naming the file (for the library / queue updates)
+    fs::path coverDir;    // where its re-read cover goes (a dropped file's covers live with the dropped files)
 };
 
 // The tracks' files, each once.
@@ -60,7 +61,9 @@ std::vector<Target> targetsFor(const std::vector<Track>& tracks) {
         std::wstring path = fileFor(t);
         if (path.empty()) continue;
         std::wstring key = toLowerTr(path);
-        if (seen.insert(std::move(key)).second) out.push_back({std::move(path), t});
+        if (!seen.insert(std::move(key)).second) continue;
+        const bool isDropped = t.id.rfind("local:", 0) == 0 && !LocalLibrary::get().entry(t.id);
+        out.push_back({std::move(path), t, isDropped ? dropped::Store::coverDir() : LocalLibrary::coverFolder()});
     }
     return out;
 }
@@ -198,10 +201,9 @@ void applyResults(const std::vector<Outcome>& results) {
 void write(std::vector<Target> targets, tags::Edit edit) {
     g_busy = true;
     if (targets.size() > 1) toast(i18n::plural(L"{} dosyanın etiketleri kaydediliyor…", static_cast<int64_t>(targets.size())));
-    const fs::path coverDir = LocalLibrary::coverFolder();
     async(
         Priority::Normal, g_life.ref(),
-        [targets = std::move(targets), edit = std::move(edit), coverDir] {
+        [targets = std::move(targets), edit = std::move(edit)] {
             ComScope com;   // the property system re-reads the files
             std::vector<Outcome> out;
             for (const auto& t : targets) {
@@ -211,7 +213,7 @@ void write(std::vector<Target> targets, tags::Edit edit) {
                 if (o.status == tags::Status::Ok) {   // (a download may lie in a Yerel dosyalar folder too)
                     local::Entry e;
                     e.path = plainPath(t.path);
-                    if (local::refreshEntry(e, coverDir)) o.fresh = std::move(e);
+                    if (local::refreshEntry(e, t.coverDir)) o.fresh = std::move(e);
                 }
                 out.push_back(std::move(o));
             }
