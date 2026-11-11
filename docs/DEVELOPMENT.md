@@ -83,11 +83,12 @@ ShadeTube/
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
 │                                ConnectScreen, MiniPlayer
-│                                features: LoginWindow, Source, Downloads, LocalLibrary, ListenStats, Radio, Blacklist,
+│                                features: LoginWindow, Source, Downloads, LocalLibrary, ListenStats, LibrarySort +
+│                                LibraryView (Library views, 3.22), Radio, Blacklist,
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
-                                 links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts, radio, scrobble,
+                                 library, links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts, radio, scrobble,
                                  shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync, updater, winshell
 ```
 
@@ -117,7 +118,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 
 ### 3.2 Memory policy
 
-- Track lists are **virtualized**: rows are painted from the model, with no per-row widgets.
+- Track lists are **virtualized**: rows are painted from the model, with no per-row widgets. So are the Library page's
+  grid and list (`app/LibraryView`; text layouts of a few screens are cached).
 - Images: `gfx::ImageCache` downloads to a disk cache (`cache\images`, pruned to 400 MB), WIC-decodes **at the
   requested pixel size** and keeps D2D bitmaps in a GPU LRU with a byte budget (64 MB; eviction stops at bitmaps
   painted in the last two frames, so a screen needing more goes over it instead of thrashing). D2D's texture cache is
@@ -239,7 +241,9 @@ web player uses. Audio never comes from Spotify. Flow (`src/spotify/`, `app/Logi
    `parsePlaylistTree()` turns that into folders + playlist → folder, kept next to the flat list in the snapshot.
    libraryV3 keeps giving the order: `treeRows()` lists a level with each folder where its first (most recent)
    playlist would be and empty folders last. The sidebar shows them as collapsible rows (open ones in
-   `Settings.expandedFolders`); the Library page as folder cards opening `{Library, "folder:<id>"}`.
+   `Settings.expandedFolders`); the Library page as folder cards opening `{Library, "folder:<id>"}`. Each libraryV3
+   item's `addedAt` / `playedAt` / `pinned` (folders as `folder:<id>`) is kept in `LibrarySnapshot::entries` for the
+   Library's sort orders (3.22); albums and artists are paged like the playlists (50 a page, at most 20 pages).
 5. **Source seam** (`app/Source`): pages read Spotify when logged in and MusicBrainz otherwise; detail lookups route
    by id (`spotify:*` URI → Spotify, MBID → MusicBrainz), so mixed histories keep working.
 
@@ -484,7 +488,7 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
 `scrobble.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
 `listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
 `radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`,
-`spotify-hashes.json`,
+`spotify-hashes.json`, `library-recents.json`,
 `update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
 go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
@@ -678,6 +682,36 @@ history (`ListenStats`: this PC's plays and the imported Spotify history, stream
   with the songs that have Spotify ids (100 per request). Reading and resolving run on a worker (`collections_test`
   times 10 000 songs per format: about 0.25 - 1.2 s written and read back in a Debug build).
 
+### 3.22 Library views, sort and filter
+
+`app/LibrarySort` (standalone, pure: sort keys, folders, filter, the "played" record; `library_test`) and
+`app/LibraryView` (the grid / list widget, the player hook); the page is `LibraryPage` in `BrowsePages.cpp`.
+
+- **Views**: *Izgara* (the MediaCard look) or *Liste* (64 DIP rows, 48 DIP covers, "Çalma listesi · owner · n şarkı" /
+  "Albüm · artist · year" / "Sanatçı", a right-hand date for the time sorts, pin and "downloaded" marks, the playing
+  collection in the accent). Both are painted from the page's cells by one widget, so 10 000 items cost no widgets;
+  hover / focus show the play button, a click opens, the play button plays (or pauses what plays), the menus are the
+  cards', and a playlist row takes dragged songs like the sidebar (`dragdrop::tracksForRow` / `dropOnRow`). One Tab stop:
+  arrows (two-dimensional in the grid), PageUp / PageDown, Home / End, Enter opens, Shift+Enter plays, menu key.
+  Per tab in `Settings.libraryView` / `librarySort` (`playlists` / `albums` / `artists`).
+- **Sorts** (pinned items always first): *Son çalınanlar* — the latest of "played here" (`library-recents.json`: the
+  player context `playlist:<id>` / `album:<id>` / `artist:<id>` / `liked` when one of its songs starts; for albums and
+  artists also their newest stream in `ListenStats`, imported Spotify history included), Spotify's `playedAt` and the
+  added time; local playlists also count the last song added. A Spotify snapshot without `playedAt` counts only the
+  plays here (an added date says nothing about plays on other devices). *Son eklenenler* — libraryV3 `addedAt`, a local
+  playlist's creation. *Alfabetik* — the UI locale's collation (Windows NLS, case-insensitive, digits as numbers).
+  *Oluşturan* (playlists: owner) / *Sanatçı* (albums: first artist, then release date). Missing values sort after the
+  known ones in source order (libraryV3's order logged in, the stored order of local lists: newest first), so local
+  albums / artists under *Son eklenenler* keep their saved order. Ties keep the source order. *Geçmiş* keeps its natural
+  order (newest first) and only filters. The page freezes the "played" data when it is built, so what plays meanwhile
+  doesn't move rows under the pointer.
+- **Folders**: under the time sorts a folder sits where its first playlist in that order would be (empty folders last);
+  under *Alfabetik* / *Oluşturan* folders come first, alphabetically.
+- **Filter** ("Kitaplıkta ara"): everything under the shown folder (folders too), ranked by `shortcuts::fuzzyScore`
+  (accent / case / I-ı insensitive; one or two letters only at word starts; a creator match counts less), ties in the
+  sort's order. Ctrl+F stays the global "Ara" shortcut. Timing (`library_test`, 10 000 items, Debug): model 3 ms,
+  time sorts 3 ms, alphabetical 31 ms (collation keys made once), a filter 20–70 ms.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -697,7 +731,8 @@ history (`ListenStats`: this PC's plays and the imported Spotify history, stream
   yourself: the Window draws the ring. Text fields and lists that need every key stay non-activatable. Callbacks
   that may navigate (and so destroy the widget) are called through a local copy.
 - App files that tests compile directly (`Blacklist`, `ListenStats`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
-  `SponsorBlock`, `Smtc`, `Updater`, `Installer`) must stay standalone: no `App`, `AppContext` or UI headers.
+  `SponsorBlock`, `Smtc`, `Updater`, `Installer`, `LibrarySort`) must stay standalone: no `App`, `AppContext` or UI
+  headers.
 
 ## 5. Testing
 
@@ -750,6 +785,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the Run value (in a test key) | offline |
+| `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -764,7 +800,7 @@ serves the package from `dist\` (and broken variants) through `tests/updater/moc
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz) once a saved Spotify session has connected |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...) |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:albums` / `artists` / `history`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `settings`, `settings:<section>` (`spotify`, `connections`, `playback`, `audio`, `blocklist`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...) |
 | `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
@@ -797,6 +833,8 @@ apps*).
 | `SHADETUBE_IMPORT_HISTORY` | `<file>[;<file>…]`: import these Spotify history files (JSON / ZIP) once the stats are loaded |
 | `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
+| `SHADETUBE_LIBRARY_VIEW` | `<grid\|list>[:<recents\|added\|alpha\|creator>[:<filter>]]`: the Library page's view, sort and search (not saved) |
+| `SHADETUBE_LIBRARY_SCROLL` | the first Library page opens scrolled down this many DIPs |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
 
 ## 6. Release process
