@@ -97,6 +97,9 @@ private:
     void logMemory();            // SHADETUBE_MEMLOG=1: where the memory is, every housekeeping tick
     void syncTray();             // tooltip = "ShadeTube" + current track
     void syncThumbBar();         // player state -> taskbar thumbnail buttons + progress
+    // The window icons and the tray icon in the accent (Theme::requestedAccent; none = the logo's own color): when it
+    // changed, at most every 400 ms (skipping songs fast). Every loop pass; returns when it wants to run again.
+    double syncAccentIcons();
     void runCommand(winshell::Command c);   // thumbnail button / jump-list task / --command
     void postCommand(winshell::Command c);  // runCommand() outside the current window message
     void applyTheme();           // live theme switch: palette, accent, every window, tray menus
@@ -116,6 +119,9 @@ private:
     std::unique_ptr<MiniPlayer> mini_;   // only while the mini player is open
     std::unique_ptr<Tray> tray_;         // notification-area icon, for the whole app lifetime
     std::unique_ptr<winshell::ThumbBar> thumbBar_;   // Önceki / Oynat / Sonraki under the taskbar thumbnail
+    std::unique_ptr<winshell::WindowIcon> windowIcon_;   // the main window's icon in the accent
+    uint32_t iconRgb_ = winshell::kLogoAccent;   // the icons' color (syncAccentIcons)
+    double iconsAt_ = -1e9;                      // when they last changed
     double playErrorAt_ = -1;            // when the player last went to Status::Error (red taskbar progress)
     UINT activateMsg_ = 0;               // kActivateMessage
     UINT commandMsg_ = 0;                // winshell::kCommandMessage (a jump-list task of a second launch)

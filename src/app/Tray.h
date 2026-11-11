@@ -8,6 +8,7 @@
 //
 // Owns a hidden top-level window for the callbacks (a message-only window would miss the "TaskbarCreated"
 // broadcast that tells us to re-add the icon after Explorer restarts). UI thread only.
+#include <cstdint>
 #include <functional>
 #include <string>
 
@@ -35,6 +36,9 @@ public:
     void balloon(const std::wstring& title, const std::wstring& text, bool error = false);
     // Live theme switch: the tray menu (and every native popup menu of the process) follows the new mode.
     void setDarkMenus(bool dark);
+    // The icon's accent (0xRRGGBB; winshell::kLogoAccent = the exe's own icon): re-rendered and swapped in place
+    // (NIM_MODIFY) when it changes.
+    void setAccent(uint32_t rgb);
 
     std::function<void()> onActivate;              // left click / keyboard select
     std::function<MenuState()> menuState;          // queried right before the menu opens
@@ -50,6 +54,7 @@ private:
 
     HWND hwnd_ = nullptr;
     HICON icon_ = nullptr;
+    uint32_t accent_;                              // the icon's color (setAccent)
     UINT taskbarCreated_ = 0;
     std::wstring tip_;
     bool added_ = false;

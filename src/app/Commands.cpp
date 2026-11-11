@@ -152,7 +152,7 @@ bool builtin(std::string_view id) {
         toast(i18n::format(tr(L"Liste yoğunluğu: {}"), {on ? tr(L"Sıkı") : tr(L"Rahat")}));
         return true;
     }
-    return false;   // "now-playing", "show-window": App's handlers
+    return false;   // "now-playing", "show-window", "toggle-sidebar": App's handlers
 }
 
 // ---- Global hotkeys ----

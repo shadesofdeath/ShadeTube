@@ -20,6 +20,12 @@ public:
     // Multi-color SVG (logo, placeholders) drawn with its own colors.
     static void drawColored(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, float scale,
                             float opacity = 1.f);
+    // A multi-color SVG with one of its colors swapped: every element filled with `key` (e.g. the logo mark's own
+    // accent) is painted in `color`, the rest keeps its colors. Drawn from the SVG document itself (parsed once per
+    // device, the fills set when the color changes), so a color that moves every frame (the accent cross-fade) costs
+    // no rasterization. `r` is the square the document's viewBox fills; its origin is pixel-snapped.
+    static void drawRecolored(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, float scale, const Color& key,
+                              const Color& color);
     static void clear();           // drop all cached masks (device loss / DPI change)
     static size_t memoryBytes();
 };

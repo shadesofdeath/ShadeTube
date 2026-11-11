@@ -742,10 +742,18 @@ MouseEvent Window::makeEvent(Widget* target, Point windowPos, MouseButton b, WPA
     return e;
 }
 
+void Window::simulateHover(Point windowPos) {
+    simulatedHover_ = true;
+    updateHover(hitTest(windowPos));
+    if (hover_) hover_->onMouseMove(makeEvent(hover_, windowPos, MouseButton::Left, 0));
+    invalidate();
+}
+
 void Window::onMouseMessage(UINT msg, WPARAM wp, LPARAM lp) {
     const Point p = toDip(lp);
     switch (msg) {
     case WM_MOUSEMOVE: {
+        simulatedHover_ = false;
         if (!trackingLeave_) {
             TRACKMOUSEEVENT tme{sizeof tme, TME_LEAVE, hwnd_, 0};
             TrackMouseEvent(&tme);
@@ -979,7 +987,7 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
         return msg == WM_XBUTTONDOWN || msg == WM_XBUTTONUP ? TRUE : 0;
     case WM_MOUSELEAVE:
         trackingLeave_ = false;
-        if (!capture_) updateHover(nullptr);
+        if (!capture_ && !simulatedHover_) updateHover(nullptr);
         return 0;
     case WM_CAPTURECHANGED:
         if (capture_ && reinterpret_cast<HWND>(lp) != hwnd_) {

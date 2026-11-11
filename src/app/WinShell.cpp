@@ -285,14 +285,12 @@ bool systemUsesLightTheme() {
 
 uint32_t glyphColor(bool lightSurface) { return lightSurface ? 0x1A1A1A : 0xFFFFFF; }
 
-std::vector<uint32_t> renderGlyph(std::string_view name, int px, uint32_t rgb) {
-    if (px <= 0 || px > 256) return {};
-    // The icon grid closest to the size (the same choice gfx::Icons makes), else the 24 px source scaled.
-    const char* grid = px <= 16 ? "16" : px <= 20 ? "20" : "24";
-    std::string_view svg = res::load(toWide(std::format("icons/{}/{}.svg", grid, name)));
-    if (svg.empty()) svg = res::load(toWide(std::format("icons/24/{}.svg", name)));
-    if (svg.empty()) return {};
+namespace {
 
+// Draws an SVG document scaled into px x px (its viewBox fills the square) with a software Direct2D target over a WIC
+// bitmap. `visit` gets the premultiplied BGRA pixels (stride in bytes). False on failure.
+template <class Visit>
+bool rasterizeSvg(std::string_view svg, int px, Visit&& visit) {
     const UINT size = static_cast<UINT>(px);
     ComPtr<IWICImagingFactory> wic;
     ComPtr<IWICBitmap> bitmap;
@@ -302,16 +300,16 @@ std::vector<uint32_t> renderGlyph(std::string_view name, int px, uint32_t rgb) {
     if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&wic))) ||
         FAILED(wic->CreateBitmap(size, size, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, &bitmap)) ||
         FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, factory.GetAddressOf())))
-        return {};
+        return false;
     const auto props = D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_SOFTWARE,
                                                     D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.f, 96.f);
-    if (FAILED(factory->CreateWicBitmapRenderTarget(bitmap.Get(), props, &target)) || FAILED(target.As(&dc))) return {};
+    if (FAILED(factory->CreateWicBitmapRenderTarget(bitmap.Get(), props, &target)) || FAILED(target.As(&dc))) return false;
     ComPtr<IStream> stream;
     stream.Attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(svg.data()), static_cast<UINT>(svg.size())));
     ComPtr<ID2D1SvgDocument> doc;
     ComPtr<ID2D1SvgElement> root;
     const float fpx = static_cast<float>(px);
-    if (!stream || FAILED(dc->CreateSvgDocument(stream.Get(), D2D1::SizeF(fpx, fpx), &doc))) return {};
+    if (!stream || FAILED(dc->CreateSvgDocument(stream.Get(), D2D1::SizeF(fpx, fpx), &doc))) return false;
     doc->GetRoot(&root);
     if (root) {   // let the viewBox scale the drawing to the requested size
         root->SetAttributeValue(L"width", fpx);
@@ -320,23 +318,113 @@ std::vector<uint32_t> renderGlyph(std::string_view name, int px, uint32_t rgb) {
     dc->BeginDraw();
     dc->Clear(D2D1::ColorF(0, 0, 0, 0));
     dc->DrawSvgDocument(doc.Get());
-    if (FAILED(dc->EndDraw())) return {};
+    if (FAILED(dc->EndDraw())) return false;
 
-    // The glyphs are single-color (black) shapes: only the coverage matters, the color is ours.
     const WICRect all{0, 0, px, px};
     ComPtr<IWICBitmapLock> lock;
     UINT stride = 0, bytes = 0;
     BYTE* pixels = nullptr;
     if (FAILED(bitmap->Lock(&all, WICBitmapLockRead, &lock)) || FAILED(lock->GetStride(&stride)) ||
         FAILED(lock->GetDataPointer(&bytes, &pixels)) || !pixels)
-        return {};
+        return false;
+    visit(static_cast<const BYTE*>(pixels), static_cast<size_t>(stride));
+    return true;
+}
+
+} // namespace
+
+std::vector<uint32_t> renderGlyph(std::string_view name, int px, uint32_t rgb) {
+    if (px <= 0 || px > 256) return {};
+    // The icon grid closest to the size (the same choice gfx::Icons makes), else the 24 px source scaled.
+    const char* grid = px <= 16 ? "16" : px <= 20 ? "20" : "24";
+    std::string_view svg = res::load(toWide(std::format("icons/{}/{}.svg", grid, name)));
+    if (svg.empty()) svg = res::load(toWide(std::format("icons/24/{}.svg", name)));
+    if (svg.empty()) return {};
+    // The glyphs are single-color (black) shapes: only the coverage matters, the color is ours.
     std::vector<uint32_t> argb(static_cast<size_t>(px) * px);
-    for (int y = 0; y < px; ++y)
-        for (int x = 0; x < px; ++x) {
-            const uint32_t a = pixels[static_cast<size_t>(y) * stride + static_cast<size_t>(x) * 4 + 3];
-            argb[static_cast<size_t>(y) * px + x] = a ? (a << 24) | (rgb & 0xFFFFFF) : 0;
-        }
-    return argb;
+    const bool ok = rasterizeSvg(svg, px, [&](const BYTE* pixels, size_t stride) {
+        for (int y = 0; y < px; ++y)
+            for (int x = 0; x < px; ++x) {
+                const uint32_t a = pixels[static_cast<size_t>(y) * stride + static_cast<size_t>(x) * 4 + 3];
+                argb[static_cast<size_t>(y) * px + x] = a ? (a << 24) | (rgb & 0xFFFFFF) : 0;
+            }
+    });
+    return ok ? argb : std::vector<uint32_t>{};
+}
+
+std::vector<uint32_t> renderAppIcon(int px, uint32_t rgb) {
+    if (px <= 0 || px > 256) return {};
+    // The mark's shapes, its accent swapped, on the app icon's tile (ShadeTube-Design/logo/app-icon: a 512 square with
+    // radius 16 in #0F0D0B, the 64-unit mark at 64,64 scaled 6x).
+    const std::string_view mark = res::load(L"logo/logo-mark.svg");
+    const size_t open = mark.find("<svg");
+    const size_t start = open == std::string_view::npos ? open : mark.find('>', open);
+    const size_t end = mark.rfind("</svg>");
+    if (start == std::string_view::npos || end == std::string_view::npos || end <= start) return {};
+    std::string inner(mark.substr(start + 1, end - start - 1));
+    const std::string from = std::format("#{:06X}", kLogoAccent), to = std::format("#{:06X}", rgb & 0xFFFFFF);
+    for (size_t at = 0; (at = inner.find(from, at)) != std::string::npos; at += to.size()) inner.replace(at, from.size(), to);
+    const std::string svg = std::format(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{0}\" height=\"{0}\" viewBox=\"0 0 512 512\">"
+        "<rect width=\"512\" height=\"512\" rx=\"16\" fill=\"#0F0D0B\"></rect>"
+        "<g transform=\"translate(64 64) scale(6)\">{1}</g></svg>",
+        px, inner);
+    // Icons take straight alpha: undo the premultiplication.
+    std::vector<uint32_t> argb(static_cast<size_t>(px) * px);
+    const bool ok = rasterizeSvg(svg, px, [&](const BYTE* pixels, size_t stride) {
+        for (int y = 0; y < px; ++y)
+            for (int x = 0; x < px; ++x) {
+                const BYTE* p = pixels + static_cast<size_t>(y) * stride + static_cast<size_t>(x) * 4;
+                const uint32_t a = p[3];
+                if (!a) {
+                    argb[static_cast<size_t>(y) * px + x] = 0;
+                    continue;
+                }
+                const auto un = [a](BYTE v) { return std::min<uint32_t>(255, (v * 255u + a / 2) / a); };
+                argb[static_cast<size_t>(y) * px + x] = (a << 24) | (un(p[2]) << 16) | (un(p[1]) << 8) | un(p[0]);
+            }
+    });
+    return ok ? argb : std::vector<uint32_t>{};
+}
+
+HICON appIcon(int px, uint32_t rgb) {
+    rgb &= 0xFFFFFF;
+    if (rgb != kLogoAccent)
+        if (HICON icon = makeIcon(renderAppIcon(px, rgb), px)) return icon;
+    return static_cast<HICON>(LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1), IMAGE_ICON, px, px, LR_DEFAULTCOLOR));
+}
+
+WindowIcon::~WindowIcon() {
+    if (hwnd_ && IsWindow(hwnd_) && (big_ || small_)) {   // back to the class icon before ours go
+        SendMessageW(hwnd_, WM_SETICON, ICON_BIG, 0);
+        SendMessageW(hwnd_, WM_SETICON, ICON_SMALL, 0);
+    }
+    if (big_) DestroyIcon(big_);
+    if (small_) DestroyIcon(small_);
+}
+
+void WindowIcon::apply(uint32_t rgb) {
+    rgb &= 0xFFFFFF;
+    if (!hwnd_ || !IsWindow(hwnd_)) return;
+    const UINT dpi = GetDpiForWindow(hwnd_);
+    // Nothing set yet and the logo's own color: the class icon already is the .ico.
+    if (rgb == rgb_ && (dpi == dpi_ || (!big_ && rgb == kLogoAccent))) return;
+    const int bigPx = GetSystemMetricsForDpi(SM_CXICON, dpi), smallPx = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
+    const HICON bigIcon = appIcon(bigPx, rgb), smallIcon = appIcon(smallPx, rgb);
+    if (!bigIcon || !smallIcon) {
+        if (bigIcon) DestroyIcon(bigIcon);
+        if (smallIcon) DestroyIcon(smallIcon);
+        ST_LOG_WARN(kTag, "window icon not rendered ({} / {} px)", bigPx, smallPx);
+        return;
+    }
+    SendMessageW(hwnd_, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(bigIcon));
+    SendMessageW(hwnd_, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(smallIcon));
+    if (big_) DestroyIcon(big_);
+    if (small_) DestroyIcon(small_);
+    big_ = bigIcon;
+    small_ = smallIcon;
+    rgb_ = rgb;
+    dpi_ = dpi;
 }
 
 HICON makeIcon(const std::vector<uint32_t>& argb, int px) {

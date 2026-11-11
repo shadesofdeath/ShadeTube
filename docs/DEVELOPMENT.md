@@ -959,6 +959,38 @@ feature files' `build*Rows()` hooks.
 - **Ctrl+F** (the `search` action) calls `Page::focusSearch()` on the current page first: the Settings page focuses
   its box (unless Now Playing covers it); every other page keeps opening the Search page.
 
+### 3.27 Sidebar width, icon rail and the accent in the chrome
+
+- **Width** (`app/Shell`): `SidebarEdge` is a 6 DIP strip centered on the sidebar's hairline (above the sidebar and the
+  page, `IDC_SIZEWE`); hover lights the hairline in the accent, a drag resizes live (`Shell::dragSidebar`), a double
+  click goes back to 240 DIPs. The expanded width is 200-420 DIPs and never leaves the page less than 400 DIPs (a narrow
+  window, or the queue / friend / jam panel open, shows it narrower without changing the saved value).
+  `Settings.sidebarWidth` (DIPs) and `sidebarCollapsed` are written when a drag ends or the mode changes. The edge is
+  not a drop target and the playlist rows end 8 DIPs before it, so song drags onto playlists are unaffected. Now
+  Playing and the connect screen hide it with the sidebar.
+- **Icon rail**: a drag below 150 DIPs snaps the sidebar into a 72 DIP rail (from the rail, past 160 DIPs expands it
+  again: the gap keeps it from flickering); Ctrl+B (`toggle-sidebar`, *Ayarlar › Klavye*) toggles it. A drag that ends
+  in the rail keeps the width it started with for the next expand. The collapse animates the width (`Shell::railAnim_`,
+  240 ms; instant with reduce motion): nav items fade their names and center their icons (`ButtonKind::Nav` does this
+  by its own width), the section label fades, "+" centers, and half way the playlist rows become 40 DIP cover tiles
+  (`SidebarRow` compact: Liked Songs as the accent heart tile, folders as the folder placeholder with an open / closed
+  chevron, the playing collection's equalizer as a corner badge). In the rail names are tooltips, the podcast /
+  new-release counts become accent dots, and the tiles stay drop targets (a resting drag still opens a folder).
+- **Accent in the chrome**: the title-bar mark is drawn from `logo/logo-mark.svg` with its own accent (`#DDFF47`,
+  `winshell::kLogoAccent`) swapped for `accent().base` (`Icons::drawRecolored`: the SVG document is parsed once and
+  its fills are set when the color changes, so the 600 ms cross-fade costs no rasterization). The close caption
+  button's hover is the accent (pressed: `accent.pressed`) with an ink or white glyph, whichever contrasts more; the
+  tokens' `chrome.closeHover` red is no longer used.
+- **Window and tray icons** (`winshell::renderAppIcon` / `appIcon` / `WindowIcon`, `Tray::setAccent`): the design's
+  app icon (the mark on its dark tile) rendered with the requested accent (`Theme::requestedAccent()`: the cover's or
+  the fixed color before the light theme darkens it, since Windows draws these on its own surfaces) into 32-bit icons:
+  `WM_SETICON` big + small at `SM_CXICON` / `SM_CXSMICON` of the window's DPI (title bar, taskbar button, Alt+Tab;
+  again after `WM_DPICHANGED`) and the tray icon at its small-icon size (`NIM_MODIFY`). The logo's own color (no
+  accent requested) uses the `.ico` itself. `App::syncAccentIcons()` follows the accent's target, not the cross-fade:
+  at most every 400 ms and only when the color changed; replaced icons are destroyed (`winshell_test` checks for
+  leaked handles). The exe's icon (Explorer, pinned shortcuts) stays the static `assets/app.ico`; a pinned taskbar
+  button may show the shortcut's icon instead of the window's. The mini player is a tool window without an icon.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1031,7 +1063,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
 | `radio_test` | radio-browser.info parsing (fixtures), codec filter, station -> track mapping, genre labels, `radio.json` store | offline; `live` (discovery, lists, failover; never counts a click) |
 | `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations) |
-| `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, AUMID / Start menu identity under a test id | default; `--start-menu` |
+| `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, the accent-tinted app icon (sizes, colors, the logo's color against `app.ico`, `WindowIcon` on a test window: sizes, no re-render, no leaked handles, class icon back), AUMID / Start menu identity under a test id | default; `--start-menu`; `--icons <dir> [RRGGBB…]` (writes the tinted icon as `.ico` files to look at) |
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
@@ -1105,6 +1137,8 @@ apps*).
 | `SHADETUBE_SETTINGS_OPEN` | `all` or a comma list of card ids (`audio,keyboard`): those Settings cards start open (screenshots; 3.26) |
 | `SHADETUBE_SETTINGS_SEARCH` | text typed into the Settings search box when the first Settings page opens (screenshots) |
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
+| `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
+| `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 
 ## 6. Release process
 

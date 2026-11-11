@@ -304,8 +304,14 @@ void Button::paint(Canvas& c) {
     case ButtonKind::CaptionClose: {
         const Rect hit = r.center(40, 28);
         if (kind_ == ButtonKind::CaptionClose) {
-            c.fillRounded(hit, 2, col.closeHover.mulAlpha(std::max(h, p)));
-            c.icon(icon_, r.center(12, 12), Color::lerp(col.fgSecondary, col.closeHoverFg, h));
+            // The accent (it follows the playing song's cover) instead of Windows' red; the glyph in whichever of ink /
+            // white reads better on it.
+            const Color fill = Color::lerp(acc.base, acc.pressed, p);
+            const Color ink = Color::rgb(0x0F0D0B), white = Color::rgb(0xFFFFFF);
+            const float lum = fill.luminance();
+            const Color on = (lum + 0.05f) / (ink.luminance() + 0.05f) >= (white.luminance() + 0.05f) / (lum + 0.05f) ? ink : white;
+            c.fillRounded(hit, 2, fill.mulAlpha(std::max(h, p)));
+            c.icon(icon_, r.center(12, 12), Color::lerp(col.fgSecondary, on, std::max(h, p)));
         } else {
             c.fillRounded(hit, 2, col.captionHover.mulAlpha(h));
             if (p > 0) c.fillRounded(hit, 2, col.overlayPressed.mulAlpha(p));
@@ -319,9 +325,15 @@ void Button::paint(Canvas& c) {
         const Color fg = Color::lerp(Color::lerp(col.fgSecondary, col.fgPrimary, h), col.fgPrimary, a);
         const Color ic = Color::lerp(fg, acc.base, a);
         const float is = gfx::metrics::navIcon;
-        c.icon(icon_, {r.x + 12, r.cy() - is * 0.5f, is, is}, ic);
-        label_.setStyle(type::body.withWeight(active_ ? 600.f : 500.f));
-        c.text(label_, {r.x + 12 + is + 12, r.y, r.w - 36 - is, r.h}, fg, gfx::VAlign::Center);
+        // Too narrow for the name (the sidebar's icon rail): the name fades out as its room runs out and the icon moves
+        // to the center.
+        const float labelW = r.w - 36 - is;
+        const float show = std::clamp((labelW - 16) / 64.f, 0.f, 1.f);
+        c.icon(icon_, {lerp(r.cx() - is * 0.5f, r.x + 12, show), r.cy() - is * 0.5f, is, is}, ic);
+        if (show > 0.01f) {
+            label_.setStyle(type::body.withWeight(active_ ? 600.f : 500.f));
+            c.text(label_, {r.x + 12 + is + 12, r.y, labelW, r.h}, fg.mulAlpha(show), gfx::VAlign::Center);
+        }
         break;
     }
     case ButtonKind::SidebarItem: {

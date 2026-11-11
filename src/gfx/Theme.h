@@ -7,6 +7,7 @@
 #include "gfx/Types.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace st::gfx {
@@ -57,6 +58,12 @@ public:
     // Back to the theme's own default accent (tokens accent.base), which then follows later theme switches.
     void resetAccent(bool animate = true);
     Color accentTarget() const { return target_.base; }
+    // The accent as last requested (album art / fixed color), before the light theme darkens it; nullopt while the
+    // theme default is in use. The app icons outside the window follow this one (Windows draws them on its own
+    // surfaces, not on the app's paper).
+    std::optional<Color> requestedAccent() const {
+        return hasRequested_ ? std::optional<Color>(requested_) : std::nullopt;
+    }
     // Advances the cross-fade; returns true while animating (caller keeps rendering).
     bool tick(double nowMs);
 
