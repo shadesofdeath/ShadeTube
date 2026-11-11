@@ -144,7 +144,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 - **Idle graphics release** (`App::manageMemory()`): when no window of ours has been on screen for 30 s,
   `Device::release()` drops the D3D/D2D device and everything created on it, and the driver hands back its memory.
   Every holder of a device-dependent object registers a release hook (`gfx::DeviceHook`, or `addReleaseHook` for the
-  static caches: `ImageCache`, `Icons`, `Canvas`'s shared effects, each `WindowTarget`'s swap chain, Now Playing's
+  static caches: `ImageCache`, `Icons`, `Canvas`'s shared effects, each `WindowTarget`'s swap chain (and its
+  DirectComposition device / target / visual, which reference the DXGI device), Now Playing's
   and the lyrics view's baked bitmaps): one object left behind keeps the whole device alive, which the release logs
   as a warning. The next frame recreates the device (`WindowTarget::begin()` → `Device::ensure()`); a window shown
   from the tray draws its first frame in `WM_SHOWWINDOW`, before it appears, and a restore draws in `WM_SIZE`. A new
@@ -166,6 +167,25 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   `WM_SETTINGCHANGE` "ImmersiveColorSet"). Switching is live: `Theme::load()` swaps the palette, re-derives the
   accent (the light theme darkens it to ≥ 3:1 against `bg.base`) and bumps `Theme::generation()` for caches that bake
   colors; `App::applyTheme()` refreshes every window frame (DWM dark mode, border/caption color) and the tray menu.
+- **Mica** (Ayarlar › GÖRÜNÜM › *Mica arka plan*, `Settings.micaBackdrop`, off by default; main window only). In
+  effect while `ui::Window::backdropAvailability()` allows it: Windows 11 22H2+ (build 22621), transparency effects
+  on (`Personalize\EnableTransparency`), no high contrast; re-checked on `WM_SETTINGCHANGE`. A main window created
+  with the setting on presents through DirectComposition (`WindowTarget::useComposition()`:
+  `CreateSwapChainForComposition`, premultiplied alpha, one `IDCompositionVisual` on the HWND; these objects go with
+  the swap chain on device loss and idle release) and sets `DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_MAINWINDOW`, which
+  draws Mica behind the entire window. There is no `DwmExtendFrameIntoClientArea` (DWM would then draw its own
+  caption buttons under the title bar) and no caption color while it is on. Painting (`Canvas::translucent()`): the
+  frame is cleared to `Canvas::surface()`, `bg.base` at 55 % (dark) / 50 % (light) (`Palette::bgBackdrop`), instead
+  of `bg.base`. Surfaces that cover content use `Canvas::fillSurface()`, which replaces the pixels instead of blending
+  over them (sticky headers, player bar, connect screen). Content that dissolves into the background uses
+  `Canvas::pushFade()` (artist banner). Cards, menus, dialogs, tooltips, Now Playing and the lyrics view paint
+  themselves opaque and stay opaque; so does the mini player. A full-surface background must use
+  `fillSurface()` / `surface()`, never an opaque `bg.base` fill. Mica off (setting, transparency effects, high
+  contrast) is live in such a window: opaque frames into the same swap chain, DWM's backdrop removed after the first
+  one is up, and back on the same way. Turning it on in a window that started without it applies at the next start
+  (the row says so): a live window switched from its HWND swap chain to a composition one keeps showing the released
+  swap chain's last frame underneath. Without the setting the window keeps the HWND swap chain and renders exactly
+  as before.
 - Keyboard focus is drawn by the `Window`, never by widgets: a 2 px accent ring above the tree and overlays, shown
   only after keyboard use ("focus visible"). Tab / Shift+Tab follow tree order, modal overlays trap focus and give it
   back when they close, focus survives page rebuilds and the focused widget is scrolled into view.
@@ -1025,6 +1045,7 @@ apps*).
 | `SHADETUBE_LIBRARY_VIEW` | `<grid\|list>[:<recents\|added\|alpha\|creator>[:<filter>]]`: the Library page's view, sort and search (not saved) |
 | `SHADETUBE_LIBRARY_SCROLL` | the first Library page opens scrolled down this many DIPs |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
+| `SHADETUBE_BACKDROP=force` | Mica (3.3) also with transparency effects off or high contrast on (Windows 11 22H2+, the setting still on): DWM then draws Mica's solid fallback color, which still shows the translucent rendering. With Mica on, `--screenshot` PNGs carry the translucent alpha |
 | `SHADETUBE_REMOTE_BIND` | the phone remote listens on this IPv4 address only (e.g. `127.0.0.1`: no Windows Firewall prompt while testing) and the QR code points at it |
 | `SHADETUBE_TAG_EDITOR` | `<n>` or `<first>,<n>`: opens the tag editor for n Yerel dosyalar songs (from index `first`) once the library has loaded (screenshots) |
 | `SHADETUBE_JAM_HOST=1` | starts a listen-together session at startup (3.24) |
@@ -1091,6 +1112,12 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   `--command` and `--open-link` reach each); sync across two machines depends on their audio output latency.
 - **Playback speed** uses time-domain stretching (WSOLA): transparent for speech and fine for music around 0.75-1.5x,
   with some phasing on dense music at extreme speeds.
+- **Mica** needs Windows 11 22H2+. Windows 11 21H2's undocumented Mica attribute needs the frame extended into the
+  client area, which brings back DWM's caption buttons, so 21H2 counts as unsupported. Mica is a solid color while
+  the window is inactive, with transparency effects off (then the app stays opaque) or in energy saver, where
+  the window just reads a shade lighter. Turning it on applies at the next start unless the window started with
+  it. The 55 % / 50 % tint was chosen on simulated composites (the development machine has transparency effects
+  off) and may need tuning against real wallpapers.
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
   of the rest the GPU driver; about 13 MB once nothing has been on screen for 30 s (0.6.0 stayed at 63 MB). WARP
   software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now
