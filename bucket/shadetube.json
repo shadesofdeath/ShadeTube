@@ -1,5 +1,5 @@
 {
-    "version": "0.9.0",
+    "version": "0.9.1",
     "description": "Your Spotify library, played from YouTube, in a fast native Windows app.",
     "homepage": "https://github.com/shadesofdeath/ShadeTube",
     "license": "BSD-4-Clause",
@@ -9,8 +9,8 @@
     ],
     "architecture": {
         "64bit": {
-            "url": "https://github.com/shadesofdeath/ShadeTube/releases/download/v0.9.0/ShadeTube-0.9.0-win64.zip",
-            "hash": "fc5174c452b6d0ad4794ef58e2cf4fafbfff7e3faeaa323f33433b724dae2b13"
+            "url": "https://github.com/shadesofdeath/ShadeTube/releases/download/v0.9.1/ShadeTube-0.9.1-win64.zip",
+            "hash": "279cb3a2cf2bea2716881eaa07b5e26067fed68fc80b0c74fc9630ef643d74c1"
         }
     },
     "bin": "ShadeTube.exe",
