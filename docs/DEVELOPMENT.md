@@ -82,8 +82,10 @@ ShadeTube/
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
-│                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO)
-│   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
+│                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO),
+│                                PageMotion (page transitions' timeline + cover flight, 3.x)
+│   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets,
+│                                PageTransition (page transitions + the shared cover, 3.x)
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
 │                                ConnectScreen, MiniPlayer
@@ -96,9 +98,9 @@ ShadeTube/
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
-                                 jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts,
-                                 radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync,
-                                 tags, updater, winshell
+                                 jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, pagetx, playback,
+                                 podcasts, radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify,
+                                 stats, sync, tags, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -192,7 +194,9 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   frame is cleared to `Canvas::surface()`, `bg.base` at 55 % (dark) / 50 % (light) (`Palette::bgBackdrop`), instead
   of `bg.base`. Surfaces that cover content use `Canvas::fillSurface()`, which replaces the pixels instead of blending
   over them (sticky headers, player bar, connect screen). Content that dissolves into the background uses
-  `Canvas::pushFade()` (artist banner). Cards, menus, dialogs, tooltips, Now Playing and the lyrics view paint
+  `Canvas::pushFade()` (artist banner). Content faded as a whole over the surface (a page during a page transition,
+  3.x) goes into `Canvas::pushSurfaceGroup()`: inside it `fillSurface()` clears to transparent, since the surface is
+  already below the group. Cards, menus, dialogs, tooltips, Now Playing and the lyrics view paint
   themselves opaque and stay opaque; so does the mini player. A full-surface background must use
   `fillSurface()` / `surface()`, never an opaque `bg.base` fill. Mica off (setting, transparency effects, high
   contrast) is live in such a window: opaque frames into the same swap chain, DWM's backdrop removed after the first
@@ -1111,6 +1115,56 @@ time of the event.
   and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
   a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
 
+### 3.x Page transitions
+
+`app/PageTransition` (drawn by `PageHost` in `app/Shell`) on `ui/PageMotion` (the timeline and the cover's flight,
+standalone, all times passed in; `pagetx_test`). The Router tells how the page changed (`Router::lastChange()`: from,
+to, Push / Back / Forward / Replace).
+
+- **Pages**: Push and Forward: the outgoing page fades out over the first 40 % while it shifts 12 DIP left
+  (accelerating), the incoming one slides 24 DIP in from the right (decelerating over the whole 220 ms) and fades in
+  from 30 % on. Back is the mirror image. Replace (the first page, redirects): a 180 ms fade in place. Re-selecting the
+  current page still only scrolls it to the top.
+- **The outgoing page** is taken out of the tree when the new one arrives (`Widget::release`: `Window::forget` clears
+  hover / capture / focus in it, and a keyboard focus is restored on the new page by type and position as on any page
+  change, 3.3) and kept, detached, until it has faded out, then `deferDelete`d: no input, no layout, not in the Tab
+  order; its own async continuations still land on it. Each page is painted inside `Canvas::pushSurfaceGroup()` (3.3),
+  so under Mica a sticky header fading out never adds a second layer of the translucent tint (measured with
+  `SHADETUBE_BACKDROP=force`: the pinned bar's alpha goes from 147 to the surface's 140, never above). A navigation in
+  the middle of one drops the old outgoing page; the page that was arriving leaves from the opacity it had.
+- **Shared cover**: a card or row with a cover calls `pagetx::arm(SharedCover)` right before it navigates (click,
+  Enter, its play button: "#play" opens the page too): `MediaCard`, `ListRow`, `Tile` (its round photo), the Library's
+  grid / list cells (`LibraryView`, Liked Songs' heart tile included), smart list cards, the sidebar rail's tiles. The
+  page it opens says where its header's cover is (`Page::coverSlot`): `CollectionPage` (album, playlist, Liked Songs),
+  smart lists, a podcast show; while it is still loading, where the header's cover will be (`ScrollPage::
+  loadingCoverSlot`; the loading skeleton leaves its cover block out meanwhile). The cover then flies there
+  (`CoverFlight`: 240 ms, Standard easing, rect and corner radius morphing: a round artist photo into a square
+  header) while the pages only cross-fade. Its owners skip their own artwork (and shadow) while it flies
+  (`pagetx::presence(owner)` = 0). On arrival the header takes over in 120 ms (the flying cover fades out over the
+  header's own artwork while its shadow comes up); if the header's image is not loaded yet the cover holds on the
+  header - no frames, `ImageCache::onLoaded` repaints - until it is, at most 1.5 s, or until the header moves (scrolled).
+  A header that disappears (the page turned into an error) dissolves the cover where it is in 120 ms. The flight draws
+  the sharper of the two loaded bitmaps (source's, destination's) for its current size; painted covers (Liked Songs,
+  smart lists) are drawn by a painter that captures its data by value. It is clipped to the content area (the page and
+  the sidebar).
+- **Back**: every flight remembers its origin (the page, the route it came from, the cover's key: the first image URL,
+  "liked" or "smart:<id>", and where it was). Back from that page to that route flies the header's cover to the
+  `CoverSource` on the rebuilt page that shows the same key, nearest to where it was and at least half on screen;
+  Forward through the history does it again from that card. The card has to be there at the first frame (pages built
+  synchronously: the Library, the logged-in Home, local lists...).
+- **Degrades to the plain transition** when the page opened has no header cover (an artist page, Settings...), the
+  card's image is not loaded, or nothing on the page matches; this is decided at the first frame, before anything has
+  been hidden.
+- **Off** (pages change at once): Ayarlar › Görünüm › *Sayfa geçişleri* (`Settings.pageTransitions`, on by default),
+  *Hareketi azalt*, or Windows' animation effects off (`SPI_GETCLIENTAREAANIMATION`, read at every page change).
+- **Frames**: the frame clock (`frame::now()`), frames asked for only while something moves; after a forward + back
+  transition the app is idle again (0 ms CPU over the next 4 s).
+- **Adding a source**: implement `CoverSource::coverFor` (the cover it shows for a key; `pagetx::imageCover` /
+  `pagetx::likedCover` build it), arm it before navigating and skip the artwork while `pagetx::presence(owner)` is 0.
+  A page with a cover in its header overrides `Page::coverSlot`.
+- **Dev**: `SHADETUBE_NAV_DEMO` (clicks / Back / Forward at set times) with `SHADETUBE_MOTION_SCALE` (slow motion) and
+  `--screenshot` capture the middle of a transition (5.4).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1188,6 +1242,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
+| `pagetx_test` | page transitions (`ui/PageMotion`) stepped with explicit times: durations 180..240 ms, Push (outgoing fades / shifts out, incoming slides in, both monotonic and exact at the end), Back mirrored, shared / Replace without offsets, the cover's flight (lands exactly, even on a moving target, no overshoot, radius morph), the hand-over, holding for an image (no frames; image / scroll / timeout end it), fading when the target goes, 60 / 144 Hz give the same positions | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -1263,6 +1318,8 @@ apps*).
 | `SHADETUBE_SETTINGS_SEARCH` | text typed into the Settings search box when the first Settings page opens (screenshots) |
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
+| `SHADETUBE_NAV_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after the shell opened: `click=<x>,<y>` (a real left click posted at window DIPs), `back`, `forward`. With `--screenshot`, e.g. `click@2500=559,378` and a capture at 3300 ms for a cover in flight (3.x) |
+| `SHADETUBE_MOTION_SCALE` | `<factor>` (1-50): page transitions and the cover's flight run that many times slower (screenshots of their middle) |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 
 ## 6. Release process

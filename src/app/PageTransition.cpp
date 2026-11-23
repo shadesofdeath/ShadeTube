@@ -257,7 +257,8 @@ void PageTransition::begin(ui::Widget& host, Page* outgoing, Page* incoming, con
     scale_ = motionScale();
 
     // The shared cover: the source is read while the outgoing page is still in the tree (window coordinates).
-    if (change.nav == Nav::Push && armed && start_ - armed->at < 1000 && flyable(armed->cover)) {
+    // Armed by the click / key that navigated (synchronously, or a post later): not by one that did something else.
+    if (change.nav == Nav::Push && armed && start_ - armed->at < 300 && flyable(armed->cover)) {
         src_ = std::move(armed->cover);
         target_ = Target::Slot;
         remember(change.to, change.from, src_);
