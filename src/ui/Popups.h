@@ -132,7 +132,9 @@ public:
 
     float bottomInset = 88 + 16;   // above the player bar
 
-    int count() const { return static_cast<int>(toasts_.size()); }   // dev / tests (leaving ones included)
+    // Dev / tests: the window's toast layer (nullptr before its first toast) and its toasts (leaving ones included).
+    static Toasts* hostOf(Window* w);
+    int count() const { return static_cast<int>(toasts_.size()); }
 
 private:
     struct Toast {

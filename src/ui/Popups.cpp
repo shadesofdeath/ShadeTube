@@ -57,12 +57,14 @@ std::wstring shownLabel(const MenuItem& it) {
     return s;
 }
 
-// Case and accent insensitive "starts with" in the user's locale (type-ahead: "s" finds "Şarkı radyosu").
+// Case and accent insensitive "starts with" (type-ahead: "s" and "ş" find "Şarkı radyosu", "c" finds "Çal"). The
+// invariant locale: Turkish collation keeps Ş / Ç / İ apart from S / C / I, which a keyboard without them can't type.
 bool startsWith(const std::wstring& text, const std::wstring& prefix) {
     if (prefix.empty() || text.size() < prefix.size()) return false;
-    return CompareStringEx(LOCALE_NAME_USER_DEFAULT, LINGUISTIC_IGNORECASE | LINGUISTIC_IGNOREDIACRITIC, text.data(),
-                           static_cast<int>(prefix.size()), prefix.data(), static_cast<int>(prefix.size()), nullptr,
-                           nullptr, 0) == CSTR_EQUAL;
+    return CompareStringEx(LOCALE_NAME_INVARIANT, NORM_IGNORECASE | NORM_IGNORENONSPACE | NORM_IGNOREKANATYPE |
+                                                     NORM_IGNOREWIDTH,
+                           text.data(), static_cast<int>(prefix.size()), prefix.data(), static_cast<int>(prefix.size()),
+                           nullptr, nullptr, 0) == CSTR_EQUAL;
 }
 } // namespace
 
@@ -576,6 +578,11 @@ constexpr double kToastLife = 4000, kToastIn = 240, kToastOut = 180, kToastResta
 constexpr float kToastW = 360, kToastMinH = 56, kToastGap = 8, kToastPadX = 16;
 constexpr size_t kMaxToasts = 3;
 } // namespace
+
+Toasts* Toasts::hostOf(Window* w) {
+    const auto it = g_toastHosts.find(w);
+    return it == g_toastHosts.end() ? nullptr : it->second;
+}
 
 Toasts* Toasts::instanceFor(Window* w) {
     if (auto it = g_toastHosts.find(w); it != g_toastHosts.end()) return it->second;
