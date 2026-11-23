@@ -471,6 +471,16 @@ std::optional<Target> preview::collectionTarget(const Route& open, const std::ws
     return t;
 }
 
+std::optional<Target> preview::contextTarget(const std::string& context, const std::wstring& title,
+                                             const std::vector<catalog::Image>& images) {
+    Route open{RouteKind::Home};
+    if (context == "liked") open = {RouteKind::Liked};
+    for (const auto& [prefix, kind] : {std::pair{"playlist:", RouteKind::Playlist}, std::pair{"album:", RouteKind::Album},
+                                       std::pair{"artist:", RouteKind::Artist}})
+        if (context.rfind(prefix, 0) == 0) open = {kind, context.substr(std::char_traits<char>::length(prefix))};
+    return collectionTarget(open, title, images);
+}
+
 std::optional<ui::MenuItem> preview::menuItem(const std::vector<Track>& tracks, gfx::Point windowPos) {
     auto& c = controller();
     if (currentMode() == Mode::Off || tracks.size() != 1 || !c.port.canPreview(tracks.front())) return std::nullopt;

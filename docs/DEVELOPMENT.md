@@ -1139,14 +1139,16 @@ Press and hold a song (or a card's cover) to hear about 20 s of it without touch
   presses and double clicks never start one, moving past the drag threshold `dragdrop::kThreshold` cancels it) on a
   track row (`TrackTable`: not on its heart, artist link, number or "+" / "×"), a card's cover (`MediaCard` whose page
   set `previewTarget`, not its play button), a Library cell (the grid's cover, a list row), an upcoming queue row
-  (recommendations too), Home's tiles and release rows, Stats' song rows, Yerel dosyalar' album / artist cards (their
-  first song). The track menu's "Önizle" (one song, not the one that plays; "Önizlemeyi durdur" while it previews) and
+  (recommendations too), Home's hero cover, quick-access tiles, shelf cards, popular tiles and release rows (a
+  collection from `home::Item::context`: `preview::contextTarget`), Stats' song rows, Yerel dosyalar' album / artist
+  cards (their first song). The track menu's "Önizle" (one song, not the one that plays; "Önizlemeyi durdur" while it previews) and
   the `preview` action (default **P**, Ayarlar › Klavye) for the keyboard-focused row / card (a clicked row has the
   focus) start one too. Widgets opt in as a `PreviewSource` (`previewAt(windowPos, keyboard)`); the window asks the
   innermost one above the pressed widget when the press has rested. A hold the app takes owns the rest of the gesture:
-  the widget sees no more moves (no drag starts) and its release arrives at a point outside every widget (no click, no
-  drop); the widget keeps its pressed look meanwhile. The release, Esc or a lost capture (Alt+Tab, the row's page
-  rebuilt) stops the preview; Esc's release is still swallowed. A menu / key preview runs until the limit, Esc, the key
+  the widget's press ends at once with a release outside every widget (its press micro-animation eases back; no
+  click, so no `pagetx::arm` / navigation, no drop, no drag later) and it sees no more moves; the window keeps the mouse
+  capture for the hold's own release, and the overlay draws the pressed look. The release, Esc or a lost capture
+  (Alt+Tab) stops the preview; Esc's release is still swallowed. A menu / key preview runs until the limit, Esc, the key
   or its menu item again, or a playback command.
 - **Collections**: an album (`source::album`: its most listened song when ListenBrainz counts came with it, else the
   first), an artist (the first of its top songs), a Spotify playlist / Liked Songs (`Api::playlistTracks`, first 20
@@ -1171,7 +1173,8 @@ Press and hold a song (or a card's cover) to hear about 20 s of it without touch
   preview fades out under the new one.
 - **Nothing else moves**: `Player`'s queue, current item, `status()`, `positionMs()` and notifications are untouched, so
   history, listening stats, scrobbling, SMTC, Discord, smart shuffle and the recently played lists never see the
-  preview; the player bar shows the current song as playing with its time standing still. A command that changes what
+  preview. The player bar alone shows it (`PlayerBar`, `Player::previewHoldsCurrent()`): the play button's play glyph
+  and a still wave while the preview holds the current song (not with `keepMainRunning`). A command that changes what
   is heard (play / pause, next / previous, seek, jump, speed, a new queue, "Yanlış eşleşme?"; `Player::endsPreview`,
   outside an `Unfiltered` scope) ends the preview first, then applies: Space pauses what was playing before the
   preview. Queue edits (endless playback appending, smart shuffle, "Sıraya ekle") leave it playing.
@@ -1182,13 +1185,14 @@ Press and hold a song (or a card's cover) to hear about 20 s of it without touch
 - **Touch**: while the mode is "hold", Windows' press-and-hold right-click is off for the main window
   (`MicrosoftTabletPenServiceProperty` = `TABLET_DISABLE_PRESSANDHOLD`), so a held finger previews; the menu stays on
   the menu key / Shift+F10, "Yalnızca menü" gives the gesture back. Not tried on touch hardware.
-- **Overlay**: a non-modal, never hit-tested overlay: a 300 × 60 card (`bg.overlay`, `hairline.default`, the toast
-  shadow, radius 2) with the cover, the title, "ÖNİZLEME" in the accent's mono label and the artist, and a thin ring
+- **Overlay**: a non-modal, never hit-tested overlay (`ui::OverlayLayer`): a 300 × 60 card drawn like the toasts
+  (`ui::paintOverlaySurface`, `Elevation::Toast`, its own `ui::Acrylic` material captured in `prepareBackdrop`;
+  `gfx::radii()`) with the cover, the title, "ÖNİZLEME" in the accent's mono label and the artist, and a thin ring
   (1.25 DIP `hairline.control`, 1.5 DIP accent arc) that spins while the song is looked up / buffered and fills
   clockwise from 12 o'clock over the 20 s; a hint replaces the second line. The pressed row / cover gets a 1 DIP accent
   outline over `accent.tint06`. It sits just above a pressed row (below it near the title bar) and above the pointer
-  on covers and tiles; fades in with a 6 DIP rise (`motion::fast`) and out (`motion::normal`); reduce motion: no rise,
-  a still arc. While shown it repaints every 33 ms (spinning) / 100 ms (filling).
+  on covers and tiles; fades in with a 6 DIP rise (`motion::fast`) and out (`motion::normal`) through
+  `ui::overlay::duration` (no rise and a still arc with reduce motion / Windows' animations off). While shown it repaints every 33 ms (spinning) / 100 ms (filling).
 - **Settings**: `Settings.previewMode` `"hold"` (default) | `"menu"` (menu item and key only) | `"off"`, Ayarlar ›
   Oynatma › Şarkı önizleme.
 - **Safety**: a 50 ms tick runs only while a preview is active; a hold whose button is physically up for 300 ms

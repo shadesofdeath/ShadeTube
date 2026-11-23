@@ -75,9 +75,11 @@ private:
 // the cover has loaded), the cover, a mono label, the title (display type), a subtitle, a podcast's progress line and
 // the accent play button (pause while it plays). `source` is asked again when the player's context or track changes;
 // while it has nothing (an empty profile) the Welcome card stands in.
-class Hero : public ui::Widget {
+class Hero : public ui::Widget, public PreviewSource {
 public:
     explicit Hero(std::function<std::optional<Item>()> source);
+    // Song preview (app/Preview): a hold on the hero's cover samples its collection (Item::context).
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
     bool empty() const { return !item_; }
     float preferredHeight(float width) override;
     void layout() override;

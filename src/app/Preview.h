@@ -41,6 +41,9 @@ namespace preview {
 Mode currentMode();   // Settings::previewMode
 // A card's target from the route it opens: an album, a playlist, an artist or Liked Songs (nullopt for anything else).
 std::optional<Target> collectionTarget(const Route& open, const std::wstring& title, const std::vector<catalog::Image>& images);
+// The same from a player context ("liked", "playlist:<id>", "album:<id>", "artist:<id>"; anything else: nullopt).
+std::optional<Target> contextTarget(const std::string& context, const std::wstring& title,
+                                    const std::vector<catalog::Image>& images);
 // The track menu's "Önizle" (or "Önizlemeyi durdur" while that song previews) for one song; nullopt when previews are
 // off, for several songs, a station / episode or the song that plays.
 std::optional<ui::MenuItem> menuItem(const std::vector<catalog::Track>& tracks, gfx::Point windowPos);

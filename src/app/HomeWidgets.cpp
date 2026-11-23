@@ -283,6 +283,13 @@ void Hero::paint(Canvas& c) {
 
 bool Hero::onMouseDown(const ui::MouseEvent& e) { return e.button == ui::MouseButton::Left && item_ && item_->open; }
 
+std::optional<PreviewHit> Hero::previewAt(gfx::Point windowPos, bool keyboard) {
+    if (!item_ || (!keyboard && !artRect().contains(fromWindow(windowPos)))) return std::nullopt;
+    auto target = preview::contextTarget(item_->context, item_->title, item_->images);
+    if (!target) return std::nullopt;
+    return PreviewHit{std::move(*target), toWindow(artRect())};
+}
+
 void Hero::onMouseUp(const ui::MouseEvent& e) {
     if (!hovered() || !rect().contains(e.pos) || !item_ || !item_->open) return;
     const auto open = item_->open;   // navigates: this page goes away after the event
@@ -382,8 +389,15 @@ void Welcome::paint(Canvas& c) {
 
 namespace {
 
-class QuickTile : public ui::Widget {
+class QuickTile : public ui::Widget, public PreviewSource {
 public:
+    // Song preview (app/Preview): a hold on the tile (not its play button) samples its collection.
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override {
+        if (!keyboard && item_.play && playRect().contains(fromWindow(windowPos))) return std::nullopt;
+        auto target = preview::contextTarget(item_.context, item_.title, item_.images);
+        if (!target) return std::nullopt;
+        return PreviewHit{std::move(*target), toWindow(rect())};
+    }
     explicit QuickTile(Item item) : item_(std::move(item)), title_(item_.title, type::body.withSize(13)) {
         focusable = true;
         gfx::TextOptions two;
