@@ -214,6 +214,10 @@ void Hero::paint(Canvas& c) {
     const Item& it = *item_;
     play_->setPlaying(it.current && p && p->isPlaying());
     play_->setLoading(it.current && p && p->status() == player::Status::Resolving);
+    if (it.current && p) {   // the player's item: "now playing" while it plays, "continue" while it is paused
+        std::wstring label = p->isPlaying() ? std::wstring(tr(L"ŞİMDİ ÇALIYOR")) : toUpperTr(tr(L"Kaldığın yerden devam et"));
+        if (label != label_.text()) label_.setText(std::move(label));
+    }
 
     // The cover's color: known once the image has been decoded (fades in), or given by the item.
     const Rect art = artRect();
@@ -365,7 +369,7 @@ void Welcome::paint(Canvas& c) {
     const auto& col = colors();
     c.fillRounded(r, metrics::radiusSurface, col.bgRaised);
     c.fillLinearGradient(r, {r.x, r.y}, {r.x + r.w * 0.7f, r.y + r.h * 0.4f},
-                         accent().base.withAlpha(gfx::isLightTheme() ? 0.14f : 0.16f), accent().base.withAlpha(0));
+                         accent().base.withAlpha(gfx::isLightTheme() ? 0.12f : 0.10f), accent().base.withAlpha(0));
     c.strokeRounded(r, metrics::radiusSurface, col.hairDefault);
     const float tw = std::max(0.f, std::min(r.w - 64, 620.f));
     c.text(title_, {r.x + 31, r.y + 32, r.w - 64, 40}, col.fgPrimary);
@@ -403,13 +407,13 @@ public:
         float textRight = r.right() - 12;
         if (isPlayingContext(item_.context)) {
             c.icon("equalizer", pb.center(16, 16), acc.base);
-            textRight = pb.x - 8;
+            textRight = pb.x - 6;
         } else if (item_.play) {
             if (h > 0.01f) {
                 c.fillCircle({pb.cx(), pb.cy()}, pb.w * 0.5f, (playHot_ ? acc.hover : acc.base).mulAlpha(h));
                 c.icon("play", pb.center(12, 12).offset(1, 0), acc.onAccent.mulAlpha(h));
             }
-            textRight = pb.x - 8;
+            textRight = pb.x - 6;
         }
         const float tx = art.right() + 12;
         titleW_ = std::max(0.f, textRight - tx);
@@ -472,7 +476,7 @@ private:
     Rect playRect() const {
         const Rect r = rect();
         constexpr float s = 28;
-        return {r.right() - 12 - s, std::round(r.cy() - s * 0.5f), s, s};
+        return {r.right() - 10 - s, std::round(r.cy() - s * 0.5f), s, s};
     }
 
     Item item_;
