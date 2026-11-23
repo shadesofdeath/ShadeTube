@@ -264,6 +264,8 @@ private:
     ui::HoverFade hoverFade_;        // the hovered row's background and glyphs fade in / out (ui/Micro)
     std::string popId_;              // the track whose heart was just clicked: its like / unlike feedback
     ui::HeartPop pop_;
+    std::string curId_;              // the playing song at the last paint and whether it was liked (a like made
+    bool curLiked_ = false;          // elsewhere pops its row's heart too)
     bool nearEndSignaled_ = false;
     bool reorderable_ = false;
     std::vector<int> reorderRows_;   // tracks_ indices this table's own drag moves (empty: it can't reorder)

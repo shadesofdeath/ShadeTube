@@ -620,6 +620,16 @@ void TrackTable::paint(Canvas& c) {
         texts_.clear();
     }
     if (opts_.showHeader) paintHeader(c, {r.x, r.y, r.w, kHeaderH});
+    // The playing song liked / unliked elsewhere (the player bar's heart, Ctrl+L, a menu): its row's heart answers too.
+    if (const auto* cur = ctx().player ? ctx().player->current() : nullptr) {
+        const bool liked = ctx().library.isLiked(cur->id);
+        if (cur->id == curId_ && liked != curLiked_ && !(popId_ == cur->id && pop_.running())) {
+            popId_ = cur->id;
+            pop_.start(liked);
+        }
+        curId_ = cur->id;
+        curLiked_ = liked;
+    }
     const Columns cl = columns();
     // Only rows intersecting the visible clip are painted (virtualization).
     const Rect vis = c.clip();
