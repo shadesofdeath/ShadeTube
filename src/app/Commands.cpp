@@ -198,6 +198,10 @@ bool dispatchKey(const ui::KeyEvent& e, Scope scope, bool inTextField) {
     return run(id);
 }
 
+std::wstring shortcutHint(std::string_view id) {
+    return shortcuts::display(shortcuts::binding(Settings::get().shortcuts, id, false));
+}
+
 void initGlobalHotkeys(HWND hwnd) {
     g_hotkeyWnd = hwnd;
     applyGlobalHotkeys();

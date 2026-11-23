@@ -58,6 +58,7 @@ add_executable(ShadeTube WIN32
     LibrarySort.cpp LibrarySort.h
     LibraryView.cpp LibraryView.h
     Installer.cpp Installer.h
+    OverlayDemo.cpp OverlayDemo.h
     ListenStats.cpp ListenStats.h
     LinkOpener.cpp LinkOpener.h
     Links.cpp Links.h

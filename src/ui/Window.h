@@ -32,6 +32,21 @@ struct WindowOptions {
 };
 
 class Overlay;
+class Acrylic;
+
+// Optional interface of an overlay widget (pushOverlay; found with dynamic_cast), used by the overlay family
+// (ui/Popups, the command palette):
+// - prepareBackdrop(): called right before the overlay paints, with nothing pushed on the canvas, so it can capture
+//   what has been painted below it (its acrylic material, ui/Acrylic.h). Only for overlays that are open.
+// - exiting(): asked when removeOverlay() takes it out. While it returns true the overlay is still painted (above the
+//   open overlays, so a capture never contains it) but gets no input, focus or modality and no window(); then it is
+//   deleted. Its close animation.
+class OverlayLayer {
+public:
+    virtual ~OverlayLayer() = default;
+    virtual void prepareBackdrop(Canvas&, Window&) {}
+    virtual bool exiting() const { return false; }
+};
 
 class Window {
 public:
@@ -67,7 +82,13 @@ public:
     bool hasModal() const;
 
     void invalidate();
+    // Widget::invalidate(): `top` is the widget's root (the tree or an overlay); a repaint asked for from the tree
+    // also advances contentGeneration().
+    void invalidate(const Widget* top);
     void invalidateAfter(double ms);   // schedule a repaint (e.g. player position ticks)
+    // Advances whenever the content below the overlays may have changed (a widget of the tree asked for a repaint or
+    // a layout, the window was resized, zoomed or re-themed): overlays recapture their acrylic backdrop then.
+    uint64_t contentGeneration() const { return contentGen_; }
     void scheduleLayout();
     // Hidden (tray / mini player) or minimized windows never need a frame and never schedule a wake-up, so a
     // window nobody can see costs 0% CPU. WM_PAINT / WM_SIZE on show/restore repaint it.
@@ -175,6 +196,7 @@ private:
     void applyFrameColors();   // DWM border + caption color (bg.base; no caption color under Mica)
     void runLayout();
     void paintTooltip(Canvas& c);
+    void paintLayers(Canvas& c);
     void paintFocusRing(Canvas& c);
     Widget* focusScope() const;                    // topmost modal overlay, else the root
     bool inScope(const Widget* w) const;           // attached under focusScope()
@@ -190,9 +212,12 @@ private:
     struct OverlayEntry {
         std::unique_ptr<Widget> widget;
         bool modal;
+        OverlayLayer* layer = nullptr;
     };
     std::vector<OverlayEntry> overlays_;
+    std::vector<std::unique_ptr<Widget>> exiting_;   // removed overlays playing their close animation (OverlayLayer)
     std::vector<std::unique_ptr<Widget>> graveyard_;
+    uint64_t contentGen_ = 0;
 
     float widthDip_ = 0, heightDip_ = 0;
     float zoom_ = 1.f;
@@ -242,6 +267,15 @@ private:
     double tipHoverStart_ = 0;
     std::wstring tipText_;
     Point tipAnchor_{};
+    // The tooltip on screen (kept while it fades out after its widget lost the hover) and its acrylic material.
+    struct ShownTip {
+        bool shown = false;
+        std::wstring text;
+        Rect anchor{};
+        float alpha = 0, outFrom = 0;
+        double outStart = -1, lastVisible = -1e9;
+    } tip_;
+    std::unique_ptr<Acrylic> tipMaterial_;
 };
 
 } // namespace st::ui
