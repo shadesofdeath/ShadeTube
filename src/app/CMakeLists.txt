@@ -71,6 +71,8 @@ add_executable(ShadeTube WIN32
     PageWidgets.cpp PageWidgets.h
     Pages.h
     PlaybackSettings.cpp
+    Preview.cpp Preview.h
+    PreviewSession.cpp PreviewSession.h
     PlaylistDetails.cpp
     PlaylistEditing.cpp PlaylistEditing.h
     PlaylistIO.cpp PlaylistIO.h

@@ -1705,5 +1705,15 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Indisponible tant qu'un thème de contraste est actif ; la fenêtre reste opaque.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "S'applique au prochain redémarrage : l'arrière-plan de la fenêtre utilise le matériau Mica translucide de Windows 11 et la couleur de ton bureau transparaît légèrement.",
   "Yeniden başlatma gerekiyor": "Redémarrage nécessaire",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "L'arrière-plan Mica s'applique au redémarrage de ShadeTube."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "L'arrière-plan Mica s'applique au redémarrage de ShadeTube.",
+  "Önizle": "Écouter un extrait",
+  "Önizlemeyi durdur": "Arrêter l'extrait",
+  "Şu an bu şarkı çalıyor": "Ce titre est déjà en lecture",
+  "Önizlenecek şarkı bulunamadı": "Aucun titre à écouter",
+  "Önizleme açılamadı": "Impossible de charger l'extrait",
+  "Seçili şarkıyı önizle": "Écouter un extrait du titre sélectionné",
+  "Şarkı önizleme": "Extraits des titres",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "Maintenez un titre ou une pochette enfoncé pour en écouter environ 20 secondes ; la lecture en cours attend et reprend dès que vous relâchez. « Écouter un extrait » dans le menu du titre et la touche {} l'ouvrent aussi.",
+  "Basılı tut": "Maintenir enfoncé",
+  "Yalnızca menü": "Menu seulement"
 }

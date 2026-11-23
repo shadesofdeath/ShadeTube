@@ -12,6 +12,7 @@
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/PodcastUi.h"
+#include "app/Preview.h"
 #include "app/Router.h"
 #include "app/Shell.h"
 #include "app/Smtc.h"
@@ -681,6 +682,13 @@ void App::wirePlayer() {
         for (auto& hook : ctx().trackChangedHooks) hook(t);
     };
     player_->onError = [](const std::wstring& msg) { toast(msg, true); };
+    // Song preview (app/Preview): about 35 % in, past a SponsorBlock segment this session already knows of the video.
+    player_->previewStartFor = [this](const catalog::Track&, const youtube::Match* m, int64_t durationMs) {
+        std::vector<std::pair<int64_t, int64_t>> skip;
+        if (m && Settings::get().sponsorBlockEnabled)
+            for (const auto& s : sponsor_.knownSegments(m->videoId, m->durationSec * 1000LL)) skip.emplace_back(s.startMs, s.endMs);
+        return preview::startPoint(durationMs, skip);
+    };
     // Offline: play a downloaded track from its file instead of resolving YouTube.
     player_->localFileFor = [](const std::string& id) -> std::wstring {
         const auto* it = ctx().downloads.item(id);
@@ -829,6 +837,7 @@ bool App::handleKey(const ui::KeyEvent& e) {
     if (!inText) {
         switch (e.vk) {
         case VK_ESCAPE:
+            if (preview::handleEscape()) return true;   // a song preview (menu / key) stops first
             if (shell_->nowPlaying()) {
                 shell_->setNowPlaying(false);
                 return true;

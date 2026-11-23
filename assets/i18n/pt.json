@@ -1705,5 +1705,15 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Indisponível enquanto um tema de contraste estiver ativo; a janela continua opaca.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Aplicado ao reiniciar: o fundo da janela usa o material Mica translúcido do Windows 11 e a cor da sua área de trabalho aparece levemente.",
   "Yeniden başlatma gerekiyor": "É preciso reiniciar",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "O fundo Mica é aplicado quando o ShadeTube reiniciar."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "O fundo Mica é aplicado quando o ShadeTube reiniciar.",
+  "Önizle": "Ouvir prévia",
+  "Önizlemeyi durdur": "Parar prévia",
+  "Şu an bu şarkı çalıyor": "Esta música já está tocando",
+  "Önizlenecek şarkı bulunamadı": "Nenhuma música para ouvir",
+  "Önizleme açılamadı": "Não foi possível carregar a prévia",
+  "Seçili şarkıyı önizle": "Ouvir prévia da música selecionada",
+  "Şarkı önizleme": "Prévia de músicas",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "Mantenha pressionada uma música ou uma capa para ouvir cerca de 20 segundos; o que está tocando espera onde estava e continua quando você solta. \"Ouvir prévia\" no menu da música e a tecla {} também abrem.",
+  "Basılı tut": "Manter pressionado",
+  "Yalnızca menü": "Só no menu"
 }

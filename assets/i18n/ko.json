@@ -1538,5 +1538,15 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "대비 테마가 켜져 있는 동안에는 사용할 수 없어요. 창은 불투명하게 유지돼요.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "다시 시작하면 적용돼요. 창 배경에 Windows 11의 반투명 Mica 소재를 사용해 바탕 화면 색이 은은하게 비쳐요.",
   "Yeniden başlatma gerekiyor": "다시 시작해야 합니다",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다.",
+  "Önizle": "미리 듣기",
+  "Önizlemeyi durdur": "미리 듣기 중지",
+  "Şu an bu şarkı çalıyor": "지금 재생 중인 곡입니다",
+  "Önizlenecek şarkı bulunamadı": "미리 들을 곡이 없습니다",
+  "Önizleme açılamadı": "미리 듣기를 불러올 수 없습니다",
+  "Seçili şarkıyı önizle": "선택한 곡 미리 듣기",
+  "Şarkı önizleme": "곡 미리 듣기",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "곡이나 커버를 길게 누르면 약 20초를 들을 수 있습니다. 재생 중인 곡은 그 자리에서 기다렸다가 손을 떼면 이어서 재생됩니다. 곡 메뉴의 \"미리 듣기\"와 {} 키로도 열 수 있습니다.",
+  "Basılı tut": "길게 누르기",
+  "Yalnızca menü": "메뉴만"
 }

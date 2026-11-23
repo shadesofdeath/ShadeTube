@@ -1226,6 +1226,15 @@ void QueuePanel::onMouseUp(const ui::MouseEvent& e) {
     invalidate();
 }
 
+std::optional<PreviewHit> QueuePanel::previewAt(gfx::Point windowPos, bool keyboard) {
+    auto* p = ctx().player;
+    if (keyboard || !p) return std::nullopt;
+    const int i = rowAt(fromWindow(windowPos));
+    if (i < 0 || i == p->currentOrderIndex()) return std::nullopt;
+    const Rect rr = rowRect(i);
+    return PreviewHit{preview::songTarget(p->items()[p->order()[i]]), toWindow({rect().x + rr.x, rect().y + rr.y, rr.w, rr.h})};
+}
+
 int QueuePanel::dropIndexAt(gfx::Point windowPos) const {
     auto* p = ctx().player;
     if (!p || p->currentOrderIndex() < 0) return 0;

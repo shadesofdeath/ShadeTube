@@ -36,7 +36,7 @@ struct LibraryCell {
     std::optional<Route> drop;          // where songs dropped on it go (dragdrop::tracksForRow decides); none = no target
 };
 
-class LibraryView : public ui::Widget, public DropTarget {
+class LibraryView : public ui::Widget, public DropTarget, public PreviewSource {
 public:
     enum class Mode { Grid, List };
     static constexpr float kRowH = 64;   // list rows (ListRow's height), 48 DIP artwork
@@ -71,6 +71,9 @@ public:
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
+    // Song preview (app/Preview): a playlist / album / artist / Liked Songs cell (the grid's cover, a list row; not
+    // the play button), or the keyboard cursor's.
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
 
 private:
     struct CellText {

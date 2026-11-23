@@ -1856,5 +1856,15 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, поки ввімкнено контрастну тему; вікно лишається непрозорим.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Застосується після перезапуску: тло вікна використовує напівпрозорий матеріал Mica з Windows 11, і колір робочого столу трохи просвічує.",
   "Yeniden başlatma gerekiyor": "Потрібен перезапуск",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica застосується після перезапуску ShadeTube."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica застосується після перезапуску ShadeTube.",
+  "Önizle": "Прослухати фрагмент",
+  "Önizlemeyi durdur": "Зупинити фрагмент",
+  "Şu an bu şarkı çalıyor": "Ця пісня вже грає",
+  "Önizlenecek şarkı bulunamadı": "Немає пісні для прослуховування",
+  "Önizleme açılamadı": "Не вдалося завантажити фрагмент",
+  "Seçili şarkıyı önizle": "Прослухати фрагмент вибраної пісні",
+  "Şarkı önizleme": "Прослуховування фрагментів",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "Натисніть і утримуйте пісню чи обкладинку, щоб послухати близько 20 секунд; те, що грає, зачекає на місці й продовжиться, коли ви відпустите. Також відкривається пунктом «Прослухати фрагмент» у меню пісні та клавішею {}.",
+  "Basılı tut": "Утримання",
+  "Yalnızca menü": "Лише меню"
 }

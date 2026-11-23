@@ -37,6 +37,8 @@ constexpr Action kActions[] = {
     {"speed-down", [] { return tr(L"Daha yavaş çal"); }, Category::Playback, "Ctrl+Shift+Comma", kMini | kRepeat,
      "chevron-down"},
     {"speed-normal", [] { return tr(L"Normal hızda çal"); }, Category::Playback, "", kMini, "refresh"},
+    // Song preview (app/Preview): the focused row / card; again (or Esc) stops it.
+    {"preview", [] { return tr(L"Seçili şarkıyı önizle"); }, Category::Playback, "P", 0, "volume-2"},
 
     {"command-palette", [] { return tr(L"Komut paleti"); }, Category::Navigation, "Ctrl+K", kInText, "search"},
     {"search", [] { return tr(L"Ara"); }, Category::Navigation, "Ctrl+F", 0, "search"},

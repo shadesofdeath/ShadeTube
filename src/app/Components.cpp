@@ -883,6 +883,36 @@ std::vector<int> TrackTable::dragRows() const {
     return out;
 }
 
+// ---- Song preview (app/Preview) ----------------------------------------------------------------------------------------
+
+std::optional<PreviewHit> TrackTable::previewAt(gfx::Point windowPos, bool keyboard) {
+    if (view_.empty()) return std::nullopt;
+    int i = -1;
+    if (keyboard) {
+        i = std::clamp(anchor_, 0, static_cast<int>(view_.size()) - 1);
+    } else {
+        const gfx::Point p = fromWindow(windowPos);
+        if (opts_.showHeader && p.y < rect().y + kHeaderH) return std::nullopt;
+        i = rowAt(p.y);
+        if (i < 0) return std::nullopt;
+        const Columns cl = columns();
+        const bool onNumber = p.x >= cl.num && p.x < cl.num + gfx::metrics::numCol;
+        if (onNumber || heartHit(i, p) || artistHit(i, p) || recAddHit(i, p) || recHideHit(i, p)) return std::nullopt;
+    }
+    const auto& t = tracks_[view_[i]];
+    if (!t.playable) return std::nullopt;
+    return PreviewHit{preview::songTarget(t), toWindow(rowRect(i))};
+}
+
+std::optional<PreviewHit> MediaCard::previewAt(gfx::Point windowPos, bool keyboard) {
+    if (!previewTarget) return std::nullopt;
+    if (!keyboard) {
+        const gfx::Point p = fromWindow(windowPos);
+        if (!artRect().contains(p) || (onPlay && playRect().contains(p))) return std::nullopt;
+    }
+    return PreviewHit{*previewTarget, toWindow(artRect())};
+}
+
 std::vector<catalog::Track> TrackTable::selectedOwnRows() const {
     std::vector<catalog::Track> out;
     for (int k : view_)

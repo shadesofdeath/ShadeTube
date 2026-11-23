@@ -163,6 +163,9 @@ public:
     double holdDelayMs = 350;
     float holdSlop = 6;
     bool holdTaken() const { return hold_.owned(); }
+    // Drops a hold that owns the gesture without its release (the app saw the button go up elsewhere): the pressed
+    // widget gets its outside release, onHoldEnd is not called.
+    void cancelHold();
 
     static Window* fromHwnd(HWND hwnd);
     LRESULT handleMessageThunk(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);

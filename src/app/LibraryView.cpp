@@ -352,6 +352,29 @@ bool LibraryView::onMouseDown(const ui::MouseEvent& e) {
     return true;
 }
 
+std::optional<PreviewHit> LibraryView::previewAt(gfx::Point windowPos, bool keyboard) {
+    if (order_.empty()) return std::nullopt;
+    int d = std::clamp(cursor_, 0, static_cast<int>(order_.size()) - 1);
+    if (!keyboard) {
+        const gfx::Point p = fromWindow(windowPos);
+        d = cellAt(p);
+        if (d < 0) return std::nullopt;
+        const LibraryCell& c = cell(d);
+        if (c.playable && !(mode_ == Mode::Grid && c.circle) && playRect(d).contains(p)) return std::nullopt;
+        if (mode_ == Mode::Grid && !artRect(d).contains(p)) return std::nullopt;   // a card: its cover
+    }
+    const LibraryCell& c = cell(d);
+    // The cell's player context names it: "liked", "playlist:<id>", "album:<id>", "artist:<id>" (folders: none).
+    Route open{RouteKind::Home};
+    if (c.context == "liked") open = {RouteKind::Liked};
+    for (const auto& [prefix, kind] : {std::pair{"playlist:", RouteKind::Playlist}, std::pair{"album:", RouteKind::Album},
+                                       std::pair{"artist:", RouteKind::Artist}})
+        if (c.context.rfind(prefix, 0) == 0) open = {kind, c.context.substr(std::char_traits<char>::length(prefix))};
+    auto target = preview::collectionTarget(open, c.title, c.images);
+    if (!target) return std::nullopt;
+    return PreviewHit{std::move(*target), toWindow(mode_ == Mode::Grid ? artRect(d) : cellRect(d))};
+}
+
 void LibraryView::onMouseUp(const ui::MouseEvent& e) {
     pressA_.to(0, 160);
     invalidate();

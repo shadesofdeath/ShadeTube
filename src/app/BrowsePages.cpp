@@ -96,6 +96,7 @@ MediaCard* addAlbumCard(ui::Grid* grid, const Album& a, bool showArtist = true) 
     std::wstring sub = showArtist ? albumSubtitle(a) : toWide(a.year());
     auto* card = grid->add<MediaCard>(toWide(a.name), sub, a.images);
     const std::string id = a.id;
+    card->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.name), a.images);
     card->onOpen = [id] { ctx().router->navigate({RouteKind::Album, id}); };
     card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
     card->onContext = [id, offline = sync::Target{sync::Kind::Album, a.id, a.name, a.images}](gfx::Point wp) {
@@ -126,6 +127,7 @@ std::wstring artistSubtitle(const Artist& a) {
 MediaCard* addArtistCard(ui::Grid* grid, const Artist& a) {
     auto* card = grid->add<MediaCard>(toWide(a.name), artistSubtitle(a), a.images, MediaCard::Shape::Circle, Placeholder::Artist);
     const std::string id = a.id;
+    card->previewTarget = preview::collectionTarget({RouteKind::Artist, id}, toWide(a.name), a.images);
     card->onOpen = [id] { ctx().router->navigate({RouteKind::Artist, id}); };
     return card;
 }

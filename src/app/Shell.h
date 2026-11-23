@@ -146,7 +146,7 @@ public:
     std::wstring tooltip() const override;
 };
 
-class QueuePanel : public ui::Widget, public DropTarget {
+class QueuePanel : public ui::Widget, public DropTarget, public PreviewSource {
 public:
     QueuePanel();
     void sync();
@@ -163,6 +163,8 @@ public:
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
+    // Song preview (app/Preview): an upcoming row (recommendations too); not the playing one.
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
 
 private:
     int dropIndexAt(gfx::Point windowPos) const;   // order index the dropped songs go in front of

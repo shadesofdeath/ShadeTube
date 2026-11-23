@@ -260,6 +260,7 @@ std::wstring bucketTitle(releases::Bucket b) {
 MediaCard* addReleaseCard(ui::Grid* grid, const Album& a) {
     auto* card = grid->add<MediaCard>(toWide(a.name), typeLabel(a) + L" · " + artistsOf(a), a.images);
     const std::string id = a.id;
+    card->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.name), a.images);
     card->onOpen = [id] { ctx().router->navigate({RouteKind::Album, id}); };
     card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
     card->onContext = [id, artist = a.artists.empty() ? std::string() : a.artists[0].id](gfx::Point wp) {

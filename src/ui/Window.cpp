@@ -1096,6 +1096,20 @@ void Window::holdTimer() {
     invalidate();
 }
 
+void Window::cancelHold() {
+    const bool owned = hold_.owned();
+    hold_.cancel();
+    holdWidget_ = nullptr;
+    KillTimer(hwnd_, kHoldTimerId);
+    if (Widget* w = owned ? capture_ : nullptr) {
+        capture_ = nullptr;
+        w->pressed_ = false;
+        ReleaseCapture();
+        w->onMouseUp(makeEvent(w, {-1e6f, -1e6f}, MouseButton::Left, 0));
+    }
+    invalidate();
+}
+
 void Window::endHold() {
     if (!hold_.taken()) return;
     hold_.finish();

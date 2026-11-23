@@ -1705,5 +1705,15 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Not available while a contrast theme is on; the window stays opaque.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Applies after a restart: the window background uses Windows 11's translucent Mica material and your desktop's color shows through slightly.",
   "Yeniden başlatma gerekiyor": "Restart required",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "The Mica background applies once ShadeTube restarts."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "The Mica background applies once ShadeTube restarts.",
+  "Önizle": "Preview",
+  "Önizlemeyi durdur": "Stop preview",
+  "Şu an bu şarkı çalıyor": "This song is playing now",
+  "Önizlenecek şarkı bulunamadı": "No song to preview",
+  "Önizleme açılamadı": "Couldn't load the preview",
+  "Seçili şarkıyı önizle": "Preview the selected song",
+  "Şarkı önizleme": "Song preview",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "Press and hold a song or a cover to hear about 20 seconds of it; what's playing waits where it was and continues when you let go. The song menu's \"Preview\" and the {} key open it too.",
+  "Basılı tut": "Press and hold",
+  "Yalnızca menü": "Menu only"
 }
