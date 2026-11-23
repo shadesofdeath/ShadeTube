@@ -203,8 +203,9 @@ public:
             x += 16;
             c.icon("folder", {x, r.cy() - 7, 14, 14}, fg);
             x += 20;
-        } else if (!icon_.empty()) {   // the playing indicator
-            c.icon(icon_, {x, r.cy() - 7, 14, 14}, acc.base);
+        } else if (!icon_.empty()) {   // the playing indicator (live bars, ui/Micro)
+            if (icon_ == "equalizer") drawPlayingBars(c, this, {x, r.cy() - 7, 14, 14}, acc.base);
+            else c.icon(icon_, {x, r.cy() - 7, 14, 14}, acc.base);
             x += 20;
         }
         label_.setStyle(type::secondary.withWeight(active_ ? 600.f : 400.f));
@@ -242,7 +243,8 @@ public:
             c.icon(expanded_ ? "chevron-down" : "chevron-right", {corner.x - 5, corner.y - 5, 10, 10}, col.fgSecondary);
         } else if (!icon_.empty()) {
             c.fillCircle(corner, 8, acc.base);
-            c.icon(icon_, {corner.x - 5, corner.y - 5, 10, 10}, acc.onAccent);
+            if (icon_ == "equalizer") drawPlayingBars(c, this, {corner.x - 5, corner.y - 5, 10, 10}, acc.onAccent);
+            else c.icon(icon_, {corner.x - 5, corner.y - 5, 10, 10}, acc.onAccent);
         }
     }
 
@@ -264,11 +266,11 @@ public:
         }
     }
     void onMouseEnter() override {
-        hover_.to(1, ui::motion::fast);
+        hover_.to(1, ui::motion::microMs(ui::motion::fast));
         invalidate();
     }
     void onMouseLeave() override {
-        hover_.to(0, ui::motion::fast);
+        hover_.to(0, ui::motion::microMs(ui::motion::fast));
         invalidate();
     }
     LPCWSTR cursor() const override { return IDC_HAND; }
@@ -774,6 +776,7 @@ PlayerBar::PlayerBar()
     mini_->setTooltip(tr(L"Mini oynatıcı"));
     expand_->setTooltip(tr(L"Tam ekran"));
     heart_->setTooltip(tr(L"Beğen"));
+    heart_->setHeart("heart-thin", "heart-liked-thin");   // the like feedback (ui::HeartPop) when it changes
 
     shuffle_->onClick = [] { smartshuffle::cycleMode(); };   // off -> shuffle -> smart shuffle
     prev_->onClick = [] { ctx().player->previous(); };
@@ -840,6 +843,11 @@ void PlayerBar::sync() {
     const bool liked = t && (live_ ? radio::store().isFavorite(radio::uuidOf(t->id)) : ctx().library.isLiked(t->id));
     heart_->setIcon(liked ? "heart-liked-thin" : "heart-thin");
     heart_->setActive(liked);
+    // Liked / unliked while it plays (the heart, a row's heart, Ctrl+L, a menu, the phone): the feedback. Another song
+    // just shows its own state.
+    if (const std::string id = t ? t->id : std::string(); !id.empty() && id == likedId_ && liked != likedWas_) heart_->pulse();
+    likedId_ = t ? t->id : std::string();
+    likedWas_ = liked;
     heart_->setTooltip(!live_ ? std::wstring(tr(L"Beğen")) : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
     // Live: no seeking (the wave runs end to end without a playhead).
     seek_->setEnabled(!live_);
@@ -1224,6 +1232,7 @@ void QueuePanel::onMouseMove(const ui::MouseEvent& e) {
     const int i = rowAt(e.pos);
     if (i != hover_) {
         hover_ = i;
+        hoverFade_.set(i);
         invalidate();
     }
 }
@@ -1312,11 +1321,12 @@ void QueuePanel::paint(Canvas& c) {
     c.text(tr(L"ŞİMDİ"), type::monoLabel, {padX, 20 + 36 + 8 - 2, 100, 16}, acc.base);
     auto drawRow = [&](int oi, const Rect& rr, bool current) {
         const auto& t = p->items()[p->order()[oi]];
+        const float hv = current ? 0.f : hoverFade_.of(oi);
         if (current) c.fillRect(rr, acc.tint06);
-        else if (oi == hover_) c.fillRect(rr, col.overlayHover);
+        else if (hv > 0.001f) c.fillRect(rr, col.overlayHover.mulAlpha(hv));
         float x = padX;
         if (!current) {
-            c.icon("drag-handle", {x - 12, rr.cy() - 6, 12, 12}, col.fgTertiary.mulAlpha(oi == hover_ ? 1.f : 0.5f));
+            c.icon("drag-handle", {x - 12, rr.cy() - 6, 12, 12}, col.fgTertiary.mulAlpha(0.5f + 0.5f * hv));
             x += 4;
         }
         // Kara liste: an upcoming blocked track is skipped by the player, so it is dimmed like in the track tables;
@@ -1353,11 +1363,7 @@ void QueuePanel::paint(Canvas& c) {
         const std::wstring second = current && station && !p->liveTitle().empty() ? p->liveTitle() : toWide(t.artistLine());
         c.text(second, type::caption.withSize(11), {x, rr.cy() + 1, r.w - x - rightW - padX, 16}, col.fgSecondary.mulAlpha(alpha));
         if (current) {
-            const int f = p->isPlaying() ? static_cast<int>(ui::frame::now() / 66.0) % 12 : 0;
-            char name[48];
-            snprintf(name, sizeof name, "animations/equalizer/frame-%02d", f);
-            c.icon(name, {r.w - padX - 16, rr.cy() - 8, 16, 16}, acc.base);
-            if (p->isPlaying()) ui::frame::requestNext();
+            drawPlayingBars(c, this, {r.w - padX - 16, rr.cy() - 8, 16, 16}, acc.base);   // moving / frozen
         } else if (!station) {   // stations have no duration
             c.text(ui::formatDuration(t.durationMs), type::monoMeta, {r.w - padX - 52, rr.y, 52, rr.h}, col.fgTertiary.mulAlpha(alpha),
                    gfx::TextAlign::Trailing, gfx::VAlign::Center);

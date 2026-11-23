@@ -405,12 +405,14 @@ public:
         const Part part = row >= 0 ? partAt(row, e.pos) : Part::None;
         if (row != hoverRow_ || part != hoverPart_) {
             hoverRow_ = row;
+            hoverFade_.set(row);
             hoverPart_ = part;
             invalidate();
         }
     }
     void onMouseLeave() override {
         hoverRow_ = -1;
+        hoverFade_.set(-1);
         hoverPart_ = Part::None;
         invalidate();
     }
@@ -531,7 +533,7 @@ private:
         const auto* st = podcast::store().state(id);
         const bool played = st && st->played;
         if (current) c.fillRounded(r, 2, acc.tint06);
-        if (hot) c.fillRounded(r, 2, col.overlayHover);
+        if (const float hv = hoverFade_.of(i); hv > 0.001f) c.fillRounded(r, 2, col.overlayHover.mulAlpha(hv));
         float x = r.x + 12;
         if (opts_.art) {
             const Rect art{x, r.cy() - 36, 72, 72};
@@ -618,6 +620,7 @@ private:
     std::vector<Episode> episodes_;
     std::unordered_map<int, RowText> texts_;
     int hoverRow_ = -1;
+    ui::HoverFade hoverFade_;   // the hovered row's background fades in / out (ui/Micro)
     Part hoverPart_ = Part::None;
     int cursor_ = 0;
 };

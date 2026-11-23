@@ -643,11 +643,16 @@ public:
             return false;
         }
         if (e.button != ui::MouseButton::Left) return false;
-        press_.to(1, 80);
+        playPressed_ = playRect().contains(e.pos);
+        (playPressed_ ? playPressA_ : press_).to(1, ui::motion::microMs(80));
+        invalidate();
         return true;
     }
     void onMouseUp(const ui::MouseEvent& e) override {
-        press_.to(0, 160);
+        press_.to(0, ui::motion::microMs(160));
+        playPressA_.to(0, ui::motion::microMs(160));
+        playPressed_ = false;
+        invalidate();
         if (!rect().contains(e.pos)) return;
         open(playRect().contains(e.pos));
     }
@@ -655,19 +660,21 @@ public:
         const bool hot = playRect().contains(e.pos);
         if (hot != playHot_) {
             playHot_ = hot;
+            playHotA_.to(hot ? 1.f : 0.f, ui::motion::microMs(ui::motion::fast));
             invalidate();
         }
     }
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
     void onMouseLeave() override {
-        hover_.to(0, ui::motion::fast);
+        hover_.to(0, ui::motion::microMs(ui::motion::fast));
         playHot_ = false;
+        playHotA_.to(0, ui::motion::microMs(ui::motion::fast));
     }
     LPCWSTR cursor() const override { return IDC_HAND; }
     bool activatable() const override { return true; }
     bool onActivate() override {
-        press_.snap(1);
-        press_.to(0, 160);
+        press_.snap(ui::motion::micro() ? 1.f : 0.f);
+        press_.to(0, ui::motion::microMs(160));
         open(false);
         return true;
     }
@@ -681,23 +688,25 @@ public:
 
     void paint(Canvas& c) override {
         const auto& col = colors();
-        const float h = std::max(hover_.value(), keyboardFocused() ? 1.f : 0.f);
+        const float pointer = hover_.value(), p = press_.value();
+        const float h = std::max(pointer, keyboardFocused() ? 1.f : 0.f);
         const Rect art = artRect();
         const float shown = pagetx::presence(this);   // 0: the page transition draws this cover
-        c.pushScale(1 - 0.01f * press_, {art.cx(), art.cy()});
-        if (h > 0.01f && shown > 0.f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h * shown));
-        if (shown > 0.f) drawCover(c, list_, art, 2);
-        if (h > 0.01f && shown > 0.f) {
-            const Rect pr = playRect().offset(0, 8 * (1 - ui::ease(ui::Ease::Decelerate, h)));
-            c.pushOpacity(h);
-            c.fillCircle({pr.cx(), pr.cy()}, 24, playHot_ ? accent().hover : accent().base);
-            c.icon("play", pr.center(16, 16).offset(1, 0), accent().onAccent);
-            c.popLayer();
+        // MediaCard's hover look (ui::card).
+        c.pushTransform(D2D1::Matrix3x2F::Translation(0, ui::card::lift(pointer, p)));
+        c.pushScale(ui::card::pressScale(p), {art.cx(), art.cy()});
+        if (shown > 0.f) {
+            ui::card::paintBack(c, art, h * shown);
+            drawCover(c, list_, art, 2);
+            ui::card::paintEdge(c, art, h);
+            ui::card::paintPlay(c, playRect(), {h, playHotA_.value(), playPressA_.value()}, accent().base,
+                                accent().hover, accent().onAccent);
         }
         c.popTransform();
         const Rect tr{rect().x, art.bottom() + 10, rect().w, 18};
         c.text(title_, tr, col.fgPrimary, gfx::VAlign::Center);
         c.text(subtitle_, {rect().x, tr.bottom() + 2, rect().w, 16}, col.fgSecondary, gfx::VAlign::Center);
+        c.popTransform();
     }
 
 private:
@@ -735,6 +744,8 @@ private:
     gfx::Text title_, subtitle_;
     ui::Anim hover_, press_;
     bool playHot_ = false;
+    bool playPressed_ = false;
+    ui::Anim playHotA_, playPressA_;
 };
 
 // "Senin için listeler": header + cards, rebuilt when the lists change; hidden while there is none.

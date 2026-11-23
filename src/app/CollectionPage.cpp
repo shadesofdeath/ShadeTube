@@ -56,6 +56,7 @@ public:
         enhance_->setTooltip(tr(L"Listeye uyan önerilen şarkıları aralara ekle"));
         enhance_->setVisible(kind != Kind::Album);
         save_ = add<Button>(ButtonKind::IconOutline, L"", "heart");
+        save_->setHeart("heart", "heart-filled");   // the like feedback when the album is saved / removed
         add_ = add<Button>(ButtonKind::IconOutline, L"", "plus");
         offline_ = add<sync::SyncButton>();   // "Çevrimdışı kullanılabilir" (download sync)
         more_ = add<Button>(ButtonKind::IconOutline, L"", "more");
@@ -717,6 +718,7 @@ private:
         header_->save_->onClick = [this, refreshSave] {
             ctx().library.setSavedAlbum(album_, !ctx().library.isSavedAlbum(id_));
             refreshSave();
+            header_->save_->pulse();
         };
         header_->add_->onClick = [this] {
             const Rect br = header_->add_->toWindow(header_->add_->rect());

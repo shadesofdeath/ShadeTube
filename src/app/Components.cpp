@@ -3,6 +3,7 @@
 #include "app/Blacklist.h"
 #include "app/Display.h"
 #include "app/DragDrop.h"
+#include "app/LyricsFullscreen.h"
 #include "app/SmartShuffle.h"
 #include "app/Router.h"
 #include "core/Dispatcher.h"
@@ -85,6 +86,11 @@ void drawArtwork(Canvas& c, const std::vector<catalog::Image>& images, const Rec
         c.fillRounded(r, radius, colors().bgOverlay);
         c.iconColored(name, r.center(r.w, r.h));
     }
+}
+
+void drawPlayingBars(Canvas& c, ui::Widget* owner, const Rect& box, Color color) {
+    const auto* p = ctx().player;
+    ui::paintEqualizer(c, owner, box, color, p && p->isPlaying() && !LyricsFullscreen::isOpen());
 }
 
 Color tileColor(std::string_view seed) {
@@ -211,12 +217,17 @@ bool MediaCard::onMouseDown(const ui::MouseEvent& e) {
         return false;
     }
     if (e.button != ui::MouseButton::Left) return false;
-    press_.to(1, 80);
+    playPressed_ = onPlay && playRect().contains(e.pos);
+    (playPressed_ ? playPressA_ : press_).to(1, ui::motion::microMs(80));
+    invalidate();
     return true;
 }
 
 void MediaCard::onMouseUp(const ui::MouseEvent& e) {
-    press_.to(0, 160);
+    press_.to(0, ui::motion::microMs(160));
+    playPressA_.to(0, ui::motion::microMs(160));
+    playPressed_ = false;
+    invalidate();
     if (!rect().contains(e.pos)) return;
     if (onPlay && playRect().contains(e.pos)) {
         pagetx::arm(cover());   // "#play" opens the page too
@@ -242,14 +253,21 @@ void MediaCard::onMouseMove(const ui::MouseEvent& e) {
     const bool hot = onPlay && playRect().contains(e.pos);
     if (hot != playHot_) {
         playHot_ = hot;
+        playHotA_.to(hot ? 1.f : 0.f, ui::motion::microMs(ui::motion::fast));
         invalidate();
     }
 }
 
+void MediaCard::onMouseLeave() {
+    hover_.to(0, ui::motion::microMs(ui::motion::fast));
+    playHot_ = false;
+    playHotA_.to(0, ui::motion::microMs(ui::motion::fast));
+}
+
 bool MediaCard::onActivate() {
     if (!onOpen) return false;
-    press_.snap(1);
-    press_.to(0, 160);
+    press_.snap(ui::motion::micro() ? 1.f : 0.f);
+    press_.to(0, ui::motion::microMs(160));
     pagetx::arm(cover());
     const auto open = onOpen;   // navigating destroys this card (deferred), call a copy
     open();
@@ -271,41 +289,43 @@ Rect MediaCard::focusRect() const { return shape_ == Shape::Circle ? artRect() :
 
 void MediaCard::paint(Canvas& c) {
     const auto& col = colors();
-    // Keyboard focus shows a square card's hover state (lift shadow + play button); round cards keep just the ring.
-    const float h = std::max(hover_.value(), shape_ == Shape::Square && keyboardFocused() ? 1.f : 0.f);
+    // Keyboard focus shows a square card's hover state (shadow + play button, no rise: the ring stays on the card);
+    // round cards keep just the ring.
+    const float pointer = hover_.value(), p = press_.value();
+    const float h = std::max(pointer, shape_ == Shape::Square && keyboardFocused() ? 1.f : 0.f);
     const Rect art = artRect();
-    const float s = 1 - 0.01f * press_;
+    const float lift = ui::card::lift(pointer, p);
     // Page transition: while this cover flies, the flight draws it (presence 0), then it lands here (0 -> 1).
     const float shown = pagetx::presence(this);
-    c.pushScale(s, {art.cx(), art.cy()});
+    c.pushTransform(D2D1::Matrix3x2F::Translation(0, lift));
+    c.pushScale(ui::card::pressScale(p), {art.cx(), art.cy()});
     if (shown <= 0.f) {
         // nothing: the flight draws this cover
     } else if (shape_ == Shape::Circle) {
         const float d = std::min(art.w, 160.f + (art.w - 160.f));
         const Rect circle = art.center(d, d);
+        ui::card::paintBack(c, circle, pointer, true);
         drawArtwork(c, images_, circle, 0, Placeholder::Artist, true);
-        if (h > 0.01f) c.strokeCircle({circle.cx(), circle.cy()}, d * 0.5f, accent().base.mulAlpha(h * 0.8f), 1.5f);
+        ui::card::paintEdge(c, circle, h, true);
     } else {
-        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h * shown));   // cardHoverShadow
+        ui::card::paintBack(c, art, h * shown);
         drawArtwork(c, images_, art, 2, ph_);
+        ui::card::paintEdge(c, art, h);
         if (!badge_.empty()) {
             const float bw = std::ceil(badge_.measure().w) + 12;
             const Rect pill{art.x + 8, art.y + 8, bw, 16};
             c.fillPill(pill, accent().base);
             c.text(badge_, pill.inset(6, 0), accent().onAccent, gfx::VAlign::Center);
         }
-        if (onPlay && h > 0.01f) {
-            const Rect pr = playRect().offset(0, 8 * (1 - ui::ease(ui::Ease::Decelerate, h)));
-            c.pushOpacity(h);
-            c.fillCircle({pr.cx(), pr.cy()}, 24, playHot_ ? accent().hover : accent().base);
-            c.icon("play", pr.center(16, 16).offset(1, 0), accent().onAccent);
-            c.popLayer();
-        }
+        if (onPlay)
+            ui::card::paintPlay(c, playRect(), {h, playHotA_.value(), playPressA_.value()}, accent().base, accent().hover,
+                                accent().onAccent);
     }
     c.popTransform();
     const Rect tr{rect().x, art.bottom() + 10, rect().w, 18};
-    c.text(title_, tr, Color::lerp(col.fgPrimary, col.fgPrimary, h), gfx::VAlign::Center);
+    c.text(title_, tr, col.fgPrimary, gfx::VAlign::Center);
     c.text(subtitle_, {rect().x, tr.bottom() + 4 - 2, rect().w, 16}, col.fgSecondary, gfx::VAlign::Center);
+    c.popTransform();
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -420,6 +440,7 @@ void TrackTable::rebuildView() {
     }
     texts_.clear();
     hover_ = -1;
+    hoverFade_.clear();
     requestLayout();
     invalidate();
 }
@@ -529,6 +550,7 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     const bool isCurrent = cur && !t.id.empty() && cur->id == t.id;
     const bool playing = isCurrent && ctx().player->isPlaying();
     const bool hot = i == hover_;
+    const float hv = hoverFade_.of(i);   // the hover look fades in / out (ui::HoverFade)
     auto& tx = rowText(i);
     const RowMetrics m = rowMetrics();
     const float titleCy = r.y + m.titleY + m.titleH * 0.5f;   // badges are centered on the title line
@@ -538,24 +560,19 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     if (selected) {
         c.fillRounded(r, 2, acc.tint12);
         c.fillRect({r.x, r.y, 2, r.h}, acc.base);
-    } else if (hot) {
-        c.fillRounded(r, 2, col.overlayHover);
-    } else if (t.recommended) {   // "Geliştir": a recommendation, not the list's own song
-        c.fillRounded(r, 2, acc.tint06);
-    }
-    // Index / play glyph / equalizer.
-    const Rect numR{cl.num, r.y, gfx::metrics::numCol, r.h};
-    if (playing && !hot) {
-        const int frameIdx = static_cast<int>(ui::frame::now() / 66.0) % 12;
-        char name[48];
-        snprintf(name, sizeof name, "animations/equalizer/frame-%02d", frameIdx);
-        c.icon(name, {numR.x, numR.cy() - 7, 14, 14}, acc.base);
-        ui::frame::requestNext();
-    } else if (hot && t.playable) {
-        c.icon(playing ? "pause" : "play", {numR.x, numR.cy() - 6, 12, 12}, col.fgPrimary);
     } else {
-        c.text(tx.num, {numR.x, r.y, numR.w, r.h}, (isCurrent ? acc.base : col.fgTertiary).mulAlpha(alpha), gfx::VAlign::Center);
+        if (t.recommended) c.fillRounded(r, 2, acc.tint06);   // "Geliştir": a recommendation, not the list's own song
+        if (hv > 0.001f) c.fillRounded(r, 2, col.overlayHover.mulAlpha(hv));
     }
+    // Index / play glyph / equalizer: the current track's row shows the playing bars (moving while it plays, frozen
+    // while paused); hovering crossfades the cell to the play / pause glyph (motion-spec: 120 ms).
+    const Rect numR{cl.num, r.y, gfx::metrics::numCol, r.h};
+    const float glyph = t.playable ? hv : 0.f;
+    if (glyph < 0.999f) {
+        if (isCurrent) drawPlayingBars(c, this, {numR.x, numR.cy() - 7, 14, 14}, acc.base.mulAlpha(1 - glyph));
+        else c.text(tx.num, {numR.x, r.y, numR.w, r.h}, col.fgTertiary.mulAlpha(alpha * (1 - glyph)), gfx::VAlign::Center);
+    }
+    if (glyph > 0.001f) c.icon(playing ? "pause" : "play", {numR.x, numR.cy() - 6, 12, 12}, col.fgPrimary.mulAlpha(glyph));
     // Title (+ art) and artist.
     float tx0 = cl.title;
     if (opts_.showArt) {
@@ -597,16 +614,22 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     // A recommendation of a "Geliştir" list: "+" (always) and "×" (on hover) instead of the heart.
     if (t.recommended && onAddRecommended) {
         c.icon("plus", {cl.heart, r.cy() - 8, 16, 16}, hot && hoverRecAdd_ ? acc.base : col.fgPrimary);
-        if (hot && onHideRecommended)
-            c.icon("close", {cl.heart - 28, r.cy() - 7, 14, 14}, hoverRecHide_ ? col.fgPrimary : col.fgSecondary);
+        if (hv > 0.001f && onHideRecommended)
+            c.icon("close", {cl.heart - 28, r.cy() - 7, 14, 14},
+                   (hot && hoverRecHide_ ? col.fgPrimary : col.fgSecondary).mulAlpha(hv));
         c.text(tx.dur, {cl.dur, r.y, gfx::metrics::durCol, r.h}, col.fgSecondary.mulAlpha(alpha), gfx::VAlign::Center);
         return;
     }
-    // Heart (visible when liked, or on hover for a track that can be hearted) + duration.
+    // Heart (visible when liked, or fading in on hover for a track that can be hearted; a click plays the like /
+    // unlike feedback) + duration.
     const bool liked = ctx().library.isLiked(t.id);
-    if (liked || (hot && ctx().library.canLike(t.id))) {
-        const Color hc = liked ? acc.base : (hoverHeart_ ? col.fgPrimary : col.fgSecondary);
-        c.icon(liked ? "heart-filled" : "heart", {cl.heart, r.cy() - 8, 16, 16}, hc);
+    const bool popping = !popId_.empty() && popId_ == t.id && pop_.running();
+    const float heartA = liked || popping ? 1.f : ctx().library.canLike(t.id) ? hv : 0.f;
+    if (heartA > 0.001f) {
+        const Rect hr{cl.heart, r.cy() - 8, 16, 16};
+        const Color outline = (hot && hoverHeart_ ? col.fgPrimary : col.fgSecondary).mulAlpha(heartA);
+        if (popping) pop_.draw(c, hr, liked, "heart", "heart-filled", outline, acc.base);
+        else c.icon(liked ? "heart-filled" : "heart", hr, liked ? acc.base : outline);
     }
     c.text(tx.dur, {cl.dur, r.y, gfx::metrics::durCol, r.h}, col.fgSecondary.mulAlpha(alpha), gfx::VAlign::Center);
 }
@@ -618,6 +641,16 @@ void TrackTable::paint(Canvas& c) {
         texts_.clear();
     }
     if (opts_.showHeader) paintHeader(c, {r.x, r.y, r.w, kHeaderH});
+    // The playing song liked / unliked elsewhere (the player bar's heart, Ctrl+L, a menu): its row's heart answers too.
+    if (const auto* cur = ctx().player ? ctx().player->current() : nullptr) {
+        const bool liked = ctx().library.isLiked(cur->id);
+        if (cur->id == curId_ && liked != curLiked_ && !(popId_ == cur->id && pop_.running())) {
+            popId_ = cur->id;
+            pop_.start(liked);
+        }
+        curId_ = cur->id;
+        curLiked_ = liked;
+    }
     const Columns cl = columns();
     // Only rows intersecting the visible clip are painted (virtualization).
     const Rect vis = c.clip();
@@ -698,6 +731,7 @@ void TrackTable::onMouseMove(const ui::MouseEvent& e) {
     const bool hh = heartHit(i, e.pos), ha = artistHit(i, e.pos), ra = recAddHit(i, e.pos), rh = recHideHit(i, e.pos);
     if (i != hover_ || hh != hoverHeart_ || ha != hoverArtist_ || ra != hoverRecAdd_ || rh != hoverRecHide_) {
         hover_ = i;
+        hoverFade_.set(i);
         hoverHeart_ = hh;
         hoverArtist_ = ha;
         hoverRecAdd_ = ra;
@@ -708,6 +742,7 @@ void TrackTable::onMouseMove(const ui::MouseEvent& e) {
 
 void TrackTable::onMouseLeave() {
     hover_ = -1;
+    hoverFade_.set(-1);
     invalidate();
 }
 
@@ -762,7 +797,11 @@ bool TrackTable::onMouseDown(const ui::MouseEvent& e) {
         return true;
     }
     if (heartHit(i, e.pos)) {
+        const std::string id = t.id;   // the library's notify may rebuild the rows
         ctx().library.toggleLiked(t);
+        popId_ = id;
+        pop_.start(ctx().library.isLiked(id));
+        invalidate();
         return true;
     }
     if (artistHit(i, e.pos) && !t.artists.empty() && !t.artists[0].id.empty()) {

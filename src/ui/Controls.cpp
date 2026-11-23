@@ -124,7 +124,18 @@ void Button::setIcon(std::string icon) {
 void Button::setActive(bool active) {
     if (active_ == active) return;
     active_ = active;
-    activeA_.to(active ? 1.f : 0.f, motion::normal);
+    activeA_.to(active ? 1.f : 0.f, motion::microMs(motion::normal));
+    invalidate();
+}
+
+void Button::setHeart(std::string outline, std::string filled) {
+    heartOutline_ = std::move(outline);
+    heartFilled_ = std::move(filled);
+    invalidate();
+}
+
+void Button::pulse() {
+    pop_.start(active_);
     invalidate();
 }
 
@@ -149,11 +160,11 @@ float Button::naturalWidth() {
 }
 
 void Button::onMouseEnter() {
-    hover_.to(1, motion::fast);
+    hover_.to(1, motion::microMs(motion::fast));
     invalidate();
 }
 void Button::onMouseLeave() {
-    hover_.to(0, motion::fast);
+    hover_.to(0, motion::microMs(motion::fast));
     invalidate();
 }
 
@@ -167,12 +178,12 @@ bool Button::onMouseDown(const MouseEvent& e) {
         return false;
     }
     if (e.button != MouseButton::Left) return false;
-    press_.to(1, 80, Ease::Accelerate);
+    press_.to(1, motion::microMs(80), Ease::Accelerate);
     return true;
 }
 
 void Button::onMouseUp(const MouseEvent& e) {
-    press_.to(0, 160, Ease::Decelerate);
+    press_.to(0, motion::microMs(160), Ease::Decelerate);
     if (hovered() && rect().contains(e.pos) && onClick) onClick();
 }
 
@@ -180,8 +191,8 @@ bool Button::onActivate() {
     if (!enabled() || !onClick) return false;
     // The click's press feedback, then the click. The handler may replace onClick (or close this button's
     // dialog): call a copy. Widgets are deleted only after the event, so `this` stays valid meanwhile.
-    press_.snap(1);
-    press_.to(0, motion::normal, Ease::Decelerate);
+    press_.snap(motion::micro() ? 1.f : 0.f);
+    press_.to(0, motion::microMs(motion::normal), Ease::Decelerate);
     invalidate();
     const auto click = onClick;
     click();
@@ -279,8 +290,11 @@ void Button::paint(Canvas& c) {
         break;
     }
     case ButtonKind::Ghost: {
+        c.pushScale(1 - 0.02f * p, {r.cx(), r.cy()});
         c.fillPill(r, col.overlayHover.mulAlpha(h));
+        if (p > 0) c.fillPill(r, col.overlayPressed.mulAlpha(p));
         drawContent(Color::lerp(col.fgSecondary, col.fgPrimary, h).mulAlpha(disabled), 12, gfx::TextAlign::Center);
+        c.popTransform();
         break;
     }
     case ButtonKind::Icon:
@@ -294,9 +308,14 @@ void Button::paint(Canvas& c) {
         if (kind_ == ButtonKind::IconOutline)
             c.strokeCircle({circle.cx(), circle.cy()}, d * 0.5f, Color::lerp(col.hairControl, col.fgSecondary.withAlpha(0.6f), h));
         Color fg = Color::lerp(col.fgSecondary, col.fgPrimary, h);
-        fg = Color::lerp(fg, acc.base, a);
         const float is = iconSize_ > 0 ? iconSize_ : (d >= 48 ? 18.f : 16.f);
-        c.icon(icon_, circle.center(is, is), fg.mulAlpha(disabled));
+        if (!heartOutline_.empty()) {   // setHeart(): the liked fill and its pop
+            pop_.draw(c, circle.center(is, is), active_, heartOutline_, heartFilled_, fg.mulAlpha(disabled),
+                      acc.base.mulAlpha(disabled));
+        } else {
+            fg = Color::lerp(fg, acc.base, a);
+            c.icon(icon_, circle.center(is, is), fg.mulAlpha(disabled));
+        }
         c.popTransform();
         break;
     }
@@ -322,6 +341,7 @@ void Button::paint(Canvas& c) {
     case ButtonKind::Nav: {
         c.fillPill(r, col.overlaySelected.mulAlpha(a));
         c.fillPill(r, col.overlayHover.mulAlpha(h * (1 - a)));
+        if (p > 0) c.fillPill(r, col.overlayPressed.mulAlpha(p * 0.6f));
         const Color fg = Color::lerp(Color::lerp(col.fgSecondary, col.fgPrimary, h), col.fgPrimary, a);
         const Color ic = Color::lerp(fg, acc.base, a);
         const float is = gfx::metrics::navIcon;
@@ -339,6 +359,7 @@ void Button::paint(Canvas& c) {
     case ButtonKind::SidebarItem: {
         c.fillPill(r, col.overlaySelected.mulAlpha(a));
         c.fillPill(r, col.overlayHover.mulAlpha(h * (1 - a)));
+        if (p > 0) c.fillPill(r, col.overlayPressed.mulAlpha(p * 0.6f));
         const Color fg = Color::lerp(Color::lerp(col.fgSecondary, col.fgPrimary, h), col.fgPrimary, a);
         float right = r.right() - 12;
         if (!trailing_.empty()) {
@@ -356,11 +377,14 @@ void Button::paint(Canvas& c) {
         break;
     }
     case ButtonKind::Chip: {
+        c.pushScale(1 - 0.02f * p, {r.cx(), r.cy()});
         c.fillPill(r, acc.base.mulAlpha(a));
         c.fillPill(r, col.overlayHover.mulAlpha(h * (1 - a)));
-        c.strokePill(r, col.hairControl.mulAlpha(1 - a));
+        if (p > 0) c.fillPill(r, col.overlayPressed.mulAlpha(p * (1 - a)));
+        c.strokePill(r, Color::lerp(col.hairControl, col.fgSecondary.withAlpha(0.5f), h * 0.6f).mulAlpha(1 - a));
         const Color fg = Color::lerp(Color::lerp(col.fgSecondary, col.fgPrimary, h), acc.onAccent, a);
         c.text(label_, r.inset(12, 0), fg, gfx::VAlign::Center);
+        c.popTransform();
         break;
     }
     case ButtonKind::Link: {
@@ -389,8 +413,8 @@ PlayButton::PlayButton(Look look) : look_(look) { focusable = true; }
 
 bool PlayButton::onActivate() {
     if (!enabled() || !onClick) return false;
-    press_.snap(1);
-    press_.to(0, motion::medium, Ease::Spring);   // the click's spring release
+    press_.snap(motion::micro() ? 1.f : 0.f);
+    press_.to(0, motion::microMs(motion::medium), Ease::Spring);   // the click's spring release
     invalidate();
     const auto click = onClick;
     click();
@@ -413,12 +437,12 @@ void PlayButton::setLoading(bool loading) {
 
 bool PlayButton::onMouseDown(const MouseEvent& e) {
     if (e.button != MouseButton::Left) return false;
-    press_.to(1, 80, Ease::Accelerate);
+    press_.to(1, motion::microMs(80), Ease::Accelerate);
     return true;
 }
 
 void PlayButton::onMouseUp(const MouseEvent& e) {
-    press_.to(0, motion::medium, Ease::Spring);
+    press_.to(0, motion::microMs(motion::medium), Ease::Spring);
     if (rect().contains(e.pos) && onClick) onClick();
 }
 
@@ -520,12 +544,19 @@ void PlayButton::paint(Canvas& c) {
 
 void Toggle::setOn(bool on, bool animate) {
     on_ = on;
-    if (animate) knob_.to(on ? 1.f : 0.f, motion::normal);
+    if (animate) knob_.to(on ? 1.f : 0.f, motion::microMs(motion::normal));
     else knob_.snap(on ? 1.f : 0.f);
     invalidate();
 }
 
+bool Toggle::onMouseDown(const MouseEvent& e) {
+    if (!enabled() || e.button != MouseButton::Left) return false;
+    press_.to(1, motion::microMs(80), Ease::Accelerate);
+    return true;
+}
+
 void Toggle::onMouseUp(const MouseEvent& e) {
+    press_.to(0, motion::microMs(160), Ease::Decelerate);
     if (!rect().contains(e.pos)) return;
     setOn(!on_);
     if (onChange) onChange(on_);
@@ -543,10 +574,14 @@ void Toggle::paint(Canvas& c) {
     const auto& acc = accent();
     const Rect track = rect().center(40, 22);
     const float k = knob_;
-    c.fillPill(track, acc.base.mulAlpha(k));
-    c.strokePill(track, col.hairControl.mulAlpha(1 - k));
-    const float x = track.x + 3 + 18 * k;
-    c.fillCircle({x + 8, track.cy()}, 8, Color::lerp(col.fgSecondary, acc.onAccent, k).mulAlpha(enabled() ? 1 : 0.38f));
+    const float h = enabled() ? hover_.value() : 0.f, p = press_.value();
+    c.fillPill(track, Color::lerp(acc.base, acc.hover, h).mulAlpha(k));
+    c.strokePill(track, Color::lerp(col.hairControl, col.fgSecondary.withAlpha(0.6f), h).mulAlpha(1 - k));
+    // Pressed, the knob stretches towards the middle, where it is about to go (its travel stays inside the track).
+    const float stretch = 4 * p;
+    const float x = track.x + 3 + (18 - stretch) * k;
+    const Color knob = Color::lerp(Color::lerp(col.fgSecondary, col.fgPrimary, h), acc.onAccent, k);
+    c.fillPill({x, track.cy() - 8, 16 + stretch, 16}, knob.mulAlpha(enabled() ? 1 : 0.38f));
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -604,6 +639,7 @@ Widget* Slider::hitTest(Point p) {
 bool Slider::onMouseDown(const MouseEvent& e) {
     if (e.button != MouseButton::Left) return false;
     dragging_ = true;
+    drag_.to(1, motion::microMs(80), Ease::Accelerate);
     dragValue_ = fractionAt(e.pos.x);
     if (onScrub) onScrub(dragValue_);
     invalidate();
@@ -622,6 +658,7 @@ void Slider::onMouseMove(const MouseEvent& e) {
 void Slider::onMouseUp(const MouseEvent& e) {
     if (!dragging_) return;
     dragging_ = false;
+    drag_.to(0, motion::microMs(160), Ease::Decelerate);
     value_ = fractionAt(e.pos.x);
     if (onCommit) onCommit(value_);
     invalidate();
@@ -693,7 +730,7 @@ void Slider::paintWave(Canvas& c) {
     const auto& acc = accent();
     const Rect r = rect();
     // Keyboard focus shows the hover state (the bigger playhead) so the value being changed is visible.
-    const float h = std::max({hover_.value(), dragging_ ? 1.f : 0.f, keyboardFocused() ? 1.f : 0.f});
+    const float h = std::max({hover_.value(), drag_.value(), keyboardFocused() ? 1.f : 0.f});
     const bool on = enabled();
     // A listen-together guest without control: faded, no playhead (a live stream is disabled too, but not faded).
     const float alpha = on || live_ ? 1.f : 0.38f;
@@ -725,7 +762,8 @@ void Slider::paint(Canvas& c) {
     const auto& acc = accent();
     const Rect r = rect();
     // Keyboard focus shows the hover state (thicker track + handle) so the value being changed is visible.
-    const float h = std::max({hover_.value(), dragging_ ? 1.f : 0.f, keyboardFocused() ? 1.f : 0.f});
+    const float d = drag_.value();
+    const float h = std::max({hover_.value(), d, keyboardFocused() ? 1.f : 0.f});
     const float trackH = 2 + 2 * h;
     const float cy = look_ == Look::Seek ? r.y + 1 : r.cy();   // seek sits on the bar's top edge
     const Rect track{r.x, cy - trackH * 0.5f, r.w, trackH};
@@ -733,9 +771,12 @@ void Slider::paint(Canvas& c) {
     if (look_ == Look::Seek && buffered_ > 0) c.fillRect({r.x, track.y, r.w * std::clamp(buffered_, 0.f, 1.f), trackH}, acc.tint25);
     const float v = value();
     c.fillRect({r.x, track.y, r.w * v, trackH}, look_ == Look::Plain ? col.fgPrimary : acc.base);
-    const float handle = (look_ == Look::Seek ? 8.f : 12.f) * (0.6f + 0.4f * h);
+    const float handle = (look_ == Look::Seek ? 8.f : 12.f) * (0.6f + 0.4f * h) * (1 + 0.15f * d);
+    const Color thumb = look_ == Look::Plain ? col.fgPrimary : acc.base;
+    // Held: a soft halo around the thumb (the value being dragged).
+    if (d > 0.01f) c.fillCircle({r.x + r.w * v, cy}, handle * 0.5f + 5, (look_ == Look::Plain ? col.overlayPressed : acc.tint12).mulAlpha(d));
     if (h > 0.01f || look_ != Look::Seek)
-        c.fillCircle({r.x + r.w * v, cy}, handle * 0.5f, (look_ == Look::Plain ? col.fgPrimary : acc.base).mulAlpha(look_ == Look::Seek ? h : 1.f));
+        c.fillCircle({r.x + r.w * v, cy}, handle * 0.5f, thumb.mulAlpha(look_ == Look::Seek ? h : 1.f));
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -745,12 +786,13 @@ void Knob::setValue(float v) {
     v = std::clamp(v, 0.f, 1.f);
     if (v == value_) return;
     value_ = v;
-    angle_.to(v, motion::normal);
+    angle_.to(v, motion::microMs(motion::normal));
     invalidate();
 }
 
 bool Knob::onMouseDown(const MouseEvent& e) {
     if (e.button != MouseButton::Left) return false;
+    drag_.to(1, motion::microMs(motion::fast));
     dragStartValue_ = value_;
     dragStartY_ = e.windowPos.y;
     return true;
@@ -809,7 +851,7 @@ void Knob::paint(Canvas& c) {
     const auto& acc = accent();
     const Rect r = rect().center(36, 36);
     const Point center{r.cx(), r.cy()};
-    c.strokeCircle(center, 18, Color::lerp(col.hairControl, col.fgSecondary, hover_));
+    c.strokeCircle(center, 18, Color::lerp(Color::lerp(col.hairControl, col.fgSecondary, hover_), col.fgPrimary, drag_));
     // Tick marks at min/max (hi-fi cue).
     const float v = angle_;
     const float deg = -135.f + 270.f * v;

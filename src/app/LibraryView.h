@@ -90,13 +90,14 @@ private:
     const LibraryCell& cell(int d) const { return (*cells_)[order_[static_cast<size_t>(d)]]; }
     CellText& text(int d);
     float hoverOf(int d) const;
+    float pointerHoverOf(int d) const;   // the pointer's part of hoverOf() (the cards' rise; not keyboard focus)
     bool isCurrent(const LibraryCell& c) const;   // its context is the player's
     void setHot(int d, bool playHot);
     void paintCard(Canvas& c, int d, const Rect& r);
     void paintRow(Canvas& c, int d, const Rect& r);
     void paintArt(Canvas& c, const LibraryCell& cell, const Rect& art, float radius);
     float paintMarks(Canvas& c, const LibraryCell& cell, float x, float cy);   // pin / downloaded; returns the new x
-    void paintPlay(Canvas& c, const LibraryCell& cell, const Rect& pr, float h, float iconSize);
+    void paintPlay(Canvas& c, int d, const LibraryCell& cell, const Rect& pr, float h, float iconSize);
     void open(int d);
     void play(int d);
     void context(int d, gfx::Point windowPos);
@@ -112,7 +113,9 @@ private:
     bool playHot_ = false;
     ui::Anim hotA_, prevA_;
     int pressed_ = -1;
+    bool pressPlay_ = false;              // the press is on the play button (it shrinks, the card stays)
     ui::Anim pressA_;
+    ui::Anim playHotA_, playPressA_;      // the hot cell's play button: pointer over it / pressed (ui::card::Play)
     int dropHot_ = -1;                    // cell highlighted under dragged songs
     double lastScrollTick_ = 0;
 };

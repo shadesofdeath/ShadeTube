@@ -136,6 +136,8 @@ private:
     gfx::Text oldTitle_, oldArtist_;
     float heartFrom_ = -1;   // the heart's x for the outgoing track (it slides to the new title's end)
     bool heartSliding_ = false;   // laid out mid-slide: one more layout after the transition puts it in place
+    std::string likedId_;         // the track the heart showed at the last sync() and whether it was liked: a change
+    bool likedWas_ = false;       // of the same track plays the like feedback
 
 public:
     bool onMouseDown(const ui::MouseEvent& e) override;
@@ -158,7 +160,7 @@ public:
     bool onMouseDown(const ui::MouseEvent& e) override;
     void onMouseMove(const ui::MouseEvent& e) override;
     void onMouseUp(const ui::MouseEvent& e) override;
-    void onMouseLeave() override { hover_ = -1; invalidate(); }
+    void onMouseLeave() override { hover_ = -1; hoverFade_.set(-1); invalidate(); }
     LPCWSTR cursor() const override { return hover_ >= 0 ? IDC_HAND : IDC_ARROW; }
     // Drag and drop: songs (or files from Explorer) go into the queue where they are dropped.
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
@@ -176,6 +178,7 @@ private:
     ui::Button* save_;
     ui::SmoothScroll scroll_;            // the upcoming rows (ui/ScrollPhysics: wheel glide, touchpad 1:1)
     int hover_ = -1;
+    ui::HoverFade hoverFade_;            // upcoming rows' hover fades in / out (ui/Micro)
     int dragFrom_ = -1, dragTo_ = -1;
     float dragStartY_ = 0;
     bool dragging_ = false;
