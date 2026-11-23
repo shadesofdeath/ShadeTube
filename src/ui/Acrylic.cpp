@@ -16,18 +16,24 @@ using gfx::ComPtr;
 
 namespace {
 
-// tokens effects.backdropBlur (blurRadius 40, saturation 1.1) and effects.noise (opacity 0.04).
+// tokens effects.backdropBlur (blurRadius 40) and effects.noise (opacity 0.04).
 constexpr float kBlurDip = 40;                 // blur radius in DIPs (standard deviation = radius / 3)
 constexpr float kMarginDip = kBlurDip;         // captured around the surfaces (the blur reaches this far in)
-constexpr float kSaturation = 1.15f;
 constexpr double kSettleMs = 150;              // content behind changed: recapture once it has been quiet this long
 constexpr double kMaxStaleMs = 1000;           // ...or at the latest this long after the last capture
-constexpr float kNoiseAlpha = 0.05f;           // strongest noise pixel (the tile's ±45 levels around mid-grey)
+constexpr float kNoiseMax = 0.05f;   // the noise tile's strongest pixel (±45 levels off grey)
+float noiseOpacity() { return gfx::isLightTheme() ? 0.7f : 1.f; }   // finer on paper
 
-// How far the backdrop's luminosity is pulled to the surface color, and the tint laid over it. Dark: a bright cover
-// behind a menu ends up a few levels above bg.overlay; light: a dark one a few levels below the paper.
-float luminosityPull() { return gfx::isLightTheme() ? 0.82f : 0.86f; }
-float tintAlpha() { return gfx::isLightTheme() ? 0.68f : 0.70f; }
+// Contrast guard. The blurred backdrop's luma is compressed towards the surface color's (kept: `luma`), its chroma
+// around it is kept by `chroma` (hue unchanged), then the surface color is laid over it at `tint`. A linear color
+// matrix: no clipping steps (a luminosity blend turned saturated colors into cyan / magenta blotches on paper). Worst
+// cases, a white area behind a dark menu / a black one behind a light menu, keep fg.secondary near 5:1 (dark) and
+// above 5:1 (light); over ordinary content the surface stays within a few levels of its opaque color.
+struct Recipe {
+    float luma, chroma, tint;
+};
+Recipe recipe() { return gfx::isLightTheme() ? Recipe{0.25f, 0.6f, 0.5f} : Recipe{0.15f, 0.6f, 0.52f}; }
+float tintAlpha() { return recipe().tint; }
 
 int g_captures = 0;
 size_t g_bytes = 0;
@@ -91,7 +97,7 @@ struct Noise {
         if (ok) {
             for (size_t i = 0; i < px.size(); i += 4) {
                 const int v = px[i + 1] - 128;   // grey: any channel
-                const float a = std::min(1.f, std::abs(v) / 45.f) * kNoiseAlpha;
+                const float a = std::min(1.f, std::abs(v) / 45.f) * kNoiseMax;
                 const uint8_t a8 = static_cast<uint8_t>(std::lround(a * 255.f));
                 const uint8_t c8 = v > 0 ? a8 : 0;   // premultiplied white, or black
                 px[i] = px[i + 1] = px[i + 2] = c8;
@@ -308,11 +314,9 @@ void Acrylic::capture(Canvas& c, Window& w, const Rect& area, Color surface) {
         failed("material bitmap", hr);
         return release();
     }
-    ComPtr<ID2D1Effect> blur, sat, flood, blend;
+    ComPtr<ID2D1Effect> blur, guard;
     hr = dc->CreateEffect(CLSID_D2D1GaussianBlur, &blur);
-    if (SUCCEEDED(hr)) hr = dc->CreateEffect(CLSID_D2D1Saturation, &sat);
-    if (SUCCEEDED(hr)) hr = dc->CreateEffect(CLSID_D2D1Flood, &flood);
-    if (SUCCEEDED(hr)) hr = dc->CreateEffect(CLSID_D2D1Blend, &blend);
+    if (SUCCEEDED(hr)) hr = dc->CreateEffect(CLSID_D2D1ColorMatrix, &guard);
     if (FAILED(hr)) {
         failed("effects", hr);
         return release();
@@ -321,19 +325,29 @@ void Acrylic::capture(Canvas& c, Window& w, const Rect& area, Color surface) {
     blur->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, kBlurDip / 3.f);
     blur->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
     blur->SetValue(D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION, D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED);
-    sat->SetInputEffect(0, blur.Get());
-    sat->SetValue(D2D1_SATURATION_PROP_SATURATION, kSaturation);
-    flood->SetValue(D2D1_FLOOD_PROP_COLOR, D2D1::Vector4F(surface.r, surface.g, surface.b, luminosityPull()));
-    blend->SetInputEffect(0, sat.Get());     // destination: the blurred backdrop (keeps its hue and saturation)
-    blend->SetInputEffect(1, flood.Get());   // source: the surface color's luminosity
-    blend->SetValue(D2D1_BLEND_PROP_MODE, D2D1_BLEND_MODE_LUMINOSITY);
+    // out = Ls + luma * (L - Ls) + chroma * (in - L), with L / Ls the luma of the pixel / the surface color: a row
+    // vector times the 5x4 matrix (rows r, g, b, a, offset).
+    {
+        const Recipe k = recipe();
+        const float lw[3] = {0.2126f, 0.7152f, 0.0722f};
+        const float ls = lw[0] * surface.r + lw[1] * surface.g + lw[2] * surface.b;
+        D2D1_MATRIX_5X4_F matrix{};
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) matrix.m[i][j] = (i == j ? k.chroma : 0.f) + (k.luma - k.chroma) * lw[i];
+            matrix.m[4][i] = ls * (1 - k.luma);
+        }
+        matrix.m[3][3] = 1;
+        guard->SetInputEffect(0, blur.Get());
+        guard->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, matrix);
+        guard->SetValue(D2D1_COLORMATRIX_PROP_CLAMP_OUTPUT, TRUE);
+    }
     D2D1_MATRIX_3X2_F oldTransform;
     dc->GetTransform(&oldTransform);
     dc->SetTarget(out.Get());
     dc->SetTransform(D2D1::Matrix3x2F::Scale(kx, ky));   // the context keeps the window DPI: scale into the half size
     dc->Clear(D2D1::ColorF(0, 0, 0, 0));
     const D2D1_RECT_F srcDip{0, 0, sw / s, sh / s};
-    dc->DrawImage(blend.Get(), nullptr, &srcDip, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    dc->DrawImage(guard.Get(), nullptr, &srcDip, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
     dc->SetTarget(target.Get());
     dc->SetTransform(oldTransform);
     blur->SetInput(0, nullptr);
@@ -379,6 +393,7 @@ void Acrylic::paint(Canvas& c, const Rect& r, float radius, Color surface) const
     if (auto* noise = g_noise.get(dc)) {
         // One tile pixel per device pixel (the tile is 96 DPI: 1 DIP = 1 pixel).
         noise->SetTransform(D2D1::Matrix3x2F::Scale(1.f / c.scale(), 1.f / c.scale()));
+        noise->SetOpacity(noiseOpacity());
         fillRounded(dc, r, radius, noise);
     }
 }

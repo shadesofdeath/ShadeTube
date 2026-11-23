@@ -100,7 +100,12 @@ Menu::~Menu() = default;
 
 std::unique_ptr<Menu::Panel> Menu::makePanel(std::vector<MenuItem> items, Panel* parent, int parentItem) {
     auto p = std::make_unique<Panel>();
-    p->items = std::move(items);
+    // Separators only between groups: none first or last, never two in a row (menus built from optional groups).
+    for (auto& it : items) {
+        if (it.separator && (p->items.empty() || p->items.back().separator)) continue;
+        p->items.push_back(std::move(it));
+    }
+    while (!p->items.empty() && p->items.back().separator) p->items.pop_back();
     p->parent = parent;
     p->parentItem = parentItem;
     for (auto& it : p->items) {
