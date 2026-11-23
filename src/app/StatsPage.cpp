@@ -1266,6 +1266,7 @@ private:
                     ctx().player->playContext(recent, static_cast<int>(i), {"stats", tr(L"Son çalınanlar")});
                 };
                 row->onContext = [t](gfx::Point wp) { showTrackMenu({t}, wp); };
+                row->previewTarget = preview::songTarget(t);
             }
         }
     }

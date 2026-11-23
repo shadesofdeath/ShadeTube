@@ -505,6 +505,7 @@ private:
                 auto* hero = box->add<Tile>(L"01 · " + toUpperTr(toWide(top.artists.empty() ? "" : top.artists[0].name)),
                                             toWide(top.name), Color::rgb(0x1F2A22), top.images, true);
                 const std::string heroId = top.id;
+                hero->previewTarget = preview::collectionTarget({RouteKind::Album, heroId}, toWide(top.name), top.images);
                 hero->onClick = [heroId] { ctx().router->navigate({RouteKind::Album, heroId}); };
                 tiles.push_back(hero);
                 for (size_t i = 1; i < d.trendingAlbums.size() && i <= 4; ++i) {
@@ -514,6 +515,7 @@ private:
                     const std::wstring label = num + std::wstring(L" · ") + toUpperTr(tr(L"Albüm"));   // "02 · ALBÜM"
                     auto* tile = box->add<Tile>(label, toWide(a.name), tileColor(a.id), a.images);
                     const std::string id = a.id;
+                    tile->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.name), a.images);
                     tile->onClick = [id] { ctx().router->navigate({RouteKind::Album, id}); };
                     tiles.push_back(tile);
                 }
@@ -552,6 +554,7 @@ private:
                     }
                     auto* row = rc->add<ListRow>(toWide(a.name), toWide(a.artists.empty() ? "" : a.artists[0].name), meta, a.images);
                     const std::string id = a.id;
+                    row->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.name), a.images);
                     row->onClick = [id] { ctx().router->navigate({RouteKind::Album, id}); };
                 }
             }

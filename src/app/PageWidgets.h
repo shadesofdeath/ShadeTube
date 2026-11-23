@@ -9,7 +9,7 @@
 namespace st::app {
 
 // Compact row: art 44 + title/subtitle + right mono meta (Yeni çıkanlar, search results, library list).
-class ListRow : public ui::Widget {
+class ListRow : public ui::Widget, public PreviewSource {
 public:
     ListRow(std::wstring title, std::wstring subtitle, std::wstring meta, std::vector<catalog::Image> images,
             bool circle = false);
@@ -37,6 +37,12 @@ public:
         context({r.x + 56, r.bottom()});
         return true;
     }
+    // Song preview (app/Preview): what a press and hold on the row samples; unset = none.
+    std::optional<preview::Target> previewTarget;
+    std::optional<PreviewHit> previewAt(gfx::Point, bool) override {
+        if (!previewTarget) return std::nullopt;
+        return PreviewHit{*previewTarget, toWindow(rect())};
+    }
 
 private:
     gfx::Text title_, subtitle_, meta_;
@@ -46,7 +52,7 @@ private:
 };
 
 // Colored editorial tile (mixes / categories / top artists).
-class Tile : public ui::Widget {
+class Tile : public ui::Widget, public PreviewSource {
 public:
     Tile(std::wstring label, std::wstring title, Color color, std::vector<catalog::Image> images = {}, bool hero = false);
     std::function<void()> onClick;
@@ -65,6 +71,12 @@ public:
         const auto click = onClick;
         click();
         return true;
+    }
+    // Song preview (app/Preview): what a press and hold on the tile samples; unset = none.
+    std::optional<preview::Target> previewTarget;
+    std::optional<PreviewHit> previewAt(gfx::Point, bool) override {
+        if (!previewTarget) return std::nullopt;
+        return PreviewHit{*previewTarget, toWindow(rect())};
     }
 
 private:
