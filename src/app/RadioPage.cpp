@@ -186,7 +186,7 @@ float paintBadge(Canvas& c, gfx::Text& badge, float right, float cy) {
     if (badge.empty()) return 0;
     const float bw = std::ceil(badge.measure().w) + 10;
     const Rect b{right - bw, cy - 7, bw, 14};
-    c.fillRounded(b, 2, colors().fgPrimary.withAlpha(0.10f));
+    c.fillRounded(b, gfx::radii().badge, colors().fgPrimary.withAlpha(0.10f));
     c.text(badge, b.inset(5, 0), colors().fgSecondary, gfx::VAlign::Center);
     return bw;
 }
@@ -253,10 +253,10 @@ public:
         const auto& acc = accent();
         const bool current = isCurrentStation(trackId_);
         const float h = hover_;
-        if (current) c.fillRounded(r, 2, acc.tint06);
-        c.fillRounded(r, 2, col.overlayHover.mulAlpha(h));
+        if (current) c.fillRounded(r, gfx::radii().surface, acc.tint06);
+        c.fillRounded(r, gfx::radii().surface, col.overlayHover.mulAlpha(h));
         const Rect art{r.x + 8, r.cy() - 22, 44, 44};
-        drawStationArt(c, images_, art, 2, Priority::Normal);
+        drawStationArt(c, images_, art, gfx::radii().art, Priority::Normal);
 
         const Rect heart = heartRect();
         const bool fav = radio::store().isFavorite(station_.uuid);
@@ -337,9 +337,9 @@ public:
         const float cw = (r.w - kRowGap * static_cast<float>(cols - 1)) / static_cast<float>(cols);
         for (int i = 0; i < n_; ++i) {
             const float x = r.x + static_cast<float>(i % cols) * (cw + kRowGap), y = r.y + static_cast<float>(i / cols) * kRowH;
-            c.skeleton({x + 8, y + 10, 44, 44}, 2, now);
-            c.skeleton({x + 66, y + 18, std::min(cw - 120, 200.f - static_cast<float>(i % 3) * 36.f), 12}, 2, now);
-            c.skeleton({x + 66, y + 38, 110, 10}, 2, now);
+            c.skeleton({x + 8, y + 10, 44, 44}, gfx::radii().art, now);
+            c.skeleton({x + 66, y + 18, std::min(cw - 120, 200.f - static_cast<float>(i % 3) * 36.f), 12}, gfx::radii().badge, now);
+            c.skeleton({x + 66, y + 38, 110, 10}, gfx::radii().badge, now);
         }
         ui::frame::requestNext();
     }
@@ -419,10 +419,10 @@ public:
         const bool current = isCurrentStation(trackId_);
         c.pushScale(1 - 0.01f * press_, {r.cx(), r.cy()});
         const Color fill = tileFill(tone_);
-        c.fillRounded(r, 2, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
-        if (current) c.strokeRounded(r.inset(0.5f), 2, acc.base, 1.f);
+        c.fillRounded(r, gfx::radii().surface, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
+        if (current) c.strokeRounded(r.inset(0.5f), gfx::radii().surface, acc.base, 1.f);
         const Rect art{r.x + 16, r.y + 16, 56, 56};
-        drawStationArt(c, images_, art, 2);
+        drawStationArt(c, images_, art, gfx::radii().art);
 
         const Rect heart = heartRect();
         const bool fav = radio::store().isFavorite(station_.uuid);
@@ -603,7 +603,7 @@ public:
         status_->setRect({4, 0, rect().w - 8, 40});
     }
     void paint(Canvas& c) override {
-        c.strokeRounded(rect(), 2, colors().hairDefault);
+        c.strokeRounded(rect(), gfx::radii().field, colors().hairDefault);
         paintChildren(c);
     }
     void setFilter(const std::wstring& text) {

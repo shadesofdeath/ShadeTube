@@ -88,18 +88,18 @@ public:
             label_.setText(list ? tr(L"Listeyi içe aktar") : queue ? tr(L"Sıraya ekle") : tr(L"Şimdi çal"));
             const float w = std::ceil(label_.measure().w) + 16 + 8 + 14 + 14;
             const Rect r{x, y, w, 32};
-            c.shadow(r, 2, 24, 8, col.shadowToast);
-            c.fillRounded(r, 2, col.bgElevated);
-            c.strokeRounded(r, 2, acc.base);
+            c.shadow(r, gfx::radii().toast, 24, 8, col.shadowToast);
+            c.fillRounded(r, gfx::radii().toast, col.bgElevated);
+            c.strokeRounded(r, gfx::radii().toast, acc.base);
             c.icon(list ? "list" : queue ? "queue" : "play", {r.x + 12, r.cy() - 7, 14, 14}, acc.base);
             c.text(label_, {r.x + 12 + 14 + 8, r.y, w, r.h}, col.fgPrimary, gfx::VAlign::Center);
         } else {
             const float bw = std::max(18.f, std::ceil(count_.measure().w) + 10);
             const float tw = std::min(260.f, std::ceil(title_.measure().w));
             const Rect r{x, y, 10 + bw + 10 + tw + 14, 36};
-            c.shadow(r, 2, 24, 8, col.shadowToast);
-            c.fillRounded(r, 2, col.bgElevated);
-            c.strokeRounded(r, 2, g_drag.accepted ? acc.base : col.hairStrong);
+            c.shadow(r, gfx::radii().toast, 24, 8, col.shadowToast);
+            c.fillRounded(r, gfx::radii().toast, col.bgElevated);
+            c.strokeRounded(r, gfx::radii().toast, g_drag.accepted ? acc.base : col.hairStrong);
             const Rect badge{r.x + 10, r.cy() - 9, bw, 18};
             c.fillPill(badge, acc.base);
             c.text(countText_, type::monoBadge, badge, acc.onAccent, gfx::TextAlign::Center, gfx::VAlign::Center);

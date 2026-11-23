@@ -41,9 +41,9 @@ void ListRow::onMouseUp(const ui::MouseEvent& e) {
 void ListRow::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
-    c.fillRounded(r, 2, col.overlayHover.mulAlpha(hover_));
+    c.fillRounded(r, gfx::radii().surface, col.overlayHover.mulAlpha(hover_));
     const Rect art{r.x + 4, r.cy() - 22, 44, 44};
-    drawArtwork(c, images_, art, 2, circle_ ? Placeholder::Artist : Placeholder::Album, circle_);
+    drawArtwork(c, images_, art, gfx::radii().art, circle_ ? Placeholder::Artist : Placeholder::Album, circle_);
     const float mw = meta_.empty() ? 0 : std::ceil(meta_.measure().w);
     const float tx = art.right() + 14, tw = r.right() - tx - mw - 20;
     c.text(title_, {tx, r.cy() - 19, tw, 20}, col.fgPrimary, gfx::VAlign::Center);
@@ -86,7 +86,7 @@ void Tile::paint(Canvas& c) {
     const float h = hover_;
     c.pushScale(1 - 0.01f * press_, {r.cx(), r.cy()});
     const Color fill = tileFill(color_);   // theme-aware (light: pale tint of the tone's hue)
-    c.fillRounded(r, 2, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
+    c.fillRounded(r, gfx::radii().surface, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
     c.pushClip(r);
     // Signature motif: a thin ring (hi-fi / vinyl cue) drifting on hover.
     const float ringR = hero_ ? r.h * 0.62f : r.h * 0.7f;
@@ -146,15 +146,15 @@ void MessagePanel::paint(Canvas& c) {
 void SkeletonBlock::paint(Canvas& c) {
     const Rect r = rect();
     const double now = ui::frame::now();
-    c.skeleton({r.x, r.y + 20, 232, 232}, 2, now);
-    c.skeleton({r.x + 264, r.y + 110, 180, 12}, 2, now);
-    c.skeleton({r.x + 264, r.y + 136, std::min(520.f, r.w - 300), 56}, 2, now);
-    c.skeleton({r.x + 264, r.y + 208, 220, 14}, 2, now);
+    c.skeleton({r.x, r.y + 20, 232, 232}, gfx::radii().art, now);
+    c.skeleton({r.x + 264, r.y + 110, 180, 12}, gfx::radii().badge, now);
+    c.skeleton({r.x + 264, r.y + 136, std::min(520.f, r.w - 300), 56}, gfx::radii().badge, now);
+    c.skeleton({r.x + 264, r.y + 208, 220, 14}, gfx::radii().badge, now);
     for (int i = 0; i < rows_; ++i) {
         const float y = r.y + 290 + i * 56.f;
-        c.skeleton({r.x + 12, y + 8, 40, 40}, 2, now);
-        c.skeleton({r.x + 64, y + 14, 220 - (i % 3) * 40.f, 12}, 2, now);
-        c.skeleton({r.x + 64, y + 32, 120, 10}, 2, now);
+        c.skeleton({r.x + 12, y + 8, 40, 40}, gfx::radii().art, now);
+        c.skeleton({r.x + 64, y + 14, 220 - (i % 3) * 40.f, 12}, gfx::radii().badge, now);
+        c.skeleton({r.x + 64, y + 32, 120, 10}, gfx::radii().badge, now);
     }
     ui::frame::requestNext();
 }

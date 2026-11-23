@@ -310,11 +310,11 @@ void Button::paint(Canvas& c) {
             const Color ink = Color::rgb(0x0F0D0B), white = Color::rgb(0xFFFFFF);
             const float lum = fill.luminance();
             const Color on = (lum + 0.05f) / (ink.luminance() + 0.05f) >= (white.luminance() + 0.05f) / (lum + 0.05f) ? ink : white;
-            c.fillRounded(hit, 2, fill.mulAlpha(std::max(h, p)));
+            c.fillRounded(hit, gfx::radii().surface, fill.mulAlpha(std::max(h, p)));
             c.icon(icon_, r.center(12, 12), Color::lerp(col.fgSecondary, on, std::max(h, p)));
         } else {
-            c.fillRounded(hit, 2, col.captionHover.mulAlpha(h));
-            if (p > 0) c.fillRounded(hit, 2, col.overlayPressed.mulAlpha(p));
+            c.fillRounded(hit, gfx::radii().surface, col.captionHover.mulAlpha(h));
+            if (p > 0) c.fillRounded(hit, gfx::radii().surface, col.overlayPressed.mulAlpha(p));
             c.icon(icon_, r.center(12, 12), Color::lerp(col.fgSecondary, col.fgPrimary, h));
         }
         break;

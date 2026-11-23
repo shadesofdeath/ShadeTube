@@ -25,11 +25,11 @@ namespace type = gfx::type;
 // ---------------------------------------------------------------------------------------------------
 
 namespace {
-// placeholders/*.svg redrawn from tokens for the light theme (the SVGs bake the dark bg.overlay #211D19 and
-// fg.tertiary #6B645B): same 256-unit geometry, bg.sunken paper + fg.tertiary strokes.
+// placeholders/*.svg redrawn from the palette for every theme but the default dark one (the SVGs bake its bg.overlay
+// #211D19 and fg.tertiary #6B645B): same 256-unit geometry, bg.sunken paper (bg.overlay on dark) + fg.tertiary strokes.
 void drawLightPlaceholder(Canvas& c, Placeholder ph, const Rect& r, float radius) {
     const auto& col = colors();
-    c.fillRounded(r, radius, col.bgSunken);
+    c.fillRounded(r, radius, gfx::isLightTheme() ? col.bgSunken : col.bgOverlay);
     const float s = std::min(r.w, r.h) / 256.f;
     const gfx::Point o{r.cx() - 128 * s, r.cy() - 128 * s};
     auto P = [&](float x, float y) { return gfx::Point{o.x + x * s, o.y + y * s}; };
@@ -79,7 +79,7 @@ void drawArtwork(Canvas& c, const std::vector<catalog::Image>& images, const Rec
     if (circle) {
         c.fillCircle({r.cx(), r.cy()}, r.w * 0.5f, gfx::isLightTheme() ? colors().bgSunken : colors().bgOverlay);
         c.icon("user", r.center(r.w * 0.35f, r.w * 0.35f), colors().fgTertiary);
-    } else if (gfx::isLightTheme()) {
+    } else if (gfx::isLightTheme() || gfx::Theme::get().themeId() != "dark") {   // the SVGs are the default dark's colors
         drawLightPlaceholder(c, ph, r, radius);
     } else {
         c.fillRounded(r, radius, colors().bgOverlay);
@@ -265,8 +265,8 @@ void MediaCard::paint(Canvas& c) {
         drawArtwork(c, images_, circle, 0, Placeholder::Artist, true);
         if (h > 0.01f) c.strokeCircle({circle.cx(), circle.cy()}, d * 0.5f, accent().base.mulAlpha(h * 0.8f), 1.5f);
     } else {
-        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h));   // cardHoverShadow
-        drawArtwork(c, images_, art, 2, ph_);
+        if (h > 0.01f) c.shadow(art, gfx::radii().art, 24, 12, col.shadowCard.mulAlpha(h));   // cardHoverShadow
+        drawArtwork(c, images_, art, gfx::radii().art, ph_);
         if (!badge_.empty()) {
             const float bw = std::ceil(badge_.measure().w) + 12;
             const Rect pill{art.x + 8, art.y + 8, bw, 16};
@@ -515,12 +515,12 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     const float alpha = t.playable && !tx.blocked ? 1.f : 0.38f;
 
     if (selected) {
-        c.fillRounded(r, 2, acc.tint12);
+        c.fillRounded(r, gfx::radii().surface, acc.tint12);
         c.fillRect({r.x, r.y, 2, r.h}, acc.base);
     } else if (hot) {
-        c.fillRounded(r, 2, col.overlayHover);
+        c.fillRounded(r, gfx::radii().surface, col.overlayHover);
     } else if (t.recommended) {   // "Geliştir": a recommendation, not the list's own song
-        c.fillRounded(r, 2, acc.tint06);
+        c.fillRounded(r, gfx::radii().surface, acc.tint06);
     }
     // Index / play glyph / equalizer.
     const Rect numR{cl.num, r.y, gfx::metrics::numCol, r.h};
@@ -539,7 +539,7 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     float tx0 = cl.title;
     if (opts_.showArt) {
         const Rect art{cl.title, r.cy() - m.art * 0.5f, m.art, m.art};
-        drawArtwork(c, t.album.images, art, 2, Placeholder::Album, false, Priority::High);
+        drawArtwork(c, t.album.images, art, gfx::radii().art, Placeholder::Album, false, Priority::High);
         if (alpha < 1) c.fillRect(art, col.bgBase.withAlpha(0.6f));
         tx0 += m.art + m.artGap;
     }
@@ -554,13 +554,13 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     float badgeX = tx0 + std::min(titleTextW, std::ceil(tx.title.measure().w)) + 8;
     if (t.explicitContent) {
         const Rect badge{badgeX, titleCy - 7, 14, 14};
-        c.fillRounded(badge, 2, col.fgPrimary.withAlpha(0.14f));
+        c.fillRounded(badge, gfx::radii().badge, col.fgPrimary.withAlpha(0.14f));
         c.text(L"E", type::monoBadge, badge, col.fgSecondary, gfx::TextAlign::Center, gfx::VAlign::Center);
         badgeX += 14 + 6;
     }
     if (tx.blocked) {   // full strength on the dimmed row, like the explicit badge
         const Rect badge{badgeX, titleCy - 7, blockedW, 14};
-        c.fillRounded(badge, 2, col.fgPrimary.withAlpha(0.14f));
+        c.fillRounded(badge, gfx::radii().badge, col.fgPrimary.withAlpha(0.14f));
         c.text(blockedBadge_, badge.inset(5, 0), col.fgSecondary, gfx::VAlign::Center);
         badgeX += blockedW + 6;
     }
@@ -615,10 +615,10 @@ void TrackTable::paint(Canvas& c) {
         const Rect rr = rowRect(static_cast<int>(view_.size()) + k);
         if (!rr.intersects(vis)) continue;
         const double now = ui::frame::now();
-        if (opts_.showArt) c.skeleton({cl.title, rr.cy() - m.art * 0.5f, m.art, m.art}, 2, now);
+        if (opts_.showArt) c.skeleton({cl.title, rr.cy() - m.art * 0.5f, m.art, m.art}, gfx::radii().art, now);
         const float x = cl.title + (opts_.showArt ? m.art + m.artGap : 0);
-        c.skeleton({x, rr.y + m.titleY + m.titleH * 0.5f - 6, 180, 12}, 2, now);   // the title and artist lines
-        c.skeleton({x, rr.y + m.artistY + m.artistH * 0.5f - 5, 110, 10}, 2, now);
+        c.skeleton({x, rr.y + m.titleY + m.titleH * 0.5f - 6, 180, 12}, gfx::radii().badge, now);   // the title and artist lines
+        c.skeleton({x, rr.y + m.artistY + m.artistH * 0.5f - 5, 110, 10}, gfx::radii().badge, now);
         ui::frame::requestNext();
     }
     // Ask for more when the bottom 1.5 screens become visible.

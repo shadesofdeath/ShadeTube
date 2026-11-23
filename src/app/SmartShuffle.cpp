@@ -396,7 +396,7 @@ float drawBadge(gfx::Canvas& c, float x, float cy) {
     const auto& acc = gfx::accent();
     const float w = badgeWidth();
     const gfx::Rect r{x, std::round(cy - 7), w, 14};
-    c.fillRounded(r, 2, acc.tint12);
+    c.fillRounded(r, gfx::radii().badge, acc.tint12);
     c.icon("sparkle", {r.x + 5, r.cy() - 4, 8, 8}, acc.base);
     c.text(badgeText(), {r.x + 16, r.y, w - 16, r.h}, acc.base, gfx::VAlign::Center);
     return w;

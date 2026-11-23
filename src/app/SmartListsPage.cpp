@@ -667,8 +667,8 @@ public:
         const float h = std::max(hover_.value(), keyboardFocused() ? 1.f : 0.f);
         const Rect art = artRect();
         c.pushScale(1 - 0.01f * press_, {art.cx(), art.cy()});
-        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h));
-        drawCover(c, list_, art, 2);
+        if (h > 0.01f) c.shadow(art, gfx::radii().art, 24, 12, col.shadowCard.mulAlpha(h));
+        drawCover(c, list_, art, gfx::radii().art);
         if (h > 0.01f) {
             const Rect pr = playRect().offset(0, 8 * (1 - ui::ease(ui::Ease::Decelerate, h)));
             c.pushOpacity(h);
@@ -795,8 +795,8 @@ public:
         const Color wash = gfx::isLightTheme() ? gfx::Theme::adaptAccent(tone, true).withAlpha(0.12f) : tone.withAlpha(0.35f);
         c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
         const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));
-        drawCover(c, list_, cover, 2);
+        c.shadow(cover, gfx::radii().art, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));
+        drawCover(c, list_, cover, gfx::radii().art);
         const float tx = cover.right() + 32, tw = r.right() - tx;
         float size = 88;
         for (float s : {88.f, 72.f, 56.f, 44.f, 36.f}) {

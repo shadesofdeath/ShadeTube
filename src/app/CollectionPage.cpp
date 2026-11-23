@@ -163,17 +163,17 @@ public:
         c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
 
         const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));   // dark: black 35 %
+        c.shadow(cover, gfx::radii().art, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));   // dark: black 35 %
         if (kind_ == Kind::Liked) {
-            c.fillRounded(cover, 2, accent().base);
+            c.fillRounded(cover, gfx::radii().art, accent().base);
             c.fillRadialGradient(cover, {cover.right(), cover.y}, 260, accent().hover.withAlpha(0.8f), accent().pressed.withAlpha(0));
             c.icon("heart-filled", cover.center(72, 72), accent().onAccent);
         } else {
-            drawArtwork(c, meta_.images, cover, 2, kind_ == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
+            drawArtwork(c, meta_.images, cover, gfx::radii().art, kind_ == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
         }
         coverRect_ = cover;
         if (coverHover_) {   // "edit": the dialog that changes the picture
-            c.fillRounded(cover, 2, Color{0, 0, 0, 0.5f});
+            c.fillRounded(cover, gfx::radii().art, Color{0, 0, 0, 0.5f});
             c.icon("edit", cover.center(48, 48), Color{1, 1, 1, 1});
         }
         const float tx = cover.right() + 32, tw = r.right() - tx;

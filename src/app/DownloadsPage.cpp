@@ -82,7 +82,7 @@ public:
         const auto& col = colors();
         const auto& acc = accent();
         const Rect art{r.x, r.cy() - 24, 48, 48};
-        drawArtwork(c, item_.track.album.images, art, 2, Placeholder::Album);
+        drawArtwork(c, item_.track.album.images, art, gfx::radii().art, Placeholder::Album);
         const float x = art.right() + 14;
         const float rightW = 150;   // status label ("SIRADA", translations are longer) + the action button
         c.text(title_, {x, r.y + 12, r.w - x - rightW, 20}, col.fgPrimary, gfx::VAlign::Center);

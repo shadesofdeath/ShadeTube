@@ -86,18 +86,19 @@ void syncCoverAccent() {
     });
 }
 
+// Short (a toast is one line); the log has the details (ThemeStore).
 std::wstring errorText(const ThemeStore::ImportResult& r) {
-    if (r.unreadableFile) return tr(L"Dosya okunamadı");
+    if (r.unreadableFile) return tr(L"dosya okunamadı");
     switch (r.error) {
-    case gfx::ThemeError::TooLarge: return tr(L"Dosya bir tema için fazla büyük");
-    case gfx::ThemeError::NotJson: return tr(L"Bu bir JSON dosyası değil");
+    case gfx::ThemeError::TooLarge: return tr(L"dosya çok büyük");
+    case gfx::ThemeError::NotJson: return tr(L"JSON dosyası değil");
     case gfx::ThemeError::UnknownFormat:
-    case gfx::ThemeError::NoColors: return tr(L"Bu bir ShadeTube tema dosyası değil");
-    case gfx::ThemeError::BadValue: return i18n::format(tr(L"Geçersiz değer: {}"), {toWide(r.detail)});
-    case gfx::ThemeError::Unreadable: return tr(L"Metin arka planda okunamıyor (karşıtlık çok düşük)");
+    case gfx::ThemeError::NoColors: return tr(L"tema dosyası değil");
+    case gfx::ThemeError::BadValue: return tr(L"geçersiz renk değeri");
+    case gfx::ThemeError::Unreadable: return tr(L"metin okunaksız");
     case gfx::ThemeError::None: break;
     }
-    return tr(L"Dosya okunamadı");
+    return tr(L"dosya okunamadı");
 }
 
 void showFileToast(const std::wstring& message, const std::filesystem::path& file) {
@@ -169,8 +170,7 @@ void startup(bool light) {
     }
     // UI font first: the windows are laid out with it.
     if (!s.uiFont.empty() && !gfx::Fonts::setUiFamily(toWide(s.uiFont)))
-        g_pendingToasts.push_back(i18n::format(tr(L"Yazı tipi \"{}\" bulunamadı; ShadeTube'un yazı tipi kullanılıyor."),
-                                               {toWide(s.uiFont)}));
+        g_pendingToasts.push_back(i18n::format(tr(L"Yazı tipi bulunamadı: {}"), {toWide(s.uiFont)}));
     gfx::Theme::get().setCornerStyle(parseCorners(s.cornerStyle));
     // A chosen theme that is gone or broken: back to the default (saved), once with a toast.
     for (const bool mode : {false, true}) {
@@ -180,7 +180,7 @@ void startup(bool light) {
         const bool wasCustom = ThemeStore::isCustom(id);
         ST_LOG_WARN("theme", "{} theme \"{}\" unavailable: using the default", mode ? "light" : "dark", id);
         if (wasCustom)
-            g_pendingToasts.push_back(tr(L"Seçili tema dosyası okunamadı; varsayılan tema kullanılıyor."));
+            g_pendingToasts.push_back(tr(L"Tema okunamadı, varsayılan kullanılıyor"));
         id = mode ? kDefaultLightTheme : kDefaultDarkTheme;
         s.markDirty();
     }
@@ -365,7 +365,7 @@ void confirmDelete(const std::string& id) {
 void importFile(const std::wstring& path) {
     const auto r = store().importFile(path);
     if (r.id.empty()) {
-        toast(i18n::format(tr(L"Tema içe aktarılamadı: {}"), {errorText(r)}), true);
+        toast(i18n::format(tr(L"İçe aktarılamadı: {}"), {errorText(r)}), true);
         return;
     }
     const gfx::ThemeSpec* t = store().find(r.id);

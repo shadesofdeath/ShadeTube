@@ -133,15 +133,15 @@ public:
 
     void paint(Canvas& c) override {
         const Rect cover = coverRect();
-        c.shadow(cover, 2, 24, 10, colors().shadowCard.mulAlpha(0.5f));
-        if (cover_ == Cover::Set) drawArtwork(c, {{previewUrl_, 0, 0}}, cover, 2, Placeholder::Playlist);
-        else if (cover_ == Cover::Remove) drawArtwork(c, {}, cover, 2, Placeholder::Playlist);
-        else drawArtwork(c, images_, cover, 2, Placeholder::Playlist);
+        c.shadow(cover, gfx::radii().art, 24, 10, colors().shadowCard.mulAlpha(0.5f));
+        if (cover_ == Cover::Set) drawArtwork(c, {{previewUrl_, 0, 0}}, cover, gfx::radii().art, Placeholder::Playlist);
+        else if (cover_ == Cover::Remove) drawArtwork(c, {}, cover, gfx::radii().art, Placeholder::Playlist);
+        else drawArtwork(c, images_, cover, gfx::radii().art, Placeholder::Playlist);
         if (busy_) {
-            c.skeleton(cover, 2, ui::frame::now());
+            c.skeleton(cover, gfx::radii().art, ui::frame::now());
             ui::frame::requestNext();
         } else if (hover_) {
-            c.fillRounded(cover, 2, Color{0, 0, 0, 0.55f});
+            c.fillRounded(cover, gfx::radii().art, Color{0, 0, 0, 0.55f});
             c.icon("edit", cover.center(40, 40), Color{1, 1, 1, 1});
         }
         paintChildren(c);

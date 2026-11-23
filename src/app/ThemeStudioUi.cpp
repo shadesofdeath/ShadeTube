@@ -165,21 +165,26 @@ public:
     }
     static constexpr float kSvH = 148, kHueH = 12;
     float preferredHeight(float) override { return kSvH + 14 + kHueH + 14 + 44; }
+    // Children are laid out in local coordinates (0, 0 = this widget's corner); paint() draws in the parent's.
     void layout() override {
         const Rect r = rect();
-        sv_->setRect({r.x, r.y, r.w, kSvH});
-        hue_->setRect({r.x, r.y + kSvH + 14, r.w, kHueH});
-        hex_->setRect({r.x, r.y + kSvH + 14 + kHueH + 14, std::min(140.f, r.w * 0.5f), 44});
+        sv_->setRect({0, 0, r.w, kSvH});
+        hue_->setRect({0, kSvH + 14, r.w, kHueH});
+        hex_->setRect({0, kSvH + 14 + kHueH + 14, std::min(140.f, r.w * 0.5f), 44});
     }
+    // The accent picker shows how the color reads on this theme's background (adapted like the accent will be).
+    bool showContrast = false;
     void paint(Canvas& c) override {
         paintChildren(c);
-        // Preview chip next to the hex field: the color on the theme's surface, and how it reads as text.
-        const Rect f = hex_->rect();
+        const Rect f = hex_->rect().offset(rect().x, rect().y);
         const Rect chip{f.right() + 12, f.y + 6, 32, 32};
-        c.fillRounded(chip, std::min(gfx::radii().surface, 6.f), color());
-        c.strokeRounded(chip, std::min(gfx::radii().surface, 6.f), colors().hairStrong);
-        const float ratio = gfx::contrastRatio(color(), colors().bgRaised);
-        c.text(i18n::format(tr(L"Karşıtlık {}:1"), {ratioText(ratio)}), type::caption,
+        const float rad = std::min(gfx::radii().surface, 6.f);
+        c.fillRounded(chip, rad, color());
+        c.strokeRounded(chip, rad, colors().hairStrong);
+        if (!showContrast) return;
+        const Color shown = gfx::Theme::adaptAccent(color(), gfx::isLightTheme());
+        const float ratio = gfx::contrastRatio(shown, colors().bgBase);
+        c.text(i18n::format(tr(L"Arka planda {}:1"), {ratioText(ratio)}), type::caption,
                {chip.right() + 10, f.y, rect().right() - chip.right() - 10, f.h}, colors().fgSecondary,
                gfx::TextAlign::Leading, gfx::VAlign::Center);
     }
@@ -550,6 +555,7 @@ public:
         const Rect r = rect();
         c.text(toUpperTr(tr(L"Koyu")), type::monoLabel, {r.x, darkLabelY_, r.w, kLabelH}, col.fgTertiary);
         c.text(toUpperTr(tr(L"Açık")), type::monoLabel, {r.x, lightLabelY_, r.w, kLabelH}, col.fgTertiary);
+        c.hline(r.x, r.right(), r.bottom() - 1, col.hairSubtle);   // like the rows around it
         const std::string& onScreen = gfx::Theme::get().themeId();
         const std::string darkId = themes::chosen(false), lightId = themes::chosen(true);
         for (size_t i = 0; i < tiles_.size(); ++i) {
@@ -858,18 +864,18 @@ public:
     }
     const ThemeSpec& spec() const { return spec_; }
     float preferredHeight(float) override { return 18 + 4 + 44 + 14 + 5 * kKeyH + 12 + 36; }
-    void layout() override {
+    void layout() override {   // local coordinates (see ColorPicker::layout)
         const Rect r = rect();
         const float lw = 250;
-        nameLabel_->setRect({r.x, r.y, lw, 18});
-        name_->setRect({r.x, r.y + 22, lw, 44});
-        float y = r.y + 22 + 44 + 14;
+        nameLabel_->setRect({0, 0, lw, 18});
+        name_->setRect({0, 22, lw, 44});
+        float y = 22 + 44 + 14;
         for (auto* k : keys_) {
-            k->setRect({r.x, y, lw, kKeyH});
+            k->setRect({0, y, lw, kKeyH});
             y += kKeyH;
         }
-        const float px = r.x + lw + 28;
-        picker_->setRect({px, r.y, r.right() - px, picker_->preferredHeight(r.right() - px)});
+        const float px = lw + 28;
+        picker_->setRect({px, 0, r.w - px, picker_->preferredHeight(r.w - px)});
         contrastY_ = y + 12;
     }
     void paint(Canvas& c) override {
@@ -878,7 +884,7 @@ public:
         std::string why;
         const bool ok = gfx::readable(spec_, &why);
         const float ratio = gfx::contrastRatio(spec_.palette.fgPrimary, spec_.palette.bgBase);
-        const Rect line{rect().x, contrastY_, 250, 36};
+        const Rect line{rect().x, rect().y + contrastY_, 250, 36};
         c.icon(ok ? "check" : "warning", {line.x, line.y + 1, 16, 16}, ok ? col.success : col.error);
         c.text(i18n::format(tr(L"Metin karşıtlığı {}:1"), {ratioText(ratio)}), type::caption.withWeight(600),
                {line.x + 24, line.y, line.w - 24, 18}, col.fgPrimary);
@@ -968,6 +974,7 @@ void openAccentPicker() {
     auto* body = static_cast<ui::Column*>(d->body());
     auto* picker = body->add<ColorPicker>(Settings::get().accentMode == AccentMode::Fixed ? fixedAccent()
                                                                                            : gfx::accent().base);
+    picker->showContrast = true;
     picker->onChange = [](Color c) { previewAccent(c); };
     auto* row = body->add<SwatchRow>(suggestedColors(8), 30.f);
     row->onPick = [picker](Color c) {
@@ -1029,9 +1036,9 @@ void openEditor(const std::string& id, bool duplicate) {
     auto* w = ctx().window;
     const gfx::ThemeSpec* src = store().find(id);
     if (!w || !src) return;
-    ThemeSpec spec = duplicate ? store().duplicate(*src, toUtf8(i18n::format(tr(L"{} (kopya)"), {displayName(*src)})))
-                               : *src;
+    // A preset is never edited in place: "editing" one starts a copy.
     const bool isNew = duplicate || !ThemeStore::isCustom(id);
+    ThemeSpec spec = isNew ? store().duplicate(*src, toUtf8(i18n::format(tr(L"{} (kopya)"), {displayName(*src)}))) : *src;
     auto* d = ui::Dialog::open(w, isNew ? tr(L"Yeni tema") : tr(L"Temayı düzenle"),
                                tr(L"Beş ana rengi değiştir; uygulama her değişiklikte önizlenir. Diğer tonlar bunlardan "
                                   L"türetilir."),

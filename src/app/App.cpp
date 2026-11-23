@@ -106,9 +106,9 @@ public:
         }
         const Rect th{r.x + 10, r.cy() - 27, 96, 54};
         if (auto* bmp = gfx::ImageCache::get().request(match_.thumbnailUrl, static_cast<int>(96 * c.scale())))
-            c.image(bmp, th, 2);
+            c.image(bmp, th, gfx::radii().art);
         else
-            c.fillRounded(th, 2, col.bgOverlay);
+            c.fillRounded(th, gfx::radii().art, col.bgOverlay);
         const float x = th.right() + 14;
         c.text(title_, {x, r.y + 12, r.right() - x - 10, 20}, current_ ? accent().base : col.fgPrimary, gfx::VAlign::Center);
         c.text(channel_, {x, r.y + 32, r.right() - x - 10, 16}, col.fgSecondary, gfx::VAlign::Center);

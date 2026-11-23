@@ -162,9 +162,9 @@ void Menu::paint(Canvas& c) {
     const Point origin{leftward_ ? box_.right() : box_.x, upward_ ? box_.bottom() : box_.y};
     c.pushOpacity(t);
     c.pushScale(s, origin);
-    c.shadow(box_, 2, 32, 16, col.shadowMenu);
-    c.fillRounded(box_, 2, col.bgOverlay);
-    c.strokeRounded(box_, 2, col.hairStrong);
+    c.shadow(box_, gfx::radii().menu, 32, 16, col.shadowMenu);
+    c.fillRounded(box_, gfx::radii().menu, col.bgOverlay);
+    c.strokeRounded(box_, gfx::radii().menu, col.hairStrong);
     for (int i = 0; i < static_cast<int>(items_.size()); ++i) {
         const auto& it = items_[i];
         const Rect r = itemRect(i);
@@ -172,7 +172,7 @@ void Menu::paint(Canvas& c) {
             c.hline(box_.x, box_.right(), r.cy(), col.hairDefault);
             continue;
         }
-        if (i == hot_) c.fillRounded(r, 2, col.overlayHover);
+        if (i == hot_) c.fillRounded(r, gfx::radii().badge, col.overlayHover);
         Color fg = it.destructive ? col.error : (i == hot_ ? col.fgPrimary : col.fgSecondary);
         if (!it.enabled) fg = col.fgDisabled;
         float x = r.x + 6;
@@ -261,9 +261,9 @@ void Toasts::paint(Canvas& c) {
         if (now > outStart) alpha = 1 - static_cast<float>(std::min(1.0, (now - outStart) / kToastOut));
         const Rect r = toastRect(i).offset(0, dy);
         c.pushOpacity(alpha);
-        c.shadow(r, 2, 24, 8, col.shadowToast);
-        c.fillRounded(r, 2, col.bgElevated);
-        c.strokeRounded(r, 2, col.hairStrong);
+        c.shadow(r, gfx::radii().toast, 24, 8, col.shadowToast);
+        c.fillRounded(r, gfx::radii().toast, col.bgElevated);
+        c.strokeRounded(r, gfx::radii().toast, col.hairStrong);
         const Color ic = t.kind == ToastKind::Error     ? col.error
                          : t.kind == ToastKind::Warning ? col.warning
                          : t.kind == ToastKind::Success ? col.success
@@ -409,9 +409,9 @@ void Dialog::paint(Canvas& c) {
     c.fillRect(rect(), col.scrim.mulAlpha(t));
     c.pushOpacity(t);
     c.pushScale(0.98f + 0.02f * t, {panel_.cx(), panel_.cy()});
-    c.shadow(panel_, 2, 64, 32, col.shadowDialog);
-    c.fillRounded(panel_, 2, col.bgRaised);
-    c.strokeRounded(panel_, 2, col.hairStrong);
+    c.shadow(panel_, gfx::radii().dialog, 64, 32, col.shadowDialog);
+    c.fillRounded(panel_, gfx::radii().dialog, col.bgRaised);
+    c.strokeRounded(panel_, gfx::radii().dialog, col.hairStrong);
     paintChildren(c);
     c.popTransform();
     c.popLayer();

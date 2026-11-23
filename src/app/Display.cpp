@@ -51,9 +51,9 @@ public:
         const float w = 16 + lw + 12 + vw + 16, h = 40;
         const Rect r{std::round(rect().cx() - w * 0.5f), gfx::metrics::titleBarH + 12, w, h};
         c.pushOpacity(a);
-        c.shadow(r, 2, 24, 8, col.shadowToast);
-        c.fillRounded(r, 2, col.bgElevated);
-        c.strokeRounded(r, 2, col.hairStrong);
+        c.shadow(r, gfx::radii().toast, 24, 8, col.shadowToast);
+        c.fillRounded(r, gfx::radii().toast, col.bgElevated);
+        c.strokeRounded(r, gfx::radii().toast, col.hairStrong);
         c.text(label_, {r.x + 16, r.y, lw + 1, h}, col.fgTertiary, gfx::VAlign::Center);
         c.text(value_, {r.x + 16 + lw + 12, r.y, vw + 1, h}, col.fgPrimary, gfx::VAlign::Center);
         c.popLayer();

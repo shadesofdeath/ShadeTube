@@ -530,14 +530,14 @@ private:
         const bool hot = i == hoverRow_;
         const auto* st = podcast::store().state(id);
         const bool played = st && st->played;
-        if (current) c.fillRounded(r, 2, acc.tint06);
-        if (hot) c.fillRounded(r, 2, col.overlayHover);
+        if (current) c.fillRounded(r, gfx::radii().surface, acc.tint06);
+        if (hot) c.fillRounded(r, gfx::radii().surface, col.overlayHover);
         float x = r.x + 12;
         if (opts_.art) {
             const Rect art{x, r.cy() - 36, 72, 72};
             std::vector<catalog::Image> images;
             if (!e.image.empty()) images.push_back({e.image, 0, 0});
-            drawArtwork(c, images, art, 2, Placeholder::Album, false, Priority::Normal);
+            drawArtwork(c, images, art, gfx::radii().art, Placeholder::Album, false, Priority::Normal);
             x = art.right() + 16;
         }
         const Rect play = playRect(r), dl = downloadRect(r), more = moreRect(r);
@@ -579,7 +579,7 @@ private:
         if (e.explicitContent) {
             const float bx = x + std::min(tw - badgeW, std::ceil(t.title.measure().w)) + 6;
             const Rect badge{bx, r.y + 36, 14, 14};
-            c.fillRounded(badge, 2, col.fgPrimary.withAlpha(0.14f));
+            c.fillRounded(badge, gfx::radii().badge, col.fgPrimary.withAlpha(0.14f));
             c.text(L"E", type::monoBadge, badge, col.fgSecondary, gfx::TextAlign::Center, gfx::VAlign::Center);
         }
         c.text(t.desc, {x, r.y + 58, tw, 36}, played ? col.fgTertiary : col.fgSecondary);
@@ -686,8 +686,8 @@ public:
                 wash = gfx::isLightTheme() ? gfx::Theme::adaptAccent(*a, true).withAlpha(0.14f) : a->withAlpha(0.12f);
         c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
         const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));
-        drawArtwork(c, images_, cover, 2, Placeholder::Album);
+        c.shadow(cover, gfx::radii().art, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));
+        drawArtwork(c, images_, cover, gfx::radii().art, Placeholder::Album);
         const float tx = cover.right() + 32, tw = std::max(0.f, r.right() - tx);
         float size = 72;
         for (float s : {72.f, 56.f, 44.f, 36.f, 28.f}) {
