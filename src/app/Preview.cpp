@@ -205,13 +205,16 @@ private:
         }
         return {};
     }
-    // Above the pointer (below it near the title bar), inside the window.
+    // By the pointer, inside the window: just above a pressed row (below it near the title bar), above the pointer on a
+    // cover or a tile.
     Rect boxRect() const {
         const Rect win = rect();
         const float w = std::min(300.f, win.w - 24), h = 60;
         const float x = std::clamp(anchor_.x - 28, win.x + 12, win.right() - w - 12);
-        float y = anchor_.y - h - 20;
-        if (y < win.y + gfx::metrics::titleBarH + 8) y = anchor_.y + 28;
+        const bool row = source_.h > 0 && source_.h <= 96;
+        const float above = row ? source_.y : anchor_.y - 12, below = row ? source_.bottom() : anchor_.y + 20;
+        float y = above - h - 8;
+        if (y < win.y + gfx::metrics::titleBarH + 8) y = below + 8;
         y = std::clamp(y, win.y + 8, win.bottom() - h - 8);
         return {x, y, w, h};
     }

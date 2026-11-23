@@ -508,6 +508,25 @@ void testPlayer(const fs::path& tmp) {
         CHECK(player.positionMs() > g0 + 700);
         player.stopPreview();
 
+        // i) At another speed (1.5x through the time stretcher) the current track holds and resumes the same way, and the
+        // preview plays at 1x.
+        player.setSpeed(1.5f);
+        pumpFor(500);
+        player.startPreview(sample);
+        CHECK(pumpUntil([&] { return player.previewState() == PS::Playing; }, 5000));
+        pumpFor(500);
+        const int64_t s0 = player.positionMs(), pv0 = player.previewPositionMs();
+        pumpFor(1000);
+        const int64_t pvAdvance = player.previewPositionMs() - pv0;
+        CHECK(std::llabs(player.positionMs() - s0) < 40);
+        CHECK(pvAdvance > 700 && pvAdvance < 1300);   // 1x
+        player.stopPreview();
+        pumpFor(1000);
+        const int64_t s1 = player.positionMs() - s0;
+        std::printf("        1.5x: %lld ms of track in 1 s after the stop\n", static_cast<long long>(s1));
+        CHECK(s1 > 1000 && s1 < 1900);
+        player.setSpeed(1.f);
+
         // A station / an episode is refused; nothing of the queue changed through all of it.
         player.liveStreamFor = [](const Track& t) -> std::optional<Player::LiveStream> {
             if (t.id == "radio:x") return Player::LiveStream{"http://127.0.0.1/none", {}, true};
