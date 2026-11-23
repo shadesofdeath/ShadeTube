@@ -7,7 +7,8 @@
 //              mid cross-fade: every texel of the field at several drift times stays inside the band
 //   readable   fg.tertiary moved towards fg.primary reaches 3:1 against the band's worst luminance
 //   drift      83 ms of drift (one update at 12 fps) changes no texel by more than 2 levels; 30 s moves the field
-//   timing     a 144 x 90 field (a 1440 x 900 DIP view) renders in well under a millisecond (Release)
+//   timing     a 144 x 90 field (a 1440 x 900 DIP view): about 0.2 ms in Release; prints it, fails only on a gross
+//              regression
 //   nowplaying_test
 #include "app/CoverGradient.h"
 
@@ -265,7 +266,7 @@ void testTiming() {
     for (int i = 0; i < kRuns; ++i) cover::renderField(field.data(), W, H, f, i * 0.083);
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() / kRuns;
     std::printf("  %d x %d field: %.3f ms per render (12 renders/s = %.2f %% of one core)\n", W, H, ms, ms * 12 / 10);
-    CHECK(ms < 5.0);   // Debug builds are far slower than Release; this only catches a gross regression
+    CHECK(ms < 15.0);   // Debug on a busy machine is far slower than Release (~0.2 ms): only a gross regression fails
     // Palette from a 48 px cover (what CoverBackdrop decodes).
     const auto img = makeImage(48, 48, [](float x, float y) { return Color{x, y, 1 - x, 1}; });
     const auto p0 = std::chrono::steady_clock::now();
