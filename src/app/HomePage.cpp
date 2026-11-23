@@ -653,6 +653,7 @@ private:
     // While the library and the shelves are both still on their way: the greeting over placeholders.
     void showHomeSkeleton() {
         built_ = false;
+        dropCatalog();
         auto* c = resetContent();
         c->add<home::Greeting>(todayLabel(), L"SPOTIFY");
         c->add<home::TopSkeleton>();
@@ -682,6 +683,7 @@ private:
             showHomeSkeleton();
             return;
         }
+        dropCatalog();
         auto* c = resetContent();
         std::wstring meta = L"SPOTIFY";
         if (snap.loaded)
@@ -794,6 +796,7 @@ private:
         }
 
         // --- The open catalog's sections: placeholders until they arrive.
+        netLife_.renew();   // a load still running for an earlier build lands nowhere
         net_ = c->add<ui::Column>(gfx::metrics::sectionGap);
         net_->add<home::ShelfSkeleton>();
         net_->add<home::ShelfSkeleton>(true);
@@ -807,7 +810,7 @@ private:
         std::erase_if(seeds, [](const ArtistRef& a) { return source::isSpotifyId(a.id); });
         if (seeds.size() > 2) seeds.resize(2);
         async(
-            Priority::High, life_.ref(),
+            Priority::High, netLife_.ref(),
             [seeds] {
                 Data d;
                 auto attempt = [&](auto&& fn) {
@@ -953,7 +956,14 @@ private:
         });
     }
 
+    // The logged-out page's open catalog part goes with a rebuild into the logged-in page.
+    void dropCatalog() {
+        netLife_.renew();
+        net_ = nullptr;
+    }
+
     ui::Column* net_ = nullptr;   // logged out: the open catalog's sections
+    Lifetime netLife_;            // its load
     bool demoDone_ = false;
 };
 
