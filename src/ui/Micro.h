@@ -58,17 +58,21 @@ inline constexpr double kFrameMs = 25;
 // The motion clock every indicator shares: it advances with the frame time while playing, slows to a stop over
 // motion::medium when playback pauses (and picks up again the same way), so every bar on screen freezes together.
 // Gaps between frames are capped at 100 ms: an indicator that comes back into view continues instead of jumping.
+// Times are passed in (the frame clock; tests step it); while the speed changes it asks for the next frame.
 class Clock {
 public:
     double advance(double nowMs, bool playing);   // the clock time (ms) at `nowMs`
     bool moving() const;                          // advancing: playing, or still slowing down
     double time() const { return t_; }
+    float speed() const { return speed_; }        // 0..1 at the last advance()
     void reset();                                 // tests
 
 private:
+    float speedAt(double nowMs) const;
     double t_ = 0, last_ = 0;
+    double rampStart_ = 0, rampMs_ = 0;
+    float from_ = 0, to_ = 0, speed_ = 0;
     bool started_ = false, playing_ = false;
-    Anim speed_;
 };
 Clock& clock();
 // The four bar levels (0..1) at clock time `t` (ms): two slow sines per bar with the spec's phases (0 / 0.6 / 1.2 /

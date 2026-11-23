@@ -70,31 +70,39 @@ bool HoverFade::running() const { return in_.running() || out_.running(); }
 
 namespace equalizer {
 
+float Clock::speedAt(double nowMs) const {
+    if (rampMs_ <= 0) return to_;
+    const double u = (nowMs - rampStart_) / rampMs_;
+    if (u >= 1) return to_;
+    return from_ + (to_ - from_) * ease(Ease::Standard, static_cast<float>(std::max(0.0, u)));
+}
+
 double Clock::advance(double nowMs, bool playing) {
     if (!started_) {
         started_ = true;
         playing_ = playing;
-        speed_.snap(playing ? 1.f : 0.f);
+        from_ = to_ = speed_ = playing ? 1.f : 0.f;
         last_ = nowMs;
         return t_;
     }
-    if (playing != playing_) {
+    if (playing != playing_) {   // slow down to a stop / pick up again from the current speed
         playing_ = playing;
-        speed_.to(playing ? 1.f : 0.f, motion::microMs(motion::medium), Ease::Standard);
+        from_ = speedAt(nowMs);
+        to_ = playing ? 1.f : 0.f;
+        rampStart_ = nowMs;
+        rampMs_ = motion::microMs(motion::medium);
     }
     const double dt = std::clamp(nowMs - last_, 0.0, 100.0);
     last_ = std::max(last_, nowMs);
-    t_ += dt * static_cast<double>(std::clamp(speed_.value(), 0.f, 1.f));
+    speed_ = std::clamp(speedAt(nowMs), 0.f, 1.f);
+    t_ += dt * static_cast<double>(speed_);
+    if (speed_ != to_) frame::requestNext();   // the ramp runs at the frame rate
     return t_;
 }
 
-bool Clock::moving() const { return playing_ || speed_.value() > 0.001f; }
+bool Clock::moving() const { return playing_ || speed_ > 0.001f; }
 
-void Clock::reset() {
-    t_ = last_ = 0;
-    started_ = playing_ = false;
-    speed_.snap(0);
-}
+void Clock::reset() { *this = Clock{}; }
 
 Clock& clock() {
     static Clock c;
