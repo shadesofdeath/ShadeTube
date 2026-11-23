@@ -405,7 +405,11 @@ void paint(gfx::Canvas& c, const Rect& r, const VideoView& view) {
                 const int64_t frameUs = static_cast<int64_t>(1e6 / std::max(1.0, s.player->fps()));
                 if (err > 10'000 || err < -(frameUs + 10'000)) ++s.offCount;
             }
-            if (auto* w = view.window()) w->invalidateAfter(s.player->nextFrameInMs(clockUs, audible ? clock.rate : 0.0));
+            // The next frame's time; while the song plays at most 100 ms ahead even when the clock stands still (a
+            // stall, a speed change rebuffering): its restart is no event the views hear about.
+            double next = s.player->nextFrameInMs(clockUs, audible ? clock.rate : 0.0);
+            if (p->isPlaying()) next = std::min(next, 100.0);
+            if (auto* w = view.window()) w->invalidateAfter(next);
         }
     } else if (s.on && s.phase == Phase::Ready && !s.player) {
         Dispatcher::post([] { sync(); });   // on screen again: the picture comes back at the audio's position
