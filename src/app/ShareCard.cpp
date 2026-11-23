@@ -251,6 +251,8 @@ Palette fallbackPalette() {
 Color deepen(Color c, float lightness, float maxSaturation) {
     gfx::Hsl h = gfx::toHsl(c);
     h.s = std::min(h.s, maxSaturation);
+    // A dark yellow / lime reads as olive: lean it towards amber instead.
+    if (lightness < 0.45f && h.h > 42.f && h.h < 85.f) h.h = 42.f - (h.h - 42.f) * 0.15f;
     h.l = lightness;
     return gfx::fromHsl(h);
 }

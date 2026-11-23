@@ -12,6 +12,7 @@
 #include "app/SettingsWidgets.h"
 #include "app/SmartListsPage.h"
 #include "app/Source.h"
+#include "app/YearReviewView.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -158,6 +159,7 @@ constexpr int64_t kRetryMs = 2 * 60'000;
 std::unordered_map<std::string, std::vector<Image>> g_artistImages;   // id -> images
 std::unordered_map<std::string, int64_t> g_artistRetryAt;             // id -> steadyMs() of the next attempt
 std::unordered_set<std::string> g_artistLookups;                      // in flight
+std::unordered_map<std::string, std::vector<std::string>> g_artistTags;   // id -> genres the lookup carried
 std::vector<std::pair<Lifetime::Ref, std::function<void()>>> g_artistWaiters;   // pages to rebuild when a batch lands
 
 const std::vector<Image>* libraryArtistImages(const ArtistRef& a) {
@@ -198,6 +200,7 @@ void fetchArtistImages(std::vector<std::string> ids, Lifetime::Ref owner, std::f
         std::string id;
         std::vector<Image> images;
         bool answered = false;
+        std::vector<std::string> tags;   // MusicBrainz's genres of the artist (the year in review's genre card)
     };
     static Lifetime cacheLife;   // results land in the cache even if the page is gone by then
     async(
@@ -207,7 +210,8 @@ void fetchArtistImages(std::vector<std::string> ids, Lifetime::Ref owner, std::f
             for (const auto& id : ids) {
                 if (owner.expired()) break;   // the page closed (and at exit the session goes away after the pages)
                 try {
-                    found.push_back({id, source::isSpotifyId(id) ? source::artistPage(api, id).artist.images : mb::artist(id).images, true});
+                    Artist a = source::isSpotifyId(id) ? source::artistPage(api, id).artist : mb::artist(id);
+                    found.push_back({id, std::move(a.images), true, std::move(a.tags)});
                 } catch (const std::exception& e) {
                     ST_LOG_DEBUG("stats", "artist picture for {}: {}", id, e.what());
                     found.push_back({id, {}, false});
@@ -226,6 +230,7 @@ void fetchArtistImages(std::vector<std::string> ids, Lifetime::Ref owner, std::f
                     }
                     any = any || !f.images.empty();
                     g_artistImages[f.id] = std::move(f.images);
+                    if (!f.tags.empty()) g_artistTags[f.id] = std::move(f.tags);
                 }
             if (!any && r && r->size() == ids.size()) return;   // complete, nothing new to show
             const auto waiters = std::move(g_artistWaiters);
@@ -1124,6 +1129,7 @@ private:
             if (!years.empty() && std::find(years.begin(), years.end(), g_year) == years.end()) g_year = years.front();
         }
         addBar(c, now, years);
+        review::addBanner(c, g_view == View::Year && g_year > 0 ? g_year : -1);   // the story (app/YearReviewView)
         if (g_view == View::Year) buildYear(c, years, wants);
         else buildPeriod(c, now, wants);
         if (s.importedCount() == 0 && !g_import.active && s.canImport()) {
@@ -1524,6 +1530,29 @@ void enrichTrackArtwork(std::vector<Track>& tracks, size_t lookups, Lifetime::Re
     for (auto& t : tracks) enrich(t, wants);
     if (wants.size() > lookups) wants.resize(lookups);
     fetchArt(std::move(wants), std::move(owner), std::move(landed));
+}
+
+// The year in review (app/YearReviewView): the same artwork the page's top lists get.
+void enrichStatsArtwork(std::vector<StatsTrack>& tracks, std::vector<StatsAlbum>& albums, std::vector<StatsArtist>& artists,
+                        std::vector<std::vector<Image>>& artistPictures, Lifetime::Ref owner, std::function<void()> landed) {
+    std::vector<ArtWant> wants;
+    for (auto& t : tracks) enrich(t.track, wants);
+    for (auto& a : albums) enrich(a, wants);
+    std::vector<std::string> lookup;
+    artistPictures.clear();
+    for (auto& a : artists) {
+        enrich(a, wants);
+        if (routable(a.artist.id, "spotify:artist:") && !libraryArtistImages(a.artist)) lookup.push_back(a.artist.id);
+        artistPictures.push_back(artistImages(a.artist));
+    }
+    fetchArt(std::move(wants), owner, landed);
+    fetchArtistImages(std::move(lookup), std::move(owner), std::move(landed));
+}
+
+std::vector<std::string> statsArtistGenres(const ArtistRef& a) {
+    if (a.id.empty()) return {};
+    const auto it = g_artistTags.find(a.id);
+    return it != g_artistTags.end() ? it->second : std::vector<std::string>{};
 }
 
 void initListenStats() {

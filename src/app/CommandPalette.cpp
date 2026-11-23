@@ -9,6 +9,7 @@
 #include "app/Social.h"
 #include "app/Source.h"
 #include "app/Together.h"
+#include "app/YearReviewView.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Paths.h"
@@ -244,6 +245,7 @@ std::vector<Item> staticItems() {
                                     [] { ctx().startSpotifyLogin(); }));
     for (auto& jc : together::paletteCommands())   // "Birlikte dinle": start / join / copy the link / leave
         items.push_back(commandItem(jc.key, jc.title, tr(L"Birlikte dinle"), jc.icon, std::move(jc.run)));
+    items.push_back(commandItem("cmd:year-review", tr(L"Yılın özeti hikâyesi"), tr(L"İstatistikler"), "sparkle", [] { review::open(); }));
     if (ctx().quitApp)
         items.push_back(commandItem("cmd:quit", tr(L"ShadeTube'dan çık"), tr(L"Uygulama"), "logout", [] { ctx().quitApp(); }));
 
