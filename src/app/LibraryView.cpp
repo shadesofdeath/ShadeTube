@@ -165,10 +165,15 @@ LibraryView::CellText& LibraryView::text(int d) {
     return texts_.emplace(ci, std::move(t)).first->second;
 }
 
-float LibraryView::hoverOf(int d) const {
+float LibraryView::pointerHoverOf(int d) const {
     float h = 0;
     if (d == hot_) h = hotA_.value();
     if (d == prevHot_) h = std::max(h, prevA_.value());
+    return h;
+}
+
+float LibraryView::hoverOf(int d) const {
+    float h = pointerHoverOf(d);
     // Keyboard focus shows a square card's / a row's hover state (with its play button); round cards keep the ring.
     if (d == std::clamp(cursor_, 0, std::max(0, static_cast<int>(order_.size()) - 1)) && keyboardFocused() &&
         !(mode_ == Mode::Grid && cell(d).circle))
@@ -182,6 +187,7 @@ bool LibraryView::isCurrent(const LibraryCell& c) const {
 }
 
 void LibraryView::paintArt(Canvas& c, const LibraryCell& cell, const Rect& art, float radius) {
+    if (pagetx::presence(&cell) <= 0.f) return;   // the page transition draws this cover
     if (cell.circle) {
         drawArtwork(c, cell.images, art, 0, Placeholder::Artist, true);
     } else if (cell.likedTile && cell.images.empty()) {   // Liked Songs as on its page: the accent tile and the heart
@@ -206,41 +212,43 @@ float LibraryView::paintMarks(Canvas& c, const LibraryCell& cell, float x, float
     return x;
 }
 
-void LibraryView::paintPlay(Canvas& c, const LibraryCell& cell, const Rect& pr, float h, float iconSize) {
+void LibraryView::paintPlay(Canvas& c, int d, const LibraryCell& cell, const Rect& pr, float h, float iconSize) {
     const auto& acc = accent();
-    const bool playing = isCurrent(cell) && ctx().player->isPlaying();
-    const bool hot = playHot_ && hot_ >= 0 && &this->cell(hot_) == &cell;
+    ui::card::Play play{h, d == hot_ ? playHotA_.value() : 0.f, d == hot_ && d == pressed_ ? playPressA_.value() : 0.f};
+    play.pause = isCurrent(cell) && ctx().player->isPlaying();
+    play.iconSize = iconSize;
+    play.rise = mode_ == Mode::List ? 3.f : 8.f;   // the list row's button sits on a 48 DIP cover
     // On the accent heart tile an accent button would vanish: the inverse there.
-    const bool onTile = cell.likedTile && cell.images.empty();
-    const Color fill = onTile ? acc.onAccent.mulAlpha(hot ? 0.85f : 1.f) : hot ? acc.hover : acc.base;
-    c.pushOpacity(h);
-    c.fillCircle({pr.cx(), pr.cy()}, pr.w * 0.5f, fill);
-    c.icon(playing ? "pause" : "play", pr.center(iconSize, iconSize).offset(playing ? 0.f : 1.f, 0),
-           onTile ? acc.base : acc.onAccent);
-    c.popLayer();
+    if (cell.likedTile && cell.images.empty()) ui::card::paintPlay(c, pr, play, acc.onAccent, acc.onAccent.mulAlpha(0.85f), acc.base);
+    else ui::card::paintPlay(c, pr, play, acc.base, acc.hover, acc.onAccent);
 }
 
 void LibraryView::paintCard(Canvas& c, int d, const Rect& r) {
     const auto& col = colors();
     const auto& acc = accent();
     const LibraryCell& cl = cell(d);
-    const float h = hoverOf(d);
+    const float shown = pagetx::presence(&cl);   // 0 while the page transition draws this cover
+    const float here = shown > 0.f ? 1.f : 0.f;
+    const float h = hoverOf(d) * here, pointer = pointerHoverOf(d) * here;
     const Rect art{r.x, r.y, r.w, r.w};
-    const float s = 1 - 0.01f * (d == pressed_ ? pressA_.value() : 0.f);
-    c.pushScale(s, {art.cx(), art.cy()});
+    const float p = d == pressed_ && !pressPlay_ ? pressA_.value() : 0.f;
+    // MediaCard's hover look (ui::card): the card rises over its shadow, the artwork's hairline brightens.
+    c.pushTransform(D2D1::Matrix3x2F::Translation(0, ui::card::lift(pointer, p)));
+    c.pushScale(ui::card::pressScale(p), {art.cx(), art.cy()});
     if (cl.circle) {
+        ui::card::paintBack(c, art, pointer, true);
         paintArt(c, cl, art, 0);
-        if (h > 0.01f) c.strokeCircle({art.cx(), art.cy()}, art.w * 0.5f, acc.base.mulAlpha(h * 0.8f), 1.5f);
+        ui::card::paintEdge(c, art, h, true);
         if (d == dropHot_) c.strokeCircle({art.cx(), art.cy()}, art.w * 0.5f, acc.base, 2.f);
     } else {
-        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h));   // cardHoverShadow
+        ui::card::paintBack(c, art, h * shown);
         paintArt(c, cl, art, 2);
+        ui::card::paintEdge(c, art, h);
         if (d == dropHot_) {   // dragged songs would go here: the sidebar row's drop look
             c.fillRounded(art, 2, acc.tint12);
             c.strokeRounded(art, 2, acc.base);
         }
-        if (cl.playable && h > 0.01f)
-            paintPlay(c, cl, playRect(d).offset(0, 8 * (1 - ui::ease(ui::Ease::Decelerate, h))), h, 16);
+        if (cl.playable) paintPlay(c, d, cl, playRect(d), h, 16);
     }
     c.popTransform();
     auto& tx = text(d);
@@ -249,6 +257,7 @@ void LibraryView::paintCard(Canvas& c, int d, const Rect& r) {
     const float sy = tr.bottom() + 2;
     const float x = cl.circle ? r.x : paintMarks(c, cl, r.x, sy + 8);
     c.text(tx.sub, {x, sy, std::max(0.f, r.right() - x), 16}, col.fgSecondary, gfx::VAlign::Center);
+    c.popTransform();
 }
 
 void LibraryView::paintRow(Canvas& c, int d, const Rect& r) {
@@ -263,7 +272,7 @@ void LibraryView::paintRow(Canvas& c, int d, const Rect& r) {
     }
     const Rect art = artRect(d);
     paintArt(c, cl, art, 2);
-    if (cl.playable && h > 0.01f) paintPlay(c, cl, playRect(d), h, 14);
+    if (cl.playable && pagetx::presence(&cl) > 0.f) paintPlay(c, d, cl, playRect(d), h, 14);
     auto& tx = text(d);
     if (!tx.metaDone) {
         tx.metaDone = true;
@@ -276,8 +285,8 @@ void LibraryView::paintRow(Canvas& c, int d, const Rect& r) {
         c.text(tx.meta, {right - mw, r.y, mw + 1, r.h}, col.fgTertiary, gfx::VAlign::Center);
         right -= mw + 20;
     }
-    if (current && ctx().player->isPlaying()) {   // like the sidebar's playing row
-        c.icon("equalizer", {right - 14, r.cy() - 7, 14, 14}, acc.base);
+    if (current && ctx().player->isPlaying()) {   // like the sidebar's playing row: the live bars
+        drawPlayingBars(c, this, {right - 14, r.cy() - 7, 14, 14}, acc.base);
         right -= 14 + 12;
     }
     const float tx0 = art.right() + 14;
@@ -317,11 +326,14 @@ void LibraryView::setHot(int d, bool playHot) {
     if (d != hot_) {
         prevHot_ = hot_;
         prevA_.snap(hotA_.value());
-        prevA_.to(0, ui::motion::fast);
+        prevA_.to(0, ui::motion::microMs(ui::motion::fast));
         hot_ = d;
         hotA_.snap(0);
-        if (d >= 0) hotA_.to(1, ui::motion::fast);
+        if (d >= 0) hotA_.to(1, ui::motion::microMs(ui::motion::fast));
+        playHotA_.snap(0);
+        playHot_ = false;
     }
+    if (playHot != playHot_) playHotA_.to(playHot ? 1.f : 0.f, ui::motion::microMs(ui::motion::fast));
     playHot_ = playHot;
     invalidate();
 }
@@ -347,13 +359,15 @@ bool LibraryView::onMouseDown(const ui::MouseEvent& e) {
     }
     if (e.button != ui::MouseButton::Left || d < 0) return false;
     pressed_ = d;
-    pressA_.to(1, 80);
+    pressPlay_ = cell(d).playable && !(mode_ == Mode::Grid && cell(d).circle) && playRect(d).contains(e.pos);
+    (pressPlay_ ? playPressA_ : pressA_).to(1, ui::motion::microMs(80));
     invalidate();
     return true;
 }
 
 void LibraryView::onMouseUp(const ui::MouseEvent& e) {
-    pressA_.to(0, 160);
+    pressA_.to(0, ui::motion::microMs(160));
+    playPressA_.to(0, ui::motion::microMs(160));
     invalidate();
     const int d = cellAt(e.pos);
     if (d < 0 || d != pressed_) return;
@@ -365,14 +379,38 @@ void LibraryView::onMouseUp(const ui::MouseEvent& e) {
 
 void LibraryView::open(int d) {
     if (!onOpen) return;
+    pagetx::arm(coverOf(d));
     const auto fn = onOpen;   // may navigate (this view is deleted after the event)
     fn(order_[static_cast<size_t>(d)]);
 }
 
 void LibraryView::play(int d) {
     if (!cell(d).playable || !onPlay) return open(d);
+    pagetx::arm(coverOf(d));   // "#play" opens the page too
     const auto fn = onPlay;
     fn(order_[static_cast<size_t>(d)]);
+}
+
+SharedCover LibraryView::coverOf(int d) const {
+    const LibraryCell& cl = cell(d);
+    const Rect art = artRect(d);
+    const bool round = cl.circle;
+    SharedCover s = cl.likedTile && cl.images.empty() ? pagetx::likedCover(*this, art, 2)
+                                                      : pagetx::imageCover(*this, art, round ? art.w * 0.5f : 2.f, cl.images);
+    s.owner = &cl;   // one view, many covers: the cell is the owner
+    return s;
+}
+
+bool LibraryView::coverFor(const std::string& key, SharedCover& out) {
+    if (key.empty() || !cells_) return false;
+    for (int d = 0; d < static_cast<int>(order_.size()); ++d) {
+        const LibraryCell& cl = cell(d);
+        const bool match = cl.likedTile && cl.images.empty() ? key == "liked" : !cl.images.empty() && cl.images.front().url == key;
+        if (!match) continue;
+        out = coverOf(d);
+        return true;
+    }
+    return false;
 }
 
 void LibraryView::context(int d, gfx::Point windowPos) {

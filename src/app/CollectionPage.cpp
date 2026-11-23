@@ -57,6 +57,7 @@ public:
         enhance_->setTooltip(tr(L"Listeye uyan önerilen şarkıları aralara ekle"));
         enhance_->setVisible(kind != Kind::Album);
         save_ = add<Button>(ButtonKind::IconOutline, L"", "heart");
+        save_->setHeart("heart", "heart-filled");   // the like feedback when the album is saved / removed
         add_ = add<Button>(ButtonKind::IconOutline, L"", "plus");
         offline_ = add<sync::SyncButton>();   // "Çevrimdışı kullanılabilir" (download sync)
         more_ = add<Button>(ButtonKind::IconOutline, L"", "more");
@@ -136,10 +137,7 @@ public:
     // Liked Songs: the accent tile with the heart; the others: the cover. Drawn by the bar (CollapseBar).
     void drawCover(Canvas& c, const Rect& r, float radius) override {
         if (kind_ != Kind::Liked) return HeroHeader::drawCover(c, r, radius);
-        c.fillRounded(r, radius, accent().base);
-        c.fillRadialGradient(r, {r.right(), r.y}, r.w * (260.f / 232.f), accent().hover.withAlpha(0.8f), accent().pressed.withAlpha(0));
-        const float s = std::round(r.w * (72.f / 232.f));
-        c.icon("heart-filled", r.center(s, s), accent().onAccent);
+        paintLikedCover(c, r, radius);
     }
 
     // The owner opens the artist on release: navigating replaces this page, and the window still touches the pressed
@@ -198,7 +196,26 @@ protected:
                    gfx::TextAlign::Trailing, gfx::VAlign::Center);
     }
 
+public:
+    // The header's cover for the page transition: Liked Songs' tile is painted (the flight draws it at any size).
+    SharedCover sharedCover(const ui::Widget& owner, const Rect& local) override {
+        if (kind_ != Kind::Liked) return HeroHeader::sharedCover(owner, local);
+        SharedCover s = pagetx::likedCover(owner, local, 2);
+        s.paint = [](gfx::Canvas& c, const Rect& r, float radius) { paintLikedCover(c, r, radius); };
+        return s;
+    }
+
 private:
+    // Liked Songs' cover: the accent tile, its glow and the heart (scales with the rect: the transition draws it too).
+    static void paintLikedCover(Canvas& c, const Rect& cover, float radius) {
+        const float k = cover.w / 232.f;
+        c.fillRounded(cover, radius, accent().base);
+        c.pushRoundedClip(cover, radius);
+        c.fillRadialGradient(cover, {cover.right(), cover.y}, 260 * k, accent().hover.withAlpha(0.8f), accent().pressed.withAlpha(0));
+        c.popLayer();
+        c.icon("heart-filled", cover.center(72 * k, 72 * k), accent().onAccent);
+    }
+
     Kind kind_;
     Meta meta_;
     gfx::Text desc_;
@@ -233,6 +250,13 @@ public:
         }
         // "Geliştir" on / off (also from a track menu), hidden and added recommendations.
         if (kind_ != Kind::Album) smartshuffle::subscribe(enhanceSub_.ref(), [this] { onEnhanceChanged(); });
+    }
+
+    // Page transitions: the header's cover (HeaderCover, which the collapsing bar moves); while the album / list loads,
+    // where it will be.
+    bool coverSlot(SharedCover& out) override {
+        if (header_) return headerCoverSlot(out);
+        return loadingCoverSlot(out);
     }
 
 private:
@@ -618,6 +642,7 @@ private:
         header_->save_->onClick = [this, refreshSave] {
             ctx().library.setSavedAlbum(album_, !ctx().library.isSavedAlbum(id_));
             refreshSave();
+            header_->save_->pulse();
         };
         header_->add_->onClick = [this] {
             const Rect br = header_->add_->toWindow(header_->add_->rect());

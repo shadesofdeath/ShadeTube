@@ -1856,5 +1856,14 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, пока включена контрастная тема; окно остаётся непрозрачным.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Применится после перезапуска: фон окна использует полупрозрачный материал Mica из Windows 11, и цвет рабочего стола слегка просвечивает.",
   "Yeniden başlatma gerekiyor": "Нужен перезапуск",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica применится после перезапуска ShadeTube."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica применится после перезапуска ShadeTube.",
+  "Sayfa geçişleri": "Переходы между страницами",
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "Страницы сменяются коротким сдвигом с затуханием; обложка открытого альбома или плейлиста перелетает на своё место на новой странице. Если включено «Меньше анимации» или в Windows отключены эффекты анимации, страницы сменяются мгновенно.",
+  "Daha fazla": "Ещё",
+  "Daha fazla göster": "Показать больше",
+  "Daha az göster": "Показать меньше",
+  "Kaldığın yerden devam et": "Продолжить с того же места",
+  "Müziğe buradan başla": "Начните слушать отсюда",
+  "Bir şarkı ara, bir radyo istasyonu aç ya da kendi müzik klasörünü ekle. Çaldıkların burada, kaldığın yerde seni bekler.": "Найдите песню, включите радиостанцию или добавьте свою папку с музыкой. Всё, что вы слушаете, ждёт вас здесь — с того же места.",
+  "Kenar çubuğunda diğer sayfaları göster / gizle": "Показать / скрыть другие страницы на боковой панели"
 }

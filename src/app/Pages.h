@@ -35,6 +35,10 @@ protected:
     void showSkeleton(int rows = 8);
     void contentReady();   // content is built: applies a pending scroll restore (now or when restoreScroll comes)
     ui::Column* resetContent(float gap = gfx::metrics::sectionGap);
+    // coverSlot() of a detail page still showing its loading skeleton: where its header's cover will be (not ready).
+    bool loadingCoverSlot(SharedCover& out) const;
+    // coverSlot() of a page with an attached collapsing header: its HeaderCover where it is now (CollapseBar::coverSlot).
+    bool headerCoverSlot(SharedCover& out);
 
     ui::ScrollView* scroll_;
     ui::Column* col_;

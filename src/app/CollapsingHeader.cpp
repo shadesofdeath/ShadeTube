@@ -66,6 +66,10 @@ float HeroHeader::fitTitle(float width, std::initializer_list<float> sizes, floa
 
 void HeroHeader::drawCover(Canvas& c, const Rect& r, float radius) { drawArtwork(c, images_, r, radius, placeholder_); }
 
+SharedCover HeroHeader::sharedCover(const ui::Widget& owner, const Rect& local) {
+    return pagetx::imageCover(owner, local, 2, images_);
+}
+
 void HeroHeader::setTintImages(const std::vector<catalog::Image>& images) {
     const auto* img = catalog::pickImage(images, 300);
     const std::string url = img ? img->url : std::string();
@@ -166,9 +170,12 @@ void HeaderCover::paint(Canvas& c) {
         c.popLayer();
         return;
     }
+    // Page transition: 0 while a cover flies here / from here (the flight draws it), rising as it lands.
+    const float shown = pagetx::presence(this);
+    if (shown <= 0.f) return;
     const float k = r.w / std::max(1.f, slot.w);
     // The expanded cover's shadow (dark: black 35 %) goes as it shrinks; the bar's thumbnail has none.
-    if (const float shadow = 1.f - f.coverProgress; shadow > 0.01f)
+    if (const float shadow = (1.f - f.coverProgress) * shown; shadow > 0.01f)
         c.shadow(r, 2, 40 * k, 18 * k, colors().shadowCard.mulAlpha(0.35f / 0.45f * shadow));
     // Drawn at the slot's size and scaled: the image keeps the bitmap it was loaded at (no reload while it shrinks).
     c.pushTransform(D2D1::Matrix3x2F::Scale(k, k) * D2D1::Matrix3x2F::Translation(r.x, r.y));
@@ -301,6 +308,14 @@ void CollapseBar::update() {
     const float compactX = hr.x + kBarCover + kBarTitleGap;
     const float buttonsLeft = (header_->play_ ? (hasShuffle ? shuffleR.x : playR.x) : hr.right()) - 16;
     compactW_ = std::max(40.f, buttonsLeft - compactX);
+}
+
+bool CollapseBar::coverSlot(SharedCover& out) {
+    if (!header_ || header_->coverSlot().empty()) return false;
+    update();   // where the cover is at this offset (also when asked before this frame's paint)
+    if (!valid_ || cover_->rect().empty()) return false;
+    out = header_->sharedCover(*cover_, cover_->rect());
+    return !out.rect.empty();
 }
 
 void CollapseBar::paintBackdrop(Canvas& c) {

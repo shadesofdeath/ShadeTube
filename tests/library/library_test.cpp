@@ -300,6 +300,16 @@ void testStore() {
     const auto back = Recents::fromJson(r.toJson());
     CHECK(back.size() == 3 && back.at("playlist:a") == 120 && back.at("liked") == 130);
     CHECK(r.toJson().find("\"liked\"") < r.toJson().find("\"playlist:a\""));   // newest first
+    // newest(n) (Home's hero and quick access): newest first, at most n; equal times by context.
+    {
+        const auto top = r.newest(2);
+        CHECK(top.size() == 2 && top[0].first == "liked" && top[0].second == 130 && top[1].first == "playlist:a");
+        CHECK(r.newest(10).size() == 3 && r.newest(0).empty() && Recents{}.newest(5).empty());
+        Recents tie;
+        tie.record("album:z", 50);
+        tie.record("album:a", 50);
+        CHECK(tie.newest(2)[0].first == "album:a");
+    }
     CHECK(Recents::fromJson("not json").size() == 0);
     CHECK(Recents::fromJson(R"({"v":1,"recent":[["album:x",5],["bad"],[1,2],["search",9],["artist:y","x"]]})").size() == 1);
     // The cap: the oldest go.

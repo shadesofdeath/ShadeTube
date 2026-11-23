@@ -1538,5 +1538,14 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Tidak tersedia selama tema kontras aktif; jendela tetap pekat.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Diterapkan setelah dimulai ulang: latar jendela memakai material Mica tembus pandang dari Windows 11 dan warna desktopmu sedikit terlihat.",
   "Yeniden başlatma gerekiyor": "Perlu dimulai ulang",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Latar Mica diterapkan setelah ShadeTube dimulai ulang."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Latar Mica diterapkan setelah ShadeTube dimulai ulang.",
+  "Sayfa geçişleri": "Transisi halaman",
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "Halaman berganti dengan geseran dan pudar singkat; sampul album atau playlist yang kamu buka terbang ke tempatnya di halaman baru. Saat Kurangi gerakan aktif, atau efek animasi Windows dimatikan, halaman langsung berganti.",
+  "Daha fazla": "Lainnya",
+  "Daha fazla göster": "Tampilkan lainnya",
+  "Daha az göster": "Tampilkan lebih sedikit",
+  "Kaldığın yerden devam et": "Lanjutkan dari terakhir kali",
+  "Müziğe buradan başla": "Mulai musikmu di sini",
+  "Bir şarkı ara, bir radyo istasyonu aç ya da kendi müzik klasörünü ekle. Çaldıkların burada, kaldığın yerde seni bekler.": "Cari lagu, putar stasiun radio, atau tambahkan folder musikmu sendiri. Apa pun yang kamu putar menunggumu di sini, tepat di tempat terakhir kamu berhenti.",
+  "Kenar çubuğunda diğer sayfaları göster / gizle": "Tampilkan / sembunyikan halaman lain di bilah samping"
 }

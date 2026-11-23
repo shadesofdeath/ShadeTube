@@ -406,12 +406,14 @@ public:
         const Part part = row >= 0 ? partAt(row, e.pos) : Part::None;
         if (row != hoverRow_ || part != hoverPart_) {
             hoverRow_ = row;
+            hoverFade_.set(row);
             hoverPart_ = part;
             invalidate();
         }
     }
     void onMouseLeave() override {
         hoverRow_ = -1;
+        hoverFade_.set(-1);
         hoverPart_ = Part::None;
         invalidate();
     }
@@ -532,7 +534,7 @@ private:
         const auto* st = podcast::store().state(id);
         const bool played = st && st->played;
         if (current) c.fillRounded(r, 2, acc.tint06);
-        if (hot) c.fillRounded(r, 2, col.overlayHover);
+        if (const float hv = hoverFade_.of(i); hv > 0.001f) c.fillRounded(r, 2, col.overlayHover.mulAlpha(hv));
         float x = r.x + 12;
         if (opts_.art) {
             const Rect art{x, r.cy() - 36, 72, 72};
@@ -619,6 +621,7 @@ private:
     std::vector<Episode> episodes_;
     std::unordered_map<int, RowText> texts_;
     int hoverRow_ = -1;
+    ui::HoverFade hoverFade_;   // the hovered row's background fades in / out (ui/Micro)
     Part hoverPart_ = Part::None;
     int cursor_ = 0;
 };
@@ -661,7 +664,6 @@ public:
         order_->setLabel(on ? tr(L"En yeni önce") : tr(L"En eski önce"));
         requestLayout();
     }
-
     float preferredHeight(float) override { return 232 + 28 + 56 + 8; }
     void layout() override {
         const Rect r = rect();
@@ -784,6 +786,14 @@ public:
         build();
     }
     ~PodcastsPage() override { cts_->cancel(); }
+
+    // Page transitions: a show's header cover (HeaderCover, which the collapsing bar moves; while its feed loads: where
+    // it will be).
+    bool coverSlot(SharedCover& out) override {
+        if (view_ != View::Show) return false;
+        if (header_) return headerCoverSlot(out);
+        return loadingCoverSlot(out);
+    }
 
     void paint(Canvas& c) override {
         syncHeaderPlay();   // the show's play button follows the player

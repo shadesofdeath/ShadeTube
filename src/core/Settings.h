@@ -46,6 +46,7 @@ struct Settings {
     ThemeMode theme = ThemeMode::Dark;   // settings.json "theme": "dark" | "light" | "system" (was bool "lightTheme")
     bool grain = true;
     bool reduceMotion = false;
+    bool pageTransitions = true;         // "Sayfa geçişleri": slide / fade + the flying cover (app/PageTransition)
     int uiZoom = 100;                    // "Arayüz ölçeği" in percent: 80, 90, 100, 110, 125, 150 (app/Display)
     bool compactLists = false;           // "Liste yoğunluğu": Sıkı = lower track rows (app/Display)
     bool micaBackdrop = false;           // Windows 11 Mica behind the main window (ui::Window::setBackdrop)
@@ -93,6 +94,7 @@ struct Settings {
     // (Ctrl+B, or the edge dragged narrower than 150 DIPs).
     float sidebarWidth = 240;
     bool sidebarCollapsed = false;
+    int sidebarMore = -1;                // its "Daha fazla" page group: 1 open, 0 folded, -1 automatic (by its height)
     // "Birlikte dinle" (app/Together): the name others see ("" = Spotify / Windows name) and a broker of the user's own
     // tried before the built-in public ones (wss://host[:port]/path, "" = none).
     std::string jamName;

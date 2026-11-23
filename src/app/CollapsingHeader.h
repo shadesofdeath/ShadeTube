@@ -11,6 +11,7 @@
 // header; HeaderCover is the cover itself, a widget the bar moves and shrinks.
 #include "app/Components.h"
 #include "app/HeaderCollapse.h"
+#include "app/PageTransition.h"
 
 #include <functional>
 #include <initializer_list>
@@ -42,6 +43,9 @@ public:
     virtual void drawCover(Canvas& c, const Rect& r, float radius);
     // The bar's avatar of a header without a cover (artist): a circle filling `r`.
     virtual void drawAvatar(Canvas& c, const Rect& r) { (void)c, (void)r; }
+    // The cover for a page transition (app/PageTransition) as `owner` (the HeaderCover) shows it at `local` (its rect):
+    // the images by default; Liked Songs and smart lists paint theirs.
+    virtual SharedCover sharedCover(const ui::Widget& owner, const Rect& local);
     // Behind the page's content, in page coordinates (`page` = the page's rect there): the tint gradient. The artist
     // page adds its banner.
     virtual void paintBackdrop(Canvas& c, const Rect& page, const collapse::Frame& f);
@@ -103,8 +107,10 @@ private:
 };
 
 // The cover of the attached header, moved and shrunk by its bar. At scroll offset 0 its rect is the header's cover slot
-// (232 DIP square at the header's top-left), so a shared-element transition can fly a card's cover into it; hiding it
-// (setVisible(false)) hides the drawn cover. Pages without a cover (artist) use it for the bar's avatar.
+// (232 DIP square at the header's top-left): the page's Page::coverSlot for the page transitions, which fly a card's
+// cover into it and back from wherever it is. It is the SharedCover's owner: it skips its artwork and shadow while
+// pagetx::presence() is 0 (the cover flies) and shows the shadow at that strength as it lands. Pages without a cover
+// (artist) use it for the bar's avatar.
 class HeaderCover : public ui::Widget {
 public:
     explicit HeaderCover(CollapseBar& bar) : bar_(bar) {}
@@ -133,6 +139,9 @@ public:
     HeaderCover* cover() const { return cover_; }
     const collapse::Frame& frame() const { return frame_; }
     bool active() const { return valid_; }
+    // Page::coverSlot of a page with this bar: the header's cover where it is now (its slot at offset 0, the shrinking
+    // or the bar's thumbnail when scrolled), owned by the HeaderCover; false without a header or a cover.
+    bool coverSlot(SharedCover& out);
 
     // Once per frame, before the content (ScrollPage::paint, canvas in page coordinates): evaluates the collapse at
     // the scroll offset of this frame, places the cover and the buttons, sets the ScrollView's topInset and paints the

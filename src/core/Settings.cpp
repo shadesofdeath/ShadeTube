@@ -59,6 +59,7 @@ void Settings::load() {
     }
     read(j, "grain", grain);
     read(j, "reduceMotion", reduceMotion);
+    read(j, "pageTransitions", pageTransitions);
     read(j, "uiZoom", uiZoom);
     read(j, "compactLists", compactLists);
     read(j, "micaBackdrop", micaBackdrop);
@@ -93,6 +94,8 @@ void Settings::load() {
     read(j, "sidebarWidth", sidebarWidth);
     sidebarWidth = std::isfinite(sidebarWidth) ? std::clamp(sidebarWidth, 200.f, 420.f) : 240.f;
     read(j, "sidebarCollapsed", sidebarCollapsed);
+    read(j, "sidebarMore", sidebarMore);
+    sidebarMore = std::clamp(sidebarMore, -1, 1);
     read(j, "jamName", jamName);
     read(j, "jamBroker", jamBroker);
     read(j, "newReleaseNotifications", newReleaseNotifications);
@@ -149,6 +152,7 @@ void Settings::save() const {
         {"theme", theme == ThemeMode::Light ? "light" : theme == ThemeMode::System ? "system" : "dark"},
         {"grain", grain},
         {"reduceMotion", reduceMotion},
+        {"pageTransitions", pageTransitions},
         {"uiZoom", uiZoom},
         {"compactLists", compactLists},
         {"micaBackdrop", micaBackdrop},
@@ -181,6 +185,7 @@ void Settings::save() const {
         {"friendActivityOpen", friendActivityOpen},
         {"sidebarWidth", sidebarWidth},
         {"sidebarCollapsed", sidebarCollapsed},
+        {"sidebarMore", sidebarMore},
         {"jamName", jamName},
         {"jamBroker", jamBroker},
         {"newReleaseNotifications", newReleaseNotifications},

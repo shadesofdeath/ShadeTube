@@ -82,8 +82,10 @@ ShadeTube/
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
-│                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO)
-│   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
+│                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO),
+│                                PageMotion (page transitions' timeline + cover flight, 3.x)
+│   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets,
+│                                PageTransition (page transitions + the shared cover, 3.x)
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
 │                                ConnectScreen, MiniPlayer
@@ -97,9 +99,9 @@ ShadeTube/
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
-                                 headers, jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts,
-                                 radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync,
-                                 tags, updater, winshell
+                                 headers, jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, pagetx,
+                                 playback, podcasts, radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock,
+                                 spotify, stats, sync, tags, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -193,7 +195,9 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   frame is cleared to `Canvas::surface()`, `bg.base` at 55 % (dark) / 50 % (light) (`Palette::bgBackdrop`), instead
   of `bg.base`. Surfaces that cover content use `Canvas::fillSurface()`, which replaces the pixels instead of blending
   over them (sticky headers, player bar, connect screen). Content that dissolves into the background uses
-  `Canvas::pushFade()` (artist banner). Cards, menus, dialogs, tooltips, Now Playing and the lyrics view paint
+  `Canvas::pushFade()` (artist banner). Content faded as a whole over the surface (a page during a page transition,
+  3.x) goes into `Canvas::pushSurfaceGroup()`: inside it `fillSurface()` clears to transparent, since the surface is
+  already below the group. Cards, menus, dialogs, tooltips, Now Playing and the lyrics view paint
   themselves opaque and stay opaque; so does the mini player. A full-surface background must use
   `fillSurface()` / `surface()`, never an opaque `bg.base` fill. Mica off (setting, transparency effects, high
   contrast) is live in such a window: opaque frames into the same swap chain, DWM's backdrop removed after the first
@@ -1112,6 +1116,180 @@ time of the event.
   and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
   a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
 
+### 3.x Page transitions
+
+`app/PageTransition` (drawn by `PageHost` in `app/Shell`) on `ui/PageMotion` (the timeline and the cover's flight,
+standalone, all times passed in; `pagetx_test`). The Router tells how the page changed (`Router::lastChange()`: from,
+to, Push / Back / Forward / Replace).
+
+- **Pages**: Push and Forward: the outgoing page fades out over the first 40 % while it shifts 12 DIP left
+  (accelerating), the incoming one slides 24 DIP in from the right (decelerating over the whole 220 ms) and fades in
+  from 30 % on. Back is the mirror image. Replace (the first page, redirects): a 180 ms fade in place. Re-selecting the
+  current page still only scrolls it to the top.
+- **The outgoing page** is taken out of the tree when the new one arrives (`Widget::release`: `Window::forget` clears
+  hover / capture / focus in it, and a keyboard focus is restored on the new page by type and position as on any page
+  change, 3.3) and kept, detached, until it has faded out, then `deferDelete`d: no input, no layout, not in the Tab
+  order; its own async continuations still land on it. Each page is painted inside `Canvas::pushSurfaceGroup()` (3.3),
+  so under Mica a sticky header fading out never adds a second layer of the translucent tint (measured with
+  `SHADETUBE_BACKDROP=force`: the pinned bar's alpha goes from 147 to the surface's 140, never above). A navigation in
+  the middle of one drops the old outgoing page; the page that was arriving leaves from the opacity it had.
+- **Shared cover**: a card or row with a cover calls `pagetx::arm(SharedCover)` right before it navigates (click,
+  Enter, its play button: "#play" opens the page too): `MediaCard`, `ListRow`, `Tile` (its round photo), the Library's
+  grid / list cells (`LibraryView`, Liked Songs' heart tile included), smart list cards, the sidebar rail's tiles. The
+  page it opens says where its header's cover is (`Page::coverSlot`): `CollectionPage` (album, playlist, Liked Songs),
+  smart lists, a podcast show; while it is still loading, where the header's cover will be (`ScrollPage::
+  loadingCoverSlot`; the loading skeleton leaves its cover block out meanwhile). The cover then flies there
+  (`CoverFlight`: 240 ms, Standard easing, rect and corner radius morphing: a round artist photo into a square
+  header) while the pages only cross-fade. Its owners skip their own artwork (and shadow) while it flies
+  (`pagetx::presence(owner)` = 0). On arrival the header takes over in 120 ms (the flying cover fades out over the
+  header's own artwork while its shadow comes up); if the header's image is not loaded yet the cover holds on the
+  header - no frames, `ImageCache::onLoaded` repaints - until it is, at most 1.5 s, or until the header moves (scrolled).
+  A header that disappears (the page turned into an error) dissolves the cover where it is in 120 ms. The flight draws
+  the sharper of the two loaded bitmaps (source's, destination's) for its current size; painted covers (Liked Songs,
+  smart lists) are drawn by a painter that captures its data by value. It is clipped to the content area (the page and
+  the sidebar).
+- **Back**: every flight remembers its origin (the page, the route it came from, the cover's key: the first image URL,
+  "liked" or "smart:<id>", and where it was). Back from that page to that route flies the header's cover to the
+  `CoverSource` on the rebuilt page that shows the same key, nearest to where it was and at least half on screen;
+  Forward through the history does it again from that card. The card has to be there at the first frame (pages built
+  synchronously: the Library, the logged-in Home, local lists...).
+- **Degrades to the plain transition** when the page opened has no header cover (an artist page, Settings...), the
+  card's image is not loaded, or nothing on the page matches; this is decided at the first frame, before anything has
+  been hidden.
+- **Off** (pages change at once): Ayarlar › Görünüm › *Sayfa geçişleri* (`Settings.pageTransitions`, on by default),
+  *Hareketi azalt*, or Windows' animation effects off (`SPI_GETCLIENTAREAANIMATION`, read at every page change).
+- **Frames**: the frame clock (`frame::now()`), frames asked for only while something moves; after a forward + back
+  transition the app is idle again (0 ms CPU over the next 4 s).
+- **Adding a source**: implement `CoverSource::coverFor` (the cover it shows for a key; `pagetx::imageCover` /
+  `pagetx::likedCover` build it), arm it before navigating and skip the artwork while `pagetx::presence(owner)` is 0.
+  A page with a cover in its header overrides `Page::coverSlot`.
+- **Dev**: `SHADETUBE_NAV_DEMO` (clicks / Back / Forward at set times) with `SHADETUBE_MOTION_SCALE` (slow motion) and
+  `--screenshot` capture the middle of a transition (5.4).
+### 3.x Micro-interactions
+
+`ui/Micro` (logic in `Micro.cpp`, standalone and tested by `micro_test`; drawing in `MicroPaint.cpp`) holds the small
+feedback shared across the app: hover and press fades, the card lift, the heart pop and the playing bars. Durations
+are the motion tokens (80-240 ms, standard / decelerate, no overshoot) and everything is invalidation-driven like
+`Anim`: a value asks for frames only while it changes, so a settled window renders nothing.
+
+- **Gate**: `motion::micro()` = *Hareketi azalt* off **and** Windows' animation effects on (`SPI_GETCLIENTAREAANIMATION`,
+  Settings › Accessibility › Visual effects; read once, again on `WM_SETTINGCHANGE` in `Window::handleMessage`).
+  `motion::microMs(ms)` is `ms` or 0, so a micro-interaction written as `anim.to(v, motion::microMs(motion::fast))`
+  becomes an instant change when either is off; the playing bars then stand still in a fixed pose, the heart and the
+  card just switch. `SHADETUBE_CLIENT_ANIM=0 / 1` overrides the Windows setting (5.4). Reduce motion alone keeps
+  collapsing every `Anim` as before (page transitions, scrolling, the seek wave are not gated by the Windows setting).
+- **Controls** (`ui/Controls`): every hover / press / active fade goes through `microMs`. `Ghost` and `Chip` buttons
+  press to 98 % with `overlay.pressed`, `Nav` / `SidebarItem` get a light pressed fill. `Toggle`: the knob slides
+  (180 ms), hover brightens the off track's outline or the on track's fill and the knob, a press stretches the knob
+  4 DIP towards the middle. `Slider`: held, the thumb grows 15 % over an `accent.tint12` halo (the wave's playhead keeps
+  its hover size while dragged). `Knob`: the ring turns `fg.primary` while held. The Settings `Segmented` control slides
+  its selection pill (180 ms; a label changes color as the pill covers it) and fades a hover fill on the other segments.
+- **Painted lists** (`ui::HoverFade`): the hovered row fades in and the row left fades out (120 ms each; going back
+  resumes the fade-out). Used by `TrackTable` (row background; the number crossfades to the play / pause glyph and the
+  heart / "×" fade in), the queue panel, podcast episode lists; `LibraryView` has its own equivalent (`hot_` / `prevHot_`).
+- **Cards** (`ui::card`): MediaCard, the Library grid, smart list cards, editorial `Tile`s and radio `StationTile`s share
+  one look. Hovered by the pointer the card rises 2 DIP (`card::lift`) over `cardHoverShadow` and a `hairline.strong`
+  edge brightens around the artwork (round artist cards: the accent ring); a press settles it back and scales it to
+  98.5 %. Keyboard focus shows the shadow and the play button but no rise (the focus ring stays on the card). The play
+  button fades in rising 8 DIP and growing from 90 %, brightens (`accent.hover`) and grows 4 % under the pointer and
+  shrinks to 92 % when pressed; a press on it leaves the card still.
+- **Heart** (`ui::HeartPop`): like (220 ms) = the filled heart grows out of the outline, the glyph pops to 116 % and
+  back (a sine hump, no spring) and six thin accent ticks fly out and fade; unlike (160 ms) = the fill shrinks back with
+  a slight dip. A `Button` made a heart with `setHeart(outline, filled)` draws the liked state from `active()` and
+  `pulse()` plays it: the player bar's heart pulses whenever the playing song's liked state changes (its own click, a
+  row's heart, Ctrl+L, a menu, the phone remote), never when another song starts; the album page's save heart pulses on
+  click. Track rows pop on a click of their heart and, for the playing song's row, when it is liked elsewhere; radio
+  station rows / tiles pop their favorite heart. Now Playing has no heart of its own (the player bar's is hidden there)
+  and the mini player none at all.
+- **Playing bars** (`ui::paintEqualizer`, app wrapper `drawPlayingBars` in `app/Components`): four 2 DIP pills drawn in
+  code (two slow sines per bar with the design's phases 0 / 0.6 / 1.2 / 1.9 rad), in the playing track's row (in place
+  of its number, also while paused), the queue's current row, the sidebar's and the Library list's playing collection
+  and the playing radio station. One shared `equalizer::Clock` drives them all: it advances with the frame time while
+  the player plays and eases to a stop over 240 ms when it pauses (and back), so every bar on screen freezes where it
+  is. While they move, each painted indicator asks its window for a repaint every `equalizer::kFrameMs` (25 ms, the
+  seek wave's interval) instead of every vblank: a playing list adds no frames of its own to the ones the flowing wave
+  already causes. Rows scrolled away, a page covered by Now Playing, the full-screen lyrics (`LyricsFullscreen::isOpen`)
+  and hidden or minimized windows ask nothing.
+- **Cost** (`micro_test` checks the frame requests): idle and paused windows render nothing. Measured (Release, a
+  1346 × 712 DIP window at 175 %, process CPU over 10 s, a local file playing): idle 0 %, paused 0 %, playing on the
+  *Yerel dosyalar* song list with its bars and the sidebar's moving 8-9 % of one core, the same as playing on *Ayarlar*
+  without any bars (8-11 %): the frames are the seek wave's. (The earlier SVG-frame equalizer asked for every vblank
+  while a playing row was on screen.)
+### 3.x Sidebar: room for the playlists
+
+The page entries used to take most of a short sidebar: at 1280 × 688 DIPs (1920 × 1080 at 150 %) the playlists got
+under three rows. `app/Shell` (`Sidebar::layout`) now budgets the height, top to bottom:
+
+- **Main pages** Ana Sayfa, Ara, Kitaplık; the **"DAHA FAZLA" group** (`NavGroup` header, then İndirilenler, Yerel
+  dosyalar, Radyo, Podcastler, Yeni çıkanlar (Spotify only), İstatistikler); the "Çalma listeleri" label with "+"; the
+  playlist list; Ayarlar pinned at the bottom. The entries live in their own `ScrollView` (`nav_`, content `NavBox`).
+- **Group header**: a mono section label like "ÇALMA LİSTELERİ" with a chevron that turns as it opens. Click, Enter or
+  Space toggle it, Right opens, Left folds; the `sidebar-more` action (palette, bindable, no default key) too. The
+  animation unrolls / rolls up the entries (`motion::medium`; each folding slot clipped to its share and faded; instant
+  with reduce motion); once settled the folded entries are hidden, so they leave the Tab order (keyboard focus on one
+  moves to the header). Folded, the **current page stays visible** under the header when it is one of them, and an
+  accent dot after the label says a folded page has news (podcast episodes, unseen new releases; the count pills of
+  visible entries are unchanged, `NavBox::paintBadge`). In the icon rail the header is a centered chevron (tooltip
+  "Daha fazla göster" / "Daha az göster").
+- **State**: `Settings::sidebarMore` (`"sidebarMore"`: 1 open, 0 folded, -1 automatic, the default). Automatic opens the
+  group while that still leaves the list `kAutoListRows` (8) rows, re-checked at every layout and snapped (it follows
+  window resizes); the first toggle makes it the user's choice.
+- **Guaranteed list**: the playlists always keep `kMinListRows` (5) rows (fewer when there are fewer; 48 DIP tiles in
+  the rail). The nav first switches from the spec's metrics (top 24, rows 36 + 2, group row 36, label block 50,
+  Ayarlar 16 + 36 + 8) to tight ones (top 12, rows 32 + 0, group 28, label block 34, Ayarlar 10 + 32 + 6), also always
+  with the compact list density (3.25); when even those would squeeze the list it scrolls on its own (at least two rows
+  in view, 72 DIPs a notch, a hairline under it while there is more; the current page's entry is scrolled into view).
+- Measured with 18 playlists: 1280 × 688 DIPs, automatic: folded, 9 rows (before: 2.8); open: tight metrics, 5 rows.
+  1440 × 860: folded, 12 rows; 1440 × 900 (the default window): open. Zoom 150 % on a 1440 × 780 window (960 × 520
+  DIPs): tight, the current page kept under the folded header, 5 rows.
+- Unchanged: the resizable width and the rail (3.27), folders, pinned items, drag and drop onto the rows (the list and
+  `rowAt` are the same), the edge's hit strip.
+
+### 3.x Home page
+
+`app/HomePage.cpp` (what is shown, resolving player contexts) on `app/HomeWidgets` (namespace `home`: the widgets).
+
+- **Order**: greeting, hero, quick-access grid, then shelves. Logged in: Yeni çıkanlar (followed artists), Spotify's
+  personalized shelves (two skeleton shelves while `ShelfCache`'s first fetch runs, dropped when it fails), Senin için
+  listeler, Son çalınanlar, Çalma listelerin, Kaydettiğin albümler, Takip ettiğin sanatçılar (the last three link to
+  their Kitaplık tab). Logged out: Son çalınanlar (→ Kitaplık › Geçmiş), Senin için listeler, Çalma listelerin, then the
+  open catalog in a sub-column that loads behind two skeleton shelves (the rest of the page shows at once; a failure
+  puts the retry panel only there): Bu hafta popüler tiles + Yeni çıkanlar list (stacked under 760 DIPs), Sana özel,
+  Popüler sanatçılar, Öne çıkan albümler. The library's first load (logged in) shows the greeting over `TopSkeleton` +
+  two `ShelfSkeleton`s.
+- **Greeting** (`home::Greeting`): `greeting()`'s two parts on one line (800 + 300) when they fit beside the date / count
+  column, else on two; 56 / 44 / 36 DIPs by page width; the mono lines at the right (≥ 900 DIPs) or under it.
+- **Hero** (`home::Hero`, source `heroItem()`): what the player has (playing or paused, so the restored session too):
+  its context resolved from what the app holds (Spotify snapshot or local library; albums / artists also from the
+  history; smart lists with their generated cover), a station (its logo), a podcast episode (progress live from the
+  player, "N DK KALDI"), else the track itself (opens Now Playing); "ŞİMDİ ÇALIYOR" / "KALDIĞIN YERDEN DEVAM ET"
+  follows play / pause and the button pauses / resumes. Nothing loaded: the newest resolvable context of
+  `libraryRecents().newest()` (new in `libview::Recents`, tested) or the newest unfinished podcast episode
+  (`EpisodeState::updatedAt`), else the newest album of the history; its button starts it ("#play" routes, the episode
+  through the podcast queue so it resumes). Re-asked when the player's context or track changes (posted from paint).
+  Look: an opaque `bg.raised` card (Mica stays behind it), a linear gradient of the cover's color
+  (`ImageCache::accentOf`, 34 % dark / 22 % light fading out at 78 % of the width, faded in over `motion::slow` once the
+  cover is decoded), a hairline (strong on hover), the cover, the label, the title (`displayS` 40 / 30 / 24, two lines),
+  the subtitle and the accent `PlayButton`; 216 / 176 / 148 DIPs tall at ≥ 720 / ≥ 480 / narrower. An empty profile
+  gets `home::Welcome` in its place: a short invitation and Ara, Spotify ile bağlan (logged out), Yerel dosyalar, Radyo.
+- **Quick access** (`home::QuickGrid`, `quickItems()`): Liked Songs (logged in, or when it has songs), Spotify's pinned
+  playlists, the newest library recents, then the library's playlists; the hero's own context is left out; fewer than
+  four leaves room for pages (Radyo, Podcastler, Yerel dosyalar, İndirilenler). 4 / 3 / 2 columns at ≥ 880 / ≥ 600 DIPs,
+  two rows (three with two columns); tiles 56 DIPs (Sıkı density 48) with a hairline outline and the artwork flush left;
+  hover: `overlay.hover` + a 28 DIP accent play button; the playing collection shows the equalizer; Enter opens,
+  Shift+Enter plays.
+- **Shelves** (`home::Shelf`, `home::addShelf` / `shelfRow`): one row of the shared cards (`MediaCard`, the smart lists'
+  card), so their own hover / press styles apply. Every shelf of the page uses `home::cardWidth()`: as many columns of
+  ≥ 160 DIPs (Sıkı 140) as fit, at least two, so they line up. The track reaches 40 DIPs (`kBleed`) into the page's
+  gutters: cards that scroll out fade there (`Canvas::pushFade`, only where there is more, so cards inside the page
+  stay whole; Mica-safe), the previous / next card peeks in. Scrolling: horizontal wheel / touchpad swipe or Shift +
+  wheel through `SmoothScroll` (3.28; a plain wheel scrolls the page), the round 36 DIP arrows on the page edges that
+  appear while the pointer is over the shelf and there is more that way (a page of whole cards per click, landing on a
+  column), and keyboard focus (`revealRect`). After a glide the hover is refreshed. `smart::addSection(c, makeRow)` and
+  `addNewReleasesShelf(c, makeRow)` take the row factory so those sections become shelves.
+- **Dev**: `SHADETUBE_SPOTIFY_DEMO` with a `home.json` (Spotify's raw home answer, `tests/spotify/fixtures`) also gives
+  the logged-out Home the personalized shelves; `SHADETUBE_HOME_DEMO` (5.4) scrolls the page / a shelf for screenshots.
+
 ### 3.x Collapsing page headers
 
 `app/CollapsingHeader` (the widgets) on `app/HeaderCollapse` (the geometry; standalone, tested by
@@ -1146,11 +1324,19 @@ time of the event.
   child: the docked surface, the cover, the title, the buttons. Wheel input over the bar scrolls the page; the bar takes
   clicks only where the content under it is invisible (the dissolved band, the docked bar), never on the scrollbar.
 - **The cover** is a widget (`HeaderCover`, a child of the bar) whose rect at offset 0 is the header's cover slot (232
-  DIP at the header's top-left): the slot a shared-element page transition can fly a card's cover into
-  (`findHeaderCover(page)`, nullptr while the content loads and on artist pages; hiding the widget hides the drawn
-  cover). It is drawn at the slot's size under a scale transform, so an image keeps the bitmap bucket it was loaded at
-  (no reload, no placeholder flash while it shrinks) and the Liked Songs tile and the smart lists' generated covers
-  scale as a whole. An editable playlist's cover and title still open "Ayrıntıları düzenle" (hover: the edit overlay).
+  DIP at the header's top-left). It is drawn at the slot's size under a scale transform, so an image keeps the bitmap
+  bucket it was loaded at (no reload, no placeholder flash while it shrinks) and the Liked Songs tile and the smart
+  lists' generated covers scale as a whole. An editable playlist's cover and title still open "Ayrıntıları düzenle"
+  (hover: the edit overlay). `findHeaderCover(page)` finds it (nullptr while the content loads and on artist pages).
+- **Page transitions** (3.x Page transitions): `Page::coverSlot` of the album / playlist / Liked Songs, smart list and
+  podcast show pages is `ScrollPage::headerCoverSlot` → `CollapseBar::coverSlot`: the HeaderCover's rect where it is now
+  (evaluated on demand, also before the page's first paint), as `HeroHeader::sharedCover(owner, rect)` builds it
+  (`pagetx::imageCover`; Liked Songs' tile and the smart lists' generated cover as painters, keys "liked" /
+  "smart:<id>"), with the HeaderCover as the owner: it skips its artwork and shadow while `pagetx::presence()` is 0 and
+  brings the shadow up with it as the cover lands. A card's cover lands on the expanded slot (a page opens at offset 0;
+  scrolling during the hold ends it, as designed). Back from a scrolled page flies the cover from where it is: the
+  shrinking cover or the bar's 40 DIP thumbnail (when that is less than half on screen or its image is not loaded,
+  the plain transition).
 - **Tint**: the backdrop is a gradient of the cover's color (`ImageCache::fetchAccent`, the extraction behind the dynamic
   accent; the light theme darkens it with `Theme::adaptAccent`) at 16 % (dark) / 14 % (light) over `bg.base`,
   cross-faded in over 600 ms when the color arrives after the first paint (until then, and for images without a vivid
@@ -1249,10 +1435,12 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, the accent-tinted app icon (sizes, colors, the logo's color against `app.ico`, `WindowIcon` on a test window: sizes, no re-render, no leaked handles, class icon back), AUMID / Start menu identity under a test id | default; `--start-menu`; `--icons <dir> [RRGGBB…]` (writes the tinted icon as `.ico` files to look at) |
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
-| `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
+| `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json` (and its newest entries, Home's hero), history recency, timing with 10 000 items | offline |
 | `header_collapse_test` | collapsing page headers (`app/HeaderCollapse`) on real header geometries (album, two-line playlist with a description, podcast, artist): at offset 0 everything is where the expanded header draws it, no element jumps between offsets 1/4 DIP apart, scrolling down only collapses, content never shows through the cover / title (it has dissolved where it passes under them), the docked frame (thumbnail, compact title on the bar's line, buttons, inset, hairline), the settling function, the tint's contrast on dark and light paper | offline |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
+| `pagetx_test` | page transitions (`ui/PageMotion`) stepped with explicit times: durations 180..240 ms, Push (outgoing fades / shifts out, incoming slides in, both monotonic and exact at the end), Back mirrored, shared / Replace without offsets, the cover's flight (lands exactly, even on a moving target, no overshoot, radius morph), the hand-over, holding for an image (no frames; image / scroll / timeout end it), fading when the target goes, 60 / 144 Hz give the same positions | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
+| `micro_test` | micro-interactions (`ui/Micro`, 3.x): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -1327,7 +1515,11 @@ apps*).
 | `SHADETUBE_SETTINGS_SEARCH` | text typed into the Settings search box when the first Settings page opens (screenshots) |
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
+| `SHADETUBE_NAV_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after the shell opened: `click=<x>,<y>` (a real left click posted at window DIPs), `back`, `forward`. With `--screenshot`, e.g. `click@2500=559,378` and a capture at 3300 ms for a cover in flight (3.x) |
+| `SHADETUBE_MOTION_SCALE` | `<factor>` (1-50): page transitions and the cover's flight run that many times slower (screenshots of their middle) |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
+| `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.x), instead of `SPI_GETCLIENTAREAANIMATION` |
+| `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
 | `SHADETUBE_HEADER_SCROLL` | `<dips>`: pages with a collapsing header (album, playlist, Liked Songs, smart list, podcast show, artist; 3.x) open scrolled that far once their content is built, e.g. `150` (half collapsed) or `400` (docked) with `--route playlist:<id>` and `--screenshot` |
 
 ## 6. Release process
