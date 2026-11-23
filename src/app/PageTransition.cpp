@@ -223,6 +223,9 @@ void PageTransition::dropOutgoing(ui::Widget& host) {
     // Destroyed before the next frame (the page may still be inside an event of its own, e.g. the click that left it).
     if (auto* w = host.window()) w->deferDelete(std::move(out_));
     else out_.reset();
+    // The source's owner may have gone with it (a holding flight outlives the page): a new widget at that address
+    // must not skip its cover.
+    src_.owner = nullptr;
 }
 
 void PageTransition::begin(ui::Widget& host, Page* outgoing, Page* incoming, const Router::Change& change) {
