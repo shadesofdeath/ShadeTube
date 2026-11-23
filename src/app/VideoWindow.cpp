@@ -29,15 +29,23 @@ constexpr double kControlsIdleMs = 2500;
 // Over the picture the controls are light in both themes (the video is the background, not bg.base).
 const Color kInk{1, 1, 1, 0.92f};
 
-// The window: in full screen the whole surface is client area (no resize borders).
+// The window. The picture is its caption (the root is a drag region: Windows moves the window, so the widgets never
+// hold a capture through the move loop); a double click there toggles full screen instead of maximizing, and the
+// pointer moving over it shows the controls. In full screen the whole surface is client area (no move, no borders).
 class VideoFrame : public ui::Window {
 public:
     using ui::Window::Window;
     bool fullscreen = false;
+    std::function<void()> onCaptionDoubleClick, onCaptionMove;
 
 protected:
     LRESULT handleMessage(UINT msg, WPARAM wp, LPARAM lp) override {
         if (fullscreen && msg == WM_NCHITTEST) return HTCLIENT;
+        if (msg == WM_NCLBUTTONDBLCLK && wp == HTCAPTION) {
+            if (onCaptionDoubleClick) onCaptionDoubleClick();
+            return 0;
+        }
+        if (msg == WM_NCMOUSEMOVE && wp == HTCAPTION && onCaptionMove) onCaptionMove();
         return ui::Window::handleMessage(msg, wp, lp);
     }
 };
@@ -114,7 +122,12 @@ private:
 class Controls : public ui::Widget {
 public:
     float alpha = 1;
-    ui::Widget* hitTest(gfx::Point pos) override { return alpha < 0.05f ? nullptr : Widget::hitTest(pos); }
+    // Only its buttons take the pointer (the rest of the surface is the window's caption), and none while faded out.
+    ui::Widget* hitTest(gfx::Point pos) override {
+        if (alpha < 0.05f) return nullptr;
+        Widget* hit = Widget::hitTest(pos);
+        return hit == this ? nullptr : hit;
+    }
     void paint(gfx::Canvas& c) override {
         if (alpha <= 0.001f) return;
         const Rect r = rect();
@@ -140,6 +153,7 @@ public:
 class VideoWindowView : public ui::Widget {
 public:
     explicit VideoWindowView(VideoWindow& owner) : owner_(owner) {
+        isDragRegion = true;   // the picture moves the window (full screen: client area, see VideoFrame)
         video_ = add<VideoView>(VideoView::Style::Window);
         controls_ = add<Controls>();
         prev_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "prev-thin", tr(L"Önceki"));
@@ -211,7 +225,9 @@ public:
         // Controls fade out while the song plays and the pointer rests (not over a control); paused, they stay.
         const auto* p = ctx().player;
         const double idle = ui::frame::realNow() - lastMove_;
-        const bool keep = !(p && p->isPlaying()) || overControl_;
+        bool overControl = false;
+        for (const auto* b : {prev_, play_, next_, pin_, full_, close_}) overControl = overControl || b->hovered();
+        const bool keep = !(p && p->isPlaying()) || overControl;
         if (!keep && idle >= kControlsIdleMs && fade_.target() != 0.f) fade_.to(0, ui::motion::slow);
         if (!keep && idle < kControlsIdleMs) window()->invalidateAfter(kControlsIdleMs - idle + 5);
         if (keep && fade_.target() != 1.f) fade_.to(1, ui::motion::fast);
@@ -220,31 +236,16 @@ public:
         paintChildren(c);
     }
 
+    // Client-area input on the picture only happens in full screen (otherwise it is the caption, see VideoFrame).
     bool onMouseDown(const ui::MouseEvent& e) override {
         showControls();
         if (e.button != ui::MouseButton::Left) return false;
-        if (e.clicks == 2) {
-            owner_.toggleFullscreen();
-            return true;
-        }
-        pressAt_ = e.windowPos;
-        pressed_ = true;
+        if (e.clicks == 2) owner_.toggleFullscreen();
         return true;
     }
-    void onMouseUp(const ui::MouseEvent&) override { pressed_ = false; }
     void onMouseMove(const ui::MouseEvent& e) override {
-        const bool over = controls_->alpha > 0.05f && Widget::hitTest(e.pos) != this && Widget::hitTest(e.pos) != video_ &&
-                          Widget::hitTest(e.pos) != controls_;
-        overControl_ = over;
         if (std::fabs(e.windowPos.x - lastPos_.x) + std::fabs(e.windowPos.y - lastPos_.y) > 1) showControls();
         lastPos_ = e.windowPos;
-        // Dragging the picture moves the window (not in full screen); a double click stays a double click.
-        if (pressed_ && !owner_.fullscreen() &&
-            std::fabs(e.windowPos.x - pressAt_.x) + std::fabs(e.windowPos.y - pressAt_.y) > 4) {
-            pressed_ = false;
-            ReleaseCapture();
-            SendMessageW(owner_.hwnd(), WM_NCLBUTTONDOWN, HTCAPTION, 0);
-        }
     }
     LPCWSTR cursor() const override {
         // Full screen with the controls gone: no pointer over the picture.
@@ -258,8 +259,7 @@ private:
     OverlayButton *prev_, *play_, *next_, *pin_, *full_, *close_;
     ui::Anim fade_{1.f};
     double lastMove_ = 0;
-    gfx::Point lastPos_{}, pressAt_{};
-    bool pressed_ = false, overControl_ = false;
+    gfx::Point lastPos_{};
 };
 
 namespace {
@@ -292,7 +292,12 @@ VideoWindow::VideoWindow(HWND anchor) {
     const POINT pos = initialPosition(anchor, wo.width, wo.height);
     wo.x = pos.x;
     wo.y = pos.y;
-    window_ = std::make_unique<VideoFrame>(wo);
+    auto frame = std::make_unique<VideoFrame>(wo);
+    frame->onCaptionDoubleClick = [this] { toggleFullscreen(); };
+    frame->onCaptionMove = [this] {
+        if (view_) view_->showControls();
+    };
+    window_ = std::move(frame);
     const DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_ROUNDSMALL;
     DwmSetWindowAttribute(hwnd(), DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof corner);
     auto view = std::make_unique<VideoWindowView>(*this);

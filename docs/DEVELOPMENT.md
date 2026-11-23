@@ -1195,9 +1195,11 @@ disabled for songs that play from a file or a stand-in source), the `video-mode`
   through `AppContext::extraWindows` (also counted as "on screen" for the idle release), its rect and "always on top"
   remembered (`Settings::videoX / videoY / videoW / videoH / videoOnTop`). Controls fade 2.5 s after the pointer rests
   while the song plays (the pointer hides with them in full screen): the song, previous / play-pause / next, always on
-  top, full screen, close; light ink over gradients in both themes. Dragging the picture moves the window; double
-  click or F toggles full screen on its monitor (no caption / frame, the monitor's rect), Esc leaves it, Space and the
-  mini player's shortcuts work, Ctrl+W closes. Turning video mode off closes it.
+  top, full screen, close; light ink over gradients in both themes. The picture is the window's caption (the root is
+  a drag region; only the visible buttons are client area), so Windows moves the window and no widget holds a capture
+  through the move loop; a caption double click (`WM_NCLBUTTONDBLCLK`) or F toggles full screen on its monitor (no
+  caption / frame, the monitor's rect, all client area), Esc leaves it, Space and the mini player's shortcuts work,
+  Ctrl+W closes. Turning video mode off closes it.
 - **Settings** (Ayarlar › Oynatma): Video kalitesi (480p / 720p / 1080p) and Video modunu hatırla
   (`rememberVideoMode`; `videoMode` is the state at exit). Listen together: local only, a guest's picture follows its
   synced audio.
@@ -1447,8 +1449,6 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   video's frame times besides its own ticks (more CPU than either). The app's D3D11 device is multithread protected
   from the first picture on (for that device generation). Not measured: 1080p60, discrete GPUs (the app takes the
   default adapter), software decoding on a machine without DXVA, the mid-play URL refresh (no 403 happened in testing).
-  One Release run crashed once at ~48 s with the video window open and the main window minimized; the dump was lost
-  and three repeats (Release and Debug, 15-55 s) ran clean.
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
   of the rest the GPU driver; about 13 MB once nothing has been on screen for 30 s (0.6.0 stayed at 63 MB). WARP
   software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now

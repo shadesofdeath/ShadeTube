@@ -532,6 +532,14 @@ void startDemo() {
             } else if (a == L"minimize" && ctx().window) ShowWindow(ctx().window->hwnd(), SW_MINIMIZE);
             else if (a == L"restore" && ctx().window) ShowWindow(ctx().window->hwnd(), SW_RESTORE);
             else if (a == L"log") videomode::logStats();
+            else if (a == L"nchit" && s.window) {   // what Windows is told is under the window's center / close button
+                RECT rc{};
+                GetWindowRect(s.window->hwnd(), &rc);
+                const LRESULT center = SendMessageW(s.window->hwnd(), WM_NCHITTEST, 0, MAKELPARAM((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2));
+                const int closeX = rc.right - static_cast<int>(30 * s.window->window()->scale()), closeY = rc.top + static_cast<int>(32 * s.window->window()->scale());
+                const LRESULT button = SendMessageW(s.window->hwnd(), WM_NCHITTEST, 0, MAKELPARAM(closeX, closeY));
+                ST_LOG_INFO("video", "video window hit test: center {} (HTCAPTION = 2), close button {} (HTCLIENT = 1)", center, button);
+            } else if (a == L"captiondblclick" && s.window) PostMessageW(s.window->hwnd(), WM_NCLBUTTONDBLCLK, HTCAPTION, 0);
             else if (a == L"devicelost") gfx::Device::get().recreate();   // as after D2DERR_RECREATE_TARGET
             else if (a == L"idlerelease") gfx::Device::get().release();   // as App::manageMemory after 30 s off screen
             else if (a == L"shot" && s.window) s.window->window()->renderToPng(st.arg);
