@@ -1156,8 +1156,11 @@ are the motion tokens (80-240 ms, standard / decelerate, no overshoot) and every
   seek wave's interval) instead of every vblank: a playing list adds no frames of its own to the ones the flowing wave
   already causes. Rows scrolled away, a page covered by Now Playing, the full-screen lyrics (`LyricsFullscreen::isOpen`)
   and hidden or minimized windows ask nothing.
-- **Cost**: idle and paused windows render nothing (0 %); see 5.2 `micro_test` for the frame-request checks and the
-  measurements below for a playing list.
+- **Cost** (`micro_test` checks the frame requests): idle and paused windows render nothing. Measured (Release, a
+  1346 × 712 DIP window at 175 %, process CPU over 10 s, a local file playing): idle 0 %, paused 0 %, playing on the
+  *Yerel dosyalar* song list with its bars and the sidebar's moving 8-9 % of one core, the same as playing on *Ayarlar*
+  without any bars (8-11 %): the frames are the seek wave's. (The earlier SVG-frame equalizer asked for every vblank
+  while a playing row was on screen.)
 
 ## 4. Coding conventions
 
