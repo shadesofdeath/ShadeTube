@@ -107,7 +107,7 @@ const std::wstring& Window::className() { return classNameStorage(); }
 
 // `r` (screen pixels) moved and, if needed, shrunk into the work area of the monitor it is mostly on (the nearest one
 // when it is on none, e.g. a saved position on a monitor that was unplugged).
-static RECT fitToWorkArea(const RECT& r) {
+RECT Window::fitToWorkArea(const RECT& r) {
     MONITORINFO mi{sizeof mi};
     if (!GetMonitorInfoW(MonitorFromRect(&r, MONITOR_DEFAULTTONEAREST), &mi)) return r;
     const RECT& wa = mi.rcWork;

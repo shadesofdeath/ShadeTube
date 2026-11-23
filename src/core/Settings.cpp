@@ -131,6 +131,9 @@ void Settings::load() {
     }
     read(j, "miniX", miniX);
     read(j, "miniY", miniY);
+    read(j, "miniMode", miniMode);
+    read(j, "miniOnTop", miniOnTop);
+    read(j, "miniPlaces", miniPlaces);
     read(j, "taskbarProgress", taskbarProgress);
     volume = std::clamp(volume, 0.0f, 1.0f);
 }
@@ -209,6 +212,9 @@ void Settings::save() const {
                     {"maximized", window.maximized}}},
         {"miniX", miniX},
         {"miniY", miniY},
+        {"miniMode", miniMode},
+        {"miniOnTop", miniOnTop},
+        {"miniPlaces", miniPlaces},
         {"taskbarProgress", taskbarProgress},
     };
     // Write-then-rename so a crash never leaves a truncated settings file.

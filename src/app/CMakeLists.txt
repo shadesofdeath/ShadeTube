@@ -66,6 +66,7 @@ add_executable(ShadeTube WIN32
     LoginWindow.cpp LoginWindow.h
     LyricsFullscreen.cpp LyricsFullscreen.h
     LyricsService.cpp LyricsService.h
+    MiniLayout.cpp MiniLayout.h
     MiniPlayer.cpp MiniPlayer.h
     NowPlaying.cpp NowPlaying.h
     PageWidgets.cpp PageWidgets.h
