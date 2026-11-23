@@ -1111,6 +1111,81 @@ time of the event.
   and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
   a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
 
+### 3.x Sidebar: room for the playlists
+
+The page entries used to take most of a short sidebar: at 1280 × 688 DIPs (1920 × 1080 at 150 %) the playlists got
+under three rows. `app/Shell` (`Sidebar::layout`) now budgets the height, top to bottom:
+
+- **Main pages** Ana Sayfa, Ara, Kitaplık; the **"DAHA FAZLA" group** (`NavGroup` header, then İndirilenler, Yerel
+  dosyalar, Radyo, Podcastler, Yeni çıkanlar (Spotify only), İstatistikler); the "Çalma listeleri" label with "+"; the
+  playlist list; Ayarlar pinned at the bottom. The entries live in their own `ScrollView` (`nav_`, content `NavBox`).
+- **Group header**: a mono section label like "ÇALMA LİSTELERİ" with a chevron that turns as it opens. Click, Enter or
+  Space toggle it, Right opens, Left folds; the `sidebar-more` action (palette, bindable, no default key) too. The
+  animation unrolls / rolls up the entries (`motion::medium`; each folding slot clipped to its share and faded; instant
+  with reduce motion); once settled the folded entries are hidden, so they leave the Tab order (keyboard focus on one
+  moves to the header). Folded, the **current page stays visible** under the header when it is one of them, and an
+  accent dot after the label says a folded page has news (podcast episodes, unseen new releases; the count pills of
+  visible entries are unchanged, `NavBox::paintBadge`). In the icon rail the header is a centered chevron (tooltip
+  "Daha fazla göster" / "Daha az göster").
+- **State**: `Settings::sidebarMore` (`"sidebarMore"`: 1 open, 0 folded, -1 automatic, the default). Automatic opens the
+  group while that still leaves the list `kAutoListRows` (8) rows, re-checked at every layout and snapped (it follows
+  window resizes); the first toggle makes it the user's choice.
+- **Guaranteed list**: the playlists always keep `kMinListRows` (5) rows (fewer when there are fewer; 48 DIP tiles in
+  the rail). The nav first switches from the spec's metrics (top 24, rows 36 + 2, group row 36, label block 50,
+  Ayarlar 16 + 36 + 8) to tight ones (top 12, rows 32 + 0, group 28, label block 34, Ayarlar 10 + 32 + 6), also always
+  with the compact list density (3.25); when even those would squeeze the list it scrolls on its own (at least two rows
+  in view, 72 DIPs a notch, a hairline under it while there is more; the current page's entry is scrolled into view).
+- Measured with 18 playlists: 1280 × 688 DIPs, automatic: folded, 9 rows (before: 2.8); open: tight metrics, 5 rows.
+  1440 × 860: folded, 12 rows; 1440 × 900 (the default window): open. Zoom 150 % on a 1440 × 780 window (960 × 520
+  DIPs): tight, the current page kept under the folded header, 5 rows.
+- Unchanged: the resizable width and the rail (3.27), folders, pinned items, drag and drop onto the rows (the list and
+  `rowAt` are the same), the edge's hit strip.
+
+### 3.x Home page
+
+`app/HomePage.cpp` (what is shown, resolving player contexts) on `app/HomeWidgets` (namespace `home`: the widgets).
+
+- **Order**: greeting, hero, quick-access grid, then shelves. Logged in: Yeni çıkanlar (followed artists), Spotify's
+  personalized shelves (two skeleton shelves while `ShelfCache`'s first fetch runs, dropped when it fails), Senin için
+  listeler, Son çalınanlar, Çalma listelerin, Kaydettiğin albümler, Takip ettiğin sanatçılar (the last three link to
+  their Kitaplık tab). Logged out: Son çalınanlar (→ Kitaplık › Geçmiş), Senin için listeler, Çalma listelerin, then the
+  open catalog in a sub-column that loads behind two skeleton shelves (the rest of the page shows at once; a failure
+  puts the retry panel only there): Bu hafta popüler tiles + Yeni çıkanlar list (stacked under 760 DIPs), Sana özel,
+  Popüler sanatçılar, Öne çıkan albümler. The library's first load (logged in) shows the greeting over `TopSkeleton` +
+  two `ShelfSkeleton`s.
+- **Greeting** (`home::Greeting`): `greeting()`'s two parts on one line (800 + 300) when they fit beside the date / count
+  column, else on two; 56 / 44 / 36 DIPs by page width; the mono lines at the right (≥ 900 DIPs) or under it.
+- **Hero** (`home::Hero`, source `heroItem()`): what the player has (playing or paused, so the restored session too):
+  its context resolved from what the app holds (Spotify snapshot or local library; albums / artists also from the
+  history; smart lists with their generated cover), a station (its logo), a podcast episode (progress live from the
+  player, "N DK KALDI"), else the track itself (opens Now Playing); "ŞİMDİ ÇALIYOR" / "KALDIĞIN YERDEN DEVAM ET"
+  follows play / pause and the button pauses / resumes. Nothing loaded: the newest resolvable context of
+  `libraryRecents().newest()` (new in `libview::Recents`, tested) or the newest unfinished podcast episode
+  (`EpisodeState::updatedAt`), else the newest album of the history; its button starts it ("#play" routes, the episode
+  through the podcast queue so it resumes). Re-asked when the player's context or track changes (posted from paint).
+  Look: an opaque `bg.raised` card (Mica stays behind it), a linear gradient of the cover's color
+  (`ImageCache::accentOf`, 34 % dark / 22 % light fading out at 78 % of the width, faded in over `motion::slow` once the
+  cover is decoded), a hairline (strong on hover), the cover, the label, the title (`displayS` 40 / 30 / 24, two lines),
+  the subtitle and the accent `PlayButton`; 216 / 176 / 148 DIPs tall at ≥ 720 / ≥ 480 / narrower. An empty profile
+  gets `home::Welcome` in its place: a short invitation and Ara, Spotify ile bağlan (logged out), Yerel dosyalar, Radyo.
+- **Quick access** (`home::QuickGrid`, `quickItems()`): Liked Songs (logged in, or when it has songs), Spotify's pinned
+  playlists, the newest library recents, then the library's playlists; the hero's own context is left out; fewer than
+  four leaves room for pages (Radyo, Podcastler, Yerel dosyalar, İndirilenler). 4 / 3 / 2 columns at ≥ 880 / ≥ 600 DIPs,
+  two rows (three with two columns); tiles 56 DIPs (Sıkı density 48) with a hairline outline and the artwork flush left;
+  hover: `overlay.hover` + a 28 DIP accent play button; the playing collection shows the equalizer; Enter opens,
+  Shift+Enter plays.
+- **Shelves** (`home::Shelf`, `home::addShelf` / `shelfRow`): one row of the shared cards (`MediaCard`, the smart lists'
+  card), so their own hover / press styles apply. Every shelf of the page uses `home::cardWidth()`: as many columns of
+  ≥ 160 DIPs (Sıkı 140) as fit, at least two, so they line up. The track reaches 40 DIPs (`kBleed`) into the page's
+  gutters: cards that scroll out fade there (`Canvas::pushFade`, only where there is more, so cards inside the page
+  stay whole; Mica-safe), the previous / next card peeks in. Scrolling: horizontal wheel / touchpad swipe or Shift +
+  wheel through `SmoothScroll` (3.28; a plain wheel scrolls the page), the round 36 DIP arrows on the page edges that
+  appear while the pointer is over the shelf and there is more that way (a page of whole cards per click, landing on a
+  column), and keyboard focus (`revealRect`). After a glide the hover is refreshed. `smart::addSection(c, makeRow)` and
+  `addNewReleasesShelf(c, makeRow)` take the row factory so those sections become shelves.
+- **Dev**: `SHADETUBE_SPOTIFY_DEMO` with a `home.json` (Spotify's raw home answer, `tests/spotify/fixtures`) also gives
+  the logged-out Home the personalized shelves; `SHADETUBE_HOME_DEMO` (5.4) scrolls the page / a shelf for screenshots.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1186,7 +1261,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, the accent-tinted app icon (sizes, colors, the logo's color against `app.ico`, `WindowIcon` on a test window: sizes, no re-render, no leaked handles, class icon back), AUMID / Start menu identity under a test id | default; `--start-menu`; `--icons <dir> [RRGGBB…]` (writes the tinted icon as `.ico` files to look at) |
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
-| `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
+| `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json` (and its newest entries, Home's hero), history recency, timing with 10 000 items | offline |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 
@@ -1264,6 +1339,7 @@ apps*).
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
+| `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
 
 ## 6. Release process
 
