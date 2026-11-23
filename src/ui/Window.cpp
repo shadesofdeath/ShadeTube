@@ -177,6 +177,8 @@ Window::Window(const WindowOptions& options) : options_(options) {
 }
 
 Window::~Window() {
+    onHoldEnd = nullptr;   // the capture released while the tree goes must not reach the app any more
+    hold_.cancel();
     overlays_.clear();
     root_.reset();
     graveyard_.clear();

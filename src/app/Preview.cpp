@@ -112,12 +112,15 @@ public:
 };
 
 // ---- Overlay: a small card by the pointer and the pressed look of the row / cover ------------------------------------
+void overlayGone(ui::Widget* overlay);   // the controller forgets it (the window destroys its overlays first)
+
 class PreviewOverlay : public ui::Widget {
 public:
     PreviewOverlay() : title_({}, gfx::type::body.withSize(13)), sub_({}, gfx::type::caption), label_({}, gfx::type::monoLabel) {
         hitTestVisible = false;
         label_.setText(toUpperTr(tr(L"Önizleme")));
     }
+    ~PreviewOverlay() override { overlayGone(this); }
     ui::Widget* hitTest(gfx::Point) override { return nullptr; }
 
     void open(const PreviewHit& hit, gfx::Point anchor, Trigger trigger) {
@@ -180,12 +183,12 @@ public:
             constexpr float r = 9;
             c.strokeCircle(ctr, r, col.hairControl, 1.25f);
             if (phase_ == Phase::Playing) {
-                if (progress_ > 0.005f) c.arc(ctr, r, -90.f, 360.f * std::min(progress_, 0.999f), acc.base, 1.5f);
+                if (progress_ > 0.005f) c.arc(ctr, r, 0.f, 360.f * std::min(progress_, 0.999f), acc.base, 1.5f);
             } else if (ui::motion::reduced()) {
-                c.arc(ctr, r, -90.f, 90.f, acc.base.mulAlpha(0.6f), 1.5f);
+                c.arc(ctr, r, 0.f, 90.f, acc.base.mulAlpha(0.6f), 1.5f);
             } else {
                 const float start = static_cast<float>(std::fmod(now * 0.36, 360.0));
-                c.arc(ctr, r, start - 90.f, 80.f, acc.base, 1.5f);
+                c.arc(ctr, r, start, 80.f, acc.base, 1.5f);
             }
             if (alpha_.target() > 0 && window()) window()->invalidateAfter(phase_ == Phase::Playing ? 100 : 33);
         }
@@ -244,6 +247,10 @@ struct Controller {
 Controller& controller() {
     static Controller c;
     return c;
+}
+
+void overlayGone(ui::Widget* overlay) {
+    if (controller().overlay == overlay) controller().overlay = nullptr;
 }
 
 const char* phaseName(Phase p) {
@@ -353,7 +360,8 @@ void applyTouchHold(ui::Window* w) {
 }
 
 // ---- SHADETUBE_PREVIEW_DEMO (dev): "<action>@<ms>[=<x>,<y>];…": hold (left press at window DIPs, kept down), up,
-// click (press + release), key (the "Önizle" action), esc. For checks without a physical mouse (log + --screenshot).
+// click (press + release), rclick (the context menu), move (with the button down), key (the "Önizle" action), esc.
+// For checks without a physical mouse (log + --screenshot).
 struct DemoStep {
     std::string action;
     double at = 0;
@@ -377,6 +385,10 @@ void runDemoStep(const DemoStep& s) {
         SendMessageW(w->hwnd(), WM_MOUSEMOVE, 0, lp(s.pos));
         SendMessageW(w->hwnd(), WM_LBUTTONDOWN, MK_LBUTTON, lp(s.pos));
         if (s.action == "click") SendMessageW(w->hwnd(), WM_LBUTTONUP, 0, lp(s.pos));
+    } else if (s.action == "rclick") {   // the context menu (its "Önizle")
+        SendMessageW(w->hwnd(), WM_MOUSEMOVE, 0, lp(s.pos));
+        SendMessageW(w->hwnd(), WM_RBUTTONDOWN, MK_RBUTTON, lp(s.pos));
+        SendMessageW(w->hwnd(), WM_RBUTTONUP, 0, lp(s.pos));
     } else if (s.action == "up") {
         SendMessageW(w->hwnd(), WM_LBUTTONUP, 0, lp(g_demoPos));
     } else if (s.action == "move") {
