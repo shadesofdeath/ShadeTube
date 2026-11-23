@@ -23,6 +23,16 @@
 // two are mixed with equal-power curves (the caller decides per transition: e.g. none within an album). It needs the
 // next track decoded in time and the same output format; otherwise the handoff stays gapless. Every track decodes to the
 // device's mix rate, so formats normally match. Not while either plays at another speed than 1.
+//
+// Preview voice (song preview, app/Preview): openPreview() loads a second track that plays over the current one through
+// the same equalizer (its own filter state), volume, limiter and device, with its own loudness gain. Once it has
+// ~0.5 s decoded it fades in (350 ms) while the current track fades out (250 ms) and is then held: a seekable track is
+// no longer read, so its position stays where it fell silent (playback speed and a crossfade in progress keep their
+// state; the outgoing track of a mix is dropped, like a pause does); a live stream, or any track with holdMain false,
+// keeps running muted, so it resumes live. stopPreview(), the preview's end or an error fades the preview out (250 ms)
+// and the current track back in (400 ms). The current track's state, position, tag and events are untouched
+// throughout: open / pause / seek / stop of it work as usual (a track opened meanwhile stays held as long as the
+// preview plays). One preview at a time: a new one replaces the last (an audible one fades out under it).
 #include "audio/Equalizer.h"
 
 #include <cstdint>
@@ -70,6 +80,9 @@ struct EngineEvents {
     // Live streams: the station's title (ICY StreamTitle / ID3 / Ogg comments, UTF-8, "" = cleared) changed. Fired
     // when the audio it belongs to becomes audible, not when it is received.
     std::function<void(const std::string& title, uint64_t tag)> onTitle;
+    // Preview voice (openPreview, tag = its StreamSource::tag): Loading, Playing (audible: the fade-in starts), Ended
+    // (it played to its end), Error (could not load / play), Idle (stopPreview).
+    std::function<void(State state, uint64_t tag)> onPreview;
 };
 
 // An active render endpoint (AudioEngine::outputDevices()).
@@ -120,6 +133,12 @@ public:
     // Speed of the current track (0.5 .. 3, pitch kept); the next one starts at its own StreamSource::speed. Ignored
     // for live streams. Positions and durations stay in track time.
     void setSpeed(float speed);
+
+    // Preview voice (see the header comment). `startMs`: where the preview starts in its track. holdMain false keeps
+    // the current track running muted under it (listen together: the session must not drift).
+    void openPreview(const StreamSource& source, int64_t startMs, bool holdMain = true);
+    void stopPreview();
+    int64_t previewPositionMs() const;   // track position of the preview's last decoded block (0 = none yet)
 
     // Equalizer for everything played (applied within ~10 ms, no restart).
     void setEqualizer(const EqSettings& eq);

@@ -12,6 +12,7 @@
 #include "app/SettingsWidgets.h"
 #include "app/SmartListsPage.h"
 #include "app/Source.h"
+#include "app/YearReviewView.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -158,6 +159,7 @@ constexpr int64_t kRetryMs = 2 * 60'000;
 std::unordered_map<std::string, std::vector<Image>> g_artistImages;   // id -> images
 std::unordered_map<std::string, int64_t> g_artistRetryAt;             // id -> steadyMs() of the next attempt
 std::unordered_set<std::string> g_artistLookups;                      // in flight
+std::unordered_map<std::string, std::vector<std::string>> g_artistTags;   // id -> genres the lookup carried
 std::vector<std::pair<Lifetime::Ref, std::function<void()>>> g_artistWaiters;   // pages to rebuild when a batch lands
 
 const std::vector<Image>* libraryArtistImages(const ArtistRef& a) {
@@ -198,6 +200,7 @@ void fetchArtistImages(std::vector<std::string> ids, Lifetime::Ref owner, std::f
         std::string id;
         std::vector<Image> images;
         bool answered = false;
+        std::vector<std::string> tags;   // MusicBrainz's genres of the artist (the year in review's genre card)
     };
     static Lifetime cacheLife;   // results land in the cache even if the page is gone by then
     async(
@@ -207,7 +210,8 @@ void fetchArtistImages(std::vector<std::string> ids, Lifetime::Ref owner, std::f
             for (const auto& id : ids) {
                 if (owner.expired()) break;   // the page closed (and at exit the session goes away after the pages)
                 try {
-                    found.push_back({id, source::isSpotifyId(id) ? source::artistPage(api, id).artist.images : mb::artist(id).images, true});
+                    Artist a = source::isSpotifyId(id) ? source::artistPage(api, id).artist : mb::artist(id);
+                    found.push_back({id, std::move(a.images), true, std::move(a.tags)});
                 } catch (const std::exception& e) {
                     ST_LOG_DEBUG("stats", "artist picture for {}: {}", id, e.what());
                     found.push_back({id, {}, false});
@@ -226,6 +230,7 @@ void fetchArtistImages(std::vector<std::string> ids, Lifetime::Ref owner, std::f
                     }
                     any = any || !f.images.empty();
                     g_artistImages[f.id] = std::move(f.images);
+                    if (!f.tags.empty()) g_artistTags[f.id] = std::move(f.tags);
                 }
             if (!any && r && r->size() == ids.size()) return;   // complete, nothing new to show
             const auto waiters = std::move(g_artistWaiters);
@@ -668,7 +673,7 @@ public:
         c.fillRounded(r, gfx::metrics::radiusSurface, col.overlayHover.mulAlpha(hover_));
         c.text(rank_, {r.x + 8, r.y, 28, r.h}, first_ ? accent().base : col.fgTertiary, gfx::VAlign::Center);
         const Rect art{r.x + 44, r.cy() - 22, 44, 44};
-        drawArtwork(c, images_, art, gfx::metrics::radiusSurface, Placeholder::Album);
+        drawArtwork(c, images_, art, gfx::radii().art, Placeholder::Album);
         const float mw = std::max(kBarW, std::ceil(meta_.measure().w));
         const float tx = art.right() + 14, tw = r.right() - tx - mw - 28;
         c.text(title_, {tx, r.cy() - 19, tw, 20}, col.fgPrimary, gfx::VAlign::Center);
@@ -778,12 +783,12 @@ public:
                 const Rect cell = cellRect(d, hr);
                 const int64_t v = h_.at(d, hr);
                 if (v <= 0 || h_.maxMs <= 0) {
-                    c.fillRounded(cell, gfx::metrics::radiusSurface, col.bgRaised);
+                    c.fillRounded(cell, gfx::radii().badge, col.bgRaised);
                 } else {
                     const float t = std::sqrt(static_cast<float>(v) / static_cast<float>(h_.maxMs));
-                    c.fillRounded(cell, gfx::metrics::radiusSurface, accent().base.mulAlpha(0.16f + 0.84f * t));
+                    c.fillRounded(cell, gfx::radii().badge, accent().base.mulAlpha(0.16f + 0.84f * t));
                 }
-                if (d * 24 + hr == hot_) c.strokeRounded(cell.inset(-1), gfx::metrics::radiusSurface, col.fgPrimary, 1.5f);
+                if (d * 24 + hr == hot_) c.strokeRounded(cell.inset(-1), gfx::radii().badge, col.fgPrimary, 1.5f);
             }
         }
         // Readout + legend.
@@ -798,7 +803,7 @@ public:
         x += lw + 8;
         for (int i = 0; i < 5; ++i) {
             const Rect sw{x + i * (kSwatch + 3), ly + (kReadout - kSwatch) * 0.5f, kSwatch, kSwatch};
-            c.fillRounded(sw, gfx::metrics::radiusSurface, i == 0 ? col.bgRaised : accent().base.mulAlpha(0.16f + 0.84f * std::sqrt(i / 4.f)));
+            c.fillRounded(sw, gfx::radii().badge, i == 0 ? col.bgRaised : accent().base.mulAlpha(0.16f + 0.84f * std::sqrt(i / 4.f)));
         }
         x += 5 * (kSwatch + 3) + 5;
         c.text(legendHigh_, {x, ly, std::ceil(legendHigh_.measure().w), kReadout}, col.fgTertiary, gfx::VAlign::Center);
@@ -884,7 +889,7 @@ public:
             const float h = max_ > 0 ? std::max(2.f, (base - top) * static_cast<float>(ms_[static_cast<size_t>(m)]) / static_cast<float>(max_)) : 2.f;
             const Rect bar{cx - bw * 0.5f, base - h, bw, h};
             const Color fill = m == top_ ? accent().base : m == hot_ ? col.fgSecondary : col.hairStrong;
-            c.fillRounded(bar, gfx::metrics::radiusSurface, fill);
+            c.fillRounded(bar, gfx::radii().badge, fill);
             c.text(labels_[static_cast<size_t>(m)], {cx - slot * 0.5f, base + 6, slot, 14}, m == shown ? col.fgPrimary : col.fgTertiary,
                    gfx::VAlign::Center);
             if (m == shown && ms_[static_cast<size_t>(m)] > 0) {
@@ -1124,6 +1129,7 @@ private:
             if (!years.empty() && std::find(years.begin(), years.end(), g_year) == years.end()) g_year = years.front();
         }
         addBar(c, now, years);
+        review::addBanner(c, g_view == View::Year && g_year > 0 ? g_year : -1);   // the story (app/YearReviewView)
         if (g_view == View::Year) buildYear(c, years, wants);
         else buildPeriod(c, now, wants);
         if (s.importedCount() == 0 && !g_import.active && s.canImport()) {
@@ -1266,6 +1272,7 @@ private:
                     ctx().player->playContext(recent, static_cast<int>(i), {"stats", tr(L"Son çalınanlar")});
                 };
                 row->onContext = [t](gfx::Point wp) { showTrackMenu({t}, wp); };
+                row->previewTarget = preview::songTarget(t);
             }
         }
     }
@@ -1351,6 +1358,7 @@ private:
                                               Placeholder::Artist);
             const Route open = routable(a.artist.id, "spotify:artist:") ? Route{RouteKind::Artist, a.artist.id}
                                                                        : Route{RouteKind::Search, a.artist.name};
+            card->previewTarget = preview::collectionTarget(open, toWide(a.artist.name), artistImages(a.artist));
             card->onOpen = [open] { ctx().router->navigate(open); };
         }
         fetchArtistImages(std::move(lookup), life_.ref(), [this] { scheduleRebuild(); });
@@ -1370,6 +1378,7 @@ private:
             auto* card = grid->add<MediaCard>(toWide(a.album.name), sub, a.album.images);
             if (routable(a.album.id, "spotify:album:")) {
                 const std::string id = a.album.id;
+                card->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.album.name), a.album.images);
                 card->onOpen = [id] { ctx().router->navigate({RouteKind::Album, id}); };
                 card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
             } else {
@@ -1524,6 +1533,29 @@ void enrichTrackArtwork(std::vector<Track>& tracks, size_t lookups, Lifetime::Re
     for (auto& t : tracks) enrich(t, wants);
     if (wants.size() > lookups) wants.resize(lookups);
     fetchArt(std::move(wants), std::move(owner), std::move(landed));
+}
+
+// The year in review (app/YearReviewView): the same artwork the page's top lists get.
+void enrichStatsArtwork(std::vector<StatsTrack>& tracks, std::vector<StatsAlbum>& albums, std::vector<StatsArtist>& artists,
+                        std::vector<std::vector<Image>>& artistPictures, Lifetime::Ref owner, std::function<void()> landed) {
+    std::vector<ArtWant> wants;
+    for (auto& t : tracks) enrich(t.track, wants);
+    for (auto& a : albums) enrich(a, wants);
+    std::vector<std::string> lookup;
+    artistPictures.clear();
+    for (auto& a : artists) {
+        enrich(a, wants);
+        if (routable(a.artist.id, "spotify:artist:") && !libraryArtistImages(a.artist)) lookup.push_back(a.artist.id);
+        artistPictures.push_back(artistImages(a.artist));
+    }
+    fetchArt(std::move(wants), owner, landed);
+    fetchArtistImages(std::move(lookup), std::move(owner), std::move(landed));
+}
+
+std::vector<std::string> statsArtistGenres(const ArtistRef& a) {
+    if (a.id.empty()) return {};
+    const auto it = g_artistTags.find(a.id);
+    return it != g_artistTags.end() ? it->second : std::vector<std::string>{};
 }
 
 void initListenStats() {

@@ -47,6 +47,7 @@ struct State {
     int refreshes = 0;          // new URLs after the old one was refused (403) while playing
     bool software = false;      // the GPU path failed for this video
     std::unique_ptr<video::VideoPlayer> player;
+    bool hasPicture = false;    // the last paint drew a decoded frame (hosts leave their cover out)
     Lifetime life;              // stream resolves in flight
     std::vector<VideoView*> views;
     std::unique_ptr<VideoWindow> window;
@@ -104,6 +105,7 @@ void dropPlayer(const char* why) {
     if (!s.player) return;
     logStats();         // what it showed since the last line
     s.player.reset();   // joins the decoder: its thread, GPU surfaces and download go now
+    s.hasPicture = false;
     ST_LOG_INFO("video", "picture released ({})", why);
 }
 
@@ -180,6 +182,7 @@ void openPlayer() {
     const int64_t startUs = static_cast<int64_t>(std::max(0.0, clock.at(audio::AudioEngine::qpcNowMs())) * 1000);
     try {
         s.player = std::make_unique<video::VideoPlayer>(std::move(src), startUs, s.software);
+        s.hasPicture = false;
         s.lastShown = 0;   // the statistics start over with the new player
         s.errSumUs = s.errMaxUs = 0;
         s.errCount = s.offCount = 0;
@@ -249,6 +252,11 @@ bool enabled() {
 }
 
 bool showing() { return S().on && offered(); }
+
+bool hasPicture() {
+    const auto& s = S();
+    return s.hasPicture && s.player && !s.player->lost();
+}
 
 bool windowOpen() { return S().window != nullptr; }
 
@@ -420,27 +428,27 @@ void paint(gfx::Canvas& c, const Rect& r, const VideoView& view) {
         Dispatcher::post([] { sync(); });   // on screen again: the picture comes back at the audio's position
     }
 
+    s.hasPicture = bmp != nullptr;
+    const float radius = gfx::radii().art;
     if (bmp) {
         const D2D1_RECT_F src = s.player->sourceRect();
-        const Rect dst = fit(r, src.right - src.left, src.bottom - src.top);
-        if (inline_) c.pushRoundedClip(dst, 2);
+        Rect dst = fit(r, src.right - src.left, src.bottom - src.top);
+        if (inline_) dst.y = std::round(r.y + (r.h - dst.h) * view.verticalAlign());
+        if (inline_) c.pushRoundedClip(dst, radius);
         // Smaller than the picture (Now Playing): multi-sample linear, which needs no pre-scaled copy (high-quality cubic
         // keeps a downscaled intermediate per frame in Direct2D's cache); larger (the window, full screen): cubic.
         const bool down = dst.w * c.scale() < src.right - src.left;
         c.dc()->DrawBitmap(bmp, dst.d2d(), 1.f, down ? D2D1_INTERPOLATION_MODE_MULTI_SAMPLE_LINEAR : D2D1_INTERPOLATION_MODE_CUBIC, &src);
         if (inline_) {
             c.popLayer();
+            c.strokeRounded(dst, radius, gfx::colors().hairDefault);   // the cover's thin outline, around the picture
             paintPopOut(c, view, dst);
         }
         return;
     }
-    // No picture (yet): the cover, with a short note.
+    // No picture (yet): the host's cover (inline) or the cover here (the window), with a short note.
     const std::wstring text = toUpperTr(note());
     if (inline_) {
-        if (t) {
-            c.shadow(r, 2, 40, 0, gfx::accent().glow);
-            drawArtwork(c, t->album.images, r, 2);
-        }
         auto layout = gfx::makeLayout(text, type::monoLabel, r.w);
         DWRITE_TEXT_METRICS m{};
         layout->GetMetrics(&m);
@@ -452,7 +460,7 @@ void paint(gfx::Canvas& c, const Rect& r, const VideoView& view) {
     } else {
         const float side = std::round(std::min(r.w, r.h) * 0.42f);
         const Rect art = r.center(side, side).offset(0, -18);
-        if (t) drawArtwork(c, t->album.images, art, 2);
+        if (t) drawArtwork(c, t->album.images, art, radius);
         c.text(text, type::monoLabel, {r.x + 16, art.bottom() + 18, r.w - 32, 16}, Color{1, 1, 1, 0.7f}, gfx::TextAlign::Center);
     }
 }
@@ -484,8 +492,8 @@ void buildVideoRows(ui::Column* c, const std::function<void()>&) {
 
 namespace {
 
-// Dev (SHADETUBE_VIDEO_DEMO): "<action>@<ms>[=<arg>];..." run that long after startup: on, off, window, close,
-// fullscreen, ontop, nowplaying, seek=<s>, speed=<x>, pause, play, quality=<rows>, minimize, restore, log, devicelost
+// Dev (SHADETUBE_VIDEO_DEMO): "<action>@<ms>[=<arg>];..." run that long after startup: on, off, toggle, window, close,
+// fullscreen, ontop, nowplaying, npclose, seek=<s>, speed=<x>, pause, play, quality=<rows>, minimize, restore, log, devicelost
 // (the device recreated as after a loss), idlerelease (the idle graphics release), nchit, captiondblclick,
 // shot=<png> (the video window), mainshot=<png> (the main window), quit.
 void startDemo() {
@@ -522,6 +530,8 @@ void startDemo() {
             else if (a == L"fullscreen" && s.window) s.window->toggleFullscreen();
             else if (a == L"ontop" && s.window) s.window->setOnTop(!s.window->onTop());
             else if (a == L"nowplaying" && ctx().toggleNowPlaying) ctx().toggleNowPlaying(true);
+            else if (a == L"npclose" && ctx().toggleNowPlaying) ctx().toggleNowPlaying(false);
+            else if (a == L"toggle") videomode::toggle();   // as the player bar's / Now Playing's button
             else if (a == L"seek" && p) p->seek(static_cast<int64_t>(_wtof(st.arg.c_str()) * 1000));
             else if (a == L"speed" && p) p->setSpeed(static_cast<float>(_wtof(st.arg.c_str())));
             else if (a == L"pause" && p) p->pause();

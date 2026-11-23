@@ -1,0 +1,83 @@
+{
+  "$schema": "shadetube-theme/1",
+  "name": "Grafit",
+  "base": "dark",
+  "note": "Dim grey with high-contrast text and stronger outlines.",
+  "keys": {
+    "background": "#26282C",
+    "surface": "#2E3035",
+    "text": "#FFFFFF",
+    "outline": "#FFFFFF",
+    "accent": "#FFD166"
+  },
+  "color": {
+    "bg": {
+      "base": "#26282C",
+      "raised": "#2E3035",
+      "overlay": "#383B40",
+      "sunken": "#1F2124",
+      "elevated": "#42454B"
+    },
+    "fg": {
+      "primary": "#FFFFFF",
+      "secondary": "#D5D8DD",
+      "tertiary": "#A9AEB6",
+      "disabled": "#6F737A",
+      "inverse": "#16171A"
+    },
+    "hairline": {
+      "subtle": "rgba(255,255,255,0.12)",
+      "default": "rgba(255,255,255,0.18)",
+      "strong": "rgba(255,255,255,0.26)",
+      "control": "rgba(255,255,255,0.34)"
+    },
+    "overlay": {
+      "hover": "rgba(255,255,255,0.07)",
+      "pressed": "rgba(255,255,255,0.12)",
+      "selected": "rgba(255,255,255,0.09)",
+      "scrim": "rgba(22,23,26,0.62)",
+      "scrimHeavy": "rgba(22,23,26,0.86)"
+    },
+    "accent": {
+      "base": "#FFD166"
+    },
+    "status": {
+      "error": "#FF8080",
+      "warning": "#FFC857",
+      "success": "#7FE3AA",
+      "info": "#84D2FF",
+      "youtube": "#FF6B6B"
+    },
+    "skeleton": {
+      "base": "rgba(255,255,255,0.07)",
+      "shine": "rgba(255,255,255,0.13)"
+    },
+    "chrome": {
+      "captionHover": "rgba(255,255,255,0.1)",
+      "closeHover": "#C42B1C",
+      "closeHoverFg": "#FFFFFF"
+    }
+  },
+  "effects": {
+    "cardHoverShadow": {
+      "color": "#000000",
+      "opacity": 0.45
+    },
+    "menuShadow": {
+      "color": "#000000",
+      "opacity": 0.55
+    },
+    "dialogShadow": {
+      "color": "#000000",
+      "opacity": 0.6
+    },
+    "toastShadow": {
+      "color": "#000000",
+      "opacity": 0.5
+    },
+    "nowPlayingArtShadow": {
+      "color": "#000000",
+      "opacity": 0.5
+    }
+  }
+}

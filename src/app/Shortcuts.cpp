@@ -37,6 +37,8 @@ constexpr Action kActions[] = {
     {"speed-down", [] { return tr(L"Daha yavaş çal"); }, Category::Playback, "Ctrl+Shift+Comma", kMini | kRepeat,
      "chevron-down"},
     {"speed-normal", [] { return tr(L"Normal hızda çal"); }, Category::Playback, "", kMini, "refresh"},
+    // Song preview (app/Preview): the focused row / card; again (or Esc) stops it.
+    {"preview", [] { return tr(L"Seçili şarkıyı önizle"); }, Category::Playback, "P", 0, "volume-2"},
 
     {"command-palette", [] { return tr(L"Komut paleti"); }, Category::Navigation, "Ctrl+K", kInText, "search"},
     {"search", [] { return tr(L"Ara"); }, Category::Navigation, "Ctrl+F", 0, "search"},
@@ -55,6 +57,7 @@ constexpr Action kActions[] = {
 
     {"now-playing", [] { return tr(L"Şimdi Çalıyor ekranı"); }, Category::View, "F11", 0, "expand"},
     {"toggle-sidebar", [] { return tr(L"Kenar çubuğunu daralt / genişlet"); }, Category::View, "Ctrl+B", 0, "sidebar"},
+    {"sidebar-more", [] { return tr(L"Kenar çubuğunda diğer sayfaları göster / gizle"); }, Category::View, "", 0, "chevron-down"},
     {"queue", [] { return tr(L"Çalma sırası paneli"); }, Category::View, "", 0, "queue"},
     {"friend-activity", [] { return tr(L"Arkadaş etkinliği paneli"); }, Category::View, "Ctrl+Shift+A", 0, "users"},
     {"listen-together", [] { return tr(L"Birlikte dinle paneli"); }, Category::View, "", 0, "users"},
@@ -63,7 +66,7 @@ constexpr Action kActions[] = {
      Category::View, "Ctrl+Shift+Left", kRepeat, "chevron-left"},
     {"lyrics-later", [] { return tr(L"Sözleri 0,25 sn geç göster"); },
      Category::View, "Ctrl+Shift+Right", kRepeat, "chevron-right"},
-    {"mini-player", [] { return tr(L"Mini oynatıcı"); }, Category::View, "Ctrl+Shift+M", kGlobal, "mini-player"},
+    {"mini-player", [] { return tr(L"Mini oynatıcı"); }, Category::View, "Ctrl+Shift+M", kGlobal | kMini, "mini-player"},
     {"show-window", [] { return tr(L"ShadeTube'u göster / gizle"); },
      Category::View, "", kGlobal | kGlobalOnly, "restore"},
     {"toggle-theme", [] { return tr(L"Koyu / açık tema"); }, Category::View, "", 0, "palette"},
@@ -72,6 +75,11 @@ constexpr Action kActions[] = {
     {"zoom-out", [] { return tr(L"Arayüzü küçült"); }, Category::View, "Ctrl+Minus", kInText, "minus"},
     {"zoom-reset", [] { return tr(L"Arayüz ölçeğini sıfırla"); }, Category::View, "Ctrl+0", kInText, "refresh"},
     {"compact-lists", [] { return tr(L"Sıkı / rahat liste görünümü"); }, Category::View, "", 0, "list"},
+    // Mini player modes (app/MiniPlayer): switch it, or from the main window open it in that mode.
+    {"mini-strip", [] { return tr(L"Mini oynatıcı: şerit"); }, Category::View, "Ctrl+1", kGlobal | kMini, "mini-strip-thin"},
+    {"mini-square", [] { return tr(L"Mini oynatıcı: kare"); }, Category::View, "Ctrl+2", kGlobal | kMini, "mini-square-thin"},
+    {"mini-wide", [] { return tr(L"Mini oynatıcı: geniş"); }, Category::View, "Ctrl+3", kGlobal | kMini, "mini-wide-thin"},
+    {"mini-on-top", [] { return tr(L"Mini oynatıcı: her zaman üstte"); }, Category::View, "Ctrl+T", kMini, "pin"},
     // Video modu (app/VideoMode): the song's music video, and its own window.
     {"video-mode", [] { return tr(L"Video modunu aç / kapat"); }, Category::View, "Ctrl+Shift+V", kMini, "video-thin"},
     {"video-window", [] { return tr(L"Video penceresi"); }, Category::View, "", kMini, "pop-out-thin"},

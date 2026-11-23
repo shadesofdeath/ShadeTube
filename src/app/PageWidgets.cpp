@@ -1,5 +1,6 @@
 #include "app/PageWidgets.h"
 
+#include "app/CollapsingHeader.h"
 #include "app/Pages.h"
 #include "core/I18n.h"
 #include "gfx/Theme.h"
@@ -35,15 +36,24 @@ bool ListRow::onMouseDown(const ui::MouseEvent& e) {
 }
 
 void ListRow::onMouseUp(const ui::MouseEvent& e) {
-    if (rect().contains(e.pos) && onClick) onClick();
+    if (!rect().contains(e.pos) || !onClick) return;
+    pagetx::arm(cover());
+    onClick();
+}
+
+bool ListRow::coverFor(const std::string& key, SharedCover& out) {
+    if (images_.empty()) return false;
+    out = cover();
+    return out.key == key;
 }
 
 void ListRow::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
-    c.fillRounded(r, 2, col.overlayHover.mulAlpha(hover_));
-    const Rect art{r.x + 4, r.cy() - 22, 44, 44};
-    drawArtwork(c, images_, art, 2, circle_ ? Placeholder::Artist : Placeholder::Album, circle_);
+    c.fillRounded(r, gfx::radii().surface, col.overlayHover.mulAlpha(hover_));
+    const Rect art = artRect();
+    if (pagetx::presence(this) > 0.f)   // 0: the page transition draws this cover
+        drawArtwork(c, images_, art, gfx::radii().art, circle_ ? Placeholder::Artist : Placeholder::Album, circle_);
     const float mw = meta_.empty() ? 0 : std::ceil(meta_.measure().w);
     const float tx = art.right() + 14, tw = r.right() - tx - mw - 20;
     c.text(title_, {tx, r.cy() - 19, tw, 20}, col.fgPrimary, gfx::VAlign::Center);
@@ -71,32 +81,47 @@ Tile::Tile(std::wstring label, std::wstring title, Color color, std::vector<cata
 
 bool Tile::onMouseDown(const ui::MouseEvent& e) {
     if (e.button != ui::MouseButton::Left) return false;
-    press_.to(1, 80);
+    press_.to(1, ui::motion::microMs(80));
     return true;
 }
 
 void Tile::onMouseUp(const ui::MouseEvent& e) {
-    press_.to(0, 160);
-    if (rect().contains(e.pos) && onClick) onClick();
+    press_.to(0, ui::motion::microMs(160));
+    if (!rect().contains(e.pos) || !onClick) return;
+    if (!images_.empty()) pagetx::arm(cover());
+    onClick();
+}
+
+Rect Tile::artRect() const {
+    const float d = hero_ ? 96.f : 48.f;
+    return {rect().right() - d - 16, rect().y + 16, d, d};
+}
+
+SharedCover Tile::cover() const { return pagetx::imageCover(*this, artRect(), artRect().w * 0.5f, images_); }
+
+bool Tile::coverFor(const std::string& key, SharedCover& out) {
+    if (images_.empty()) return false;
+    out = cover();
+    return out.key == key;
 }
 
 void Tile::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
-    const float h = hover_;
-    c.pushScale(1 - 0.01f * press_, {r.cx(), r.cy()});
+    const float h = hover_, p = press_;
+    c.pushTransform(D2D1::Matrix3x2F::Translation(0, ui::card::lift(h, p)));
+    c.pushScale(ui::card::pressScale(p), {r.cx(), r.cy()});
+    ui::card::paintBack(c, r, h);
     const Color fill = tileFill(color_);   // theme-aware (light: pale tint of the tone's hue)
-    c.fillRounded(r, 2, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
+    c.fillRounded(r, gfx::radii().surface, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
+    ui::card::paintEdge(c, r, h);
     c.pushClip(r);
     // Signature motif: a thin ring (hi-fi / vinyl cue) drifting on hover.
     const float ringR = hero_ ? r.h * 0.62f : r.h * 0.7f;
     c.strokeCircle({r.right() - ringR * 0.55f - 12 * h, r.bottom() - ringR * 0.25f}, ringR, accent().base.withAlpha(0.35f), 1.f);
     const float artD = hero_ ? 96.f : 48.f;
-    if (!images_.empty()) {
-        const float d = artD;
-        const Rect art{r.right() - d - 16, r.y + 16, d, d};
-        drawArtwork(c, images_, art, 0, Placeholder::Artist, true, Priority::Normal);
-    }
+    if (!images_.empty() && pagetx::presence(this) > 0.f)   // 0: the page transition draws it
+        drawArtwork(c, images_, artRect(), 0, Placeholder::Artist, true, Priority::Normal);
     c.popClip();
     // Keep the label off the round artwork in the top-right corner: in a narrow tile only the index is left
     // ("02" instead of "02 · ALBÜM" / "02 · АЛЬБОМ").
@@ -106,6 +131,7 @@ void Tile::paint(Canvas& c) {
     const float tw = r.w - 36 - (hero_ ? 0 : 0);
     const float th = title_.measure(tw).h;
     c.text(title_, {r.x + 18, r.bottom() - 18 - th, tw, th}, col.fgPrimary);
+    c.popTransform();
     c.popTransform();
 }
 
@@ -146,15 +172,16 @@ void MessagePanel::paint(Canvas& c) {
 void SkeletonBlock::paint(Canvas& c) {
     const Rect r = rect();
     const double now = ui::frame::now();
-    c.skeleton({r.x, r.y + 20, 232, 232}, 2, now);
-    c.skeleton({r.x + 264, r.y + 110, 180, 12}, 2, now);
-    c.skeleton({r.x + 264, r.y + 136, std::min(520.f, r.w - 300), 56}, 2, now);
-    c.skeleton({r.x + 264, r.y + 208, 220, 14}, 2, now);
+    // A cover flying into this (loading) page lands where its header's cover will be: no hero block under it.
+    if (!pagetx::coverIncoming()) c.skeleton({r.x, r.y + 20, 232, 232}, gfx::radii().art, now);
+    c.skeleton({r.x + 264, r.y + 110, 180, 12}, gfx::radii().badge, now);
+    c.skeleton({r.x + 264, r.y + 136, std::min(520.f, r.w - 300), 56}, gfx::radii().badge, now);
+    c.skeleton({r.x + 264, r.y + 208, 220, 14}, gfx::radii().badge, now);
     for (int i = 0; i < rows_; ++i) {
         const float y = r.y + 290 + i * 56.f;
-        c.skeleton({r.x + 12, y + 8, 40, 40}, 2, now);
-        c.skeleton({r.x + 64, y + 14, 220 - (i % 3) * 40.f, 12}, 2, now);
-        c.skeleton({r.x + 64, y + 32, 120, 10}, 2, now);
+        c.skeleton({r.x + 12, y + 8, 40, 40}, gfx::radii().art, now);
+        c.skeleton({r.x + 64, y + 14, 220 - (i % 3) * 40.f, 12}, gfx::radii().badge, now);
+        c.skeleton({r.x + 64, y + 32, 120, 10}, gfx::radii().badge, now);
     }
     ui::frame::requestNext();
 }
@@ -172,11 +199,34 @@ ScrollPage::ScrollPage() {
 }
 
 ui::Column* ScrollPage::resetContent(float gap) {
+    if (collapse_) collapse_->detach();   // the header goes with the old content
     col_ = scroll_->setContent<ui::Column>(gap, gfx::metrics::pageX, gfx::metrics::pageTop, 48.f);
     return col_;
 }
 
-void ScrollPage::layout() { scroll_->setRect({0, 0, rect().w, rect().h}); }
+void ScrollPage::layout() {
+    scroll_->setRect({0, 0, rect().w, rect().h});
+    if (collapse_) collapse_->setRect({0, 0, rect().w, collapse::kBarH + TrackTable::kHeaderH});
+}
+
+void ScrollPage::enableCollapse() {
+    if (!collapse_) collapse_ = add<CollapseBar>(scroll_);   // after the ScrollView: painted and hit-tested above it
+}
+
+void ScrollPage::attachHeader(HeroHeader* header, ui::Widget* dock, TrackTable* columns) {
+    if (collapse_) collapse_->attach(header, dock, columns);
+}
+
+// The collapsing header's backdrop goes behind the content; the bar itself is a child painted after the ScrollView.
+void ScrollPage::paint(Canvas& c) {
+    if (collapse_) {
+        const Rect r = rect();
+        c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
+        collapse_->paintBackdrop(c);
+        c.popTransform();
+    }
+    Widget::paint(c);
+}
 
 float ScrollPage::scrollOffset() const { return scroll_->scrollTarget(); }   // where a glide in flight settles
 
@@ -196,6 +246,16 @@ void ScrollPage::restoreScroll(float y) {
 void ScrollPage::contentReady() {
     built_ = true;
     scroll_->contentChanged();
+    // Dev (docs/DEVELOPMENT.md 5.4): SHADETUBE_HEADER_SCROLL=<dips> opens pages with a collapsing header scrolled that
+    // far once their content is first built (screenshots of the collapse).
+    if (!devScrolled_ && collapse_ && collapse_->header()) {
+        devScrolled_ = true;
+        wchar_t buf[32]{};
+        if (GetEnvironmentVariableW(L"SHADETUBE_HEADER_SCROLL", buf, 32) > 0) {
+            const float y = static_cast<float>(_wtof(buf));
+            if (y > 0) pendingScroll_ = y;
+        }
+    }
     applyPendingScroll();
 }
 
@@ -232,6 +292,19 @@ void ScrollPage::showError(const std::wstring& message, std::function<void()> re
                          std::move(retry));
     scroll_->contentChanged();
 }
+
+bool ScrollPage::loadingCoverSlot(SharedCover& out) const {
+    if (!col_ || col_->children().empty() || !dynamic_cast<SkeletonBlock*>(col_->children().front().get())) return false;
+    // The header is the content's first row: its 232 DIP cover at the column's padding.
+    const Rect cw = col_->toWindow(col_->rect());
+    out.rect = {cw.x + gfx::metrics::pageX, cw.y + gfx::metrics::pageTop, 232, 232};
+    out.radius = 2;
+    out.ready = false;
+    out.owner = nullptr;
+    return true;
+}
+
+bool ScrollPage::headerCoverSlot(SharedCover& out) { return collapse_ && collapse_->coverSlot(out); }
 
 void ScrollPage::showSkeleton(int rows) {
     built_ = false;

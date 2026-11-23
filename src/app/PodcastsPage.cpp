@@ -7,6 +7,7 @@
 // "new" = new episodes of the subscriptions; "downloads" = downloaded episodes.
 #include "app/PodcastUi.h"
 
+#include "app/CollapsingHeader.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Podcasts.h"
@@ -405,12 +406,14 @@ public:
         const Part part = row >= 0 ? partAt(row, e.pos) : Part::None;
         if (row != hoverRow_ || part != hoverPart_) {
             hoverRow_ = row;
+            hoverFade_.set(row);
             hoverPart_ = part;
             invalidate();
         }
     }
     void onMouseLeave() override {
         hoverRow_ = -1;
+        hoverFade_.set(-1);
         hoverPart_ = Part::None;
         invalidate();
     }
@@ -530,14 +533,14 @@ private:
         const bool hot = i == hoverRow_;
         const auto* st = podcast::store().state(id);
         const bool played = st && st->played;
-        if (current) c.fillRounded(r, 2, acc.tint06);
-        if (hot) c.fillRounded(r, 2, col.overlayHover);
+        if (current) c.fillRounded(r, gfx::radii().surface, acc.tint06);
+        if (const float hv = hoverFade_.of(i); hv > 0.001f) c.fillRounded(r, gfx::radii().surface, col.overlayHover.mulAlpha(hv));
         float x = r.x + 12;
         if (opts_.art) {
             const Rect art{x, r.cy() - 36, 72, 72};
             std::vector<catalog::Image> images;
             if (!e.image.empty()) images.push_back({e.image, 0, 0});
-            drawArtwork(c, images, art, 2, Placeholder::Album, false, Priority::Normal);
+            drawArtwork(c, images, art, gfx::radii().art, Placeholder::Album, false, Priority::Normal);
             x = art.right() + 16;
         }
         const Rect play = playRect(r), dl = downloadRect(r), more = moreRect(r);
@@ -579,7 +582,7 @@ private:
         if (e.explicitContent) {
             const float bx = x + std::min(tw - badgeW, std::ceil(t.title.measure().w)) + 6;
             const Rect badge{bx, r.y + 36, 14, 14};
-            c.fillRounded(badge, 2, col.fgPrimary.withAlpha(0.14f));
+            c.fillRounded(badge, gfx::radii().badge, col.fgPrimary.withAlpha(0.14f));
             c.text(L"E", type::monoBadge, badge, col.fgSecondary, gfx::TextAlign::Center, gfx::VAlign::Center);
         }
         c.text(t.desc, {x, r.y + 58, tw, 36}, played ? col.fgTertiary : col.fgSecondary);
@@ -618,6 +621,7 @@ private:
     std::vector<Episode> episodes_;
     std::unordered_map<int, RowText> texts_;
     int hoverRow_ = -1;
+    ui::HoverFade hoverFade_;   // the hovered row's background fades in / out (ui/Micro)
     Part hoverPart_ = Part::None;
     int cursor_ = 0;
 };
@@ -625,7 +629,7 @@ private:
 // ===================================================================================================
 // Show header: artwork, title, author, notes, then play / subscribe / more and the list's order + filter.
 
-class ShowHeader : public ui::Widget {
+class ShowHeader : public HeroHeader {
 public:
     ShowHeader() {
         play_ = add<ui::PlayButton>(ui::PlayButton::Look::Accent);
@@ -637,19 +641,16 @@ public:
         gfx::TextOptions wrap;
         wrap.wrap = true;
         wrap.maxLines = 2;
-        title_ = gfx::Text({}, type::displayXL, wrap);
         desc_ = gfx::Text({}, type::secondary, wrap);
     }
 
     void setShow(const Show& s) {
         show_ = s;
-        title_.setText(toWide(s.title));
+        setTitle(toWide(s.title));
         desc_.setText(snippet(s.description, 400));
         images_.clear();
-        if (!s.image.empty()) {
-            images_.push_back({s.image, 0, 0});
-            gfx::ImageCache::get().fetchAccent(s.image, [](std::optional<Color>) {});
-        }
+        if (!s.image.empty()) images_.push_back({s.image, 0, 0});
+        setTintImages(images_);   // the artwork's color, cross-faded in when it arrives
         requestLayout();
         invalidate();
     }
@@ -663,7 +664,6 @@ public:
         order_->setLabel(on ? tr(L"En yeni önce") : tr(L"En eski önce"));
         requestLayout();
     }
-
     float preferredHeight(float) override { return 232 + 28 + 56 + 8; }
     void layout() override {
         const Rect r = rect();
@@ -676,54 +676,43 @@ public:
         filter_->setRect({r.w - fw, y + 6, fw, 44});
         const float ow = order_->naturalWidth();
         order_->setRect({r.w - fw - 12 - ow, y + 10, ow, 36});
-    }
-    void paint(Canvas& c) override {
-        const Rect r = rect();
-        const auto& col = colors();
-        Color wash = accent().headerWash;
-        if (!images_.empty())
-            if (auto a = gfx::ImageCache::get().accentOf(images_.front().url))
-                wash = gfx::isLightTheme() ? gfx::Theme::adaptAccent(*a, true).withAlpha(0.14f) : a->withAlpha(0.12f);
-        c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
-        const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));
-        drawArtwork(c, images_, cover, 2, Placeholder::Album);
-        const float tx = cover.right() + 32, tw = std::max(0.f, r.right() - tx);
-        float size = 72;
-        for (float s : {72.f, 56.f, 44.f, 36.f, 28.f}) {
-            size = s;
-            title_.setStyle(type::displayXL.withSize(s));
-            const float h = title_.measure(tw).h;
-            if (s > 44 ? h <= s * 1.05f : h <= s * 2.1f) break;
-        }
-        const float th = title_.measure(tw).h;
-        const float dw = std::min(tw, 640.f);
-        const float dh = desc_.empty() ? 0.f : std::ceil(desc_.measure(dw).h);
-        float y = cover.bottom() - th - 30 - (desc_.empty() ? 0.f : dh + 6);
-        std::wstring label = toUpperTr(tr(L"Podcast"));
-        if (!show_.categories.empty()) label += L" · " + toUpperTr(toWide(show_.categories.front()));
-        c.text(label, type::monoLabel, {tx, y - 26, tw, 14}, col.fgSecondary);
-        c.text(title_, {tx - size * 0.04f, y, tw, th}, col.fgPrimary);
-        y += th + 10;
-        if (!desc_.empty()) {
-            c.text(desc_, {tx, y, dw, dh}, col.fgSecondary);
-            y += dh + 6;
-        }
-        std::wstring line = toWide(show_.author);
-        const std::wstring count = i18n::plural(L"{} bölüm", static_cast<int>(show_.episodes.size()));
-        line += line.empty() ? count : L" · " + count;
-        c.text(line, type::body, {tx, y, tw, 22}, col.fgPrimary, gfx::TextAlign::Leading, gfx::VAlign::Center);
-        paintChildren(c);
+        // Texts (header-local): the title beside the artwork, the notes (two lines at most), the author line.
+        const float tx = kCoverSize + 32, tw = std::max(0.f, r.w - tx);
+        const float th = fitTitle(tw, {72.f, 56.f, 44.f, 36.f, 28.f}, 44.f, type::displayXL);
+        descW_ = std::min(tw, 640.f);
+        descH_ = desc_.empty() ? 0.f : std::ceil(desc_.measure(descW_).h);
+        float ty = kCoverSize - th - 30 - (desc_.empty() ? 0.f : descH_ + 6);
+        labelY_ = ty - 26;
+        contentTop_ = labelY_;
+        titleBox_ = {tx - titleSize_ * 0.04f, ty, tw, th};
+        ty += th + 10;
+        descY_ = ty;
+        if (!desc_.empty()) ty += descH_ + 6;
+        lineY_ = ty;
     }
 
-    ui::PlayButton* play_;
     Button *subscribe_, *more_, *order_;
     ui::TextBox* filter_;
 
+protected:
+    void paintContent(Canvas& c) override {
+        const Rect r = rect();
+        const auto& col = colors();
+        const float tx = r.x + kCoverSize + 32, tw = std::max(0.f, r.right() - tx);
+        std::wstring label = toUpperTr(tr(L"Podcast"));
+        if (!show_.categories.empty()) label += L" · " + toUpperTr(toWide(show_.categories.front()));
+        c.text(label, type::monoLabel, {tx, r.y + labelY_, tw, 14}, col.fgSecondary);
+        if (!desc_.empty()) c.text(desc_, {tx, r.y + descY_, descW_, descH_}, col.fgSecondary);
+        std::wstring line = toWide(show_.author);
+        const std::wstring count = i18n::plural(L"{} bölüm", static_cast<int>(show_.episodes.size()));
+        line += line.empty() ? count : L" · " + count;
+        c.text(line, type::body, {tx, r.y + lineY_, tw, 22}, col.fgPrimary, gfx::TextAlign::Leading, gfx::VAlign::Center);
+    }
+
 private:
     Show show_;
-    std::vector<catalog::Image> images_;
-    gfx::Text title_, desc_;
+    gfx::Text desc_;
+    float labelY_ = 0, descY_ = 0, descW_ = 0, descH_ = 0, lineY_ = 0;
 };
 
 // ===================================================================================================
@@ -792,10 +781,19 @@ class PodcastsPage : public ScrollPage {
 public:
     explicit PodcastsPage(const std::string& id) {
         parseRoute(id);
+        enableCollapse();   // a show's header collapses into a compact bar (app/CollapsingHeader)
         podcast::store().subscribe(subs_.ref(), [this] { scheduleStoreRebuild(); });
         build();
     }
     ~PodcastsPage() override { cts_->cancel(); }
+
+    // Page transitions: a show's header cover (HeaderCover, which the collapsing bar moves; while its feed loads: where
+    // it will be).
+    bool coverSlot(SharedCover& out) override {
+        if (view_ != View::Show) return false;
+        if (header_) return headerCoverSlot(out);
+        return loadingCoverSlot(out);
+    }
 
     void paint(Canvas& c) override {
         syncHeaderPlay();   // the show's play button follows the player
@@ -1173,6 +1171,7 @@ private:
         header_->filter_->onEscape = [this] { header_->filter_->setText({}, true); };
         list_ = c->add<EpisodeList>(EpisodeList::Options{false, false});
         empty_ = c->add<ui::Label>(tr(L"Bu podcastte çalınabilir bölüm yok."), type::secondary, ui::Tone::Secondary);
+        attachHeader(header_, list_);
         applyFilter();
         syncHeaderPlay();
         contentReady();

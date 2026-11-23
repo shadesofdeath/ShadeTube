@@ -1,6 +1,7 @@
 // Album / Liked Songs / playlist detail page (spec: Playlist detail + Track row + sticky header). Reads Spotify
 // when logged in (albums, playlists and Liked Songs, with progressive paging) and MusicBrainz / the local
 // library otherwise (see Source.h).
+#include "app/CollapsingHeader.h"
 #include "app/DownloadSync.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -47,7 +48,7 @@ struct Meta {
     int total = 0;
 };
 
-class DetailHeader : public ui::Widget {
+class DetailHeader : public HeroHeader {
 public:
     explicit DetailHeader(Kind kind) : kind_(kind) {
         play_ = add<ui::PlayButton>(ui::PlayButton::Look::Accent);
@@ -56,6 +57,7 @@ public:
         enhance_->setTooltip(tr(L"Listeye uyan önerilen şarkıları aralara ekle"));
         enhance_->setVisible(kind != Kind::Album);
         save_ = add<Button>(ButtonKind::IconOutline, L"", "heart");
+        save_->setHeart("heart", "heart-filled");   // the like feedback when the album is saved / removed
         add_ = add<Button>(ButtonKind::IconOutline, L"", "plus");
         offline_ = add<sync::SyncButton>();   // "Çevrimdışı kullanılabilir" (download sync)
         more_ = add<Button>(ButtonKind::IconOutline, L"", "more");
@@ -71,18 +73,18 @@ public:
         gfx::TextOptions wrap;
         wrap.wrap = true;
         wrap.maxLines = 2;
-        titleText_ = gfx::Text({}, type::displayXL, wrap);
         desc_ = gfx::Text({}, type::secondary, wrap);
+        placeholder_ = kind == Kind::Album ? Placeholder::Album : Placeholder::Playlist;
+        if (kind == Kind::Liked) setTintColor(std::nullopt);   // the tile is the accent: so is the tint
     }
 
     void setMeta(const Meta& m) {
         meta_ = m;
-        titleText_.setText(m.title);
+        setTitle(m.title);
         desc_.setText(m.description);
-        if (auto* img = pickImage(m.images, 300)) {
-            coverUrl_ = img->url;
-            gfx::ImageCache::get().fetchAccent(coverUrl_, [](std::optional<Color>) {});
-        }
+        images_ = m.images;
+        // The cover's own color (the image cache extracts it; cross-faded in when it arrives).
+        if (kind_ != Kind::Liked) setTintImages(m.images);
         requestLayout();
         invalidate();
     }
@@ -116,88 +118,64 @@ public:
         sort_->setRect({r.w - 32 - 8 - sortW, y + 10, sortW, 36});
         filterBox_->setRect({r.w - 32 - 8 - 240, y + 8, 240, 40});
         sortLabelX_ = r.w - 32 - 8 - sortW - 8;
+        // Texts (header-local): the title fitted beside the cover, the description wrapping to at most two lines (its
+        // measured height is reserved, so the owner / count line below never overlaps it), the owner line.
+        const float tx = kCoverSize + 32, tw = std::max(0.f, r.w - tx);
+        const float th = fitTitle(tw, {88.f, 72.f, 56.f, 44.f, 36.f}, 56.f, type::displayXL);
+        descW_ = std::min(tw, 640.f);
+        descH_ = desc_.empty() ? 0.f : std::ceil(desc_.measure(descW_).h);
+        float ty = kCoverSize - th - 30 - (desc_.empty() ? 0.f : descH_ + 6);
+        labelY_ = ty - 26;
+        contentTop_ = labelY_;
+        titleBox_ = {tx - titleSize_ * 0.04f, ty, tw, th};
+        ty += th + 10;
+        descY_ = ty;
+        if (!desc_.empty()) ty += descH_ + 6;
+        ownerY_ = ty;
     }
 
-    // A playlist the user may edit: its cover and title open "Ayrıntıları düzenle".
-    std::function<void()> onEditDetails;
+    // Liked Songs: the accent tile with the heart; the others: the cover. Drawn by the bar (CollapseBar).
+    void drawCover(Canvas& c, const Rect& r, float radius) override {
+        if (kind_ != Kind::Liked) return HeroHeader::drawCover(c, r, radius);
+        paintLikedCover(c, r, radius);
+    }
 
-    // Navigate / open on release: navigating replaces this page, and the window still touches the pressed widget after
-    // onMouseDown returns.
+    // The owner opens the artist on release: navigating replaces this page, and the window still touches the pressed
+    // widget after onMouseDown returns.
     bool onMouseDown(const ui::MouseEvent& e) override {
-        if (e.button != ui::MouseButton::Left) return false;
-        return (ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty()) || editHit(e.pos);
+        return e.button == ui::MouseButton::Left && ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty();
     }
     void onMouseUp(const ui::MouseEvent& e) override {
-        if (ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty()) {
+        if (ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty())
             ctx().router->navigate({RouteKind::Artist, meta_.ownerArtistId});
-        } else if (editHit(e.pos)) {
-            const auto edit = onEditDetails;
-            edit();
-        }
     }
     void onMouseMove(const ui::MouseEvent& e) override {
         const bool h = ownerRect_.contains(e.pos) && !meta_.ownerArtistId.empty();
-        const bool ch = onEditDetails && coverRect_.contains(e.pos), th = onEditDetails && titleRect_.contains(e.pos);
-        if (h != ownerHover_ || ch != coverHover_ || th != titleHover_) {
+        if (h != ownerHover_) {
             ownerHover_ = h;
-            coverHover_ = ch;
-            titleHover_ = th;
             invalidate();
         }
     }
     void onMouseLeave() override {
-        if (ownerHover_ || coverHover_ || titleHover_) {
-            ownerHover_ = coverHover_ = titleHover_ = false;
+        if (ownerHover_) {
+            ownerHover_ = false;
             invalidate();
         }
     }
-    LPCWSTR cursor() const override { return ownerHover_ || coverHover_ || titleHover_ ? IDC_HAND : IDC_ARROW; }
+    LPCWSTR cursor() const override { return ownerHover_ ? IDC_HAND : IDC_ARROW; }
 
-    void paint(Canvas& c) override {
+    Button *enhance_, *save_, *add_, *more_, *sort_, *filter_;
+    sync::SyncButton* offline_;
+    ui::TextBox* filterBox_;
+
+protected:
+    void paintContent(Canvas& c) override {
         const Rect r = rect();
         const auto& col = colors();
-        Color wash = accent().headerWash;
-        // The cover's own color (raw extraction; the light theme darkens it like the accent, at headerWash strength).
-        if (auto a = gfx::ImageCache::get().accentOf(coverUrl_))
-            wash = gfx::isLightTheme() ? gfx::Theme::adaptAccent(*a, true).withAlpha(0.14f) : a->withAlpha(0.12f);
-        c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
-
-        const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));   // dark: black 35 %
-        if (kind_ == Kind::Liked) {
-            c.fillRounded(cover, 2, accent().base);
-            c.fillRadialGradient(cover, {cover.right(), cover.y}, 260, accent().hover.withAlpha(0.8f), accent().pressed.withAlpha(0));
-            c.icon("heart-filled", cover.center(72, 72), accent().onAccent);
-        } else {
-            drawArtwork(c, meta_.images, cover, 2, kind_ == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
-        }
-        coverRect_ = cover;
-        if (coverHover_) {   // "edit": the dialog that changes the picture
-            c.fillRounded(cover, 2, Color{0, 0, 0, 0.5f});
-            c.icon("edit", cover.center(48, 48), Color{1, 1, 1, 1});
-        }
-        const float tx = cover.right() + 32, tw = r.right() - tx;
-        float size = 88;
-        for (float s : {88.f, 72.f, 56.f, 44.f, 36.f}) {
-            size = s;
-            titleText_.setStyle(type::displayXL.withSize(s));
-            const float h = titleText_.measure(tw).h;
-            if (s > 56 ? h <= s * 1.05f : h <= s * 2.1f) break;
-        }
-        const float th = titleText_.measure(tw).h;
-        // The description wraps to at most two lines: reserve its measured height so the owner / count line below
-        // never overlaps it.
-        const float dw = std::min(tw, 640.f);
-        const float dh = desc_.empty() ? 0.f : std::ceil(desc_.measure(dw).h);
-        float y = cover.bottom() - th - 30 - (desc_.empty() ? 0.f : dh + 6);
-        c.text(meta_.label, type::monoLabel, {tx, y - 26, tw, 14}, col.fgSecondary);
-        c.text(titleText_, {tx - size * 0.04f, y, tw, th}, col.fgPrimary);
-        titleRect_ = {tx, y, std::min(tw, std::ceil(titleText_.measure(tw).w)), th};
-        y += th + 10;
-        if (!desc_.empty()) {
-            c.text(desc_, {tx, y, dw, dh}, col.fgSecondary);
-            y += dh + 6;
-        }
+        const float tx = r.x + kCoverSize + 32, tw = std::max(0.f, r.right() - tx);
+        c.text(meta_.label, type::monoLabel, {tx, r.y + labelY_, tw, 14}, col.fgSecondary);
+        if (!desc_.empty()) c.text(desc_, {tx, r.y + descY_, descW_, descH_}, col.fgSecondary);
+        const float y = r.y + ownerY_;
         float x = tx;
         if (!meta_.owner.empty()) {
             auto ow = gfx::makeLayout(meta_.owner, type::body, 420);
@@ -214,32 +192,44 @@ public:
         x += sm.width + 8;
         if (totalMs_ > 0) c.text(L"· " + totalDuration(totalMs_), type::monoMeta, {x, y + 4, 200, 16}, col.fgSecondary);
         if (!filterBox_->visible())
-            c.text(tr(L"SIRALA"), type::monoLabel, {sortLabelX_ - 160, r.y + 232 + 28, 160, 56}, col.fgTertiary,
+            c.text(tr(L"SIRALA"), type::monoLabel, {r.x + sortLabelX_ - 160, r.y + 232 + 28, 160, 56}, col.fgTertiary,
                    gfx::TextAlign::Trailing, gfx::VAlign::Center);
-        paintChildren(c);
     }
 
-    ui::PlayButton* play_;
-    Button *shuffle_, *enhance_, *save_, *add_, *more_, *sort_, *filter_;
-    sync::SyncButton* offline_;
-    ui::TextBox* filterBox_;
+public:
+    // The header's cover for the page transition: Liked Songs' tile is painted (the flight draws it at any size).
+    SharedCover sharedCover(const ui::Widget& owner, const Rect& local) override {
+        if (kind_ != Kind::Liked) return HeroHeader::sharedCover(owner, local);
+        SharedCover s = pagetx::likedCover(owner, local, 2);
+        s.paint = [](gfx::Canvas& c, const Rect& r, float radius) { paintLikedCover(c, r, radius); };
+        return s;
+    }
 
 private:
-    bool editHit(gfx::Point p) const { return onEditDetails && (coverRect_.contains(p) || titleRect_.contains(p)); }
+    // Liked Songs' cover: the accent tile, its glow and the heart (scales with the rect: the transition draws it too).
+    static void paintLikedCover(Canvas& c, const Rect& cover, float radius) {
+        const float k = cover.w / 232.f;
+        c.fillRounded(cover, radius, accent().base);
+        c.pushRoundedClip(cover, radius);
+        c.fillRadialGradient(cover, {cover.right(), cover.y}, 260 * k, accent().hover.withAlpha(0.8f), accent().pressed.withAlpha(0));
+        c.popLayer();
+        c.icon("heart-filled", cover.center(72 * k, 72 * k), accent().onAccent);
+    }
 
     Kind kind_;
     Meta meta_;
-    gfx::Text titleText_, desc_;
-    std::string coverUrl_;
-    Rect ownerRect_{}, coverRect_{}, titleRect_{};
-    bool ownerHover_ = false, coverHover_ = false, titleHover_ = false;
+    gfx::Text desc_;
+    Rect ownerRect_{};
+    bool ownerHover_ = false;
     float sortLabelX_ = 0;
+    float labelY_ = 0, descY_ = 0, descW_ = 0, descH_ = 0, ownerY_ = 0;
     int64_t totalMs_ = 0;
 };
 
 class CollectionPage : public ScrollPage {
 public:
     CollectionPage(Kind kind, std::string id, bool autoplay) : kind_(kind), id_(std::move(id)), autoplay_(autoplay) {
+        enableCollapse();   // the header collapses into a compact bar (app/CollapsingHeader)
         // Spotify sources: any album/playlist whose id is a spotify: URI, and Liked Songs while logged in.
         api_ = source::activeApi();
         spotifyMode_ = api_ && ((kind_ == Kind::Liked) || (kind_ != Kind::Album && source::isSpotifyId(id_)) ||
@@ -262,51 +252,14 @@ public:
         if (kind_ != Kind::Album) smartshuffle::subscribe(enhanceSub_.ref(), [this] { onEnhanceChanged(); });
     }
 
-    Widget* hitTest(gfx::Point p) override {
-        if (pinned_ > 0.01f && Rect{rect().x, rect().y, rect().w, kPinnedH}.contains(p)) return this;
-        return ScrollPage::hitTest(p);
-    }
-
-    bool onMouseDown(const ui::MouseEvent& e) override {
-        if (pinned_ <= 0.01f) return false;
-        const gfx::Point lp{e.pos.x - rect().x, e.pos.y - rect().y};
-        if (Rect{gfx::metrics::pageX, 14, 36, 36}.contains(lp)) playFrom(-1, false);
-        return true;   // the pinned bar swallows clicks
-    }
-
-    void paint(Canvas& c) override {
-        ScrollPage::paint(c);
-        if (!table_ || !header_) return;
-        const float tableTop = table_->toWindow(table_->rect()).y;
-        const float pageTop = toWindow(rect()).y;
-        const bool pin = tableTop < pageTop + kPinnedH - TrackTable::kHeaderH;
-        scroll_->topInset = pin ? kPinnedH : 0.f;
-        if (pin != (pinnedTarget_ > 0.5f)) {
-            pinnedTarget_ = pin ? 1.f : 0.f;
-            pinned_.to(pinnedTarget_, ui::motion::normal);
-        }
-        const float t = pinned_;
-        if (t <= 0.01f) return;
-        const Rect r = rect();
-        const auto& col = colors();
-        const Rect bar{r.x, r.y, r.w, kPinnedH};
-        // Translucent window (Mica): the rows scrolled under the bar are replaced by the surface, not blended over.
-        if (c.translucent()) c.fillSurface(bar, t);
-        c.pushOpacity(t);
-        if (!c.translucent()) c.fillRect(bar, col.bgBase);
-        c.fillRect(bar, accent().headerWash.mulAlpha(0.6f));
-        const float px = r.x + gfx::metrics::pageX;
-        c.fillCircle({px + 18, r.y + 32}, 18, accent().base);
-        c.icon(isPlayingThis() ? "pause" : "play", {px + 11, r.y + 25, 14, 14}, accent().onAccent);
-        c.text(header_->meta().title, type::title, {px + 52, r.y + 12, r.w - 200, 40}, col.fgPrimary, gfx::TextAlign::Leading,
-               gfx::VAlign::Center);
-        table_->paintHeader(c, {px, r.y + kPinnedH - TrackTable::kHeaderH - 1, r.w - gfx::metrics::pageX * 2, TrackTable::kHeaderH});
-        c.popLayer();
+    // Page transitions: the header's cover (HeaderCover, which the collapsing bar moves); while the album / list loads,
+    // where it will be.
+    bool coverSlot(SharedCover& out) override {
+        if (header_) return headerCoverSlot(out);
+        return loadingCoverSlot(out);
     }
 
 private:
-    static constexpr float kPinnedH = 64 + TrackTable::kHeaderH;
-
     std::string contextUri() const {
         switch (kind_) {
         case Kind::Album: return "album:" + id_;
@@ -619,6 +572,9 @@ private:
         opts.albumNumbering = kind_ == Kind::Album;
         table_ = c->add<TrackTable>(opts);
         table_->onPlay = [this](int i) { playFrom(i, false); };
+        // The list's column header docks under the collapsed header's bar.
+        attachHeader(header_, table_, table_);
+        header_->isPlaying = [this] { return isPlayingThis(); };
         // A playlist the user may edit: drag its songs into a new order, Delete removes the selected ones (with undo);
         // the owner (any local list) also edits its details from the cover / title.
         if (kind_ == Kind::Playlist && (!spotifyMode_ || editable_)) {
@@ -686,6 +642,7 @@ private:
         header_->save_->onClick = [this, refreshSave] {
             ctx().library.setSavedAlbum(album_, !ctx().library.isSavedAlbum(id_));
             refreshSave();
+            header_->save_->pulse();
         };
         header_->add_->onClick = [this] {
             const Rect br = header_->add_->toWindow(header_->add_->rect());
@@ -972,8 +929,6 @@ private:
     DetailHeader* header_ = nullptr;
     TrackTable* table_ = nullptr;
     ui::Widget* empty_ = nullptr;
-    ui::Anim pinned_;
-    float pinnedTarget_ = 0;
     Lifetime libLife_;
     // Spotify paging state (playlists / Liked Songs).
     bool spotifyMode_ = false;

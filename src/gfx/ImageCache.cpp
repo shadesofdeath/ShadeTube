@@ -391,6 +391,16 @@ void ImageCache::pruneDisk(size_t maxBytes) {
     }
 }
 
+ImageCache::Pixels ImageCache::decodePixels(const std::string& url, int px) {
+    Decoded d = decode(loadBytes(url), std::max(1, px));
+    Pixels p;
+    p.bgra = std::move(d.pixels);
+    p.width = static_cast<int>(d.width);
+    p.height = static_cast<int>(d.height);
+    p.stride = static_cast<int>(d.stride);
+    return p;
+}
+
 // ---------------------------------------------------------------------------------------------------
 
 std::optional<Color> extractAccent(const uint8_t* px, int w, int h, int stride) {

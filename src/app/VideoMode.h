@@ -50,8 +50,10 @@ bool windowOpen();
 void attach(VideoView* view);
 void detach(VideoView* view);
 void paint(gfx::Canvas& c, const gfx::Rect& r, const VideoView& view);
-// The view shows video mode's content (on and the item offered) instead of what it replaces (Now Playing's cover).
+// The view shows video mode's content (on and the item offered) over what it covers (Now Playing's cover).
 bool showing();
+// A decoded picture is on screen (the host's cover makes way for it).
+bool hasPicture();
 
 // Re-evaluates what should exist (player, stream) now: player / track changes, views shown or hidden, settings.
 void sync();

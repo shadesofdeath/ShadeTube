@@ -9,13 +9,16 @@
 #include "app/LyricsService.h"
 #include "app/LoginWindow.h"
 #include "app/NowPlaying.h"
+#include "app/OverlayDemo.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/PodcastUi.h"
+#include "app/Preview.h"
 #include "app/Router.h"
 #include "app/Shell.h"
 #include "app/Smtc.h"
 #include "app/Social.h"
+#include "app/ThemeStudio.h"
 #include "app/Together.h"
 #include "catalog/TrackKind.h"
 #include "core/CrashHandler.h"
@@ -105,9 +108,9 @@ public:
         }
         const Rect th{r.x + 10, r.cy() - 27, 96, 54};
         if (auto* bmp = gfx::ImageCache::get().request(match_.thumbnailUrl, static_cast<int>(96 * c.scale())))
-            c.image(bmp, th, 2);
+            c.image(bmp, th, gfx::radii().art);
         else
-            c.fillRounded(th, 2, col.bgOverlay);
+            c.fillRounded(th, gfx::radii().art, col.bgOverlay);
         const float x = th.right() + 14;
         c.text(title_, {x, r.y + 12, r.right() - x - 10, 20}, current_ ? accent().base : col.fgPrimary, gfx::VAlign::Center);
         c.text(channel_, {x, r.y + 32, r.right() - x - 10, 16}, col.fgSecondary, gfx::VAlign::Center);
@@ -224,6 +227,33 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         else openMini();
         return true;
     });
+    // Mini player modes (Ctrl+1 / 2 / 3): the open mini player switches, otherwise it opens in that mode.
+    auto miniMode = [this](mini::Mode m) {
+        return [this, m] {
+            if (mini_) {
+                mini_->setMode(m);
+                return true;
+            }
+            Settings::get().miniMode = mini::modeId(m);
+            Settings::get().markDirty();
+            openMini();
+            return true;
+        };
+    };
+    commands::setHandler("mini-strip", miniMode(mini::Mode::Strip));
+    commands::setHandler("mini-square", miniMode(mini::Mode::Square));
+    commands::setHandler("mini-wide", miniMode(mini::Mode::Wide));
+    commands::setHandler("mini-on-top", [this] {   // Ctrl+T
+        const bool on = !(mini_ ? mini_->onTop() : Settings::get().miniOnTop);
+        if (mini_) {
+            mini_->setOnTop(on);
+        } else {
+            Settings::get().miniOnTop = on;
+            Settings::get().markDirty();
+        }
+        toast(on ? tr(L"Mini oynatıcı her zaman üstte") : tr(L"Mini oynatıcı artık üstte kalmıyor"));
+        return true;
+    });
     commands::setHandler("show-window", [this] {
         // Global hotkey: the main window in front -> away (tray when it works, else minimized); otherwise bring the
         // app back (the mini player while it is open).
@@ -241,6 +271,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     window_->onKey = [this](const ui::KeyEvent& e) { return handleKey(e); };
     window_->onCtrlWheel = [](float delta) { return display::onCtrlWheel(delta); };   // zoom
     display::scheduleKeysDemo();   // SHADETUBE_KEYS_DEMO (dev)
+    overlaydemo::schedule();       // SHADETUBE_OVERLAY_DEMO (dev)
     window_->onNavButton = [](ui::MouseButton b) {
         if (!ctx().router) return;
         if (b == ui::MouseButton::Back) ctx().router->back();
@@ -494,7 +525,11 @@ void App::showShell() {
     shell_ = shell.get();
     router_ = std::make_unique<Router>([](const Route& r) { return createPage(r); });
     c.router = router_.get();
-    router_->onShow = [this](std::unique_ptr<Page> p) { shell_->pageHost()->show(std::move(p)); };
+    router_->onShow = [this](std::unique_ptr<Page> p) {
+        // Going to a page (a link in Now Playing, the track menu, a shortcut) leaves Now Playing to show it.
+        if (shell_->nowPlaying()) shell_->setNowPlaying(false);
+        shell_->pageHost()->show(std::move(p));
+    };
     router_->currentPage = [this]() -> Page* { return shell_ ? shell_->pageHost()->page() : nullptr; };
     router_->onChanged = [this] {
         if (shell_) shell_->sidebar()->syncActive();
@@ -506,6 +541,10 @@ void App::showShell() {
     };
     c.toggleQueue = [this](bool) {
         if (!shell_) return;
+        if (shell_->nowPlaying()) {   // Now Playing has the queue as a tab
+            shell_->nowPlayingView()->toggleQueueTab();
+            return;
+        }
         shell_->setQueueOpen(!shell_->queueOpen());
         shell_->queuePanel()->sync();
         if (shell_->queueOpen() && Settings::get().friendActivityOpen) {   // it took the friend activity's place
@@ -681,6 +720,13 @@ void App::wirePlayer() {
         for (auto& hook : ctx().trackChangedHooks) hook(t);
     };
     player_->onError = [](const std::wstring& msg) { toast(msg, true); };
+    // Song preview (app/Preview): about 35 % in, past a SponsorBlock segment this session already knows of the video.
+    player_->previewStartFor = [this](const catalog::Track&, const youtube::Match* m, int64_t durationMs) {
+        std::vector<std::pair<int64_t, int64_t>> skip;
+        if (m && Settings::get().sponsorBlockEnabled)
+            for (const auto& s : sponsor_.knownSegments(m->videoId, m->durationSec * 1000LL)) skip.emplace_back(s.startMs, s.endMs);
+        return preview::startPoint(durationMs, skip);
+    };
     // Offline: play a downloaded track from its file instead of resolving YouTube.
     player_->localFileFor = [](const std::string& id) -> std::wstring {
         const auto* it = ctx().downloads.item(id);
@@ -764,6 +810,10 @@ void App::syncAccent(const catalog::Track& t) {
         gfx::Theme::get().setAccent(gfx::parseColor(s.fixedAccent.c_str()));
         return;
     }
+    if (s.accentMode == AccentMode::Theme) {   // "Temadan": the theme's own accent, whatever plays
+        gfx::Theme::get().resetAccent();
+        return;
+    }
     const auto* img = catalog::pickImage(t.album.images, 128);
     if (!img) return;
     const std::string id = t.id;
@@ -829,6 +879,7 @@ bool App::handleKey(const ui::KeyEvent& e) {
     if (!inText) {
         switch (e.vk) {
         case VK_ESCAPE:
+            if (preview::handleEscape()) return true;   // a song preview (menu / key) stops first
             if (shell_->nowPlaying()) {
                 shell_->setNowPlaying(false);
                 return true;
@@ -1113,17 +1164,26 @@ void App::trimMemory() {
 void App::applyTheme() {
     const bool light = resolveLightTheme(themeMode());
     auto& theme = gfx::Theme::get();
-    if (light == theme.isLight()) return;   // e.g. an ImmersiveColorSet broadcast for an accent-color change
+    static uint64_t applied = 0;   // Theme::generation() the windows were last refreshed for
     try {
-        // Palette + accent: the requested accent (album art / fixed color / default) is re-derived for the mode.
-        theme.load(light);
-        // Every window: native frame (dark title-bar attribute, border), relayout, repaint. Palette colors are read
-        // at paint time everywhere; the few caches that bake them compare Theme::generation().
+        // The mode's theme (Ayarlar › Görünüm: a preset, a custom theme, a live edit; app/ThemeStudio) with the
+        // requested accent (album art / fixed color / default) re-derived for it. Nothing changed (e.g. an
+        // ImmersiveColorSet broadcast for an accent-color change, the same theme again): nothing to do.
+        themes::applyFor(light);
+        if (theme.generation() == applied) return;
+        applied = theme.generation();
+        // Every window: native frame (dark title-bar attribute, border), relayout (the UI font / corners may have
+        // changed too), repaint. Palette colors are read at paint time everywhere; the few caches that bake them
+        // compare Theme::generation().
         applyWindowTheme(window_.get());
-        if (mini_) mini_->applyTheme();
-        if (tray_) tray_->setDarkMenus(!light);
+        window_->relayoutAll();
+        if (mini_) {
+            mini_->applyTheme();
+            mini_->window()->relayoutAll();
+        }
+        if (tray_) tray_->setDarkMenus(!theme.isLight());
         if (shell_) shell_->playerBar()->sync();
-        ST_LOG_INFO("theme", "{} theme applied live", light ? "light" : "dark");
+        ST_LOG_INFO("theme", "{} theme {} applied live", theme.isLight() ? "light" : "dark", theme.themeId());
     } catch (const std::exception& e) {
         ST_LOG_ERROR("theme", "theme switch failed: {}", e.what());
     }

@@ -8,8 +8,9 @@
 
 namespace st::app {
 
-// Compact row: art 44 + title/subtitle + right mono meta (Yeni çıkanlar, search results, library list).
-class ListRow : public ui::Widget {
+// Compact row: art 44 + title/subtitle + right mono meta (Yeni çıkanlar, search results, library list). A click arms
+// its cover for the page transition; a press and hold previews `previewTarget`.
+class ListRow : public ui::Widget, public CoverSource, public PreviewSource {
 public:
     ListRow(std::wstring title, std::wstring subtitle, std::wstring meta, std::vector<catalog::Image> images,
             bool circle = false);
@@ -19,13 +20,14 @@ public:
     void paint(Canvas& c) override;
     bool onMouseDown(const ui::MouseEvent& e) override;
     void onMouseUp(const ui::MouseEvent& e) override;
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     // Keyboard (focusable): Enter / Space = click, menu key / Shift+F10 = context menu.
     bool activatable() const override { return true; }
     bool onActivate() override {
         if (!onClick) return false;
+        pagetx::arm(cover());
         const auto click = onClick;   // may navigate away (this row is deleted after the event)
         click();
         return true;
@@ -37,37 +39,57 @@ public:
         context({r.x + 56, r.bottom()});
         return true;
     }
+    // Song preview (app/Preview): what a press and hold on the row samples; unset = none.
+    std::optional<preview::Target> previewTarget;
+    std::optional<PreviewHit> previewAt(gfx::Point, bool) override {
+        if (!previewTarget) return std::nullopt;
+        return PreviewHit{*previewTarget, toWindow(rect())};
+    }
+    bool coverFor(const std::string& key, SharedCover& out) override;
 
 private:
+    Rect artRect() const { return {rect().x + 4, rect().cy() - 22, 44, 44}; }
+    SharedCover cover() const { return pagetx::imageCover(*this, artRect(), circle_ ? 22.f : 2.f, images_); }
     gfx::Text title_, subtitle_, meta_;
     std::vector<catalog::Image> images_;
     bool circle_;
     ui::Anim hover_;
 };
 
-// Colored editorial tile (mixes / categories / top artists).
-class Tile : public ui::Widget {
+// Colored editorial tile (mixes / categories / top artists). Its round artwork (if any) flies into the page it opens.
+// Hover: the card look of ui::card (rise, shadow, hairline). A press and hold previews `previewTarget`.
+class Tile : public ui::Widget, public CoverSource, public PreviewSource {
 public:
     Tile(std::wstring label, std::wstring title, Color color, std::vector<catalog::Image> images = {}, bool hero = false);
     std::function<void()> onClick;
     void paint(Canvas& c) override;
     bool onMouseDown(const ui::MouseEvent& e) override;
     void onMouseUp(const ui::MouseEvent& e) override;
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     // Keyboard (focusable): Enter / Space = click, with the click's press feedback.
     bool activatable() const override { return true; }
     bool onActivate() override {
         if (!onClick) return false;
-        press_.snap(1);
-        press_.to(0, 160);
+        press_.snap(ui::motion::micro() ? 1.f : 0.f);
+        press_.to(0, ui::motion::microMs(160));
+        if (!images_.empty()) pagetx::arm(cover());
         const auto click = onClick;
         click();
         return true;
     }
+    // Song preview (app/Preview): what a press and hold on the tile samples; unset = none.
+    std::optional<preview::Target> previewTarget;
+    std::optional<PreviewHit> previewAt(gfx::Point, bool) override {
+        if (!previewTarget) return std::nullopt;
+        return PreviewHit{*previewTarget, toWindow(rect())};
+    }
+    bool coverFor(const std::string& key, SharedCover& out) override;
 
 private:
+    Rect artRect() const;
+    SharedCover cover() const;
     gfx::Text label_, title_;
     gfx::Text labelShort_;   // "02" of "02 · ALBÜM": used when the whole label does not fit next to the artwork
     Color color_;

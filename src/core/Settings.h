@@ -10,7 +10,8 @@ namespace st {
 
 enum class RepeatMode { Off, All, One };
 enum class AudioQuality { High, Normal };   // High = best bitrate (opus/aac), Normal = <=128 kbps AAC
-enum class AccentMode { Dynamic, Fixed };
+// Kapaktan (the playing cover) / Sabit (fixedAccent) / Temadan (the theme's own accent; app/ThemeStudio).
+enum class AccentMode { Dynamic, Fixed, Theme };
 // Koyu / Açık / Sistem (Sistem follows Windows' app mode: Personalize\AppsUseLightTheme).
 enum class ThemeMode { Dark, Light, System };
 
@@ -46,9 +47,15 @@ struct Settings {
     ThemeMode theme = ThemeMode::Dark;   // settings.json "theme": "dark" | "light" | "system" (was bool "lightTheme")
     bool grain = true;
     bool reduceMotion = false;
+    bool pageTransitions = true;         // "Sayfa geçişleri": slide / fade + the flying cover (app/PageTransition)
     int uiZoom = 100;                    // "Arayüz ölçeği" in percent: 80, 90, 100, 110, 125, 150 (app/Display)
     bool compactLists = false;           // "Liste yoğunluğu": Sıkı = lower track rows (app/Display)
     bool micaBackdrop = false;           // Windows 11 Mica behind the main window (ui::Window::setBackdrop)
+    // Theme studio (app/ThemeStudio): the theme each mode uses (a preset id or "user:<file>"), corners, the UI font.
+    std::string themeDark = "dark";
+    std::string themeLight = "light";
+    std::string cornerStyle = "default"; // "sharp" | "default" | "round"
+    std::string uiFont;                  // "" = the bundled Bricolage Grotesque, else an installed family name
 
     // Misc
     std::string downloadsDir;            // empty = default (Music\ShadeTube)
@@ -93,6 +100,7 @@ struct Settings {
     // (Ctrl+B, or the edge dragged narrower than 150 DIPs).
     float sidebarWidth = 240;
     bool sidebarCollapsed = false;
+    int sidebarMore = -1;                // its "Daha fazla" page group: 1 open, 0 folded, -1 automatic (by its height)
     // "Birlikte dinle" (app/Together): the name others see ("" = Spotify / Windows name) and a broker of the user's own
     // tried before the built-in public ones (wss://host[:port]/path, "" = none).
     std::string jamName;
@@ -116,7 +124,15 @@ struct Settings {
 
     WindowPlacementData window;
     int miniX = -1, miniY = -1;
+    // Mini player (app/MiniPlayer): its mode ("strip" | "square" | "wide"), always on top, and where each mode was last:
+    // mode -> [x, y, w, h] (top-left in screen px, size in DIPs; app/MiniLayout).
+    std::string miniMode = "wide";
+    bool miniOnTop = true;
+    std::map<std::string, std::vector<int>> miniPlaces;
     bool taskbarProgress = true;         // the playing song's position on the taskbar button
+    // Song preview (app/Preview): "hold" (press and hold a row / cover, the menu item, the key), "menu" (menu + key
+    // only), "off".
+    std::string previewMode = "hold";
     // Video mode (app/VideoMode): the song's music video, silent, following the audio.
     int videoQuality = 720;              // height cap of the picture stream: 480 / 720 / 1080
     bool rememberVideoMode = false;      // video mode stays on across restarts

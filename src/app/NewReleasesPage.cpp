@@ -257,9 +257,10 @@ std::wstring bucketTitle(releases::Bucket b) {
     return {};
 }
 
-MediaCard* addReleaseCard(ui::Grid* grid, const Album& a) {
+MediaCard* addReleaseCard(ui::Widget* grid, const Album& a) {
     auto* card = grid->add<MediaCard>(toWide(a.name), typeLabel(a) + L" · " + artistsOf(a), a.images);
     const std::string id = a.id;
+    card->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.name), a.images);
     card->onOpen = [id] { ctx().router->navigate({RouteKind::Album, id}); };
     card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
     card->onContext = [id, artist = a.artists.empty() ? std::string() : a.artists[0].id](gfx::Point wp) {
@@ -413,7 +414,7 @@ void subscribeNewReleases(Lifetime::Ref owner, std::function<void()> fn) {
     l.emplace_back(std::move(owner), std::move(fn));
 }
 
-void addNewReleasesShelf(ui::Column* c) {
+void addNewReleasesShelf(ui::Column* c, std::function<ui::Widget*(ui::Column*)> makeRow) {
     if (!socialAvailable() || !storeIsCurrent()) return;
     const int64_t today = releases::localToday();
     std::vector<const releases::Item*> recent;
@@ -422,8 +423,13 @@ void addNewReleasesShelf(ui::Column* c) {
     if (recent.empty()) return;
     auto* h = c->add<SectionHeader>(tr(L"Yeni çıkanlar"), tr(L"SON 14 GÜN"), tr(L"Tümünü gör"));
     h->onLink = [] { ctx().router->navigate({RouteKind::NewReleases}); };
-    auto* grid = addCardRow(c, 150, 1);
-    c->setSpacingBefore(grid, 16);
+    ui::Widget* grid = nullptr;
+    if (makeRow) {
+        grid = makeRow(c);
+    } else {
+        grid = addCardRow(c, 150, 1);
+        c->setSpacingBefore(grid, 16);
+    }
     for (const auto* i : recent) {
         auto* card = addReleaseCard(grid, i->album);
         if (!svc().store.seen.count(i->album.id)) card->setBadge(toUpperTr(tr(L"Yeni")));

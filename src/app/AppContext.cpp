@@ -1,6 +1,7 @@
 #include "app/AppContext.h"
 
 #include "app/Blacklist.h"
+#include "app/Commands.h"
 #include "app/DownloadSync.h"
 #include "app/InternetRadio.h"
 #include "app/LocalLibrary.h"
@@ -11,6 +12,7 @@
 #include "app/Shell.h"
 #include "app/SmartShuffle.h"
 #include "app/Source.h"
+#include "app/Preview.h"
 #include "app/TagEditor.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
@@ -760,7 +762,9 @@ void confirmDeletePlaylist(const std::string& id, const std::wstring& name) {
                         true);
 }
 
-void showAddToPlaylistMenu(const std::vector<Track>& tracks, gfx::Point windowPos) {
+// "Çalma listesine ekle": a new playlist, then the playlists the songs can go into (the track menu's submenu and the
+// menu of its own).
+std::vector<ui::MenuItem> addToPlaylistItems(const std::vector<Track>& tracks) {
     std::vector<ui::MenuItem> items;
     items.push_back({tr(L"Yeni çalma listesi…"), "plus", L"", [tracks] { promptNewPlaylist({}, tracks); }});
     if (auto* s = spotifySession()) {
@@ -775,15 +779,18 @@ void showAddToPlaylistMenu(const std::vector<Track>& tracks, gfx::Point windowPo
             const std::string id = editable[i].id;
             items.push_back({toWide(editable[i].name), "playlist", L"", [tracks, id] { addToPlaylistWithToast(id, tracks); }});
         }
-        ui::Menu::open(ctx().window, windowPos, std::move(items));
-        return;
+        return items;
     }
     if (!ctx().library.playlists().empty()) items.push_back(ui::MenuItem::sep());
     for (const auto& p : ctx().library.playlists()) {
         const std::string id = p.id;
         items.push_back({toWide(p.name), "playlist", L"", [tracks, id] { addToPlaylistWithToast(id, tracks); }});
     }
-    ui::Menu::open(ctx().window, windowPos, std::move(items));
+    return items;
+}
+
+void showAddToPlaylistMenu(const std::vector<Track>& tracks, gfx::Point windowPos) {
+    ui::Menu::open(ctx().window, windowPos, addToPlaylistItems(tracks));
 }
 
 void addToPlaylistWithToast(const std::string& id, const std::vector<Track>& tracks) {
@@ -873,7 +880,8 @@ void showSleepTimerMenu(gfx::Point windowPos) {
     ui::Menu::open(ctx().window, windowPos, std::move(items));
 }
 
-void showDownloadFolderMenu(const std::vector<Track>& tracks, gfx::Point windowPos) {
+// "Klasöre indir": a new download folder, then the existing ones.
+static std::vector<ui::MenuItem> downloadFolderItems(const std::vector<Track>& tracks) {
     std::vector<ui::MenuItem> items;
     items.push_back({tr(L"Yeni klasör…"), "plus", L"", [tracks] {
                          auto* d = ui::Dialog::open(ctx().window, tr(L"Yeni klasör"),
@@ -899,7 +907,11 @@ void showDownloadFolderMenu(const std::vector<Track>& tracks, gfx::Point windowP
                              toast(i18n::format(tr(L"\"{}\" klasörüne indiriliyor"), {name}));
                          }});
     }
-    ui::Menu::open(ctx().window, windowPos, std::move(items));
+    return items;
+}
+
+void showDownloadFolderMenu(const std::vector<Track>& tracks, gfx::Point windowPos) {
+    ui::Menu::open(ctx().window, windowPos, downloadFolderItems(tracks));
 }
 
 void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const std::string& playlistId,
@@ -934,6 +946,7 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
         items.push_back({tr(L"Önerileri gösterme"), "close", L"", [recommendKey] { smartshuffle::stop(recommendKey); }});
         items.push_back(ui::MenuItem::sep());
     }
+    if (auto sample = preview::menuItem(tracks, windowPos)) items.push_back(std::move(*sample));   // song preview
     items.push_back({tr(L"Sonra çal"), "queue", L"", [tracks] {
                          for (auto it = tracks.rbegin(); it != tracks.rend(); ++it) ctx().player->playNext(*it);
                          toast(tr(L"Sıradaki olarak eklendi"));
@@ -942,9 +955,11 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
                          ctx().player->enqueue(tracks);
                          toast(tr(L"Sıraya eklendi"));
                      }});
-    items.push_back({tr(L"Çalma listesine ekle…"), "playlist", L"", [tracks, windowPos] {
-                         Dispatcher::post([tracks, windowPos] { showAddToPlaylistMenu(tracks, windowPos); });
-                     }});
+    {
+        ui::MenuItem add{tr(L"Çalma listesine ekle…"), "playlist", L"", {}};
+        add.submenu = [tracks] { return addToPlaylistItems(tracks); };
+        items.push_back(std::move(add));
+    }
     items.push_back(ui::MenuItem::sep());
     // Local files (Yerel dosyalar) are already on disk: no download / YouTube source; one of them opens its folder.
     const auto isLocal = [](const Track& t) { return t.id.rfind("local:", 0) == 0; };
@@ -987,9 +1002,9 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
                              ctx().downloads.enqueue(downloadable);
                              toast(downloadable.size() > 1 ? tr(L"İndirme sırasına eklendi") : tr(L"İndiriliyor…"));
                          }});
-        items.push_back({tr(L"Klasöre indir…"), "folder", L"", [downloadable, windowPos] {
-                             Dispatcher::post([downloadable, windowPos] { showDownloadFolderMenu(downloadable, windowPos); });
-                         }});
+        ui::MenuItem folder{tr(L"Klasöre indir…"), "folder", L"", {}};
+        folder.submenu = [downloadable] { return downloadFolderItems(downloadable); };
+        items.push_back(std::move(folder));
         // Delete the download; take songs out of (or back into) the synced collections that keep them offline.
         for (auto& it : sync::trackMenuItems(downloadable)) items.push_back(std::move(it));
         items.push_back(ui::MenuItem::sep());
@@ -997,8 +1012,11 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
     if (!many) {
         if (ctx().library.canLike(track.id)) {
             const bool liked = ctx().library.isLiked(track.id);
+            // The playing song: its "like" key does the same (Ctrl+L by default).
+            const Track* playing = ctx().player ? ctx().player->current() : nullptr;
+            const std::wstring hint = playing && playing->id == track.id ? commands::shortcutHint("like") : std::wstring();
             items.push_back({liked ? tr(L"Beğenilenlerden kaldır") : tr(L"Beğenilen Şarkılar'a ekle"),
-                             liked ? "heart-filled" : "heart", L"", [track] { ctx().library.toggleLiked(track); }});
+                             liked ? "heart-filled" : "heart", hint, [track] { ctx().library.toggleLiked(track); }});
         }
         if (!track.album.id.empty())
             items.push_back({tr(L"Albüme git"), "album", L"", [track] { ctx().router->navigate({RouteKind::Album, track.album.id}); }});
@@ -1043,18 +1061,18 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
                              blocked ? "check" : "error", L"",
                              [a = credits[0], blocked, toggleArtist] { toggleArtist(a, blocked); }});
         } else if (credits.size() > 1) {
-            items.push_back({tr(L"Sanatçıyı engelle…"), "error", L"", [credits, windowPos, toggleArtist] {
-                                 Dispatcher::post([credits, windowPos, toggleArtist] {
-                                     std::vector<ui::MenuItem> artists;
-                                     for (const auto& a : credits) {
-                                         const bool blocked = blacklist::artistMatches(a);
-                                         ui::MenuItem it{toWide(a.name), "artist", L"", [a, blocked, toggleArtist] { toggleArtist(a, blocked); }};
-                                         it.checked = blocked;   // checked = blocked; picking it toggles
-                                         artists.push_back(std::move(it));
-                                     }
-                                     ui::Menu::open(ctx().window, windowPos, std::move(artists));
-                                 });
-                             }});
+            ui::MenuItem block{tr(L"Sanatçıyı engelle…"), "error", L"", {}};
+            block.submenu = [credits, toggleArtist] {
+                std::vector<ui::MenuItem> artists;
+                for (const auto& a : credits) {
+                    const bool blocked = blacklist::artistMatches(a);
+                    ui::MenuItem it{toWide(a.name), "artist", L"", [a, blocked, toggleArtist] { toggleArtist(a, blocked); }};
+                    it.checked = blocked;   // checked = blocked; picking it toggles
+                    artists.push_back(std::move(it));
+                }
+                return artists;
+            };
+            items.push_back(std::move(block));
         }
     }
     if (!playlistId.empty() && !ownRows.empty()) {

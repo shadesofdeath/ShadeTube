@@ -24,9 +24,16 @@ bool VideoView::onScreen() const {
 
 bool VideoView::showing() const { return style_ == Style::Window || videomode::showing(); }
 
+bool VideoView::hidesHostArt() const { return style_ == Style::Inline && videomode::showing() && videomode::hasPicture(); }
+
 void VideoView::paint(gfx::Canvas& c) {
     if (!showing()) return;
     videomode::paint(c, rect(), *this);
+}
+
+ui::Widget* VideoView::hitTest(gfx::Point pos) {
+    if (style_ == Style::Inline && !showing()) return nullptr;
+    return Widget::hitTest(pos);
 }
 
 gfx::Rect VideoView::popOutRect() const {

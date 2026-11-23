@@ -3,6 +3,7 @@
 #include "gfx/Text.h"
 #include "gfx/Theme.h"
 #include "ui/Anim.h"
+#include "ui/Micro.h"
 #include "ui/Widget.h"
 
 #include <functional>
@@ -74,6 +75,11 @@ public:
     void setTrailing(std::wstring trailing);   // SidebarItem count / Chip close etc.
     void setIconSize(float s) { iconSize_ = s; }
     ButtonKind kind() const { return kind_; }
+    // A heart (Icon / IconOutline kinds): the icon is `outline`, or `filled` in the accent while active() (= liked);
+    // pulse() then plays the like / unlike feedback for the current state (ui::HeartPop). Call it for a change the
+    // user made (a click, the like shortcut), not when the button just shows another song.
+    void setHeart(std::string outline, std::string filled);
+    void pulse();
 
     // Width the button wants (pills size to their label).
     float naturalWidth();
@@ -100,6 +106,8 @@ protected:
     float iconSize_ = 0;   // 0 = default for the kind
     bool active_ = false;
     Anim hover_, press_, activeA_;
+    std::string heartOutline_, heartFilled_;   // setHeart()
+    HeartPop pop_;
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -121,8 +129,8 @@ public:
     void paint(Canvas& c) override;
     bool onMouseDown(const MouseEvent& e) override;
     void onMouseUp(const MouseEvent& e) override;
-    void onMouseEnter() override { hover_.to(1, motion::fast); }
-    void onMouseLeave() override { hover_.to(0, motion::fast); }
+    void onMouseEnter() override { hover_.to(1, motion::microMs(motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, motion::microMs(motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     bool activatable() const override { return true; }
     bool onActivate() override;
@@ -137,6 +145,8 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
+// On / off switch: the knob slides (motion::normal); hover brightens the track's outline (off) or fill (on) and the
+// knob, a press stretches the knob 4 DIP towards where it will go.
 class Toggle : public Widget {
 public:
     Toggle() { focusable = true; }
@@ -144,8 +154,10 @@ public:
     void setOn(bool on, bool animate = true);
     bool on() const { return on_; }
     void paint(Canvas& c) override;
-    bool onMouseDown(const MouseEvent&) override { return enabled(); }
+    bool onMouseDown(const MouseEvent& e) override;
     void onMouseUp(const MouseEvent& e) override;
+    void onMouseEnter() override { hover_.to(1, motion::microMs(motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, motion::microMs(motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     // Enter / Space flip it (same as a click).
     bool activatable() const override { return true; }
@@ -155,7 +167,7 @@ public:
 
 private:
     bool on_ = false;
-    Anim knob_;
+    Anim knob_, hover_, press_;
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -212,8 +224,8 @@ public:
     bool onMouseDown(const MouseEvent& e) override;
     void onMouseMove(const MouseEvent& e) override;
     void onMouseUp(const MouseEvent& e) override;
-    void onMouseEnter() override { hover_.to(1, motion::fast); }
-    void onMouseLeave() override { hover_.to(0, motion::fast); }
+    void onMouseEnter() override { hover_.to(1, motion::microMs(motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, motion::microMs(motion::fast)); }
     bool onWheel(float dy, float, const MouseEvent&) override;
     LPCWSTR cursor() const override { return IDC_HAND; }
     bool activatable() const override { return true; }
@@ -233,6 +245,7 @@ private:
     bool live_ = false;
     Anim hover_;
     Anim flow_;   // wave amplitude 0..1
+    Anim drag_;   // pressed / dragging: the thumb grows over a soft halo, the playhead keeps its hover size
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -246,10 +259,10 @@ public:
     void paint(Canvas& c) override;
     bool onMouseDown(const MouseEvent& e) override;
     void onMouseMove(const MouseEvent& e) override;
-    void onMouseUp(const MouseEvent&) override {}
+    void onMouseUp(const MouseEvent&) override { drag_.to(0, motion::microMs(motion::normal)); }
     bool onWheel(float dy, float, const MouseEvent&) override;
-    void onMouseEnter() override { hover_.to(1, motion::normal); }
-    void onMouseLeave() override { hover_.to(0, motion::normal); }
+    void onMouseEnter() override { hover_.to(1, motion::microMs(motion::normal)); }
+    void onMouseLeave() override { hover_.to(0, motion::microMs(motion::normal)); }
     LPCWSTR cursor() const override { return IDC_SIZENS; }
     std::wstring tooltip() const override;
     // Keyboard: Up/Right +5 %, Down/Left -5 %, PageUp/PageDown 10 %, Home/End; Enter / Space = press to mute
@@ -264,7 +277,7 @@ private:
     float value_ = 0.7f;
     float unmuted_ = 0.7f;   // level restored by the mute press
     float dragStartValue_ = 0, dragStartY_ = 0;
-    Anim angle_{0.7f}, hover_;
+    Anim angle_{0.7f}, hover_, drag_;   // drag_: held, the ring turns fg.primary
 };
 
 // ---------------------------------------------------------------------------------------------------

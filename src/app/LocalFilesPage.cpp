@@ -179,9 +179,11 @@ void showFolderMenu(const std::wstring& path, const std::wstring& name, gfx::Poi
                          ctx().player->enqueue(*tracks);
                          toast(tr(L"Sıraya eklendi"));
                      }});
-    items.push_back({tr(L"Çalma listesine ekle…"), "playlist", L"", [tracks, at] {
-                         Dispatcher::post([tracks, at] { showAddToPlaylistMenu(*tracks, at); });
-                     }});
+    {
+        ui::MenuItem add{tr(L"Çalma listesine ekle…"), "playlist", L"", {}};
+        add.submenu = [tracks] { return addToPlaylistItems(*tracks); };
+        items.push_back(std::move(add));
+    }
     items.push_back(ui::MenuItem::sep());
     if (auto edit = tagedit::menuItem(*tracks)) items.push_back(std::move(*edit));
     items.push_back({tr(L"Dışa aktar…"), "share", L"", [tracks, name] { transfer::exportTracks(toUtf8(name), *tracks); }});
@@ -731,6 +733,9 @@ private:
                 ctx().player->playContext(std::move(tracks), start, context);
             };
             card->onContext = [idx](gfx::Point wp) { showTrackMenu(tracksAt(idx), wp); };
+            // Song preview: a hold on the cover samples the group's first song.
+            if (auto first = idx.empty() ? std::vector<Track>{} : tracksAt({idx.front()}); !first.empty())
+                card->previewTarget = preview::songTarget(first.front());
         }
         if (shown.size() > kMaxCards)
             body_->add<ui::Label>(i18n::plural(L"İlk {} sonuç gösteriliyor; aramayla daralt.", int64_t{kMaxCards}),

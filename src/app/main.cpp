@@ -3,6 +3,7 @@
 #include "app/Autostart.h"
 #include "app/Installer.h"
 #include "app/JamInvite.h"
+#include "app/ThemeStudio.h"
 #include "app/WinShell.h"
 #include "core/CrashHandler.h"
 #include "core/Dispatcher.h"
@@ -182,9 +183,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         ST_LOG_INFO("theme", "{} theme (mode {}{})", light ? "light" : "dark",
                     themeMode == st::ThemeMode::System ? "system" : themeMode == st::ThemeMode::Light ? "light" : "dark",
                     options.theme ? ", --theme" : "");
-        st::gfx::Theme::get().load(light);
-        if (settings.accentMode == st::AccentMode::Fixed)
-            st::gfx::Theme::get().setAccent(st::gfx::parseColor(settings.fixedAccent.c_str()), false);
+        // The mode's theme (preset / custom), corners, UI font and the fixed accent (app/ThemeStudio).
+        st::app::themes::startup(light);
         st::app::App app(options);
         code = app.run();
     } catch (const std::exception& e) {

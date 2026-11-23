@@ -207,6 +207,29 @@ public:
     // pick, no resume position. A guest follows the host's queue and position this way.
     void playContextAt(std::vector<Track> tracks, int startIndex, PlayContext context, int64_t startMs, bool autoplay);
 
+    // ---- Song preview (app/Preview) ----------------------------------------------------------------------------------
+    // A short sample of `track` over whatever plays, outside the queue: resolved like any item (a download, a local
+    // file, YouTube with the backup source; no stations or podcast episodes), then the engine's preview voice fades it
+    // in at `startMs` (-1 = previewStartFor's point, else 35 % in) while the current item fades out and holds its
+    // position (AudioEngine::openPreview). The queue, the current item, status(), positionMs() and the notifications stay
+    // as they are: nothing of it reaches the history, the stats, scrobbling, SMTC or Discord. keepMainRunning: the
+    // current item keeps running muted instead (listen together: no drift). stopPreview() fades it out and the current
+    // item back in; so does a command that changes what is heard (endsPreview()), before that command runs. One at a time:
+    // a new one replaces the last. Returns its id (0: refused).
+    enum class PreviewState { Idle, Resolving, Playing, Failed };
+    uint64_t startPreview(const Track& track, int64_t startMs = -1, bool keepMainRunning = false);
+    void stopPreview();
+    PreviewState previewState() const { return previewState_; }
+    // The current item is held (silent, its position standing still) under an audible preview.
+    bool previewHoldsCurrent() const { return previewState_ == PreviewState::Playing && !previewKeepMain_; }
+    uint64_t previewId() const { return previewId_; }
+    int64_t previewPositionMs() const { return engine_->previewPositionMs(); }
+    // Fired on the UI thread when the preview's state changes (Idle also when it ended by itself or a command stopped it).
+    std::function<void(uint64_t id, PreviewState state)> onPreview;
+    // Where a preview starts when startPreview() is given -1 (app: about 35 % in, past a known SponsorBlock segment).
+    // `match` is null for a file; durationMs is the video's length when known, else the catalog's.
+    std::function<int64_t(const Track& track, const youtube::Match* match, int64_t durationMs)> previewStartFor;
+
 private:
     struct Prepared {
         uint64_t tag = 0;
@@ -277,7 +300,27 @@ private:
     bool direct_ = false;               // current item plays through directStreamFor (podcast episode)
     std::wstring liveTitle_;            // ICY StreamTitle of the current live item
     int unfiltered_ = 0;                // Unfiltered scopes open (commandFilter skipped)
+    // Song preview.
+    uint64_t previewId_ = 0;
+    uint64_t previewTag_ = 0;           // engine tag of the preview in flight (0 = none)
+    PreviewState previewState_ = PreviewState::Idle;
+    bool previewKeepMain_ = false;
+    std::shared_ptr<YoutubeExplode::CancellationTokenSource> previewCts_;
+    void openPreview(audio::StreamSource s, int64_t startMs, const Track& track, const youtube::Match* match, int64_t durationMs);
+    void setPreviewState(PreviewState s);
+    void onEnginePreview(audio::State s, uint64_t tag);
+    // Commands that change what is heard now: they end a song preview first (the current item comes back, then the
+    // command applies). Queue edits (endless playback appending, smart shuffle) leave it playing.
+    static bool endsPreview(Command c) {
+        switch (c) {
+        case Command::PlayContext: case Command::Play: case Command::Pause: case Command::TogglePause:
+        case Command::Next: case Command::Previous: case Command::Seek: case Command::JumpTo: case Command::Speed:
+        case Command::UseMatch: return true;
+        default: return false;
+        }
+    }
     bool filtered(Command c, const CommandArgs& a = {}) {
+        if (previewState_ != PreviewState::Idle && unfiltered_ == 0 && endsPreview(c)) stopPreview();
         if (!commandFilter || unfiltered_ > 0) return false;
         const auto filter = commandFilter;   // the filter may end the session (and clear itself)
         return filter(c, a);

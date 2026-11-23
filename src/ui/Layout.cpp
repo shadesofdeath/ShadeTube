@@ -254,7 +254,7 @@ void ScrollView::paint(Canvas& c) {
     if (a <= 0.01f) return;
     const Rect t = thumbRect();
     const float alpha = (thumbHover_ || draggingThumb_) ? 0.45f : 0.25f;
-    c.fillRounded(t, 1, gfx::colors().fgPrimary.withAlpha(alpha * a));
+    c.fillRounded(t, gfx::radii().scrollbarThumb, gfx::colors().fgPrimary.withAlpha(alpha * a));
 }
 
 } // namespace st::ui

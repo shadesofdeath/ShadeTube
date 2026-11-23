@@ -2,9 +2,12 @@
 // App-specific building blocks: artwork, media cards, section headers and the virtualized track table.
 #include "app/AppContext.h"
 #include "app/DragDrop.h"
+#include "app/Preview.h"
+#include "app/PageTransition.h"
 #include "gfx/Text.h"
 #include "ui/Anim.h"
 #include "ui/Controls.h"
+#include "ui/Micro.h"
 #include "ui/Widget.h"
 
 #include <functional>
@@ -24,6 +27,11 @@ enum class Placeholder { Album, Artist, Playlist, Folder };   // Folder: a Spoti
 // Draws the best-fitting image (or the design placeholder while loading / when missing).
 void drawArtwork(Canvas& c, const std::vector<catalog::Image>& images, const Rect& r, float radius,
                  Placeholder ph = Placeholder::Album, bool circle = false, Priority prio = Priority::High);
+
+// The playing indicator (ui::paintEqualizer) for the current track's row / tile: the bars move while the player plays
+// and freeze where they are while it is paused or loading. `owner` repaints while they move (not under the full-screen
+// lyrics, which cover every list).
+void drawPlayingBars(Canvas& c, ui::Widget* owner, const Rect& box, Color color);
 
 // Deterministic deep color from the category palette for tiles without artwork (a dark-theme tone; paint it
 // through tileFill()).
@@ -72,7 +80,9 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
-class MediaCard : public ui::Widget {
+// Opening it (click, Enter, the play button) arms its cover for the page transition (app/PageTransition); a press and
+// hold on the cover previews it (app/Preview).
+class MediaCard : public ui::Widget, public CoverSource, public PreviewSource {
 public:
     enum class Shape { Square, Circle };
     MediaCard(std::wstring title, std::wstring subtitle, std::vector<catalog::Image> images, Shape shape = Shape::Square,
@@ -83,14 +93,18 @@ public:
     std::function<void(gfx::Point)> onContext;
     // Small accent pill on the artwork's top-left corner ("YENİ"); "" = none. Square cards only.
     void setBadge(std::wstring text) { badge_ = gfx::Text(std::move(text), gfx::type::monoBadge); }
+    // Song preview (app/Preview): what a press and hold on the cover samples (preview::collectionTarget of the route
+    // it opens); unset = none.
+    std::optional<preview::Target> previewTarget;
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
 
     float preferredHeight(float width) override;
     void paint(Canvas& c) override;
     bool onMouseDown(const ui::MouseEvent& e) override;
     void onMouseUp(const ui::MouseEvent& e) override;
     void onMouseMove(const ui::MouseEvent& e) override;
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); playHot_ = false; }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
+    void onMouseLeave() override;
     LPCWSTR cursor() const override { return IDC_HAND; }
     // Keyboard (focusable, see ui::Widget): Enter / Space open, menu key / Shift+F10 open the context menu.
     bool activatable() const override { return true; }
@@ -98,16 +112,20 @@ public:
     bool onKeyDown(const ui::KeyEvent& e) override;
     Rect focusRect() const override;
     ui::FocusShape focusShape() const override { return shape_ == Shape::Circle ? ui::FocusShape::Circle : ui::FocusShape::Rect; }
+    bool coverFor(const std::string& key, SharedCover& out) override;
 
 private:
     Rect artRect() const;
     Rect playRect() const;
+    SharedCover cover() const;
     gfx::Text title_, subtitle_, badge_;
     std::vector<catalog::Image> images_;
     Shape shape_;
     Placeholder ph_;
     ui::Anim hover_, press_;
     bool playHot_ = false;
+    bool playPressed_ = false;          // the press is on the play button (it shrinks, the card stays)
+    ui::Anim playHotA_, playPressA_;    // ui::card::Play's hot / press
 };
 
 // ---------------------------------------------------------------------------------------------------
@@ -129,7 +147,7 @@ private:
 // Rows can be dragged (app/DragDrop): the pressed row, or the whole selection when the pressed row is part of it, onto
 // the sidebar's playlists / Liked Songs or the queue panel. Escape cancels the drag. A reorderable table (a playlist the
 // user may edit) also takes its own rows: they move in front of the row under the pointer (a line shows where).
-class TrackTable : public ui::Widget, public DropTarget {
+class TrackTable : public ui::Widget, public DropTarget, public PreviewSource {
 public:
     ~TrackTable() override;
     struct Options {
@@ -177,6 +195,8 @@ public:
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
+    // Song preview: the row under the press (not its heart, artist link, number or "+" / "×"), or the keyboard cursor.
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
 
     static constexpr float kHeaderH = 28;
     float headerHeight() const { return opts_.showHeader ? kHeaderH + 8 : 0; }
@@ -253,7 +273,11 @@ private:
     bool textsCompact_ = false;      // the density the cached rows' text styles are for
     uint64_t blockRev_ = 0;          // blacklist::revision() the cached rows were built with
     gfx::Text blockedBadge_;         // "ENGELLİ"
-    std::vector<ui::Anim> dummy_;
+    ui::HoverFade hoverFade_;        // the hovered row's background and glyphs fade in / out (ui/Micro)
+    std::string popId_;              // the track whose heart was just clicked: its like / unlike feedback
+    ui::HeartPop pop_;
+    std::string curId_;              // the playing song at the last paint and whether it was liked (a like made
+    bool curLiked_ = false;          // elsewhere pops its row's heart too)
     bool nearEndSignaled_ = false;
     bool reorderable_ = false;
     std::vector<int> reorderRows_;   // tracks_ indices this table's own drag moves (empty: it can't reorder)

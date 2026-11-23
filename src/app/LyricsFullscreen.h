@@ -1,11 +1,12 @@
 #pragma once
-// Full-screen karaoke lyrics (ctx().toggleLyricsFullscreen): a modal overlay over the whole main window with the
-// artwork's blurred backdrop, large centered lines, the active one filled with the accent as it is sung (per word when
+// Full-screen karaoke lyrics (ctx().toggleLyricsFullscreen): a modal overlay over the whole main window on Now Playing's
+// drifting backdrop in the cover's colours, large centered lines, the active one filled with the accent as it is sung (per word when
 // the lyrics have word times, else across the line until the next one starts), a thin progress bar and the track.
 // The top controls (lyrics source, translation, timing offset −/+, close) fade out while the mouse rests. Esc / F
 // close it, − / + shift the timing, a click on a line (or its translation) seeks there, the wheel scrolls for a
 // moment. Everything it holds (backdrop, lyrics, text layouts) goes with it when it closes.
 #include "app/Components.h"
+#include "app/CoverBackdrop.h"
 #include "app/LyricsService.h"
 #include "lyrics/Lyrics.h"
 #include "ui/Anim.h"
@@ -45,7 +46,7 @@ private:
     void showControls();
     float lineHeight(int i, float width);
     int lineAt(gfx::Point p) const;
-    void paintBackdrop(Canvas& c, const Rect& r);
+    double paintBackdrop(Canvas& c, const Rect& r);   // the delay until its next drift step (0 = still)
     void paintLyrics(Canvas& c, const Rect& area);
     void paintSweep(Canvas& c, int i, const Rect& lr, int posMs);
     void paintFooter(Canvas& c, const Rect& r);
@@ -75,14 +76,10 @@ private:
 
     ui::Widget* drag_;                   // the top strip moves the window (the title bar is covered)
     ui::Button *translate_, *earlier_, *offset_, *later_, *close_;
+    ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
 
-    Microsoft::WRL::ComPtr<ID2D1Bitmap1> backdrop_;
-    std::string backdropUrl_;
-    uint64_t backdropGen_ = 0, backdropTheme_ = 0;
-    float backdropW_ = 0, backdropH_ = 0;
-    ui::Anim backdropFade_;
+    CoverBackdrop backdrop_;             // Now Playing's drifting cover colours (app/CoverBackdrop)
     gfx::Text title_, artist_, time_, label_;
-    gfx::DeviceHook deviceHook_{[this] { backdrop_.Reset(); }};   // idle release: must not keep the device alive
 };
 
 } // namespace st::app

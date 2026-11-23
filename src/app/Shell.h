@@ -3,6 +3,7 @@
 #include "app/AppContext.h"
 #include "app/Components.h"
 #include "app/DragDrop.h"
+#include "app/PageTransition.h"
 #include "app/Router.h"
 #include "ui/Controls.h"
 #include "ui/Layout.h"
@@ -50,7 +51,14 @@ private:
 };
 
 class SidebarRow;   // a playlist or folder row (Shell.cpp)
+class NavBox;       // the page entries in the sidebar's nav scroller (Shell.cpp)
+class NavGroup;     // the "Daha fazla" header that folds the less used pages (Shell.cpp)
 
+// Height budget (top to bottom): the main pages (Ana Sayfa, Ara, Kitaplık), the "Daha fazla" group (İndirilenler,
+// Yerel dosyalar, Radyo, Podcastler, Yeni çıkanlar, İstatistikler; folded, the current page among them stays), the
+// playlists, Ayarlar. The playlists always keep room for kMinListRows rows: on a short sidebar the nav first gets
+// tighter (also with the compact list density), then scrolls on its own. The group's state is Settings::sidebarMore
+// (-1 = automatic: open while that leaves the list kAutoListRows rows).
 class Sidebar : public ui::Widget, public DropTarget {
 public:
     Sidebar();
@@ -70,11 +78,23 @@ public:
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
 
+    // "Daha fazla": open / fold the less used pages (remembered in Settings::sidebarMore). Animated unless reduce motion.
+    bool moreOpen() const { return moreOpen_; }
+    void setMoreOpen(bool open);
+
+    static constexpr int kMinListRows = 5, kAutoListRows = 8;
+
 private:
+    friend class NavBox;
+    friend class NavGroup;
     void setFolderOpen(const std::string& folderId, bool open);   // Settings::expandedFolders, then refresh()
     SidebarRow* rowAt(gfx::Point windowPos) const;
     std::vector<ui::Button*> navButtons() const;   // the page entries, top to bottom (Ayarlar last)
+    std::vector<ui::Button*> groupButtons() const; // the pages "Daha fazla" folds (those available now)
+    ui::Button* pinnedButton() const;              // the current page when it is in the folded group, else nullptr
     float labelOpacity() const;                     // names fade out as the rail takes the room
+    void layoutNav(float rowH, float gap, float groupH);   // positions the entries in navBox_ (content space)
+    float navContentHeight(float rowH, float gap, float groupH, float open) const;
 
     ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *podcasts_, *releases_, *stats_, *settings_,
         *newPlaylist_;   // releases_: "Yeni çıkanlar", only with a Spotify session
@@ -90,6 +110,13 @@ private:
     bool collapsed_ = false;   // setCollapsed
     bool compact_ = false;     // the rows are tiles (rail_ past half way)
     Lifetime life_;
+    ui::ScrollView* nav_ = nullptr;   // the page entries; scrolls only when even the tight nav would squeeze the list
+    NavBox* navBox_ = nullptr;
+    NavGroup* group_ = nullptr;
+    bool moreOpen_ = true;            // as shown (the setting, or the automatic choice)
+    ui::Anim moreAnim_{1.f};          // 0 = folded .. 1 = open
+    bool tight_ = false;              // the tighter nav metrics are in use (layout)
+    bool moreSettling_ = false;       // one more layout after the group's animation ends
 };
 
 // The sidebar's right edge (6 DIPs over its hairline, IDC_SIZEWE): drag to resize, double click for the default width.
@@ -124,6 +151,7 @@ private:
     bool nowPlaying_ = false;
     bool infoHover_ = false;
     bool live_ = false;      // the current item is an internet radio station (no times, no seeking)
+    bool previewHeld_ = false;   // a song preview holds the current item (app/Preview): the bar looks paused
     // Track change: what the bar showed for the previous track, sliding out while the new one slides in.
     TrackSwap swap_;
     FadingArt art_;
@@ -136,6 +164,8 @@ private:
     gfx::Text oldTitle_, oldArtist_;
     float heartFrom_ = -1;   // the heart's x for the outgoing track (it slides to the new title's end)
     bool heartSliding_ = false;   // laid out mid-slide: one more layout after the transition puts it in place
+    std::string likedId_;         // the track the heart showed at the last sync() and whether it was liked: a change
+    bool likedWas_ = false;       // of the same track plays the like feedback
 
 public:
     bool onMouseDown(const ui::MouseEvent& e) override;
@@ -147,10 +177,13 @@ public:
     std::wstring tooltip() const override;
 };
 
-class QueuePanel : public ui::Widget, public DropTarget {
+class QueuePanel : public ui::Widget, public DropTarget, public PreviewSource {
 public:
     QueuePanel();
     void sync();
+    // Now Playing's Sıradaki tab: no panel background or title row; the count and "Kuyruğu kaydet" share the "ŞİMDİ"
+    // row at the top.
+    void setEmbedded(bool on) { embedded_ = on; }
     float preferredHeight(float) override { return rect().h; }
     void layout() override;
     void paint(Canvas& c) override;
@@ -158,12 +191,14 @@ public:
     bool onMouseDown(const ui::MouseEvent& e) override;
     void onMouseMove(const ui::MouseEvent& e) override;
     void onMouseUp(const ui::MouseEvent& e) override;
-    void onMouseLeave() override { hover_ = -1; invalidate(); }
+    void onMouseLeave() override { hover_ = -1; hoverFade_.set(-1); invalidate(); }
     LPCWSTR cursor() const override { return hover_ >= 0 ? IDC_HAND : IDC_ARROW; }
     // Drag and drop: songs (or files from Explorer) go into the queue where they are dropped.
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
+    // Song preview (app/Preview): an upcoming row (recommendations too); not the playing one.
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
 
 private:
     int dropIndexAt(gfx::Point windowPos) const;   // order index the dropped songs go in front of
@@ -176,14 +211,18 @@ private:
     ui::Button* save_;
     ui::SmoothScroll scroll_;            // the upcoming rows (ui/ScrollPhysics: wheel glide, touchpad 1:1)
     int hover_ = -1;
+    ui::HoverFade hoverFade_;            // upcoming rows' hover fades in / out (ui/Micro)
     int dragFrom_ = -1, dragTo_ = -1;
     float dragStartY_ = 0;
     bool dragging_ = false;
     int dropAt_ = -1;                    // songs dragged in from elsewhere: order index of the insertion line
     double lastScrollTick_ = 0;
+    bool embedded_ = false;
+    float oy() const { return embedded_ ? -44.f : 0.f; }   // embedded: everything moves up into the title row's place
 };
 
-// Hosts the current page with the enter transition (opacity + 16 px rise, 360 ms decelerate).
+// Hosts the current page and the page transition (app/PageTransition): the replaced page fades / shifts out while the
+// new one slides in, a cover that opened the page flies into its header.
 class PageHost : public ui::Widget {
 public:
     PageHost() { clipsChildren = true; hitTestVisible = false; }
@@ -194,7 +233,7 @@ public:
 
 private:
     Page* page_ = nullptr;
-    ui::Anim enter_;
+    PageTransition transition_;
 };
 
 class Shell : public ui::Widget {
