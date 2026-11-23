@@ -8,8 +8,8 @@
 //   surface color (so text keeps its contrast over a bright cover in the dark theme and over a dark one in the light
 //   theme), a translucent tint of the surface color and a faint noise (textures/noise-tile.png). The blur is
 //   computed once into a half-resolution bitmap when the overlay opens and reused while it stays open; it is redone
-//   only when something behind it asked for a repaint (Window::contentGeneration(), after it settled), the surface
-//   moved out of the captured area, the theme, the DPI or the graphics device changed. Never per frame.
+//   only when a widget under the captured area asked for a repaint (Window::lastChangeIn(), once it settled), the
+//   surface moved out of the captured area, the theme, the DPI or the graphics device changed. Never per frame.
 // - Fallback: an opaque surface color (the look before acrylic) when Windows' transparency effects are off, in high
 //   contrast, or when no capture could be made. SHADETUBE_ACRYLIC=force / off overrides the system check (dev).
 // - Memory: a material holds one bitmap (~0.2-0.6 MB at 150 %) while its overlay is open; release() (the overlay's

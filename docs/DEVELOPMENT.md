@@ -1143,10 +1143,13 @@ zoom badge use the same surface without the backdrop.
   opaque color, with the colors behind showing as soft glows.
 - **Never per frame**: a capture is reused while the overlay is open. It is redone only when the surfaces leave the
   captured area (a submenu opening beside its menu, a taller toast stack), the theme (`Theme::generation()`), the
-  DPI / zoom or the device changed, or something behind asked for a repaint: `Window::contentGeneration()` advances when
-  a widget of the tree calls `invalidate()` or requests a layout and on resize / zoom / theme (not for overlays, not for
-  animation frames); the material then waits until it has been quiet for 150 ms (a hover fading, a list settling), at
-  the latest 1 s after the last capture. The effects are created per capture and dropped.
+  DPI / zoom or the device changed, or something under it asked for a repaint: the Window records each `invalidate()`
+  of a widget of the tree at the widget's window rect (+ 24 DIP for shadows), a layout of the tree, a resize, zoom or
+  theme switch for the whole window (`contentGeneration()`, `lastChangeIn(since, area)`; not overlays, not animation
+  frames). Only a change touching the captured area counts: a player bar ticking under the page while a menu is open
+  never recaptures it (measured: 5 recaptures in 5 s while playing before this rule, none after). The material then
+  waits until that area has been quiet for 150 ms (a hover fading, a list settling), at the latest 1 s after the last
+  capture. The effects are created per capture and dropped.
 - **Opaque fallback**: with Windows' transparency effects off (`Personalize\EnableTransparency`), in high contrast (both
   re-read at most once a second) or when a capture fails (logged once), the surface is the plain surface color, the
   look before acrylic. `SHADETUBE_ACRYLIC=force|off` overrides the system check (5.4).

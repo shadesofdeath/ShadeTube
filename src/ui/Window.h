@@ -82,13 +82,16 @@ public:
     bool hasModal() const;
 
     void invalidate();
-    // Widget::invalidate(): `top` is the widget's root (the tree or an overlay); a repaint asked for from the tree
-    // also advances contentGeneration().
-    void invalidate(const Widget* top);
+    // Widget::invalidate(): `source` asked, `top` is its root (the tree or an overlay). A repaint asked for from the
+    // tree is also recorded as a content change where the source is (contentGeneration()).
+    void invalidateFrom(const Widget* source, const Widget* top);
     void invalidateAfter(double ms);   // schedule a repaint (e.g. player position ticks)
-    // Advances whenever the content below the overlays may have changed (a widget of the tree asked for a repaint or
-    // a layout, the window was resized, zoomed or re-themed): overlays recapture their acrylic backdrop then.
+    // Content changes below the overlays, for their acrylic backdrops (ui/Acrylic): the generation advances whenever
+    // a widget of the tree asks for a repaint (recorded at its window rect, plus a margin for shadows) or a layout,
+    // or the window is resized, zoomed or re-themed (the whole window). lastChangeIn() = the generation of the latest
+    // change after `since` that touches `area` (window DIPs), 0 = none.
     uint64_t contentGeneration() const { return contentGen_; }
+    uint64_t lastChangeIn(uint64_t since, const Rect& area) const;
     void scheduleLayout();
     // Hidden (tray / mini player) or minimized windows never need a frame and never schedule a wake-up, so a
     // window nobody can see costs 0% CPU. WM_PAINT / WM_SIZE on show/restore repaint it.
@@ -217,7 +220,13 @@ private:
     std::vector<OverlayEntry> overlays_;
     std::vector<std::unique_ptr<Widget>> exiting_;   // removed overlays playing their close animation (OverlayLayer)
     std::vector<std::unique_ptr<Widget>> graveyard_;
-    uint64_t contentGen_ = 0;
+    void noteChange(const Rect& r);
+    struct Change {
+        uint64_t gen;
+        Rect r;
+    };
+    std::vector<Change> changes_;   // the latest content changes (bounded; older ones count as "changed")
+    uint64_t contentGen_ = 0, droppedGen_ = 0;
 
     float widthDip_ = 0, heightDip_ = 0;
     float zoom_ = 1.f;

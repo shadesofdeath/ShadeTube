@@ -245,13 +245,17 @@ bool Acrylic::needsCapture(Window& w, const Rect& area, Color surface, float sca
     if (!bitmap_ || device_ != gfx::Device::get().generation() || theme_ != gfx::Theme::get().generation() ||
         scale_ != scale || !(surface_ == surface) || !contains(area_, area))
         return true;
-    const uint64_t content = w.contentGeneration();
-    if (content == content_) return false;
+    // Only changes under the captured area count (a ticking player bar elsewhere never recaptures a menu).
+    const uint64_t change = w.lastChangeIn(content_, area_);
+    if (!change) {
+        content_ = w.contentGeneration();
+        return false;
+    }
     // Something behind asked for a repaint: wait until it has been quiet for a moment (a hover fading out, a list
     // settling) instead of blurring every frame of it, but not longer than kMaxStaleMs.
     const double now = frame::realNow();
-    if (content != seen_) {
-        seen_ = content;
+    if (change != seen_) {
+        seen_ = change;
         seenAt_ = now;
     }
     const double due = std::min(seenAt_ + kSettleMs, capturedAt_ + kMaxStaleMs);

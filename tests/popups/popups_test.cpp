@@ -54,9 +54,13 @@ int g_failures = 0;
 
 std::filesystem::path g_dir;
 
-// The page behind: left half red, right half blue (what the acrylic should let through).
+// The page behind: left half red, right half blue (what the acrylic should let through), and a small widget in the
+// bottom-right corner that repaints on its own (a ticking label far from the menus).
 class Backdrop : public Widget {
 public:
+    Backdrop() { ticker = add<Widget>(); }
+    void layout() override { ticker->setRect({rect().right() - 60, rect().bottom() - 60, 40, 40}); }
+    Widget* ticker = nullptr;
     void paint(Canvas& c) override {
         const Rect r = rect();
         c.fillRect({r.x, r.y, r.w * 0.5f, r.h}, Color::rgb(0xE03020));
@@ -315,6 +319,15 @@ void testExitAndAcrylic(Window& w, bool opaque) {
         waitFrames(w, 220);
         CHECK(Acrylic::captureCount() == c1 + 1);
         frames(w, 5);
+        CHECK(Acrylic::captureCount() == c1 + 1);
+        // A repaint far from the menu (the corner widget, ticking for 1.5 s) never recaptures it.
+        auto* ticker = static_cast<Backdrop*>(w.root())->ticker;
+        const double until = frame::realNow() + 1500;
+        while (frame::realNow() < until) {
+            ticker->invalidate();
+            Sleep(30);
+            w.render();
+        }
         CHECK(Acrylic::captureCount() == c1 + 1);
     }
 

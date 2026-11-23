@@ -208,7 +208,7 @@ void Window::applyTheme() {
     const BOOL dark = gfx::Theme::get().isLight() ? FALSE : TRUE;
     DwmSetWindowAttribute(hwnd_, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof dark);
     applyFrameColors();
-    ++contentGen_;
+    noteChange(clientRect());
     scheduleLayout();
     invalidate();
 }
@@ -333,9 +333,37 @@ bool Window::hasModal() const {
 
 void Window::invalidate() { dirty_ = true; }
 
-void Window::invalidate(const Widget* top) {
+void Window::invalidateFrom(const Widget* source, const Widget* top) {
     dirty_ = true;
-    if (top && top == root_.get()) ++contentGen_;
+    if (!source || !top || top != root_.get()) return;
+    // Where the source is, with room for what widgets paint around themselves (hover shadows, glows).
+    constexpr float kSpill = 24;
+    noteChange(source->toWindow(source->rect()).inset(-kSpill));
+}
+
+void Window::noteChange(const Rect& r) {
+    ++contentGen_;
+    // The same widget asking again (a ticking label): one entry, moved to the new generation.
+    if (!changes_.empty()) {
+        const Rect& last = changes_.back().r;
+        if (last.x == r.x && last.y == r.y && last.w == r.w && last.h == r.h) {
+            changes_.back().gen = contentGen_;
+            return;
+        }
+    }
+    changes_.push_back({contentGen_, r});
+    constexpr size_t kKeep = 64;
+    if (changes_.size() > kKeep) {
+        droppedGen_ = changes_.front().gen;
+        changes_.erase(changes_.begin());
+    }
+}
+
+uint64_t Window::lastChangeIn(uint64_t since, const Rect& area) const {
+    if (since < droppedGen_) return contentGen_;   // older than what is kept: count it as changed
+    for (auto it = changes_.rbegin(); it != changes_.rend() && it->gen > since; ++it)
+        if (it->r.intersects(area)) return it->gen;
+    return 0;
 }
 
 void Window::invalidateAfter(double ms) { wakeAt_ = std::min(wakeAt_, frame::realNow() + ms); }
@@ -570,7 +598,7 @@ void Window::runLayout() {
     layoutDirty_ = false;
     const Rect r = clientRect();
     if (root_) {
-        if (root_->layoutPending_) ++contentGen_;   // the tree itself asked for a layout (not only an overlay)
+        if (root_->layoutPending_) noteChange(r);   // the tree itself asked for a layout (not only an overlay)
         root_->layoutPending_ = true;
         root_->setRect(r);
     }
@@ -755,7 +783,7 @@ void Window::resized() {
     target_->resize(static_cast<UINT>(rc.right - rc.left), static_cast<UINT>(rc.bottom - rc.top), dpi);
     widthDip_ = (rc.right - rc.left) * 96.f / dpi;
     heightDip_ = (rc.bottom - rc.top) * 96.f / dpi;
-    ++contentGen_;
+    noteChange(clientRect());
     ST_LOG_DEBUG("ui", "resized: {}x{} px @ {} dpi", rc.right - rc.left, rc.bottom - rc.top, dpi);
     scheduleLayout();
 }

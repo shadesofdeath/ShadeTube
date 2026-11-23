@@ -78,7 +78,7 @@ void Widget::requestLayout() {
 void Widget::invalidate() {
     const Widget* top = this;
     while (top->parent_) top = top->parent_;
-    if (top->window_) top->window_->invalidate(top);
+    if (top->window_) top->window_->invalidateFrom(this, top);
 }
 
 void Widget::paint(Canvas& c) { paintChildren(c); }
