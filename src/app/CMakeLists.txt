@@ -41,6 +41,7 @@ add_executable(ShadeTube WIN32
     Autostart.cpp Autostart.h
     Blacklist.cpp Blacklist.h
     BrowsePages.cpp
+    CollapsingHeader.cpp CollapsingHeader.h
     CollectionPage.cpp
     CommandPalette.cpp CommandPalette.h
     Commands.cpp Commands.h
@@ -53,6 +54,7 @@ add_executable(ShadeTube WIN32
     DownloadSync.cpp DownloadSync.h
     DragDrop.cpp DragDrop.h
     DroppedFiles.cpp DroppedFiles.h
+    HeaderCollapse.cpp HeaderCollapse.h
     HistoryImport.cpp HistoryImport.h
     HomePage.cpp
     HomeWidgets.cpp HomeWidgets.h

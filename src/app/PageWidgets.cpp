@@ -1,5 +1,6 @@
 #include "app/PageWidgets.h"
 
+#include "app/CollapsingHeader.h"
 #include "app/Pages.h"
 #include "core/I18n.h"
 #include "gfx/Theme.h"
@@ -198,11 +199,34 @@ ScrollPage::ScrollPage() {
 }
 
 ui::Column* ScrollPage::resetContent(float gap) {
+    if (collapse_) collapse_->detach();   // the header goes with the old content
     col_ = scroll_->setContent<ui::Column>(gap, gfx::metrics::pageX, gfx::metrics::pageTop, 48.f);
     return col_;
 }
 
-void ScrollPage::layout() { scroll_->setRect({0, 0, rect().w, rect().h}); }
+void ScrollPage::layout() {
+    scroll_->setRect({0, 0, rect().w, rect().h});
+    if (collapse_) collapse_->setRect({0, 0, rect().w, collapse::kBarH + TrackTable::kHeaderH});
+}
+
+void ScrollPage::enableCollapse() {
+    if (!collapse_) collapse_ = add<CollapseBar>(scroll_);   // after the ScrollView: painted and hit-tested above it
+}
+
+void ScrollPage::attachHeader(HeroHeader* header, ui::Widget* dock, TrackTable* columns) {
+    if (collapse_) collapse_->attach(header, dock, columns);
+}
+
+// The collapsing header's backdrop goes behind the content; the bar itself is a child painted after the ScrollView.
+void ScrollPage::paint(Canvas& c) {
+    if (collapse_) {
+        const Rect r = rect();
+        c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
+        collapse_->paintBackdrop(c);
+        c.popTransform();
+    }
+    Widget::paint(c);
+}
 
 float ScrollPage::scrollOffset() const { return scroll_->scrollTarget(); }   // where a glide in flight settles
 
@@ -222,6 +246,16 @@ void ScrollPage::restoreScroll(float y) {
 void ScrollPage::contentReady() {
     built_ = true;
     scroll_->contentChanged();
+    // Dev (docs/DEVELOPMENT.md 5.4): SHADETUBE_HEADER_SCROLL=<dips> opens pages with a collapsing header scrolled that
+    // far once their content is first built (screenshots of the collapse).
+    if (!devScrolled_ && collapse_ && collapse_->header()) {
+        devScrolled_ = true;
+        wchar_t buf[32]{};
+        if (GetEnvironmentVariableW(L"SHADETUBE_HEADER_SCROLL", buf, 32) > 0) {
+            const float y = static_cast<float>(_wtof(buf));
+            if (y > 0) pendingScroll_ = y;
+        }
+    }
     applyPendingScroll();
 }
 
@@ -269,6 +303,8 @@ bool ScrollPage::loadingCoverSlot(SharedCover& out) const {
     out.owner = nullptr;
     return true;
 }
+
+bool ScrollPage::headerCoverSlot(SharedCover& out) { return collapse_ && collapse_->coverSlot(out); }
 
 void ScrollPage::showSkeleton(int rows) {
     built_ = false;

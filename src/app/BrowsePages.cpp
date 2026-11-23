@@ -1,5 +1,6 @@
 ﻿// Search, Library and Artist pages. Each reads Spotify when logged in and MusicBrainz otherwise (see Source.h).
 #include "app/Blacklist.h"
+#include "app/CollapsingHeader.h"
 #include "app/DownloadSync.h"
 #include "app/LibrarySort.h"
 #include "app/LibraryView.h"
@@ -14,6 +15,7 @@
 #include "core/Paths.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
+#include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
 #include "musicbrainz/MusicBrainz.h"
 #include "spotify/Session.h"
@@ -1362,9 +1364,14 @@ private:
 // ===================================================================================================
 // Artist
 
-class ArtistHero : public ui::Widget {
+class ArtistHero : public HeroHeader {
 public:
-    explicit ArtistHero(const Artist& a) : artist_(a), name_(toWide(a.name), type::hero) {
+    explicit ArtistHero(const Artist& a) : artist_(a) {
+        setTitleStyle(type::hero, false);
+        setTitle(toWide(a.name));
+        images_ = a.images;
+        placeholder_ = Placeholder::Artist;
+        setTintImages(a.images);   // the bar's tint: the photo's color
         play_ = add<ui::PlayButton>(ui::PlayButton::Look::Accent);
         follow_ = add<Button>(ButtonKind::Secondary, tr(L"Takip et"));
         // Spotify's artist radio (needs a Spotify session and a Spotify artist; MusicBrainz artists have none).
@@ -1402,75 +1409,117 @@ public:
             x += w + 14;
         }
         more_->setRect({x, y + 8, 40, 40});
+        // The name on one line, at the largest size that fits 80 % of the width (drawn by the bar, CollapseBar).
+        const float w = rect().w;
+        float size = 96;
+        for (float s : {96.f, 80.f, 64.f, 52.f}) {
+            size = s;
+            titleText().setStyle(type::hero.withSize(s));
+            if (titleText().measure().w <= w * 0.8f) break;
+        }
+        titleSize_ = size;
+        titleBox_ = {-size * 0.04f, 92, w, std::ceil(titleText().measure(w).h)};
+        contentTop_ = 70;
     }
-    void paint(Canvas& c) override {
+
+    // No cover: the banner. The bar gets the photo as a round avatar (the 128 px copy the tint was taken from).
+    Rect coverSlot() const override { return {}; }
+    void drawAvatar(Canvas& c, const Rect& r) override {
+        const auto* img = catalog::pickImage(artist_.images, 300);
+        ID2D1Bitmap1* bmp = img ? gfx::ImageCache::get().request(img->url, 128) : nullptr;
+        if (bmp) c.imageCircle(bmp, r);
+        else drawArtwork(c, {}, r, 0, Placeholder::Artist, true);
+    }
+
+    // The banner, behind the content: anchored to the page's top with its bottom edge riding the content up into the
+    // bar; the photo moves at half the scroll speed (parallax) and fades into the page before the bar docks, while the
+    // photo's color comes in as the bar's tint.
+    void paintBackdrop(Canvas& c, const Rect& page, const collapse::Frame& f) override {
+        const float bottom = collapse::kBarH + collapse::soft(kBannerH - f.s - collapse::kBarH);
+        const float fade = 1.f - collapse::smoothstep(f.s / (kBannerH - collapse::kBarH - 24));
+        if (fade > 0.001f) paintBanner(c, {page.x, page.y, page.w, bottom}, -0.5f * f.s, fade);
+        paintBarTint(c, page, f);
+    }
+    void paintBarTint(Canvas& c, const Rect& page, const collapse::Frame& f) override {
+        paintTint(c, page, f, collapse::smoothstep(f.titleProgress));
+    }
+
+    Button *follow_, *radio_, *more_;
+
+protected:
+    void paintContent(Canvas& c) override {
         const Rect r = rect();
         const auto& col = colors();
-        const Rect banner{r.x - 48, r.y - 36, r.w + 96, 340 + 36 - 80};
-        if (c.translucent()) {
-            paintBannerTranslucent(c, banner);
-        } else if (!artist_.images.empty()) {
-            c.pushClip(banner);
-            drawArtwork(c, artist_.images, {banner.x + banner.w * 0.4f, banner.y - banner.w * 0.08f, banner.w * 0.6f, banner.w * 0.6f}, 0,
-                        Placeholder::Artist);
-            c.popClip();
-            // The fade starts exactly at the photo's left edge (0.4 w): starting earlier left that edge ~9 % visible,
-            // a hard vertical step wherever the photo differs from bg.base (every dark photo on the light theme).
-            c.fillLinearGradient(banner, {banner.x + banner.w * 0.4f, 0}, {banner.x + banner.w * 0.8f, 0}, col.bgBase,
-                                 col.bgBase.withAlpha(0.15f));
-        } else {
-            // No photo: editorial ring motif in the accent.
-            c.pushClip(banner);
-            for (int i = 0; i < 5; ++i)
-                c.strokeCircle({banner.right() - 160, banner.cy() + 40}, 220.f - i * 34.f, accent().base.withAlpha(0.10f + i * 0.04f), 1.f);
-            c.popClip();
-        }
-        if (!c.translucent())
-            c.fillLinearGradient(banner, {0, banner.y + banner.h * 0.4f}, {0, banner.bottom()}, col.bgBase.withAlpha(0), col.bgBase);
         std::wstring label = artist_.type == "Group" ? toUpperTr(tr(L"Grup")) : toUpperTr(tr(L"Sanatçı"));
         if (!artist_.country.empty()) label += L" · " + toWide(artist_.country);
         if (!artist_.beginYear.empty()) label += L" · " + toWide(artist_.beginYear);
         if (!artist_.tags.empty()) label += L" · " + toUpperTr(toWide(artist_.tags[0]));
         if (blocked()) label.append(L" · ").append(toUpperTr(tr(L"Engelli")));   // kara liste: its songs never play by themselves
         c.text(label, type::monoLabel, {r.x, r.y + 70, r.w, 14}, accent().base);
-        float size = 96;
-        for (float s : {96.f, 80.f, 64.f, 52.f}) {
-            size = s;
-            name_.setStyle(type::hero.withSize(s));
-            if (name_.measure().w <= r.w * 0.8f) break;
-        }
-        c.text(name_, {r.x - size * 0.04f, r.y + 92, r.w, size}, col.fgPrimary);
         std::wstring meta;
         if (artist_.listenCount > 0)
             meta = i18n::plural(L"{} DİNLENME · LISTENBRAINZ", artist_.listenCount, {compactCount(artist_.listenCount)});
         else if (!artist_.disambiguation.empty()) meta = toUpperTr(toWide(artist_.disambiguation));
-        if (!meta.empty()) c.text(meta, type::monoMeta, {r.x, r.y + 100 + size, r.w, 16}, col.fgSecondary);
-        paintChildren(c);
+        if (!meta.empty()) c.text(meta, type::monoMeta, {r.x, r.y + 100 + titleSize_, r.w, 16}, col.fgSecondary);
     }
-    ui::PlayButton* play_;
-    Button *follow_, *radio_, *more_;
 
 private:
-    // The banner on a translucent window (Mica): the photo / rings dissolve by their own opacity (same masks as the
-    // bg.base gradients of the opaque path), so the backdrop shows through below them instead of an opaque band.
-    void paintBannerTranslucent(Canvas& c, const Rect& banner) {
-        c.pushFade(banner, {0, banner.y + banner.h * 0.4f}, {0, banner.bottom()}, 1.f, 0.f);
-        c.pushClip(banner);
-        if (!artist_.images.empty()) {
-            c.pushFade(banner, {banner.x + banner.w * 0.4f, 0}, {banner.x + banner.w * 0.8f, 0}, 0.f, 0.85f);
-            drawArtwork(c, artist_.images, {banner.x + banner.w * 0.4f, banner.y - banner.w * 0.08f, banner.w * 0.6f, banner.w * 0.6f}, 0,
-                        Placeholder::Artist);
+    static constexpr float kBannerH = 340 + 36 - 80;   // the banner at rest (it starts 36 above the hero)
+
+    // The photo at the banner's right (the ring motif without one), `dy` = parallax, `opacity` = how much of it is
+    // left; the same fades as at rest (left: into the page, bottom: into the content).
+    void paintBanner(Canvas& c, const Rect& banner, float dy, float opacity) {
+        const auto& col = colors();
+        const Rect photo{banner.x + banner.w * 0.4f, banner.y - banner.w * 0.08f + dy, banner.w * 0.6f, banner.w * 0.6f};
+        if (c.translucent()) {
+            // Translucent window (Mica): the photo / rings dissolve by their own opacity (same masks as the bg.base
+            // gradients of the opaque path), so the backdrop shows through below them instead of an opaque band.
+            c.pushFade(banner, {0, banner.y + banner.h * 0.4f}, {0, banner.bottom()}, 1.f, 0.f);
+            c.pushClip(banner);
+            if (!artist_.images.empty()) {
+                c.pushFade(banner, {banner.x + banner.w * 0.4f, 0}, {banner.x + banner.w * 0.8f, 0}, 0.f, 0.85f);
+                drawPhoto(c, photo, opacity);
+                c.popLayer();
+            } else {
+                drawRings(c, banner, dy, opacity);
+            }
+            c.popClip();
             c.popLayer();
-        } else {
-            for (int i = 0; i < 5; ++i)
-                c.strokeCircle({banner.right() - 160, banner.cy() + 40}, 220.f - i * 34.f, accent().base.withAlpha(0.10f + i * 0.04f), 1.f);
+            return;
         }
-        c.popClip();
-        c.popLayer();
+        if (!artist_.images.empty()) {
+            c.pushClip(banner);
+            drawPhoto(c, photo, opacity);
+            c.popClip();
+            // The fade starts exactly at the photo's left edge (0.4 w): starting earlier left that edge ~9 % visible,
+            // a hard vertical step wherever the photo differs from bg.base (every dark photo on the light theme).
+            c.fillLinearGradient(banner, {banner.x + banner.w * 0.4f, 0}, {banner.x + banner.w * 0.8f, 0}, col.bgBase,
+                                 col.bgBase.withAlpha(0.15f));
+        } else {
+            c.pushClip(banner);
+            drawRings(c, banner, dy, opacity);   // no photo: editorial ring motif in the accent
+            c.popClip();
+        }
+        c.fillLinearGradient(banner, {0, banner.y + banner.h * 0.4f}, {0, banner.bottom()}, col.bgBase.withAlpha(0), col.bgBase);
+    }
+    void drawPhoto(Canvas& c, const Rect& photo, float opacity) {
+        const int px = static_cast<int>(std::ceil(photo.w * c.scale()));
+        const auto* img = catalog::pickImage(artist_.images, px);
+        if (ID2D1Bitmap1* bmp = img ? gfx::ImageCache::get().request(img->url, px) : nullptr) {
+            c.image(bmp, photo, 0, opacity);
+            return;
+        }
+        if (opacity < 0.999f) c.pushOpacity(opacity);
+        drawArtwork(c, {}, photo, 0, Placeholder::Artist);   // the placeholder while it loads
+        if (opacity < 0.999f) c.popLayer();
+    }
+    void drawRings(Canvas& c, const Rect& banner, float dy, float opacity) {
+        for (int i = 0; i < 5; ++i)
+            c.strokeCircle({banner.right() - 160, banner.y + kBannerH * 0.5f + 40 + dy}, 220.f - i * 34.f,
+                           accent().base.withAlpha((0.10f + i * 0.04f) * opacity), 1.f);
     }
 
     Artist artist_;
-    gfx::Text name_;
     bool blocked_ = false;
     uint64_t blockRev_ = ~0ull;
 };
@@ -1478,6 +1527,7 @@ private:
 class ArtistView : public ScrollPage {
 public:
     explicit ArtistView(std::string id) : id_(std::move(id)) {
+        enableCollapse();   // the hero collapses into a compact bar (app/CollapsingHeader)
         showSkeleton(5);
         load();
     }
@@ -1508,6 +1558,11 @@ private:
         const std::wstring ctxName = toWide(d.artist.name);
         const auto top = d.topTracks;
         const Artist artist = d.artist;
+        attachHeader(hero, nullptr);
+        hero->isPlaying = [ctxUri] {
+            auto* p = ctx().player;
+            return p && p->isPlaying() && p->context().uri == ctxUri;
+        };
         hero->play_->onClick = [top, ctxUri, ctxName] {
             auto* p = ctx().player;
             if (p->context().uri == ctxUri) return p->togglePause();

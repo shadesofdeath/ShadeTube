@@ -95,6 +95,7 @@ ShadeTube/
 │                                ConnectScreen, MiniPlayer
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats, LibrarySort +
 │                                LibraryView (Library views, 3.22), Display (interface scale + list density, 3.25),
+│                                CollapsingHeader + HeaderCollapse (collapsing page headers, 3.x),
 │                                Radio, Blacklist,
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
@@ -110,6 +111,9 @@ ShadeTube/
                                  tags, theme, updater, winshell
                                  popups, radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify,
                                  stats, sync, tags, updater, winshell
+                                 headers, jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, pagetx,
+                                 playback, podcasts, radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock,
+                                 spotify, stats, sync, tags, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -1512,6 +1516,76 @@ the palette command, the dev hooks).
   current year when it qualifies, else the last 12 months, else the newest year; nothing when none qualifies) and the
   palette command "Yılın özeti hikâyesi".
 
+### 3.x Collapsing page headers
+
+`app/CollapsingHeader` (the widgets) on `app/HeaderCollapse` (the geometry; standalone, tested by
+`header_collapse_test`). Album, playlist, Liked Songs, smart list, podcast show and artist pages.
+
+- **What collapses**: as the page scrolls, its header settles into a compact sticky bar (64 DIP): the 232 DIP cover
+  shrinks into the bar's 40 DIP thumbnail (same corner, x 48 / y 12), the title scales down beside it and settles on
+  the bar's center line, and a track list's column header docks under the bar (92 DIP with it; the old CollectionPage
+  pinned bar with its own fade `Anim` is gone). Everything else in the header (mono label, description, owner line,
+  action row, sort / filter) dissolves into the bar: a `Canvas::pushFade` mask over the header widget, transparent
+  above `maskTop` and opaque 40 DIP lower; at rest the band lies above the topmost content, then it moves down to 8 DIP
+  above the bar's line. The bar has its own play (`PlayButton::Look::Outline`) and shuffle (`IconOutline`,
+  `shuffle-thin`), which come in while the header's buttons dissolve and mirror their handlers and playing state (the
+  header's play now shows pause too while the page's collection plays). Lists without a column header (podcast,
+  artist) get a hairline under the bar once they dock. Artist and podcast bars have no shuffle.
+- **Driven by the offset**: `collapse::compute(spec, s)` is a pure function of the ScrollView's offset of the frame
+  (`scrollY()`, advanced to the frame time by the smooth-scroll engine, 3.28): no timers, no relayout while scrolling,
+  the same frame for the same offset whichever way the page goes. Pinned elements settle with `collapse::soft()`: they
+  move with the content until 12 DIP from their place, then approach it exponentially (position and speed continuous,
+  never ahead of the content). The cover's top and bottom edges are each pinned to the bar's slot, so it shrinks exactly
+  as fast as the content below it comes up. The title's center rides with the content to the bar's line while it scales
+  (smoothstep of the way travelled) and cross-fades into a one-line layout of the same style: a one-line title that
+  fits is the same layout (no cross-fade), one that gets an ellipsis fades under it, a two-line title fades out before
+  the one-line one fades in (never a double outline). `ScrollView::topInset` is what the bar covers (`min(offset, bar
+  height)`), so keyboard reveal, PageUp / PageDown and drag autoscroll stay below it.
+- **Structure**: `HeroHeader` is the base of the headers (`DetailHeader`, `SmartHeader`, `ShowHeader`, `ArtistHero`):
+  it lays out its texts in `layout()` (`titleBox_`, `titleSize_`, `contentTop_`: header-local at offset 0) and paints
+  everything but the cover and the title in `paintContent()`. `ScrollPage::enableCollapse()` (constructor) adds a
+  `CollapseBar` above the ScrollView; `attachHeader(header, dock, columns)` after every build (`resetContent()`
+  detaches it). Per frame `ScrollPage::paint` calls `CollapseBar::paintBackdrop` before the content (evaluates the
+  frame, places the cover and the buttons, sets `topInset`, paints the backdrop); the bar then paints as the page's last
+  child: the docked surface, the cover, the title, the buttons. Wheel input over the bar scrolls the page; the bar takes
+  clicks only where the content under it is invisible (the dissolved band, the docked bar), never on the scrollbar.
+- **The cover** is a widget (`HeaderCover`, a child of the bar) whose rect at offset 0 is the header's cover slot (232
+  DIP at the header's top-left). It is drawn at the slot's size under a scale transform, so an image keeps the bitmap
+  bucket it was loaded at (no reload, no placeholder flash while it shrinks) and the Liked Songs tile and the smart
+  lists' generated covers scale as a whole. An editable playlist's cover and title still open "Ayrıntıları düzenle"
+  (hover: the edit overlay). `findHeaderCover(page)` finds it (nullptr while the content loads and on artist pages).
+- **Page transitions** (3.x Page transitions): `Page::coverSlot` of the album / playlist / Liked Songs, smart list and
+  podcast show pages is `ScrollPage::headerCoverSlot` → `CollapseBar::coverSlot`: the HeaderCover's rect where it is now
+  (evaluated on demand, also before the page's first paint), as `HeroHeader::sharedCover(owner, rect)` builds it
+  (`pagetx::imageCover`; Liked Songs' tile and the smart lists' generated cover as painters, keys "liked" /
+  "smart:<id>"), with the HeaderCover as the owner: it skips its artwork and shadow while `pagetx::presence()` is 0 and
+  brings the shadow up with it as the cover lands. A card's cover lands on the expanded slot (a page opens at offset 0;
+  scrolling during the hold ends it, as designed). Back from a scrolled page flies the cover from where it is: the
+  shrinking cover or the bar's 40 DIP thumbnail (when that is less than half on screen or its image is not loaded,
+  the plain transition).
+- **Tint**: the backdrop is a gradient of the cover's color (`ImageCache::fetchAccent`, the extraction behind the dynamic
+  accent; the light theme darkens it with `Theme::adaptAccent`) at 16 % (dark) / 14 % (light) over `bg.base`,
+  cross-faded in over 600 ms when the color arrives after the first paint (until then, and for images without a vivid
+  color, the app's accent). `collapse::wash` weakens it until `fg.primary` keeps 7:1 and `fg.secondary` 4.5:1 on it (or
+  94 % of what they have on bare paper when that is less). It is anchored to the page's top (420 DIP at rest, as
+  before); its end rides with the content and settles 40 DIP below the docked bar, so the bar carries the color and it
+  fades into the page under it. Liked Songs uses the accent, smart lists their tile tone lifted to 50 % lightness.
+- **Mica** (3.3): the docked bar replaces the pixels under it with `Canvas::fillSurface()` and repaints the same tint
+  clipped to itself, so it is seamless with the backdrop; the header dissolves through `pushFade`, the artist banner
+  through its own `pushFade` masks as before.
+- **Artist**: the banner (photo or ring motif) is painted behind the content: its top stays at the page's top, its bottom
+  edge rides the content up into the bar, the photo moves at half the scroll speed (parallax) and fades into the page
+  (gone after 208 DIP, before the bar docks) while its color comes in as the bar's tint. The bar shows the photo as a
+  round 40 DIP avatar (fading in with the title; the 128 px copy the tint was taken from) beside the name.
+- **Kept working**: keyboard focus (the bar's buttons are Tab stops once they are more than half in; Tab to a dissolved
+  header button scrolls it back into view below `topInset`), selection, drag reorder, "Listede ara" / "Bölümlerde ara"
+  (the content just gets shorter), compact list density (the dock is the table's top), Back / Forward offsets.
+- **Cost** per frame: one gradient, the header's fade layer (only while the header is on screen and something dissolves),
+  one bitmap (and its shadow while the cover is bigger than the bar's) and one or two text draws; `compute()` is plain
+  arithmetic. `SHADETUBE_SCROLL_DEMO=notch,touch` through the collapse of a playlist (Debug, 120 Hz): 292 frames, median
+  gap 8.3 ms, frame CPU at most 2.9 ms.
+- Dev: `SHADETUBE_HEADER_SCROLL=<dips>` (5.4) opens such pages scrolled that far (screenshots of any stage).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1534,7 +1608,7 @@ the palette command, the dev hooks).
   that may navigate (and so destroy the widget) are called through a local copy.
 - App files that tests compile directly (`Blacklist`, `ListenStats`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
   `SponsorBlock`, `Smtc`, `Updater`, `Installer`, `LibrarySort`, `RemoteHttp`, `RemoteAuth`, `RemoteApi`,
-  `RemoteState`, `RemoteServer`, the `Jam*` core) must stay standalone: no `App`, `AppContext` or UI headers.
+  `RemoteState`, `RemoteServer`, the `Jam*` core, `HeaderCollapse`) must stay standalone: no `App`, `AppContext` or UI headers.
 
 ## 5. Testing
 
@@ -1592,6 +1666,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json` (and its newest entries, Home's hero), history recency, timing with 10 000 items | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
 | `theme_test` | theme studio core (`gfx/ThemeSpec`, `app/ThemeStore`): strict color syntax, the tokens files as themes, every bundled preset (no warnings, strict parse, keys match the palette, write / read round trip, the full contrast table), key-color derivation and `setKey`, accent adaptation and ink / paper, import validation (every refusal kind, too large, keys-only files, base guessing, names), the theme folder (save / reload / numbered names / remove / import / export / broken files left out), slugs | offline (own temp folder; reads the source tree's `assets/`) |
+| `header_collapse_test` | collapsing page headers (`app/HeaderCollapse`) on real header geometries (album, two-line playlist with a description, podcast, artist): at offset 0 everything is where the expanded header draws it, no element jumps between offsets 1/4 DIP apart, scrolling down only collapses, content never shows through the cover / title (it has dissolved where it passes under them), the docked frame (thumbnail, compact title on the bar's line, buttons, inset, hairline), the settling function, the tint's contrast on dark and light paper | offline |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
 | `pagetx_test` | page transitions (`ui/PageMotion`) stepped with explicit times: durations 180..240 ms, Push (outgoing fades / shifts out, incoming slides in, both monotonic and exact at the end), Back mirrored, shared / Replace without offsets, the cover's flight (lands exactly, even on a moving target, no overshoot, radius morph), the hand-over, holding for an image (no frames; image / scroll / timeout end it), fading when the target goes, 60 / 144 Hz give the same positions | offline |
 | `popups_test` | the overlay family (3.x) on a hidden window over a red / blue page: menu keys (wrap over disabled items and separators, Home / End, Tab, Enter, Escape), separator tidying, submenus by key (Right / Enter / Left / Escape, parent item lit) and by pointer (200 ms open, 300 ms close, click), type-ahead (accents, cycling), one acrylic capture per opening and one per settled change behind (never per frame), the material showing the page while `fg.secondary` keeps ≥ 4.5:1 (dark and light), close animations (painted without input, then deleted, backdrop freed; none with reduce motion), toast stacking, dialogs (Enter, Escape); `SHADETUBE_ACRYLIC=off` in a child process (no capture, even surface) | offline; `opaque` (the child's mode) |
@@ -1685,6 +1760,7 @@ apps*).
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.x) |
 | `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.x) |
 | `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
+| `SHADETUBE_HEADER_SCROLL` | `<dips>`: pages with a collapsing header (album, playlist, Liked Songs, smart list, podcast show, artist; 3.x) open scrolled that far once their content is built, e.g. `150` (half collapsed) or `400` (docked) with `--route playlist:<id>` and `--screenshot` |
 
 ## 6. Release process
 
