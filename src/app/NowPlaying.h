@@ -45,6 +45,7 @@ private:
 
     QueuePanel* queue_;
     ui::Button *translate_, *earlier_, *offset_, *later_, *fullscreen_;
+    ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
     Lifetime life_;
     std::string trackId_;
     LyricsState state_ = LyricsState::None;
