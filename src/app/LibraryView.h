@@ -36,7 +36,8 @@ struct LibraryCell {
     std::optional<Route> drop;          // where songs dropped on it go (dragdrop::tracksForRow decides); none = no target
 };
 
-class LibraryView : public ui::Widget, public DropTarget, public PreviewSource {
+// Opening a cell arms its cover for the page transition (app/PageTransition); a cell is the owner of its cover.
+class LibraryView : public ui::Widget, public DropTarget, public CoverSource, public PreviewSource {
 public:
     enum class Mode { Grid, List };
     static constexpr float kRowH = 64;   // list rows (ListRow's height), 48 DIP artwork
@@ -74,8 +75,10 @@ public:
     // Song preview (app/Preview): a playlist / album / artist / Liked Songs cell (the grid's cover, a list row; not
     // the play button), or the keyboard cursor's.
     std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
+    bool coverFor(const std::string& key, SharedCover& out) override;
 
 private:
+    SharedCover coverOf(int d) const;    // the cell's artwork for the page transition
     struct CellText {
         gfx::Text title, sub, meta;
         bool metaDone = false;
@@ -90,13 +93,14 @@ private:
     const LibraryCell& cell(int d) const { return (*cells_)[order_[static_cast<size_t>(d)]]; }
     CellText& text(int d);
     float hoverOf(int d) const;
+    float pointerHoverOf(int d) const;   // the pointer's part of hoverOf() (the cards' rise; not keyboard focus)
     bool isCurrent(const LibraryCell& c) const;   // its context is the player's
     void setHot(int d, bool playHot);
     void paintCard(Canvas& c, int d, const Rect& r);
     void paintRow(Canvas& c, int d, const Rect& r);
     void paintArt(Canvas& c, const LibraryCell& cell, const Rect& art, float radius);
     float paintMarks(Canvas& c, const LibraryCell& cell, float x, float cy);   // pin / downloaded; returns the new x
-    void paintPlay(Canvas& c, const LibraryCell& cell, const Rect& pr, float h, float iconSize);
+    void paintPlay(Canvas& c, int d, const LibraryCell& cell, const Rect& pr, float h, float iconSize);
     void open(int d);
     void play(int d);
     void context(int d, gfx::Point windowPos);
@@ -112,7 +116,9 @@ private:
     bool playHot_ = false;
     ui::Anim hotA_, prevA_;
     int pressed_ = -1;
+    bool pressPlay_ = false;              // the press is on the play button (it shrinks, the card stays)
     ui::Anim pressA_;
+    ui::Anim playHotA_, playPressA_;      // the hot cell's play button: pointer over it / pressed (ui::card::Play)
     int dropHot_ = -1;                    // cell highlighted under dragged songs
     double lastScrollTick_ = 0;
 };

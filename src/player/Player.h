@@ -216,6 +216,8 @@ public:
     uint64_t startPreview(const Track& track, int64_t startMs = -1, bool keepMainRunning = false);
     void stopPreview();
     PreviewState previewState() const { return previewState_; }
+    // The current item is held (silent, its position standing still) under an audible preview.
+    bool previewHoldsCurrent() const { return previewState_ == PreviewState::Playing && !previewKeepMain_; }
     uint64_t previewId() const { return previewId_; }
     int64_t previewPositionMs() const { return engine_->previewPositionMs(); }
     // Fired on the UI thread when the preview's state changes (Idle also when it ended by itself or a command stopped it).

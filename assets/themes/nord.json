@@ -1,0 +1,83 @@
+{
+  "$schema": "shadetube-theme/1",
+  "name": "Kuzey",
+  "base": "dark",
+  "note": "Cool arctic blue-greys after the Nord palette (nord0-nord6, frost accent, aurora status colors).",
+  "keys": {
+    "background": "#2E3440",
+    "surface": "#353C4A",
+    "text": "#ECEFF4",
+    "outline": "#D8DEE9",
+    "accent": "#88C0D0"
+  },
+  "color": {
+    "bg": {
+      "base": "#2E3440",
+      "raised": "#353C4A",
+      "overlay": "#3B4252",
+      "sunken": "#272C36",
+      "elevated": "#434C5E"
+    },
+    "fg": {
+      "primary": "#ECEFF4",
+      "secondary": "#B4BCCB",
+      "tertiary": "#848EA1",
+      "disabled": "#5D6679",
+      "inverse": "#2E3440"
+    },
+    "hairline": {
+      "subtle": "rgba(216,222,233,0.07)",
+      "default": "rgba(216,222,233,0.11)",
+      "strong": "rgba(216,222,233,0.17)",
+      "control": "rgba(216,222,233,0.22)"
+    },
+    "overlay": {
+      "hover": "rgba(236,239,244,0.05)",
+      "pressed": "rgba(236,239,244,0.09)",
+      "selected": "rgba(236,239,244,0.07)",
+      "scrim": "rgba(46,52,64,0.6)",
+      "scrimHeavy": "rgba(46,52,64,0.85)"
+    },
+    "accent": {
+      "base": "#88C0D0"
+    },
+    "status": {
+      "error": "#D8737D",
+      "warning": "#EBCB8B",
+      "success": "#A3BE8C",
+      "info": "#81A1C1",
+      "youtube": "#E06C75"
+    },
+    "skeleton": {
+      "base": "rgba(236,239,244,0.06)",
+      "shine": "rgba(236,239,244,0.12)"
+    },
+    "chrome": {
+      "captionHover": "rgba(236,239,244,0.08)",
+      "closeHover": "#C42B1C",
+      "closeHoverFg": "#FFFFFF"
+    }
+  },
+  "effects": {
+    "cardHoverShadow": {
+      "color": "#12151B",
+      "opacity": 0.45
+    },
+    "menuShadow": {
+      "color": "#12151B",
+      "opacity": 0.55
+    },
+    "dialogShadow": {
+      "color": "#12151B",
+      "opacity": 0.6
+    },
+    "toastShadow": {
+      "color": "#12151B",
+      "opacity": 0.5
+    },
+    "nowPlayingArtShadow": {
+      "color": "#000000",
+      "opacity": 0.5
+    }
+  }
+}

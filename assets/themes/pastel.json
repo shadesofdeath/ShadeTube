@@ -1,0 +1,83 @@
+{
+  "$schema": "shadetube-theme/1",
+  "name": "Pastel",
+  "base": "light",
+  "note": "Soft lavender paper with plum ink and a violet accent.",
+  "keys": {
+    "background": "#F5F1FA",
+    "surface": "#FBF9FD",
+    "text": "#241F33",
+    "outline": "#241F33",
+    "accent": "#6A4BC4"
+  },
+  "color": {
+    "bg": {
+      "base": "#F5F1FA",
+      "raised": "#FBF9FD",
+      "overlay": "#FFFFFF",
+      "sunken": "#ECE6F4",
+      "elevated": "#FFFFFF"
+    },
+    "fg": {
+      "primary": "#241F33",
+      "secondary": "#595270",
+      "tertiary": "#857E99",
+      "disabled": "#BAB4C9",
+      "inverse": "#F5F1FA"
+    },
+    "hairline": {
+      "subtle": "rgba(36,31,51,0.07)",
+      "default": "rgba(36,31,51,0.11)",
+      "strong": "rgba(36,31,51,0.17)",
+      "control": "rgba(36,31,51,0.23)"
+    },
+    "overlay": {
+      "hover": "rgba(36,31,51,0.05)",
+      "pressed": "rgba(36,31,51,0.09)",
+      "selected": "rgba(36,31,51,0.06)",
+      "scrim": "rgba(245,241,250,0.55)",
+      "scrimHeavy": "rgba(245,241,250,0.85)"
+    },
+    "accent": {
+      "base": "#6A4BC4"
+    },
+    "status": {
+      "error": "#C4364A",
+      "warning": "#A2690A",
+      "success": "#2C8253",
+      "info": "#2F72B0",
+      "youtube": "#D92B3A"
+    },
+    "skeleton": {
+      "base": "rgba(36,31,51,0.06)",
+      "shine": "rgba(36,31,51,0.12)"
+    },
+    "chrome": {
+      "captionHover": "rgba(36,31,51,0.08)",
+      "closeHover": "#C42B1C",
+      "closeHoverFg": "#FFFFFF"
+    }
+  },
+  "effects": {
+    "cardHoverShadow": {
+      "color": "#241F33",
+      "opacity": 0.12
+    },
+    "menuShadow": {
+      "color": "#241F33",
+      "opacity": 0.16
+    },
+    "dialogShadow": {
+      "color": "#241F33",
+      "opacity": 0.2
+    },
+    "toastShadow": {
+      "color": "#241F33",
+      "opacity": 0.14
+    },
+    "nowPlayingArtShadow": {
+      "color": "#000000",
+      "opacity": 0.35
+    }
+  }
+}

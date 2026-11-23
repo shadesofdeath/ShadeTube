@@ -26,6 +26,7 @@ class Canvas;
 }
 namespace st::ui {
 class Column;
+class Widget;
 }
 
 namespace st::app {
@@ -52,6 +53,9 @@ void drawCover(gfx::Canvas& c, const List& l, const gfx::Rect& r, float radius);
 // A "Senin için listeler" row (section header + cards, `maxRows` rows of cards; 0 = all) that follows the lists by
 // itself; hidden while there is none.
 void addSection(ui::Column* c, int maxRows);
+// The same section with its cards in the widget `makeRow` adds to the section under the header (Home's sideways
+// shelf); called again whenever the lists change.
+void addSection(ui::Column* c, std::function<ui::Widget*(ui::Column* section)> makeRow);
 
 } // namespace smart
 

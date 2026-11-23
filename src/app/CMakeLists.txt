@@ -1,4 +1,4 @@
-﻿# Generate resources.rc: every file under assets/ becomes an RCDATA resource named by its relative
+# Generate resources.rc: every file under assets/ becomes an RCDATA resource named by its relative
 # path ("icons/24/play.svg"); app.ico is the window/exe icon (id 1).
 set(ASSET_DIR ${CMAKE_SOURCE_DIR}/assets)
 file(GLOB_RECURSE ST_ASSETS RELATIVE ${ASSET_DIR} CONFIGURE_DEPENDS ${ASSET_DIR}/*)
@@ -55,9 +55,11 @@ add_executable(ShadeTube WIN32
     DroppedFiles.cpp DroppedFiles.h
     HistoryImport.cpp HistoryImport.h
     HomePage.cpp
+    HomeWidgets.cpp HomeWidgets.h
     LibrarySort.cpp LibrarySort.h
     LibraryView.cpp LibraryView.h
     Installer.cpp Installer.h
+    OverlayDemo.cpp OverlayDemo.h
     ListenStats.cpp ListenStats.h
     LinkOpener.cpp LinkOpener.h
     Links.cpp Links.h
@@ -66,9 +68,11 @@ add_executable(ShadeTube WIN32
     LoginWindow.cpp LoginWindow.h
     LyricsFullscreen.cpp LyricsFullscreen.h
     LyricsService.cpp LyricsService.h
+    LyricsShare.cpp LyricsShare.h
     MiniPlayer.cpp MiniPlayer.h
     NowPlaying.cpp NowPlaying.h
     PageWidgets.cpp PageWidgets.h
+    PageTransition.cpp PageTransition.h
     Pages.h
     PlaybackSettings.cpp
     Preview.cpp Preview.h
@@ -102,6 +106,7 @@ add_executable(ShadeTube WIN32
     SettingsWidgets.h
     Shortcuts.cpp Shortcuts.h
     Shell.cpp Shell.h
+    ShareCard.cpp ShareCard.h
     SmartMix.cpp SmartMix.h
     SmartShuffle.cpp SmartShuffle.h
     SmartLists.cpp SmartLists.h
@@ -114,8 +119,13 @@ add_executable(ShadeTube WIN32
     SyncRules.cpp SyncRules.h
     SystemSettings.cpp
     TagEditor.cpp TagEditor.h
+    ThemeStore.cpp ThemeStore.h
+    ThemeStudio.cpp ThemeStudio.h
+    ThemeStudioUi.cpp
     Updater.cpp Updater.h
     WinShell.cpp WinShell.h
+    YearReview.cpp YearReview.h
+    YearReviewView.cpp YearReviewView.h
     FriendActivity.cpp Social.h
     NewReleases.cpp NewReleases.h
     NewReleasesPage.cpp

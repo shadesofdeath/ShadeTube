@@ -19,6 +19,7 @@
 #include "core/Utf.h"
 #include "gfx/Theme.h"
 #include "spotify/SpotifyApi.h"
+#include "ui/Acrylic.h"
 #include "ui/Window.h"
 
 #include <windows.h>
@@ -114,7 +115,8 @@ public:
 // ---- Overlay: a small card by the pointer and the pressed look of the row / cover ------------------------------------
 void overlayGone(ui::Widget* overlay);   // the controller forgets it (the window destroys its overlays first)
 
-class PreviewOverlay : public ui::Widget {
+// The card is an overlay surface like the menus' and toasts' (ui/Acrylic: shadow, material, outline).
+class PreviewOverlay : public ui::Widget, public ui::OverlayLayer {
 public:
     PreviewOverlay() : title_({}, gfx::type::body.withSize(13)), sub_({}, gfx::type::caption), label_({}, gfx::type::monoLabel) {
         hitTestVisible = false;
@@ -122,16 +124,20 @@ public:
     }
     ~PreviewOverlay() override { overlayGone(this); }
     ui::Widget* hitTest(gfx::Point) override { return nullptr; }
+    void prepareBackdrop(ui::Canvas& c, ui::Window& w) override {
+        if (alpha_.value() <= 0.01f && alpha_.target() <= 0.f) return material_.release();   // hidden: no backdrop kept
+        material_.capture(c, w, boxRect(), ui::overlay::surfaceColor(ui::overlay::Elevation::Toast));
+    }
 
     void open(const PreviewHit& hit, gfx::Point anchor, Trigger trigger) {
         source_ = hit.rect;
         anchor_ = anchor;
         pressedLook_ = trigger != Trigger::Menu && hit.rect.w > 0;
-        alpha_.to(1, ui::motion::fast, ui::Ease::Decelerate);
+        alpha_.to(1, ui::overlay::duration(ui::motion::fast), ui::Ease::Decelerate);
         invalidate();
     }
     void close() {
-        if (alpha_.target() > 0) alpha_.to(0, ui::motion::normal);
+        if (alpha_.target() > 0) alpha_.to(0, ui::overlay::duration(ui::motion::normal));
         invalidate();
     }
     // What the session shows now (texts are kept for the fade-out once it is idle).
@@ -156,16 +162,14 @@ public:
         const double now = ui::frame::now();
         c.pushOpacity(a);
         if (pressedLook_) {   // the row / cover stays pressed: a thin accent outline over a faint wash
-            c.fillRounded(source_, gfx::metrics::radiusSurface, acc.tint06);
-            c.strokeRounded(source_.inset(0.5f, 0.5f), gfx::metrics::radiusSurface, acc.base.mulAlpha(0.8f), 1.f);
+            c.fillRounded(source_, gfx::radii().surface, acc.tint06);
+            c.strokeRounded(source_.inset(0.5f, 0.5f), gfx::radii().surface, acc.base.mulAlpha(0.8f), 1.f);
         }
-        const float rise = ui::motion::reduced() ? 0.f : 6.f * (1.f - ui::ease(ui::Ease::Decelerate, a));
+        const float rise = ui::overlay::animated() ? 6.f * (1.f - ui::ease(ui::Ease::Decelerate, a)) : 0.f;
         const Rect box = boxRect().offset(0, rise);
-        c.shadow(box, gfx::metrics::radiusSurface, 24, 8, col.shadowToast);
-        c.fillRounded(box, gfx::metrics::radiusSurface, col.bgOverlay);
-        c.strokeRounded(box, gfx::metrics::radiusSurface, col.hairDefault);
+        ui::paintOverlaySurface(c, box, ui::overlay::Elevation::Toast, &material_);
         const Rect art{box.x + 10, box.y + 10, 40, 40};
-        drawArtwork(c, images_, art, gfx::metrics::radiusSurface, Placeholder::Album);
+        drawArtwork(c, images_, art, gfx::radii().art, Placeholder::Album);
         const bool ring = phase_ != Phase::Hint;
         const float x = art.right() + 12, right = box.right() - (ring ? 44.f : 14.f);
         c.text(title_, {x, box.y + 11, right - x, 18}, col.fgPrimary, gfx::VAlign::Center);
@@ -184,7 +188,7 @@ public:
             c.strokeCircle(ctr, r, col.hairControl, 1.25f);
             if (phase_ == Phase::Playing) {
                 if (progress_ > 0.005f) c.arc(ctr, r, 0.f, 360.f * std::min(progress_, 0.999f), acc.base, 1.5f);
-            } else if (ui::motion::reduced()) {
+            } else if (!ui::overlay::animated()) {
                 c.arc(ctr, r, 0.f, 90.f, acc.base.mulAlpha(0.6f), 1.5f);
             } else {
                 const float start = static_cast<float>(std::fmod(now * 0.36, 360.0));
@@ -228,6 +232,7 @@ private:
     Hint hint_ = Hint::None;
     float progress_ = 0;
     ui::Anim alpha_;
+    ui::Acrylic material_;
 };
 
 // ---- Controller ---------------------------------------------------------------------------------------------------

@@ -57,6 +57,7 @@ constexpr Action kActions[] = {
 
     {"now-playing", [] { return tr(L"Şimdi Çalıyor ekranı"); }, Category::View, "F11", 0, "expand"},
     {"toggle-sidebar", [] { return tr(L"Kenar çubuğunu daralt / genişlet"); }, Category::View, "Ctrl+B", 0, "sidebar"},
+    {"sidebar-more", [] { return tr(L"Kenar çubuğunda diğer sayfaları göster / gizle"); }, Category::View, "", 0, "chevron-down"},
     {"queue", [] { return tr(L"Çalma sırası paneli"); }, Category::View, "", 0, "queue"},
     {"friend-activity", [] { return tr(L"Arkadaş etkinliği paneli"); }, Category::View, "Ctrl+Shift+A", 0, "users"},
     {"listen-together", [] { return tr(L"Birlikte dinle paneli"); }, Category::View, "", 0, "users"},

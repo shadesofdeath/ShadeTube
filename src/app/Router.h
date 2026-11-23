@@ -20,6 +20,8 @@ struct Route {
     bool operator==(const Route& o) const { return kind == o.kind && id == o.id; }
 };
 
+struct SharedCover;   // app/PageTransition.h
+
 class Page : public ui::Widget {
 public:
     // Scroll position persisted in history.
@@ -29,6 +31,9 @@ public:
     // Ctrl+F (the "search" shortcut): a page with a search box of its own focuses it and returns true; otherwise the
     // Search page opens.
     virtual bool focusSearch() { return false; }
+    // Page transitions (app/PageTransition): the cover in this page's header, in window DIPs, also while the page is
+    // still loading (where it will be, not ready). The cover of a card that opened the page flies there. False: none.
+    virtual bool coverSlot(SharedCover&) { return false; }
 };
 
 class Router {
@@ -46,6 +51,14 @@ public:
     bool canForward() const { return index_ + 1 < static_cast<int>(history_.size()); }
     const Route& current() const { return history_[index_].route; }
 
+    // The page change being shown (read by PageHost::show for the transition): from where, to where, and how.
+    enum class Nav { Push, Back, Forward, Replace };
+    struct Change {
+        Route from, to;
+        Nav nav = Nav::Replace;
+    };
+    const Change& lastChange() const { return change_; }
+
     // Host widget that displays the current page (with the page transition).
     ui::Widget* host() const { return host_; }
     void setHost(ui::Widget* host) { host_ = host; }
@@ -62,6 +75,7 @@ private:
     Factory factory_;
     std::vector<Entry> history_{{Route{}, 0}};
     int index_ = 0;
+    Change change_;
     ui::Widget* host_ = nullptr;
 };
 

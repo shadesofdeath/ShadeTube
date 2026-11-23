@@ -2,6 +2,7 @@
 
 #include "app/InternetRadio.h"
 #include "app/LyricsService.h"
+#include "app/LyricsShare.h"
 #include "app/PodcastUi.h"
 #include "app/Shell.h"
 #include "app/SmartShuffle.h"
@@ -63,6 +64,9 @@ NowPlayingView::NowPlayingView()
     fullscreen_->onClick = [] {
         if (ctx().toggleLyricsFullscreen) ctx().toggleLyricsFullscreen();
     };
+    share_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "share");
+    share_->setTooltip(tr(L"Sözleri paylaş"));
+    share_->onClick = [this] { openLyricsShare(lyrics_, active_, translation_); };
     syncLyricsControls();
     gfx::TextOptions wrap;
     wrap.wrap = true;
@@ -222,6 +226,7 @@ void NowPlayingView::syncLyricsControls() {
     offset_->setVisible(synced);
     later_->setVisible(synced);
     fullscreen_->setVisible(synced || state_ == LyricsState::Plain);
+    share_->setVisible(synced || state_ == LyricsState::Plain);
     offset_->setLabel(formatLyricsOffset(lyricsOffset(trackId_)));
     requestLayout();
     invalidate();
@@ -237,6 +242,11 @@ void NowPlayingView::layout() {
     // Lyrics header, right-aligned on the label's row: [Çeviri]  [−] [+0,5 sn] [+]  [full screen].
     const float cy = lyricsRect_.y + 56, bs = 28;
     float x = lyricsRect_.right();
+    if (share_->visible()) {   // rightmost: [Çeviri] [−] [+0,5 sn] [+] [full screen] [share]
+        x -= bs;
+        share_->setRect({x, cy - bs / 2, bs, bs});
+        x -= 6;
+    }
     if (fullscreen_->visible()) {
         x -= bs;
         fullscreen_->setRect({x, cy - bs / 2, bs, bs});

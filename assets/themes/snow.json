@@ -1,0 +1,83 @@
+{
+  "$schema": "shadetube-theme/1",
+  "name": "Kar",
+  "base": "light",
+  "note": "Cool light theme after Nord's Snow Storm, deep frost accent.",
+  "keys": {
+    "background": "#ECEFF4",
+    "surface": "#F5F7FA",
+    "text": "#232831",
+    "outline": "#232831",
+    "accent": "#46699A"
+  },
+  "color": {
+    "bg": {
+      "base": "#ECEFF4",
+      "raised": "#F5F7FA",
+      "overlay": "#FFFFFF",
+      "sunken": "#E2E6ED",
+      "elevated": "#FFFFFF"
+    },
+    "fg": {
+      "primary": "#232831",
+      "secondary": "#4C566A",
+      "tertiary": "#737D90",
+      "disabled": "#AEB5C2",
+      "inverse": "#ECEFF4"
+    },
+    "hairline": {
+      "subtle": "rgba(35,40,49,0.07)",
+      "default": "rgba(35,40,49,0.11)",
+      "strong": "rgba(35,40,49,0.17)",
+      "control": "rgba(35,40,49,0.23)"
+    },
+    "overlay": {
+      "hover": "rgba(35,40,49,0.05)",
+      "pressed": "rgba(35,40,49,0.09)",
+      "selected": "rgba(35,40,49,0.06)",
+      "scrim": "rgba(236,239,244,0.55)",
+      "scrimHeavy": "rgba(236,239,244,0.85)"
+    },
+    "accent": {
+      "base": "#46699A"
+    },
+    "status": {
+      "error": "#B23A48",
+      "warning": "#9A6A10",
+      "success": "#3F7D4E",
+      "info": "#3B6EA8",
+      "youtube": "#C8323F"
+    },
+    "skeleton": {
+      "base": "rgba(35,40,49,0.06)",
+      "shine": "rgba(35,40,49,0.12)"
+    },
+    "chrome": {
+      "captionHover": "rgba(35,40,49,0.08)",
+      "closeHover": "#C42B1C",
+      "closeHoverFg": "#FFFFFF"
+    }
+  },
+  "effects": {
+    "cardHoverShadow": {
+      "color": "#232831",
+      "opacity": 0.14
+    },
+    "menuShadow": {
+      "color": "#232831",
+      "opacity": 0.18
+    },
+    "dialogShadow": {
+      "color": "#232831",
+      "opacity": 0.22
+    },
+    "toastShadow": {
+      "color": "#232831",
+      "opacity": 0.16
+    },
+    "nowPlayingArtShadow": {
+      "color": "#000000",
+      "opacity": 0.4
+    }
+  }
+}

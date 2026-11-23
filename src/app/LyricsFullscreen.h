@@ -75,6 +75,7 @@ private:
 
     ui::Widget* drag_;                   // the top strip moves the window (the title bar is covered)
     ui::Button *translate_, *earlier_, *offset_, *later_, *close_;
+    ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
 
     Microsoft::WRL::ComPtr<ID2D1Bitmap1> backdrop_;
     std::string backdropUrl_;

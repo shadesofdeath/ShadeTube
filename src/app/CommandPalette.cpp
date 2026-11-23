@@ -8,7 +8,9 @@
 #include "app/SmartListsPage.h"
 #include "app/Social.h"
 #include "app/Source.h"
+#include "app/ThemeStudio.h"
 #include "app/Together.h"
+#include "app/YearReviewView.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Paths.h"
@@ -16,6 +18,7 @@
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
 #include "spotify/SpotifyApi.h"
+#include "ui/Acrylic.h"
 #include "ui/Anim.h"
 #include "ui/TextBox.h"
 #include "ui/Window.h"
@@ -233,6 +236,11 @@ std::vector<Item> staticItems() {
     items.push_back(commandItem("theme:light", tr(L"Açık tema"), tr(L"Görünüm"), "palette", [] { setThemeMode(ThemeMode::Light); }));
     items.push_back(commandItem("theme:system", tr(L"Sistem teması"), tr(L"Görünüm"), "palette",
                                 [] { setThemeMode(ThemeMode::System); }));
+    // Every theme of the studio (app/ThemeStudio): "Tema: Kuzey".
+    for (const auto* list : {&themes::store().presets(), &themes::store().custom()})
+        for (const auto& t : *list)
+            items.push_back(commandItem("theme:" + t.id, i18n::format(tr(L"Tema: {}"), {themes::displayName(t)}), tr(L"Görünüm"),
+                                        "palette", [id = t.id] { themes::select(id); }));
     items.push_back(commandItem("cmd:new-playlist", tr(L"Yeni çalma listesi"), tr(L"Kitaplık"), "plus", [] { promptNewPlaylist(); }));
     if (ctx().player && !ctx().player->items().empty())
         items.push_back(commandItem("cmd:clear-queue", tr(L"Çalma sırasını temizle"), tr(L"Oynatma"), "trash", [] {
@@ -244,6 +252,7 @@ std::vector<Item> staticItems() {
                                     [] { ctx().startSpotifyLogin(); }));
     for (auto& jc : together::paletteCommands())   // "Birlikte dinle": start / join / copy the link / leave
         items.push_back(commandItem(jc.key, jc.title, tr(L"Birlikte dinle"), jc.icon, std::move(jc.run)));
+    items.push_back(commandItem("cmd:year-review", tr(L"Yılın özeti hikâyesi"), tr(L"İstatistikler"), "sparkle", [] { review::open(); }));
     if (ctx().quitApp)
         items.push_back(commandItem("cmd:quit", tr(L"ShadeTube'dan çık"), tr(L"Uygulama"), "logout", [] { ctx().quitApp(); }));
 
@@ -308,7 +317,9 @@ std::optional<Item> recentItem(const json& e, const std::vector<Item>& statics) 
 class Palette;
 Palette* g_open = nullptr;
 
-class Palette : public ui::Widget {
+// A modal overlay of the overlay family (ui/Acrylic): the dialog surface and motion (scrim fade, the panel rising
+// 8 DIP; a faster fade out), the selection highlight gliding from row to row.
+class Palette : public ui::Widget, public ui::OverlayLayer {
 public:
     Palette() {
         g_open = this;
@@ -317,7 +328,7 @@ public:
         box_->onEscape = [this] { close(); };
         box_->onKey = [this](const ui::KeyEvent& e) { return navKey(e); };
         statics_ = staticItems();
-        open_.to(1, ui::motion::medium, ui::Ease::Decelerate);
+        open_.to(1, ui::overlay::duration(ui::motion::medium), ui::Ease::Decelerate);
         refilter();
         rebuildRows();
     }
@@ -331,6 +342,9 @@ public:
     void close() {
         if (closing_) return;
         closing_ = true;
+        pending_.clear();
+        exit_.snap(1);
+        exit_.to(0, ui::overlay::duration(140), ui::Ease::Accelerate);
         if (cts_) cts_->cancel();
         if (g_open == this) g_open = nullptr;
         if (auto* w = window()) w->removeOverlay(this);
@@ -348,8 +362,13 @@ public:
         clampScroll();
     }
 
+    void prepareBackdrop(Canvas& c, ui::Window& w) override {
+        material_.capture(c, w, panel_, ui::overlay::surfaceColor(ui::overlay::Elevation::Dialog));
+    }
+    bool exiting() const override { return closing_ && exit_.running(); }
+
     void paint(Canvas& c) override {
-        // Debounced catalog search (like the Search page: the box's last keystroke + 300 ms).
+        // Debounced catalog search (like the Search page: the box's last keystroke + 300 ms; close() clears it).
         if (!pending_.empty() && ui::frame::realNow() >= pendingAt_) {
             const std::wstring q = pending_;
             pending_.clear();
@@ -358,13 +377,15 @@ public:
             if (auto* w = window()) w->invalidateAfter(pendingAt_ - ui::frame::realNow() + 1);
         }
         const auto& col = colors();
-        const float t = open_;
-        c.fillRect(rect(), col.scrim.mulAlpha(t));
-        c.pushOpacity(t);
-        c.pushScale(0.98f + 0.02f * t, {panel_.cx(), panel_.y});
-        c.shadow(panel_, 2, 64, 32, col.shadowDialog);
-        c.fillRounded(panel_, 2, col.bgRaised);
-        c.strokeRounded(panel_, 2, col.hairStrong);
+        const float t = std::clamp(open_.value(), 0.f, 1.f);
+        const float x = closing_ ? std::clamp(exit_.value(), 0.f, 1.f) : 1.f;
+        c.fillRect(rect(), col.scrim.mulAlpha(t * x));
+        if (t * x <= 0.001f) return;
+        const float dy = (1 - ui::ease(ui::Ease::Decelerate, t)) * 8 + (1 - x) * 6;   // rises in, drops out
+        c.pushOpacity(t * x);
+        c.pushTransform(D2D1::Matrix3x2F::Scale(0.98f + 0.02f * t, 0.98f + 0.02f * t, {panel_.cx(), panel_.y}) *
+                        D2D1::Matrix3x2F::Translation(0, dy));
+        ui::paintOverlaySurface(c, panel_, ui::overlay::Elevation::Dialog, &material_);
         paintChildren(c);
         paintList(c);
         paintFooter(c);
@@ -555,6 +576,7 @@ private:
             subs_.emplace_back(it.subtitle, type::caption);
         }
         contentH_ = y;
+        ++rowsGen_;   // a new list: the highlight jumps to its first row instead of gliding
         // Selection: the first item after every change of the list (the best match is on top).
         sel_ = -1;
         for (int i = 0; i < static_cast<int>(rows_.size()); ++i)
@@ -645,6 +667,19 @@ private:
         const auto& col = colors();
         c.pushClip(list_);
         const float off = scroll_.value();
+        // The selection highlight glides from row to row (keys, the pointer); a rebuilt list puts it in place.
+        if (sel_ >= 0 && sel_ < static_cast<int>(rows_.size())) {
+            const float y = rows_[sel_].y;
+            if (sel_ != glideSel_ || glideGen_ != rowsGen_) {
+                if (glideSel_ >= 0 && glideGen_ == rowsGen_) selY_.to(y, ui::overlay::duration(ui::motion::fast), ui::Ease::Standard);
+                else selY_.snap(y);
+                glideSel_ = sel_;
+                glideGen_ = rowsGen_;
+            }
+            const Rect bg = Rect{list_.x, list_.y + selY_.value() - off, list_.w, kRowH}.inset(6, 2);
+            c.fillRounded(bg, ui::overlay::radius(), col.overlaySelected);
+            c.fillRect({bg.x, bg.y + 8, 2, bg.h - 16}, accent().base);
+        }
         for (int i = 0; i < static_cast<int>(rows_.size()); ++i) {
             const Row& row = rows_[i];
             const Rect r{list_.x, list_.y + row.y - off, list_.w, row.h};
@@ -656,20 +691,15 @@ private:
             }
             const Item& it = shown_[row.item];
             const bool selected = i == sel_;
-            const Rect bg = r.inset(6, 2);
-            if (selected) {
-                c.fillRounded(bg, 2, col.overlaySelected);
-                c.fillRect({bg.x, bg.y + 8, 2, bg.h - 16}, accent().base);
-            }
             const Rect art{r.x + 16, r.cy() - 16, 32, 32};
             ID2D1Bitmap1* bmp = it.imageUrl.empty() ? nullptr
                                                     : gfx::ImageCache::get().request(it.imageUrl, static_cast<int>(32 * c.scale()));
             if (bmp) {
                 if (it.round) c.imageCircle(bmp, art);
-                else c.image(bmp, art, 2);
+                else c.image(bmp, art, gfx::radii().art);
             } else {
                 if (it.round) c.fillCircle({art.cx(), art.cy()}, 16, col.bgOverlay);
-                else c.fillRounded(art, 2, col.bgOverlay);
+                else c.fillRounded(art, gfx::radii().art, col.bgOverlay);
                 c.icon(it.icon.empty() ? "music-note" : it.icon, art.center(18, 18), selected ? accent().base : col.fgSecondary);
             }
             const float x = art.right() + 12;
@@ -710,7 +740,9 @@ private:
     ui::SmoothScroll scroll_;
     int sel_ = -1, pressed_ = -1;
     Rect panel_{}, list_{};
-    ui::Anim open_;
+    ui::Anim open_, exit_, selY_;
+    int glideSel_ = -1, rowsGen_ = 0, glideGen_ = -1;
+    ui::Acrylic material_;
     bool closing_ = false, searching_ = false;
     std::wstring pending_;
     double pendingAt_ = 0;

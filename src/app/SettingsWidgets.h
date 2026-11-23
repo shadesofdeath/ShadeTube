@@ -78,6 +78,8 @@ private:
     std::function<float()> natural_;
 };
 
+// The selection is a pill that slides to the picked segment (motion::normal; the labels it passes over change color
+// with it), a segment under the pointer gets a hover fill.
 class Segmented : public ui::Widget {
 public:
     Segmented(std::vector<std::wstring> items, int selected) : selected_(selected) {
@@ -117,38 +119,79 @@ public:
         return w;
     }
     bool onMouseDown(const ui::MouseEvent& e) override {
-        const Rect r = rect().center(naturalWidth(), 32);
-        float x = r.x + 2;
-        for (int i = 0; i < static_cast<int>(texts_.size()); ++i) {
-            const float w = std::ceil(texts_[i].measure().w) + 24;
-            if (e.pos.x >= x && e.pos.x < x + w) {
-                selected_ = i;
-                if (onChange) onChange(i);
-                invalidate();
-                return true;
-            }
-            x += w;
+        const int i = segmentAt(e.pos.x);
+        if (i < 0) return false;
+        selected_ = i;
+        if (onChange) onChange(i);
+        invalidate();
+        return true;
+    }
+    void onMouseMove(const ui::MouseEvent& e) override {
+        const int i = segmentAt(e.pos.x);
+        if (i != hoverFade_.index()) {
+            hoverFade_.set(i);
+            invalidate();
         }
-        return false;
+    }
+    void onMouseLeave() override {
+        hoverFade_.set(-1);
+        invalidate();
     }
     LPCWSTR cursor() const override { return IDC_HAND; }
     void paint(Canvas& c) override {
         const Rect r = rect().center(naturalWidth(), 32);
         const auto& col = gfx::colors();
         c.strokePill(r, col.hairDefault);
-        float x = r.x + 2;
+        // The selection pill, in the control's own coordinates (a relayout moves it along without sliding).
+        float x = 2;
+        for (int i = 0; i < selected_ && i < static_cast<int>(texts_.size()); ++i) x += std::ceil(texts_[i].measure().w) + 24;
+        const float selW = selected_ < static_cast<int>(texts_.size()) ? std::ceil(texts_[selected_].measure().w) + 24 : 0;
+        if (!slideInit_ || ui::motion::reduced()) {
+            slideInit_ = true;
+            slideX_.snap(x);
+            slideW_.snap(selW);
+        } else if (slideX_.target() != x || slideW_.target() != selW) {
+            slideX_.to(x, ui::motion::microMs(ui::motion::normal));
+            slideW_.to(selW, ui::motion::microMs(ui::motion::normal));
+        }
+        const float px = r.x + slideX_.value(), pw = slideW_.value();
+        x = r.x + 2;
+        for (int i = 0; i < static_cast<int>(texts_.size()); ++i) {
+            const float w = std::ceil(texts_[i].measure().w) + 24;
+            if (const float hv = i == selected_ ? 0.f : hoverFade_.of(i); hv > 0.001f)
+                c.fillPill({x, r.y + 2, w, r.h - 4}, col.overlayHover.mulAlpha(hv));
+            x += w;
+        }
+        if (pw > 0) c.fillPill({px, r.y + 2, pw, r.h - 4}, col.fgPrimary);
+        x = r.x + 2;
         for (int i = 0; i < static_cast<int>(texts_.size()); ++i) {
             const float w = std::ceil(texts_[i].measure().w) + 24;
             const Rect item{x, r.y + 2, w, r.h - 4};
-            if (i == selected_) c.fillPill(item, col.fgPrimary);
-            c.text(texts_[i], item.inset(12, 0), i == selected_ ? col.fgInverse : col.fgSecondary, gfx::VAlign::Center);
+            // How much of this label the pill covers: its color goes from fg.secondary to fg.inverse with it.
+            const float cover = w > 0 ? std::clamp((std::min(px + pw, x + w) - std::max(px, x)) / w, 0.f, 1.f) : 0.f;
+            const Color fg = Color::lerp(Color::lerp(col.fgSecondary, col.fgPrimary, hoverFade_.of(i)), col.fgInverse, cover);
+            c.text(texts_[i], item.inset(12, 0), fg, gfx::VAlign::Center);
             x += w;
         }
     }
 
 private:
+    int segmentAt(float px) const {
+        const Rect r = rect().center(naturalWidth(), 32);
+        float x = r.x + 2;
+        for (int i = 0; i < static_cast<int>(texts_.size()); ++i) {
+            const float w = std::ceil(texts_[i].measure().w) + 24;
+            if (px >= x && px < x + w) return i;
+            x += w;
+        }
+        return -1;
+    }
+
     mutable std::vector<gfx::Text> texts_;   // measure() caches layouts
     int selected_;
+    ui::Anim slideX_, slideW_;               // the selection pill's x (from the control's left) and width
+    bool slideInit_ = false;
+    ui::HoverFade hoverFade_;
 };
 
 // Sub-heading inside a category card ("Last.fm"): a group of rows. The search shows it with any of its rows.
@@ -188,5 +231,6 @@ void buildRemoteSection(ui::Column* c, const std::function<void()>& rebuild);   
 void buildJamRows(ui::Column* c, const std::function<void()>& rebuild);               // BİRLİKTE DİNLE (app/TogetherPanel.cpp)
 void buildDisplayRows(ui::Column* c, const std::function<void()>& rebuild);           // Görünüm   (app/Display.cpp)
 void buildPreviewRows(ui::Column* c, const std::function<void()>& rebuild);           // OYNATMA   (app/Preview.cpp)
+void buildThemeStudioRows(ui::Column* c, const std::function<void()>& rebuild);       // Görünüm   (app/ThemeStudioUi.cpp)
 
 } // namespace st::app

@@ -244,9 +244,9 @@ void TextBox::paint(Canvas& c) {
             c.icon("close", cr.center(14, 14), col.fgSecondary);
         }
     } else {
-        c.fillRounded(r, 2, col.bgRaised.mulAlpha(0.6f));
+        c.fillRounded(r, gfx::radii().field, col.bgRaised.mulAlpha(0.6f));
         const Color border = error_ ? col.error : Color::lerp(Color::lerp(col.hairDefault, col.hairStrong, h), acc.base, f);
-        c.strokeRounded(r, 2, border);
+        c.strokeRounded(r, gfx::radii().field, border);
     }
 
     const Rect tr = textRect();

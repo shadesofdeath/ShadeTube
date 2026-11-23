@@ -33,6 +33,21 @@ struct WindowOptions {
 };
 
 class Overlay;
+class Acrylic;
+
+// Optional interface of an overlay widget (pushOverlay; found with dynamic_cast), used by the overlay family
+// (ui/Popups, the command palette):
+// - prepareBackdrop(): called right before the overlay paints, with nothing pushed on the canvas, so it can capture
+//   what has been painted below it (its acrylic material, ui/Acrylic.h). Only for overlays that are open.
+// - exiting(): asked when removeOverlay() takes it out. While it returns true the overlay is still painted (above the
+//   open overlays, so a capture never contains it) but gets no input, focus or modality and no window(); then it is
+//   deleted. Its close animation.
+class OverlayLayer {
+public:
+    virtual ~OverlayLayer() = default;
+    virtual void prepareBackdrop(Canvas&, Window&) {}
+    virtual bool exiting() const { return false; }
+};
 
 class Window {
 public:
@@ -68,7 +83,16 @@ public:
     bool hasModal() const;
 
     void invalidate();
+    // Widget::invalidate(): `source` asked, `top` is its root (the tree or an overlay). A repaint asked for from the
+    // tree is also recorded as a content change where the source is (contentGeneration()).
+    void invalidateFrom(const Widget* source, const Widget* top);
     void invalidateAfter(double ms);   // schedule a repaint (e.g. player position ticks)
+    // Content changes below the overlays, for their acrylic backdrops (ui/Acrylic): the generation advances whenever
+    // a widget of the tree asks for a repaint (recorded at its window rect, plus a margin for shadows) or a layout,
+    // or the window is resized, zoomed or re-themed (the whole window). lastChangeIn() = the generation of the latest
+    // change after `since` that touches `area` (window DIPs), 0 = none.
+    uint64_t contentGeneration() const { return contentGen_; }
+    uint64_t lastChangeIn(uint64_t since, const Rect& area) const;
     void scheduleLayout();
     // Hidden (tray / mini player) or minimized windows never need a frame and never schedule a wake-up, so a
     // window nobody can see costs 0% CPU. WM_PAINT / WM_SIZE on show/restore repaint it.
@@ -154,9 +178,9 @@ public:
 
     // Press and hold (song preview, app/Preview; logic in ui/HoldGesture): a plain left press (no modifier, not a
     // double click) that a widget took and that stays within holdSlop DIPs for holdDelayMs is offered to
-    // onHold(widget, press position). Returning true takes the rest of the gesture: the widget sees no more moves,
-    // its release arrives at a point outside every widget (no click, no drag starts) and onHoldEnd fires when the
-    // button goes up, at Esc or when the capture is lost. Declined, moved past the slop, released early or another
+    // onHold(widget, press position). Returning true takes the rest of the gesture: the widget's press ends at once with
+    // a release outside every widget (its press look eases back; no click, no drag starts), it sees no more moves, and
+    // onHoldEnd fires when the button goes up, at Esc or when the capture is lost. Declined, moved past the slop, released early or another
     // button pressed: nothing changes, so clicks, double clicks, drags and selections behave as before.
     std::function<bool(Widget* pressed, Point windowPos)> onHold;
     std::function<void()> onHoldEnd;
@@ -191,6 +215,7 @@ private:
     void applyFrameColors();   // DWM border + caption color (bg.base; no caption color under Mica)
     void runLayout();
     void paintTooltip(Canvas& c);
+    void paintLayers(Canvas& c);
     void paintFocusRing(Canvas& c);
     Widget* focusScope() const;                    // topmost modal overlay, else the root
     bool inScope(const Widget* w) const;           // attached under focusScope()
@@ -206,9 +231,18 @@ private:
     struct OverlayEntry {
         std::unique_ptr<Widget> widget;
         bool modal;
+        OverlayLayer* layer = nullptr;
     };
     std::vector<OverlayEntry> overlays_;
+    std::vector<std::unique_ptr<Widget>> exiting_;   // removed overlays playing their close animation (OverlayLayer)
     std::vector<std::unique_ptr<Widget>> graveyard_;
+    void noteChange(const Rect& r);
+    struct Change {
+        uint64_t gen;
+        Rect r;
+    };
+    std::vector<Change> changes_;   // the latest content changes (bounded; older ones count as "changed")
+    uint64_t contentGen_ = 0, droppedGen_ = 0;
 
     float widthDip_ = 0, heightDip_ = 0;
     float zoom_ = 1.f;
@@ -258,12 +292,22 @@ private:
     Widget* holdWidget_ = nullptr;   // the pressed widget while a hold is pending (nulled by forget())
     void holdTimer();
     void endHold();                  // a hold that owns the gesture ended before the release (Esc, capture lost)
+    void releasePressed();           // capture_ sees a release outside itself (keeps the Win32 capture)
 
     // Tooltip state
     Widget* tipWidget_ = nullptr;
     double tipHoverStart_ = 0;
     std::wstring tipText_;
     Point tipAnchor_{};
+    // The tooltip on screen (kept while it fades out after its widget lost the hover) and its acrylic material.
+    struct ShownTip {
+        bool shown = false;
+        std::wstring text;
+        Rect anchor{};
+        float alpha = 0, outFrom = 0;
+        double outStart = -1, lastVisible = -1e9;
+    } tip_;
+    std::unique_ptr<Acrylic> tipMaterial_;
 };
 
 } // namespace st::ui
