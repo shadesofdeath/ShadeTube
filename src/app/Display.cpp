@@ -8,6 +8,7 @@
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Utf.h"
+#include "ui/Acrylic.h"
 #include "ui/Anim.h"
 #include "ui/Window.h"
 
@@ -37,13 +38,14 @@ public:
     void show(int percent) {
         value_.setText(percentLabel(percent));
         shownAt_ = ui::frame::realNow();
-        alpha_.to(1, ui::motion::fast, ui::Ease::Decelerate);
+        alpha_.to(1, ui::overlay::duration(ui::motion::fast), ui::Ease::Decelerate);
         if (auto* w = window()) w->invalidateAfter(kHoldMs + 1);   // the fade-out starts without input
         invalidate();
     }
     Widget* hitTest(gfx::Point) override { return nullptr; }
     void paint(Canvas& c) override {
-        if (alpha_.target() > 0 && ui::frame::realNow() - shownAt_ > kHoldMs) alpha_.to(0, ui::motion::normal);
+        if (alpha_.target() > 0 && ui::frame::realNow() - shownAt_ > kHoldMs)
+            alpha_.to(0, ui::overlay::duration(ui::motion::normal));
         const float a = alpha_;
         if (a <= 0.001f) return;
         const auto& col = colors();
@@ -51,9 +53,7 @@ public:
         const float w = 16 + lw + 12 + vw + 16, h = 40;
         const Rect r{std::round(rect().cx() - w * 0.5f), gfx::metrics::titleBarH + 12, w, h};
         c.pushOpacity(a);
-        c.shadow(r, gfx::radii().toast, 24, 8, col.shadowToast);
-        c.fillRounded(r, gfx::radii().toast, col.bgElevated);
-        c.strokeRounded(r, gfx::radii().toast, col.hairStrong);
+        ui::paintOverlaySurface(c, r, ui::overlay::Elevation::Toast, nullptr);   // the overlay family's surface, opaque
         c.text(label_, {r.x + 16, r.y, lw + 1, h}, col.fgTertiary, gfx::VAlign::Center);
         c.text(value_, {r.x + 16 + lw + 12, r.y, vw + 1, h}, col.fgPrimary, gfx::VAlign::Center);
         c.popLayer();

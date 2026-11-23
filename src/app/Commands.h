@@ -36,6 +36,9 @@ bool globalHotkeyFailed(std::string_view id);
 bool handleHotkey(WPARAM id);        // WM_HOTKEY; true when it was one of ours
 void shutdownGlobalHotkeys();
 
+// The in-app key combo bound to an action, as menus show it right-aligned ("Ctrl+L"); "" when unbound.
+std::wstring shortcutHint(std::string_view id);
+
 // ---- System features --------------------------------------------------------------------------------------------------
 // App startup: drops invalid / duplicate bindings and keeps the Run value in line with Settings::startWithWindows.
 void initSystemFeatures();

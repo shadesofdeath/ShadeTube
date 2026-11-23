@@ -10,6 +10,7 @@
 #include "core/Settings.h"
 #include "core/Utf.h"
 #include "gfx/Theme.h"
+#include "ui/Acrylic.h"
 #include "ui/Controls.h"
 #include "ui/Window.h"
 
@@ -248,20 +249,21 @@ private:
     void paintToast(Canvas& c) {
         if (toastAt_ < 0) return;
         const double age = ui::frame::realNow() - toastAt_;
-        if (age > kToastLife + kToastOut) {
+        // The overlay family's motion (none with reduce motion or Windows' animation effects off).
+        const double in = ui::overlay::duration(kToastIn), out = ui::overlay::duration(kToastOut);
+        if (age > kToastLife + out) {
             toastAt_ = -1;
             return;
         }
         const auto& col = colors();
         const auto& acc = accent();
-        float alpha = static_cast<float>(std::min(1.0, age / kToastIn));
+        float alpha = in > 0 ? static_cast<float>(std::min(1.0, age / in)) : 1.f;
         const float dy = -(1 - ui::ease(ui::Ease::Decelerate, alpha)) * 12;   // drops in from the top edge
-        if (age > kToastLife) alpha = 1 - static_cast<float>(std::min(1.0, (age - kToastLife) / kToastOut));
+        if (age > kToastLife) alpha = out > 0 ? 1 - static_cast<float>(std::min(1.0, (age - kToastLife) / out)) : 0.f;
         const Rect r = toastRect_.offset(0, dy);
         c.pushOpacity(alpha);
-        c.shadow(r, 2, 24, 8, col.shadowToast);
-        c.fillRounded(r, 2, col.bgElevated);
-        c.strokeRounded(r, 2, col.hairStrong);
+        // The overlay family's surface, opaque: this small window stays cheap (no backdrop capture).
+        ui::paintOverlaySurface(c, r, ui::overlay::Elevation::Toast, nullptr);
         c.icon(toastError_ ? "error" : "info", {r.x + 12, r.cy() - 8, 16, 16}, toastError_ ? col.error : acc.base);
         const float tx = r.x + 12 + 16 + 10, tw = r.right() - 12 - tx;
         const float th = std::min(r.h - 8, toastText_.measure(tw).h);

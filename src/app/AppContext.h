@@ -22,6 +22,10 @@
 #include <vector>
 
 namespace st::ui {
+struct MenuItem;
+}
+
+namespace st::ui {
 class Window;
 }
 
@@ -211,6 +215,8 @@ void showTrackMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowP
                    const std::string& recommendKey = {},
                    std::function<void(const std::vector<catalog::Track>&)> removeRows = {});
 void showAddToPlaylistMenu(const std::vector<catalog::Track>& tracks, gfx::Point windowPos);
+// The items of that menu ("Yeni çalma listesi…", then the playlists): a "Çalma listesine ekle" submenu (ui/Popups.h).
+std::vector<ui::MenuItem> addToPlaylistItems(const std::vector<catalog::Track>& tracks);
 // Adds songs to the playlist `id` and reports with a toast: an editable Spotify playlist (logged in; only its Spotify
 // songs, the others are noted) or a local playlist. Used by the menu above and by drag and drop.
 void addToPlaylistWithToast(const std::string& id, const std::vector<catalog::Track>& tracks);

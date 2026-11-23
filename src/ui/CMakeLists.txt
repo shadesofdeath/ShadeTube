@@ -1,4 +1,5 @@
 add_library(st_ui STATIC
+    Acrylic.cpp Acrylic.h
     Anim.cpp Anim.h
     Controls.cpp Controls.h
     Layout.cpp Layout.h

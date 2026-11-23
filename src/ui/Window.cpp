@@ -4,6 +4,7 @@
 #include "gfx/Icons.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
+#include "ui/Acrylic.h"
 #include "ui/Anim.h"
 #include "ui/Layout.h"
 #include "ui/Micro.h"
@@ -23,6 +24,9 @@ using gfx::ComPtr;
 
 namespace {
 constexpr double kTooltipDelay = 400;
+// Moving from one tooltip to the next within this time shows the next one after kTooltipReshow instead of the full
+// delay (as Windows' own tooltips do); fade in / out (motion-spec "Tooltip": in 120 ms).
+constexpr double kTooltipReshowWindow = 300, kTooltipReshow = 60, kTooltipIn = 120, kTooltipOut = 90;
 
 // DWM system backdrop (dwmapi.h of the Windows 11 SDKs; spelled out so older SDKs build too).
 constexpr DWORD kDwmSystemBackdropType = 38;   // DWMWA_SYSTEMBACKDROP_TYPE, Windows 11 22H2 (build 22621)+
@@ -165,6 +169,7 @@ Window::Window(const WindowOptions& options) : options_(options) {
     applyTheme();
 
     zoom_ = std::clamp(options.zoom, 0.5f, 3.f);
+    tipMaterial_ = std::make_unique<Acrylic>();
     target_ = std::make_unique<gfx::WindowTarget>(hwnd_);
     resized();
     if (options.backdrop) {
@@ -177,6 +182,7 @@ Window::Window(const WindowOptions& options) : options_(options) {
 
 Window::~Window() {
     overlays_.clear();
+    exiting_.clear();
     root_.reset();
     graveyard_.clear();
     target_.reset();
@@ -203,6 +209,7 @@ void Window::applyTheme() {
     const BOOL dark = gfx::Theme::get().isLight() ? FALSE : TRUE;
     DwmSetWindowAttribute(hwnd_, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof dark);
     applyFrameColors();
+    noteChange(clientRect());
     scheduleLayout();
     invalidate();
 }
@@ -270,7 +277,8 @@ void Window::setRoot(std::unique_ptr<Widget> root) {
 
 Widget* Window::pushOverlay(std::unique_ptr<Widget> overlay, bool modal) {
     overlay->window_ = this;
-    overlays_.push_back({std::move(overlay), modal});
+    auto* layer = dynamic_cast<OverlayLayer*>(overlay.get());
+    overlays_.push_back({std::move(overlay), modal, layer});
     auto* raw = overlays_.back().widget.get();
     raw->setRect(clientRect());
     if (modal) {
@@ -309,9 +317,12 @@ void Window::removeOverlay(Widget* overlay) {
     }
     forget(overlay);
     auto owned = std::move(it->widget);
+    OverlayLayer* layer = it->layer;
     overlays_.erase(it);
     owned->window_ = nullptr;
-    deferDelete(std::move(owned));
+    // A close animation keeps it on screen a little longer (painted, nothing else); render() deletes it after.
+    if (layer && layer->exiting()) exiting_.push_back(std::move(owned));
+    else deferDelete(std::move(owned));
     // setFocus() hands it on again if another modal overlay still covers `previous`.
     if (restore && !focus_ && previous) setFocus(previous);
     invalidate();
@@ -322,6 +333,39 @@ bool Window::hasModal() const {
 }
 
 void Window::invalidate() { dirty_ = true; }
+
+void Window::invalidateFrom(const Widget* source, const Widget* top) {
+    dirty_ = true;
+    if (!source || !top || top != root_.get()) return;
+    // Where the source is, with room for what widgets paint around themselves (hover shadows, glows).
+    constexpr float kSpill = 24;
+    noteChange(source->toWindow(source->rect()).inset(-kSpill));
+}
+
+void Window::noteChange(const Rect& r) {
+    ++contentGen_;
+    // The same widget asking again (a ticking label): one entry, moved to the new generation.
+    if (!changes_.empty()) {
+        const Rect& last = changes_.back().r;
+        if (last.x == r.x && last.y == r.y && last.w == r.w && last.h == r.h) {
+            changes_.back().gen = contentGen_;
+            return;
+        }
+    }
+    changes_.push_back({contentGen_, r});
+    constexpr size_t kKeep = 64;
+    if (changes_.size() > kKeep) {
+        droppedGen_ = changes_.front().gen;
+        changes_.erase(changes_.begin());
+    }
+}
+
+uint64_t Window::lastChangeIn(uint64_t since, const Rect& area) const {
+    if (since < droppedGen_) return contentGen_;   // older than what is kept: count it as changed
+    for (auto it = changes_.rbegin(); it != changes_.rend() && it->gen > since; ++it)
+        if (it->r.intersects(area)) return it->gen;
+    return 0;
+}
 
 void Window::invalidateAfter(double ms) { wakeAt_ = std::min(wakeAt_, frame::realNow() + ms); }
 
@@ -555,6 +599,7 @@ void Window::runLayout() {
     layoutDirty_ = false;
     const Rect r = clientRect();
     if (root_) {
+        if (root_->layoutPending_) noteChange(r);   // the tree itself asked for a layout (not only an overlay)
         root_->layoutPending_ = true;
         root_->setRect(r);
     }
@@ -590,6 +635,11 @@ double Window::frameTime() {
 
 void Window::render() {
     graveyard_.clear();
+    // Overlays whose close animation has ended go now (with their backdrop bitmaps): no input reaches them.
+    std::erase_if(exiting_, [](const std::unique_ptr<Widget>& w) {
+        auto* layer = dynamic_cast<OverlayLayer*>(w.get());
+        return !layer || !layer->exiting();
+    });
     if (!target_ || isMinimized()) return;
     frame::begin(frameTime());
     // This frame consumes a wake-up that is due. Clear it before layout and painting: a repaint asked for meanwhile
@@ -609,8 +659,7 @@ void Window::render() {
         Canvas c(dc, target_->scale());
         c.setTranslucent(backdropOn_ && target_->composition());   // Mica: the base surface lets the backdrop through
         c.clear(c.surface());
-        if (root_) root_->paint(c);
-        for (auto& o : overlays_) o.widget->paint(c);
+        paintLayers(c);
         paintFocusRing(c);
         paintTooltip(c);
     }
@@ -623,6 +672,18 @@ void Window::render() {
         dwmOffPending_ = false;
         setDwmBackdrop(false);
     }
+}
+
+// The tree, the open overlays (each may first capture what is below it: prepareBackdrop) and, on top, the overlays
+// playing their close animation, so no capture ever contains one that is going away.
+void Window::paintLayers(Canvas& c) {
+    if (root_) root_->paint(c);
+    for (size_t i = 0; i < overlays_.size(); ++i) {
+        if (overlays_[i].layer) overlays_[i].layer->prepareBackdrop(c, *this);
+        overlays_[i].widget->paint(c);
+    }
+    for (auto& w : exiting_) w->paint(c);
+    if (!exiting_.empty()) frame::requestNext();   // one more frame after the last one deletes them
 }
 
 bool Window::renderToPng(const std::wstring& path) {
@@ -655,9 +716,9 @@ bool Window::renderToPng(const std::wstring& path) {
         Canvas c(dc, s);
         c.setTranslucent(backdropOn_ && target_->composition());   // as on screen (the PNG then has the alpha)
         c.clear(c.surface());
-        if (root_) root_->paint(c);
-        for (auto& o : overlays_) o.widget->paint(c);
+        paintLayers(c);
         paintFocusRing(c);
+        paintTooltip(c);   // (SHADETUBE_HOVER_AT screenshots of tooltips)
     }
     if (HRESULT hr = dc->EndDraw(); FAILED(hr)) {
         ST_LOG_ERROR("ui", "renderToPng EndDraw 0x{:08X}", static_cast<unsigned>(hr));
@@ -700,6 +761,7 @@ void Window::setZoom(float zoom) {
     gfx::Icons::clear();   // masks rasterised for the old pixel sizes
     tipWidget_ = nullptr;  // a tooltip placed in the old layout
     tipText_.clear();
+    tip_.shown = false;
     if (target_) resized();
     invalidate();
 }
@@ -722,6 +784,7 @@ void Window::resized() {
     target_->resize(static_cast<UINT>(rc.right - rc.left), static_cast<UINT>(rc.bottom - rc.top), dpi);
     widthDip_ = (rc.right - rc.left) * 96.f / dpi;
     heightDip_ = (rc.bottom - rc.top) * 96.f / dpi;
+    noteChange(clientRect());
     ST_LOG_DEBUG("ui", "resized: {}x{} px @ {} dpi", rc.right - rc.left, rc.bottom - rc.top, dpi);
     scheduleLayout();
 }
@@ -766,7 +829,9 @@ void Window::updateHover(Widget* hit) {
         if (!w->tooltip().empty()) {
             tipWidget_ = w;
             tipHoverStart_ = frame::realNow();
-            invalidateAfter(kTooltipDelay + 10);
+            // Gliding along a row of buttons: once one tooltip was up, the next follows almost at once.
+            if (tipHoverStart_ - tip_.lastVisible < kTooltipReshowWindow) tipHoverStart_ -= kTooltipDelay - kTooltipReshow;
+            invalidateAfter(tipHoverStart_ + kTooltipDelay + 10 - frame::realNow());
             break;
         }
     }
@@ -786,28 +851,60 @@ void Window::showTooltipFor(Widget* w) {
 }
 
 void Window::paintTooltip(Canvas& c) {
-    if (!tipWidget_ || capture_) return;
-    const double elapsed = frame::realNow() - tipHoverStart_;
-    if (elapsed < kTooltipDelay) return;
-    const std::wstring text = tipWidget_->tooltip();
-    if (text.empty()) return;
-    const float t = std::min(1.f, static_cast<float>((elapsed - kTooltipDelay) / 120.0));
-    if (t < 1.f) frame::requestNext();
+    // Spec "Tooltip": h 28, padX 10, bg.elevated, hairline.strong, B 12 fg.primary, 8 from the anchor; motion-spec:
+    // delay 400 ms, opacity 0 -> 1 and 4 DIP up in 120 ms (standard). It fades out (90 ms) when its widget loses the
+    // hover, on the overlay family's surface (ui/Acrylic).
+    const double now = frame::realNow();
+    std::wstring text;
+    float in = 1;
+    if (tipWidget_ && !capture_ && now - tipHoverStart_ >= kTooltipDelay) {
+        text = tipWidget_->tooltip();
+        const double d = overlay::duration(kTooltipIn);
+        in = d > 0 ? std::min(1.f, static_cast<float>((now - tipHoverStart_ - kTooltipDelay) / d)) : 1.f;
+    }
+    if (!text.empty()) {
+        if (tip_.shown && tip_.outStart < 0 && text != tip_.text) in = 1.f;   // its text changed in place: no new fade
+        tip_.shown = true;
+        tip_.text = std::move(text);
+        tip_.anchor = tipWidget_->toWindow(tipWidget_->rect());
+        tip_.alpha = in;
+        tip_.outStart = -1;
+        tip_.lastVisible = now;
+    } else if (tip_.shown) {
+        if (tip_.outStart < 0) {
+            tip_.outStart = now;
+            tip_.outFrom = tip_.alpha;
+        }
+        const double d = overlay::duration(kTooltipOut);
+        const float k = d > 0 ? static_cast<float>((now - tip_.outStart) / d) : 1.f;
+        if (k >= 1.f) {
+            tip_.shown = false;
+            tipMaterial_->release();
+            return;
+        }
+        tip_.alpha = tip_.outFrom * (1 - k);
+        tip_.lastVisible = now;
+    } else {
+        return;
+    }
+    if (tip_.alpha < 1.f || tip_.outStart >= 0) frame::requestNext();
     const auto& col = gfx::colors();
-    auto layout = gfx::makeLayout(text, gfx::type::caption, 320);
+    auto layout = gfx::makeLayout(tip_.text, gfx::type::caption, 320);
     DWRITE_TEXT_METRICS m{};
     layout->GetMetrics(&m);
-    const Rect anchor = tipWidget_->toWindow(tipWidget_->rect());
     const float w = std::ceil(m.width) + 20, h = 28;
-    float x = std::clamp(anchor.cx() - w * 0.5f, 8.f, widthDip_ - w - 8);
-    float y = anchor.bottom() + 8;
-    if (y + h > heightDip_ - 8) y = anchor.y - 8 - h;
-    y += (1 - ease(Ease::Standard, t)) * 4;
-    const Rect box{x, y, w, h};
-    c.pushOpacity(ease(Ease::Standard, t));
-    c.fillRounded(box, gfx::radii().tooltip, col.bgElevated);
-    c.strokeRounded(box, gfx::radii().tooltip, col.hairStrong);
-    c.text(layout.Get(), x + 10, y + (h - m.height) * 0.5f, col.fgPrimary);
+    const float x = std::clamp(tip_.anchor.cx() - w * 0.5f, 8.f, widthDip_ - w - 8);
+    float y = tip_.anchor.bottom() + 8;
+    if (y + h > heightDip_ - 8) y = tip_.anchor.y - 8 - h;
+    const Rect box{std::round(x), std::round(y), w, h};
+    tipMaterial_->capture(c, *this, box, overlay::surfaceColor(overlay::Elevation::Tooltip));
+    const float e = ease(Ease::Standard, tip_.alpha);
+    const float rise = tip_.outStart < 0 ? (1 - e) * 4 : 0;   // rises in, fades out in place
+    c.pushOpacity(e);
+    c.pushTransform(D2D1::Matrix3x2F::Translation(0, rise));
+    paintOverlaySurface(c, box, overlay::Elevation::Tooltip, tipMaterial_.get());
+    c.text(layout.Get(), box.x + 10, box.y + (h - m.height) * 0.5f, col.fgPrimary);
+    c.popTransform();
     c.popLayer();
 }
 

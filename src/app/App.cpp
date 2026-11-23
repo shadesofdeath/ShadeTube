@@ -9,6 +9,7 @@
 #include "app/LyricsService.h"
 #include "app/LoginWindow.h"
 #include "app/NowPlaying.h"
+#include "app/OverlayDemo.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/PodcastUi.h"
@@ -242,6 +243,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     window_->onKey = [this](const ui::KeyEvent& e) { return handleKey(e); };
     window_->onCtrlWheel = [](float delta) { return display::onCtrlWheel(delta); };   // zoom
     display::scheduleKeysDemo();   // SHADETUBE_KEYS_DEMO (dev)
+    overlaydemo::schedule();       // SHADETUBE_OVERLAY_DEMO (dev)
     window_->onNavButton = [](ui::MouseButton b) {
         if (!ctx().router) return;
         if (b == ui::MouseButton::Back) ctx().router->back();
