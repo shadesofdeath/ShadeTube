@@ -210,7 +210,7 @@ public:
     // position (AudioEngine::openPreview). The queue, the current item, status(), positionMs() and the notifications stay
     // as they are: nothing of it reaches the history, the stats, scrobbling, SMTC or Discord. keepMainRunning: the
     // current item keeps running muted instead (listen together: no drift). stopPreview() fades it out and the current
-    // item back in; so does any command that changes what plays (filtered()), before that command runs. One at a time:
+    // item back in; so does a command that changes what is heard (endsPreview()), before that command runs. One at a time:
     // a new one replaces the last. Returns its id (0: refused).
     enum class PreviewState { Idle, Resolving, Playing, Failed };
     uint64_t startPreview(const Track& track, int64_t startMs = -1, bool keepMainRunning = false);
@@ -303,9 +303,18 @@ private:
     void openPreview(audio::StreamSource s, int64_t startMs, const Track& track, const youtube::Match* match, int64_t durationMs);
     void setPreviewState(PreviewState s);
     void onEnginePreview(audio::State s, uint64_t tag);
+    // Commands that change what is heard now: they end a song preview first (the current item comes back, then the
+    // command applies). Queue edits (endless playback appending, smart shuffle) leave it playing.
+    static bool endsPreview(Command c) {
+        switch (c) {
+        case Command::PlayContext: case Command::Play: case Command::Pause: case Command::TogglePause:
+        case Command::Next: case Command::Previous: case Command::Seek: case Command::JumpTo: case Command::Speed:
+        case Command::UseMatch: return true;
+        default: return false;
+        }
+    }
     bool filtered(Command c, const CommandArgs& a = {}) {
-        // A command of the user's ends a song preview first (the current item comes back, then the command applies).
-        if (previewState_ != PreviewState::Idle && unfiltered_ == 0) stopPreview();
+        if (previewState_ != PreviewState::Idle && unfiltered_ == 0 && endsPreview(c)) stopPreview();
         if (!commandFilter || unfiltered_ > 0) return false;
         const auto filter = commandFilter;   // the filter may end the session (and clear itself)
         return filter(c, a);

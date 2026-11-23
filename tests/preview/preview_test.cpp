@@ -481,9 +481,14 @@ void testPlayer(const fs::path& tmp) {
         CHECK(player.bufferedBytes() <= baseBytes + 64 * 1024);
         CHECK(player.status() == Status::Playing);
 
-        // e) A command ends the preview first, then applies (pause), and the current track comes back paused.
+        // e) A queue edit leaves the preview playing; a command ends it first, then applies (pause), and the current
+        // track comes back paused.
         player.startPreview(sample);
         CHECK(pumpUntil([&] { return player.previewState() == PS::Playing; }, 5000));
+        player.enqueue({main2});
+        CHECK(player.previewState() == PS::Playing && player.items().size() == 3);
+        player.removeAt(2);
+        CHECK(player.previewState() == PS::Playing && player.items().size() == 3 && player.order().size() == 2);
         player.togglePause();
         CHECK(player.previewState() == PS::Idle);
         CHECK(pumpUntil([&] { return player.status() == Status::Paused; }, 3000));
@@ -535,7 +540,7 @@ void testPlayer(const fs::path& tmp) {
         CHECK(player.startPreview(T("radio:x")) == 0 && player.previewState() == PS::Idle);
         player.liveStreamFor = nullptr;
         CHECK(started == std::vector<std::string>{"m"});
-        CHECK(player.items().size() == 2 && player.current() && player.current()->id == "m");
+        CHECK(player.order().size() == 2 && player.current() && player.current()->id == "m");
         player.pause();
         pumpFor(300);
     }
