@@ -59,6 +59,7 @@ void Settings::load() {
     }
     read(j, "grain", grain);
     read(j, "reduceMotion", reduceMotion);
+    read(j, "pageTransitions", pageTransitions);
     read(j, "uiZoom", uiZoom);
     read(j, "compactLists", compactLists);
     read(j, "micaBackdrop", micaBackdrop);
@@ -149,6 +150,7 @@ void Settings::save() const {
         {"theme", theme == ThemeMode::Light ? "light" : theme == ThemeMode::System ? "system" : "dark"},
         {"grain", grain},
         {"reduceMotion", reduceMotion},
+        {"pageTransitions", pageTransitions},
         {"uiZoom", uiZoom},
         {"compactLists", compactLists},
         {"micaBackdrop", micaBackdrop},

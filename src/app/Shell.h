@@ -3,6 +3,7 @@
 #include "app/AppContext.h"
 #include "app/Components.h"
 #include "app/DragDrop.h"
+#include "app/PageTransition.h"
 #include "app/Router.h"
 #include "ui/Controls.h"
 #include "ui/Layout.h"
@@ -182,7 +183,8 @@ private:
     double lastScrollTick_ = 0;
 };
 
-// Hosts the current page with the enter transition (opacity + 16 px rise, 360 ms decelerate).
+// Hosts the current page and the page transition (app/PageTransition): the replaced page fades / shifts out while the
+// new one slides in, a cover that opened the page flies into its header.
 class PageHost : public ui::Widget {
 public:
     PageHost() { clipsChildren = true; hitTestVisible = false; }
@@ -193,7 +195,7 @@ public:
 
 private:
     Page* page_ = nullptr;
-    ui::Anim enter_;
+    PageTransition transition_;
 };
 
 class Shell : public ui::Widget {

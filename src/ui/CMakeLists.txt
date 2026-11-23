@@ -1,7 +1,8 @@
-﻿add_library(st_ui STATIC
+add_library(st_ui STATIC
     Anim.cpp Anim.h
     Controls.cpp Controls.h
     Layout.cpp Layout.h
+    PageMotion.cpp PageMotion.h
     Popups.cpp Popups.h
     ScrollDemo.cpp
     ScrollPhysics.cpp ScrollPhysics.h

@@ -663,6 +663,8 @@ public:
         order_->setLabel(on ? tr(L"En yeni önce") : tr(L"En eski önce"));
         requestLayout();
     }
+    // Page transitions: the show's artwork (a podcast card's cover flies here).
+    SharedCover sharedCover() const { return pagetx::imageCover(*this, {rect().x, rect().y, 232, 232}, 2, images_); }
 
     float preferredHeight(float) override { return 232 + 28 + 56 + 8; }
     void layout() override {
@@ -686,8 +688,11 @@ public:
                 wash = gfx::isLightTheme() ? gfx::Theme::adaptAccent(*a, true).withAlpha(0.14f) : a->withAlpha(0.12f);
         c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
         const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));
-        drawArtwork(c, images_, cover, 2, Placeholder::Album);
+        const float shown = pagetx::presence(this);   // 0 while a cover flies here, rising as it lands
+        if (shown > 0.f) {
+            c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f * shown));
+            drawArtwork(c, images_, cover, 2, Placeholder::Album);
+        }
         const float tx = cover.right() + 32, tw = std::max(0.f, r.right() - tx);
         float size = 72;
         for (float s : {72.f, 56.f, 44.f, 36.f, 28.f}) {
@@ -796,6 +801,16 @@ public:
         build();
     }
     ~PodcastsPage() override { cts_->cancel(); }
+
+    // Page transitions: a show's header cover (while its feed loads: where it will be).
+    bool coverSlot(SharedCover& out) override {
+        if (view_ != View::Show) return false;
+        if (header_) {
+            out = header_->sharedCover();
+            return true;
+        }
+        return loadingCoverSlot(out);
+    }
 
     void paint(Canvas& c) override {
         syncHeaderPlay();   // the show's play button follows the player

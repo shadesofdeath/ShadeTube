@@ -162,12 +162,14 @@ public:
             wash = gfx::isLightTheme() ? gfx::Theme::adaptAccent(*a, true).withAlpha(0.14f) : a->withAlpha(0.12f);
         c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
 
-        const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));   // dark: black 35 %
-        if (kind_ == Kind::Liked) {
-            c.fillRounded(cover, 2, accent().base);
-            c.fillRadialGradient(cover, {cover.right(), cover.y}, 260, accent().hover.withAlpha(0.8f), accent().pressed.withAlpha(0));
-            c.icon("heart-filled", cover.center(72, 72), accent().onAccent);
+        const Rect cover = coverRect();
+        // Page transition: 0 while a cover flies here (it lands at this spot), rising as it lands.
+        const float shown = pagetx::presence(this);
+        if (shown > 0.f) c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f * shown));   // dark: black 35 %
+        if (shown <= 0.f) {
+            // the flight draws the cover
+        } else if (kind_ == Kind::Liked) {
+            paintLikedCover(c, cover, 2);
         } else {
             drawArtwork(c, meta_.images, cover, 2, kind_ == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
         }
@@ -219,12 +221,32 @@ public:
         paintChildren(c);
     }
 
+    // The header's cover for the page transition (window DIPs): what a card's cover flies into, and back from.
+    SharedCover sharedCover() const {
+        if (kind_ == Kind::Liked) {
+            SharedCover s = pagetx::likedCover(*this, coverRect(), 2);
+            s.paint = [](gfx::Canvas& c, const Rect& r, float radius) { paintLikedCover(c, r, radius); };
+            return s;
+        }
+        return pagetx::imageCover(*this, coverRect(), 2, meta_.images);
+    }
+
     ui::PlayButton* play_;
     Button *shuffle_, *enhance_, *save_, *add_, *more_, *sort_, *filter_;
     sync::SyncButton* offline_;
     ui::TextBox* filterBox_;
 
 private:
+    Rect coverRect() const { return {rect().x, rect().y, 232, 232}; }
+    // Liked Songs' cover: the accent tile, its glow and the heart (scales with the rect: the transition draws it too).
+    static void paintLikedCover(Canvas& c, const Rect& cover, float radius) {
+        const float k = cover.w / 232.f;
+        c.fillRounded(cover, radius, accent().base);
+        c.pushRoundedClip(cover, radius);
+        c.fillRadialGradient(cover, {cover.right(), cover.y}, 260 * k, accent().hover.withAlpha(0.8f), accent().pressed.withAlpha(0));
+        c.popLayer();
+        c.icon("heart-filled", cover.center(72 * k, 72 * k), accent().onAccent);
+    }
     bool editHit(gfx::Point p) const { return onEditDetails && (coverRect_.contains(p) || titleRect_.contains(p)); }
 
     Kind kind_;
@@ -265,6 +287,15 @@ public:
     Widget* hitTest(gfx::Point p) override {
         if (pinned_ > 0.01f && Rect{rect().x, rect().y, rect().w, kPinnedH}.contains(p)) return this;
         return ScrollPage::hitTest(p);
+    }
+
+    // Page transitions: the header's cover; while the album / list loads, where it will be.
+    bool coverSlot(SharedCover& out) override {
+        if (header_) {
+            out = header_->sharedCover();
+            return true;
+        }
+        return loadingCoverSlot(out);
     }
 
     bool onMouseDown(const ui::MouseEvent& e) override {

@@ -612,12 +612,29 @@ void drawCover(gfx::Canvas& c, const List& l, const Rect& r, float radius) {
 
 namespace {
 
+// Page transitions: a smart list's generated cover as a SharedCover (drawn by drawCover at any size; key "smart:<id>").
+SharedCover smartCover(const ui::Widget& owner, const Rect& local, std::shared_ptr<const List> list) {
+    SharedCover s;
+    s.rect = owner.toWindow(local);
+    s.radius = 2;
+    s.owner = &owner;
+    s.key = "smart:" + list->id;
+    s.paint = [list](gfx::Canvas& c, const Rect& r, float radius) { drawCover(c, *list, r, radius); };
+    return s;
+}
+
 // A smart list's card: the generated cover, the name and a line under it; hover play button like MediaCard.
-class SmartCard : public ui::Widget {
+class SmartCard : public ui::Widget, public CoverSource {
 public:
     explicit SmartCard(List list)
         : list_(std::move(list)), title_(title(list_), type::body.withSize(13)), subtitle_(subtitle(list_), type::caption) {
         focusable = true;
+        shared_ = std::make_shared<const List>(list_);
+    }
+    bool coverFor(const std::string& key, SharedCover& out) override {
+        if (key != "smart:" + list_.id) return false;
+        out = smartCover(*this, artRect(), shared_);
+        return true;
     }
     float preferredHeight(float width) override { return width + 10 + 18 + 4 + 16; }
     bool onMouseDown(const ui::MouseEvent& e) override {
@@ -666,10 +683,11 @@ public:
         const auto& col = colors();
         const float h = std::max(hover_.value(), keyboardFocused() ? 1.f : 0.f);
         const Rect art = artRect();
+        const float shown = pagetx::presence(this);   // 0: the page transition draws this cover
         c.pushScale(1 - 0.01f * press_, {art.cx(), art.cy()});
-        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h));
-        drawCover(c, list_, art, 2);
-        if (h > 0.01f) {
+        if (h > 0.01f && shown > 0.f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h * shown));
+        if (shown > 0.f) drawCover(c, list_, art, 2);
+        if (h > 0.01f && shown > 0.f) {
             const Rect pr = playRect().offset(0, 8 * (1 - ui::ease(ui::Ease::Decelerate, h)));
             c.pushOpacity(h);
             c.fillCircle({pr.cx(), pr.cy()}, 24, playHot_ ? accent().hover : accent().base);
@@ -691,6 +709,7 @@ private:
     }
     void open(bool play) const {
         const std::string id = list_.id + (play ? "#play" : "");   // navigating destroys this card: copy first
+        pagetx::arm(smartCover(*this, artRect(), shared_));
         ctx().router->navigate({RouteKind::SmartList, id});
     }
     void menu(gfx::Point at) const {
@@ -712,6 +731,7 @@ private:
     }
 
     List list_;
+    std::shared_ptr<const List> shared_;   // the same list for the page transition's painter
     gfx::Text title_, subtitle_;
     ui::Anim hover_, press_;
     bool playHot_ = false;
@@ -768,6 +788,7 @@ public:
     }
     void setList(const List& l) {
         list_ = l;
+        shared_ = std::make_shared<const List>(l);
         title_.setText(title(l));
         why_.setText(why(l));
         int64_t ms = 0;
@@ -795,8 +816,11 @@ public:
         const Color wash = gfx::isLightTheme() ? gfx::Theme::adaptAccent(tone, true).withAlpha(0.12f) : tone.withAlpha(0.35f);
         c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
         const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));
-        drawCover(c, list_, cover, 2);
+        const float shown = pagetx::presence(this);   // 0 while a cover flies here, rising as it lands
+        if (shown > 0.f) {
+            c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f * shown));
+            drawCover(c, list_, cover, 2);
+        }
         const float tx = cover.right() + 32, tw = r.right() - tx;
         float size = 88;
         for (float s : {88.f, 72.f, 56.f, 44.f, 36.f}) {
@@ -825,11 +849,16 @@ public:
         paintChildren(c);
     }
 
+    SharedCover sharedCover() const {
+        return shared_ ? smartCover(*this, {rect().x, rect().y, 232, 232}, shared_) : SharedCover{};
+    }
+
     ui::PlayButton* play_;
     Button *shuffle_, *add_, *more_;
 
 private:
     List list_;
+    std::shared_ptr<const List> shared_;
     gfx::Text title_, why_;
     int64_t totalMs_ = 0;
 };
@@ -840,6 +869,15 @@ public:
         subscribe(life_.ref(), [this] { refresh(); });
         ensure();
         refresh();
+    }
+
+    // Page transitions: the header's generated cover (while the lists build: where it will be).
+    bool coverSlot(SharedCover& out) override {
+        if (header_) {
+            out = header_->sharedCover();
+            return !out.rect.empty();
+        }
+        return loadingCoverSlot(out);
     }
 
 private:

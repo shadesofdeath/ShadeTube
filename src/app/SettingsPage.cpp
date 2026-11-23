@@ -402,6 +402,11 @@ private:
                        Settings::get().reduceMotion = v;
                        ui::motion::setReduced(v);
                    });
+            toggle(c, tr(L"Sayfa geçişleri"),
+                   tr(L"Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni "
+                      L"sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken "
+                      L"sayfalar anında değişir."),
+                   s.pageTransitions, [](bool v) { Settings::get().pageTransitions = v; });
             buildDisplayRows(c, rebuilder());   // "Arayüz ölçeği", "Liste yoğunluğu" (app/Display.cpp)
             // Mica (Windows 11 22H2+) behind the main window; the mini player stays opaque. Live once the window was
             // created with it (ui::Window::backdropLive), else from the next start.

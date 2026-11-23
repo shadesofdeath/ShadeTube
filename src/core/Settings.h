@@ -46,6 +46,7 @@ struct Settings {
     ThemeMode theme = ThemeMode::Dark;   // settings.json "theme": "dark" | "light" | "system" (was bool "lightTheme")
     bool grain = true;
     bool reduceMotion = false;
+    bool pageTransitions = true;         // "Sayfa geçişleri": slide / fade + the flying cover (app/PageTransition)
     int uiZoom = 100;                    // "Arayüz ölçeği" in percent: 80, 90, 100, 110, 125, 150 (app/Display)
     bool compactLists = false;           // "Liste yoğunluğu": Sıkı = lower track rows (app/Display)
     bool micaBackdrop = false;           // Windows 11 Mica behind the main window (ui::Window::setBackdrop)

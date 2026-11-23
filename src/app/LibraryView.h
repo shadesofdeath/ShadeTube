@@ -36,7 +36,8 @@ struct LibraryCell {
     std::optional<Route> drop;          // where songs dropped on it go (dragdrop::tracksForRow decides); none = no target
 };
 
-class LibraryView : public ui::Widget, public DropTarget {
+// Opening a cell arms its cover for the page transition (app/PageTransition); a cell is the owner of its cover.
+class LibraryView : public ui::Widget, public DropTarget, public CoverSource {
 public:
     enum class Mode { Grid, List };
     static constexpr float kRowH = 64;   // list rows (ListRow's height), 48 DIP artwork
@@ -71,8 +72,10 @@ public:
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
+    bool coverFor(const std::string& key, SharedCover& out) override;
 
 private:
+    SharedCover coverOf(int d) const;    // the cell's artwork for the page transition
     struct CellText {
         gfx::Text title, sub, meta;
         bool metaDone = false;

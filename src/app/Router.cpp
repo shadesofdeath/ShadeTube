@@ -13,6 +13,7 @@ void Router::navigate(const Route& route, bool replace) {
     if (currentPage) {
         if (auto* p = currentPage()) history_[index_].scroll = p->scrollOffset();
     }
+    change_ = {current(), route, replace ? Nav::Replace : Nav::Push};
     if (replace) {
         history_[index_] = {route, 0};
     } else {
@@ -32,6 +33,7 @@ void Router::back() {
     if (currentPage) {
         if (auto* p = currentPage()) history_[index_].scroll = p->scrollOffset();
     }
+    change_ = {current(), history_[index_ - 1].route, Nav::Back};
     --index_;
     show(history_[index_].scroll);
 }
@@ -41,6 +43,7 @@ void Router::forward() {
     if (currentPage) {
         if (auto* p = currentPage()) history_[index_].scroll = p->scrollOffset();
     }
+    change_ = {current(), history_[index_ + 1].route, Nav::Forward};
     ++index_;
     show(history_[index_].scroll);
 }
