@@ -23,6 +23,7 @@
 #include <shobjidl.h>
 #include <wrl/client.h>
 
+#include <cctype>
 #include <memory>
 #include <optional>
 
@@ -117,6 +118,54 @@ std::wstring safeFileName(std::wstring w) {
     return w;
 }
 
+// Dev: SHADETUBE_THEME_DEMO = "<ms>:<step>,<step>..." runs live changes the way the Ayarlar rows make them, the first
+// after <ms>, then every 700 ms: a theme id ("nord", "user:x"), "mode:dark|light|system", "corners:sharp|default|round",
+// "font:<family>" ("font:" = the bundled one), "accent:dynamic|theme|#RRGGBB".
+std::vector<std::string> g_demoSteps;
+size_t g_demoNext = 0;
+
+void runDemoStep(const std::string& step) {
+    ST_LOG_INFO("theme", "demo: {}", step);
+    if (step.starts_with("mode:")) {
+        const std::string m = step.substr(5);
+        setThemeMode(m == "light" ? ThemeMode::Light : m == "system" ? ThemeMode::System : ThemeMode::Dark);
+    } else if (step.starts_with("corners:")) {
+        setCornerStyle(parseCorners(step.substr(8)));
+    } else if (step.starts_with("font:")) {
+        setUiFont(toWide(step.substr(5)));
+    } else if (step.starts_with("accent:")) {
+        const std::string a = step.substr(7);
+        if (a == "dynamic") setAccentMode(AccentMode::Dynamic);
+        else if (a == "theme") setAccentMode(AccentMode::Theme);
+        else if (const auto c = gfx::tryParseColor(a)) setFixedAccent(*c);
+    } else {
+        select(step);
+    }
+}
+
+void CALLBACK demoTick(HWND, UINT, UINT_PTR id, DWORD) {
+    if (g_demoNext >= g_demoSteps.size()) {
+        KillTimer(nullptr, id);
+        return;
+    }
+    SetTimer(nullptr, id, 700, demoTick);
+    runDemoStep(g_demoSteps[g_demoNext++]);
+}
+
+void scheduleDemo() {
+    const std::string spec = toUtf8(env(L"SHADETUBE_THEME_DEMO"));
+    if (spec.empty()) return;
+    const size_t colon = spec.find(':');
+    const bool timed = colon != std::string::npos && colon > 0 && std::isdigit(static_cast<unsigned char>(spec[0]));
+    const int delay = timed ? std::max(0, std::atoi(spec.substr(0, colon).c_str())) : 2000;
+    for (size_t start = timed ? colon + 1 : 0; start < spec.size();) {
+        const size_t comma = std::min(spec.find(',', start), spec.size());
+        if (comma > start) g_demoSteps.push_back(spec.substr(start, comma - start));
+        start = comma + 1;
+    }
+    SetTimer(nullptr, 0, static_cast<UINT>(delay), demoTick);
+}
+
 } // namespace
 
 // ---- Store / selection ---------------------------------------------------------------------------------------------
@@ -195,6 +244,7 @@ void startup(bool light) {
             for (const auto& t : g_pendingToasts) toast(t, true);
             g_pendingToasts.clear();
         });
+    scheduleDemo();
 }
 
 void select(const std::string& id) {
