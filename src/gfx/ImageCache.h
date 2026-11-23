@@ -15,6 +15,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace st::gfx {
 
@@ -46,6 +47,15 @@ public:
 
     // Background disk-cache maintenance (keeps the folder under `maxBytes`).
     static void pruneDisk(size_t maxBytes);
+
+    // Worker threads only: the picture at `url` decoded to at most `px` pixels wide, as 32bpp premultiplied BGRA
+    // (from the disk cache like request(), else downloaded; nothing is kept here). Throws on failure. For colors taken
+    // from a cover (Now Playing's backdrop, app/CoverBackdrop).
+    struct Pixels {
+        std::vector<uint8_t> bgra;
+        int width = 0, height = 0, stride = 0;
+    };
+    static Pixels decodePixels(const std::string& url, int px);
 
 private:
     ImageCache() = default;

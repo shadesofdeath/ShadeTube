@@ -1410,14 +1410,14 @@ void QueuePanel::sync() {
     invalidate();
 }
 
-void QueuePanel::layout() { save_->setRect({rect().w - 20 - 32, 20 + 2, 32, 32}); }
+void QueuePanel::layout() { save_->setRect({rect().w - 20 - 32, embedded_ ? 70 + oy() - 16 : 20 + 2, 32, 32}); }
 
-float QueuePanel::listTop() const { return 20 + 36 + 8 + 20 + 56 + 24 + 20; }
+float QueuePanel::listTop() const { return 20 + 36 + 8 + 20 + 56 + 24 + 20 + oy(); }
 
 Rect QueuePanel::rowRect(int orderIndex) const {
     auto* p = ctx().player;
     const int cur = p ? p->currentOrderIndex() : 0;
-    if (orderIndex == cur) return {0, 20 + 36 + 8 + 20, rect().w, 56};
+    if (orderIndex == cur) return {0, 20 + 36 + 8 + 20 + oy(), rect().w, 56};
     const int k = orderIndex - cur - 1;
     return {0, listTop() + k * queueRowH() - scroll_.value(), rect().w, queueRowH()};
 }
@@ -1557,18 +1557,22 @@ void QueuePanel::paint(Canvas& c) {
     const auto& acc = accent();
     auto* p = ctx().player;
     scroll_.setBounds(0, maxScroll());   // the queue changed / the panel resized: the offset follows the new end
-    c.fillRect(r, col.bgBase.withAlpha(0.35f));
-    c.vline(r.x, r.y, r.bottom(), col.hairSubtle);
+    if (!embedded_) {
+        c.fillRect(r, col.bgBase.withAlpha(0.35f));
+        c.vline(r.x, r.y, r.bottom(), col.hairSubtle);
+    }
     c.pushClip(r);
     c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
     const float padX = 20;
-    const float tw = std::ceil(title_.measure().w);
-    c.text(title_, {padX, 20, tw + 1, 36}, col.fgPrimary, gfx::VAlign::Center);
-    // meta right-aligned, left of the "Kuyruğu kaydet" button when it is shown
+    // meta right-aligned, left of the "Kuyruğu kaydet" button when it is shown (embedded: on the "ŞİMDİ" row)
     const float metaRight = save_->visible() ? save_->rect().x - 8 : r.w - padX;
-    c.text(meta_, {padX, 20, metaRight - padX, 36}, col.fgTertiary, gfx::VAlign::Center);
+    if (!embedded_) {
+        const float tw = std::ceil(title_.measure().w);
+        c.text(title_, {padX, 20, tw + 1, 36}, col.fgPrimary, gfx::VAlign::Center);
+    }
+    c.text(meta_, {padX, embedded_ ? 70 + oy() - 18 : 20, metaRight - padX, 36}, col.fgTertiary, gfx::VAlign::Center);
     if (!p || p->currentOrderIndex() < 0) {
-        c.text(tr(L"Sıra boş. Bir şarkı çal, burada görünsün."), type::secondary, {padX, 80, r.w - padX * 2, 20},
+        c.text(tr(L"Sıra boş. Bir şarkı çal, burada görünsün."), type::secondary, {padX, 80 + oy(), r.w - padX * 2, 20},
                col.fgTertiary);
         if (dropAt_ >= 0) c.strokeRounded({8, 8, r.w - 16, r.h - 16}, gfx::radii().surface, acc.base, 2);   // songs dragged in play here
         c.popTransform();
@@ -1576,7 +1580,7 @@ void QueuePanel::paint(Canvas& c) {
         paintChildren(c);
         return;
     }
-    c.text(tr(L"ŞİMDİ"), type::monoLabel, {padX, 20 + 36 + 8 - 2, 100, 16}, acc.base);
+    c.text(tr(L"ŞİMDİ"), type::monoLabel, {padX, 20 + 36 + 8 - 2 + oy(), 100, 16}, acc.base);
     auto drawRow = [&](int oi, const Rect& rr, bool current) {
         const auto& t = p->items()[p->order()[oi]];
         const float hv = current ? 0.f : hoverFade_.of(oi);
@@ -1800,8 +1804,6 @@ Shell::Shell() {
     sidebar_ = add<Sidebar>();
     pageHost_ = add<PageHost>();
     edge_ = add<SidebarEdge>(*this);
-    nowPlayingView_ = add<NowPlayingView>();
-    nowPlayingView_->setVisible(false);
     queue_ = add<QueuePanel>();
     queue_->setVisible(false);
     friends_ = add<FriendPanel>();
@@ -1809,6 +1811,9 @@ Shell::Shell() {
     jam_ = add<JamPanel>();
     jam_->setVisible(false);
     playerBar_ = add<PlayerBar>();
+    // Now Playing covers the player bar too (it has its own controls): above it in paint and hit-test order.
+    nowPlayingView_ = add<NowPlayingView>();
+    nowPlayingView_->setVisible(false);
     connect_ = add<ConnectScreen>();
     connect_->setVisible(false);
 
@@ -1883,7 +1888,8 @@ void Shell::layout() {
         return;
     }
     connect_->setVisible(false);
-    playerBar_->setVisible(true);   // connect mode hid it (logout -> login again)
+    // Connect mode hid it (logout -> login again); Now Playing covers it once it is fully open.
+    playerBar_->setVisible(!nowPlaying_ || npAnim_.running());
     playerBar_->setRect({0, bottom, r.w, metrics::playerBarH});
     // Right side: the queue, the friend activity (Spotify only) or "Birlikte dinle", one at a time.
     const bool jam = jamOpen_ && !nowPlaying_;
@@ -1909,7 +1915,8 @@ void Shell::layout() {
     friends_->setVisible(friends);
     jam_->setRect({r.w - metrics::queueW, top, metrics::queueW, bottom - top});
     jam_->setVisible(jam);
-    nowPlayingView_->setRect({0, top, r.w, bottom - top});
+    nowPlayingView_->setTopInset(top);   // its backdrop runs behind the title bar (painted over it, see paint())
+    nowPlayingView_->setRect({0, 0, r.w, r.h});
     nowPlayingView_->setVisible(nowPlaying_ || npAnim_.running());
     sidebar_->setVisible(!nowPlaying_);
     pageHost_->setVisible(!nowPlaying_);
@@ -1931,18 +1938,22 @@ void Shell::paint(Canvas& c) {
         sidebar_->setVisible(true);
         pageHost_->setVisible(true);
     }
+    // Now Playing spans the window: the title bar goes over it (after it), not under it.
+    const bool npShown = nowPlayingView_->visible() && t > 0.001f;
     for (auto& child : children()) {
         if (!child->visible()) continue;
+        if (child.get() == titleBar_ && npShown) continue;
         if (child.get() == nowPlayingView_) {
             if (t <= 0.001f) continue;
             // Group opacity only while it fades: a layer is a window-sized intermediate texture every frame.
             if (t >= 0.999f) {
                 child->paint(c);
-                continue;
+            } else {
+                c.pushOpacity(t);
+                child->paint(c);
+                c.popLayer();
             }
-            c.pushOpacity(t);
-            child->paint(c);
-            c.popLayer();
+            titleBar_->paint(c);
             continue;
         }
         if ((child.get() == sidebar_ || child.get() == pageHost_ || child.get() == edge_ || child.get() == queue_ ||

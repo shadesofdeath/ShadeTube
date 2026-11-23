@@ -179,6 +179,9 @@ class QueuePanel : public ui::Widget, public DropTarget {
 public:
     QueuePanel();
     void sync();
+    // Now Playing's Sıradaki tab: no panel background or title row; the count and "Kuyruğu kaydet" share the "ŞİMDİ"
+    // row at the top.
+    void setEmbedded(bool on) { embedded_ = on; }
     float preferredHeight(float) override { return rect().h; }
     void layout() override;
     void paint(Canvas& c) override;
@@ -210,6 +213,8 @@ private:
     bool dragging_ = false;
     int dropAt_ = -1;                    // songs dragged in from elsewhere: order index of the insertion line
     double lastScrollTick_ = 0;
+    bool embedded_ = false;
+    float oy() const { return embedded_ ? -44.f : 0.f; }   // embedded: everything moves up into the title row's place
 };
 
 // Hosts the current page and the page transition (app/PageTransition): the replaced page fades / shifts out while the

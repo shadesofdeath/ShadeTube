@@ -313,64 +313,12 @@ int LyricsFullscreen::lineAt(gfx::Point p) const {
 
 // ---- Painting --------------------------------------------------------------------------------------------------
 
-// The artwork blurred over the whole window, like Now Playing's backdrop (quarter resolution; rebuilt when the art,
-// size, device or theme changes).
-void LyricsFullscreen::paintBackdrop(Canvas& c, const Rect& r) {
-    const auto* t = ctx().player ? ctx().player->current() : nullptr;
-    const auto& col = colors();
-    ID2D1Bitmap1* art = nullptr;
-    std::string url;
-    if (t && !radio::isStationId(t->id)) {
-        if (const auto* img = catalog::pickImage(t->album.images, 300)) {
-            url = img->url;
-            art = gfx::ImageCache::get().request(url, 300);
-        }
-    }
-    const uint64_t gen = gfx::Device::get().generation();
-    const uint64_t themeGen = gfx::Theme::get().generation();
-    if (art && (url != backdropUrl_ || gen != backdropGen_ || themeGen != backdropTheme_ || r.w != backdropW_ ||
-                r.h != backdropH_)) {
-        auto* dc = c.dc();
-        const UINT bw = std::max(1u, static_cast<UINT>(r.w / 4)), bh = std::max(1u, static_cast<UINT>(r.h / 4));
-        Microsoft::WRL::ComPtr<ID2D1Bitmap1> bmp;
-        const auto props = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET,
-                                                   D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
-        if (SUCCEEDED(dc->CreateBitmap(D2D1::SizeU(bw, bh), nullptr, 0, &props, &bmp))) {
-            Microsoft::WRL::ComPtr<ID2D1Image> old;
-            dc->GetTarget(&old);
-            D2D1_MATRIX_3X2_F oldT;
-            dc->GetTransform(&oldT);
-            float dx, dy;
-            dc->GetDpi(&dx, &dy);
-            dc->SetTarget(bmp.Get());
-            dc->SetDpi(96, 96);
-            dc->SetTransform(D2D1::Matrix3x2F::Identity());
-            dc->Clear(col.bgBase.d2d());
-            {
-                Canvas off(dc, 1.f);
-                off.blurredImage(art, {0, 0, static_cast<float>(bw), static_cast<float>(bh)}, 48.f / 4.f * 3.f, 1.2f, 1.1f);
-            }
-            dc->SetTarget(old.Get());
-            dc->SetDpi(dx, dy);
-            dc->SetTransform(oldT);
-            const bool newArt = url != backdropUrl_;   // not a rebuild after a device / size / theme change
-            backdrop_ = bmp;
-            backdropUrl_ = url;
-            backdropGen_ = gen;
-            backdropTheme_ = themeGen;
-            backdropW_ = r.w;
-            backdropH_ = r.h;
-            if (newArt) {
-                backdropFade_.snap(0);
-                backdropFade_.to(1, 600);
-            }
-        }
-    }
-    c.fillRect(r, col.bgBase);
-    if (backdrop_) c.dc()->DrawBitmap(backdrop_.Get(), r.d2d(), backdropFade_, D2D1_INTERPOLATION_MODE_LINEAR);
-    // A heavier scrim than Now Playing's: the lyrics are the only thing on screen and must read from across a room.
-    c.fillRect(r, col.bgBase.withAlpha(gfx::isLightTheme() ? 0.78f : 0.62f));
-    c.fillRadialGradient(r, {r.cx(), r.cy()}, std::max(r.w, r.h) * 0.6f, accent().base.withAlpha(0.08f), accent().base.withAlpha(0.f));
+// Now Playing's backdrop: the cover's colours drifting slowly while it plays (app/CoverBackdrop), kept in the band where
+// the text keeps its contrast. Returns the delay until its next drift step (0 = still).
+double LyricsFullscreen::paintBackdrop(Canvas& c, const Rect& r) {
+    const auto* p = ctx().player;
+    const auto* t = p ? p->current() : nullptr;
+    return backdrop_.paint(c, r, t, p && p->isPlaying());
 }
 
 // The sung part of the active line in the accent: per word when the lyrics carry word times, else a sweep across the
@@ -425,7 +373,7 @@ void LyricsFullscreen::paintLyrics(Canvas& c, const Rect& area) {
     auto centered = [&](const std::wstring& big, const std::wstring& note) {
         c.text(big, type::headline, {area.x, area.cy() - 40, area.w, 34}, col.fgSecondary, gfx::TextAlign::Center);
         if (!note.empty())
-            c.text(note, type::monoLabel, {area.x, area.cy() + 6, area.w, 16}, col.fgTertiary, gfx::TextAlign::Center);
+            c.text(note, type::monoLabel, {area.x, area.cy() + 6, area.w, 16}, backdrop_.labelColor(), gfx::TextAlign::Center);
     };
     switch (state_) {
     case State::None: return;
@@ -522,7 +470,7 @@ void LyricsFullscreen::paintFooter(Canvas& c, const Rect& r) {
     if (!live && dur > 0) {
         time_.setText(ui::formatDuration(pos) + L" / " + ui::formatDuration(dur));
         tw = std::ceil(time_.measure().w) + 1;
-        c.text(time_, {r.right() - pad - tw, y + 8, tw, 18}, col.fgTertiary, gfx::VAlign::Center);
+        c.text(time_, {r.right() - pad - tw, y + 8, tw, 18}, backdrop_.labelColor(), gfx::VAlign::Center);
     }
     const float iw = std::max(40.f, r.w - pad * 2 - tw - 24);
     c.text(title_, {pad, y, iw, 24}, col.fgPrimary, gfx::VAlign::Center);
@@ -536,7 +484,6 @@ void LyricsFullscreen::paintFooter(Canvas& c, const Rect& r) {
 }
 
 void LyricsFullscreen::paintTop(Canvas& c, const Rect& r) {
-    const auto& col = colors();
     std::wstring label = toUpperTr(tr(L"Şarkı sözleri"));
     if ((state_ == State::Synced || state_ == State::Plain) && !lyrics_.source.empty())
         label += L" · " + lyricsSourceLabel(lyrics_.source);
@@ -545,10 +492,10 @@ void LyricsFullscreen::paintTop(Canvas& c, const Rect& r) {
     const float pad = std::max(48.f, r.w * 0.08f);
     const float controlsX = translate_->visible() ? translate_->rect().x : earlier_->visible() ? earlier_->rect().x : close_->rect().x;
     const float lw = std::max(40.f, std::min(r.w - pad - 260, controlsX - 16 - pad));
-    c.text(label_, {pad, 24, lw, 16}, col.fgTertiary, gfx::VAlign::Center);
+    c.text(label_, {pad, 24, lw, 16}, backdrop_.labelColor(), gfx::VAlign::Center);
     // The translation's state under it: "ÇEVRİLİYOR…", "ÇEVİRİ ALINAMADI", what is shown.
     if (const std::wstring note = translation_.note(); !note.empty())
-        c.text(note, type::monoLabel, {pad, 42, lw, 14}, col.fgTertiary, gfx::TextAlign::Leading, gfx::VAlign::Center);
+        c.text(note, type::monoLabel, {pad, 42, lw, 14}, backdrop_.labelColor(), gfx::TextAlign::Leading, gfx::VAlign::Center);
     // The offset value flashes in the accent right after a change.
     if (offset_->visible()) {
         const double since = ui::frame::realNow() - lyricsOffsetChangedAt();
@@ -564,8 +511,10 @@ void LyricsFullscreen::paint(Canvas& c) {
     const Rect r = rect();
     const float t = open_;
     if (t < 0.999f) c.pushOpacity(t);
-    paintBackdrop(c, r);
+    const double drift = paintBackdrop(c, r);
     paintLyrics(c, lyricsArea_);
+    if (drift > 0)
+        if (auto* win = window()) win->invalidateAfter(drift);
     paintFooter(c, r);
     // Controls fade out while the mouse rests (not while a control has the keyboard focus ring).
     const auto* w = window();

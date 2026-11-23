@@ -1892,5 +1892,7 @@
   "Mini oynatıcı: geniş": "Mini player: wide",
   "Mini oynatıcı: her zaman üstte": "Mini player: always on top",
   "Mini oynatıcı her zaman üstte": "The mini player stays on top",
-  "Mini oynatıcı artık üstte kalmıyor": "The mini player no longer stays on top"
+  "Mini oynatıcı artık üstte kalmıyor": "The mini player no longer stays on top",
+  "Bu şarkı için ek bilgi yok.": "No more details for this song.",
+  "Bilgiler yüklenemedi.": "Couldn't load the details."
 }
