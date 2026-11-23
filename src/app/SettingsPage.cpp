@@ -66,61 +66,6 @@ std::wstring mb(uintmax_t bytes) {
     return i18n::format(tr(L"{} MB"), {n});
 }
 
-class Swatches : public ui::Widget {
-public:
-    Swatches() {
-        focusable = true;
-        for (uint32_t c : {0xDDFF47u, 0xFF5C3Au, 0x7CE0FFu, 0xFF4FA3u}) colors_.push_back(Color::rgb(c));
-        const Color cur = gfx::parseColor(Settings::get().fixedAccent.c_str());
-        for (size_t i = 0; i < colors_.size(); ++i)
-            if (colors_[i] == cur) cursor_ = static_cast<int>(i);
-    }
-    std::function<void(Color)> onPick;
-    // Keyboard (Tab stop): Left/Right move the focus ring between the swatches, Enter / Space pick one.
-    bool activatable() const override { return true; }
-    bool onKeyDown(const ui::KeyEvent& e) override {
-        if (e.ctrl || e.alt || (e.vk != VK_LEFT && e.vk != VK_RIGHT)) return false;
-        const int n = static_cast<int>(colors_.size());
-        cursor_ = (cursor_ + (e.vk == VK_RIGHT ? 1 : n - 1)) % n;
-        invalidate();
-        return true;
-    }
-    bool onActivate() override {
-        if (onPick) onPick(colors_[cursor_]);
-        invalidate();
-        return true;
-    }
-    Rect focusRect() const override { return swatch(static_cast<size_t>(cursor_)); }   // outside the 17 px selection ring
-    ui::FocusShape focusShape() const override { return ui::FocusShape::Circle; }
-    bool onMouseDown(const ui::MouseEvent& e) override {
-        for (size_t i = 0; i < colors_.size(); ++i) {
-            if (swatch(i).contains(e.pos)) {
-                if (onPick) onPick(colors_[i]);
-                invalidate();
-                return true;
-            }
-        }
-        return false;
-    }
-    LPCWSTR cursor() const override { return IDC_HAND; }
-    void paint(Canvas& c) override {
-        const Color cur = gfx::parseColor(Settings::get().fixedAccent.c_str());
-        const bool light = gfx::isLightTheme();
-        for (size_t i = 0; i < colors_.size(); ++i) {
-            const Rect s = swatch(i);
-            // The swatch shows the accent as this theme will use it (light: darkened for contrast on paper).
-            c.fillCircle({s.cx(), s.cy()}, 12, gfx::Theme::adaptAccent(colors_[i], light));
-            if (colors_[i] == cur && Settings::get().accentMode == AccentMode::Fixed)
-                c.strokeCircle({s.cx(), s.cy()}, 17, colors().fgPrimary, 1.5f);
-        }
-    }
-
-private:
-    Rect swatch(size_t i) const { return {rect().right() - (colors_.size() - i) * 40.f, rect().cy() - 17, 34, 34}; }
-    std::vector<Color> colors_;
-    int cursor_ = 0;   // keyboard cursor (starts on the current fixed accent)
-};
-
 // The category cards in page order. The ids are the deep links (Route{Settings, <id>}: "--route settings:<id>", the
 // command palette), unchanged from the sections the page had before the cards.
 constexpr const char* kCardIds[] = {"spotify", "connections", "playback", "audio", "appearance", "window", "keyboard",
@@ -362,46 +307,23 @@ private:
         c = card("audio", "equalizer", tr(L"Ses"), tr(L"Ses dengeleme, şarkı geçişi, ekolayzer, çıkış aygıtı"));
         buildAudioRows(c, rebuilder());
 
-        c = card("appearance", "palette", tr(L"Görünüm"), tr(L"Tema, dil, vurgu rengi, ölçek, liste yoğunluğu, Mica"));
+        c = card("appearance", "palette", tr(L"Görünüm"),
+                 tr(L"Temalar, vurgu rengi, köşeler, yazı tipi, dil, ölçek, Mica"));
         {
-            auto* themeRow = c->add<SettingRow>(
-                tr(L"Tema"), tr(L"Koyu, açık ya da Windows'un uygulama moduna uyan sistem teması. Değişiklik anında "
-                                L"uygulanır; dinamik vurgu rengi kapaktan gelmeye devam eder."));
-            // Theme names: dark / light / system ("Açık" here is the light theme, not "open").
-            const std::vector<std::wstring> themes{tr(L"Koyu"), tr(L"Açık"), tr(L"Sistem")};
-            auto* theme = themeRow->control<Segmented>(220.f, themes, static_cast<int>(themeMode()));
-            theme->onChange = [](int i) {
-                // Runs inside the click: the switch itself is cheap (palette swap + repaint).
-                setThemeMode(i == 1 ? ThemeMode::Light : i == 2 ? ThemeMode::System : ThemeMode::Dark);
-            };
+            // Tema + the theme gallery, theme files, accent source + fixed color, corners, UI font (app/ThemeStudioUi.cpp).
+            buildThemeStudioRows(c, rebuilder());
             // Language: fixed per process (i18n::init at startup), so a change is saved and applies on restart.
             buildLanguageRow(c);
-            toggle(c, tr(L"Dinamik vurgu rengi"),
-                   tr(L"Vurgu rengi çalan şarkının kapağından alınır ve 600 ms'de yumuşakça geçiş yapar."),
-                   s.accentMode == AccentMode::Dynamic, [](bool v) {
-                       Settings::get().accentMode = v ? AccentMode::Dynamic : AccentMode::Fixed;
-                       if (!v) gfx::Theme::get().setAccent(gfx::parseColor(Settings::get().fixedAccent.c_str()));
-                   });
-            auto* row = c->add<SettingRow>(tr(L"Sabit vurgu rengi"),
-                                           tr(L"Volt, Kor, Buz, Fuşya. Seçince dinamik mod kapanır."));
-            auto* sw = row->control<Swatches>(160.f);
-            sw->onPick = [this](Color col) {
-                wchar_t hex[16];
-                swprintf(hex, 16, L"#%02X%02X%02X", static_cast<int>(col.r * 255 + 0.5f), static_cast<int>(col.g * 255 + 0.5f),
-                         static_cast<int>(col.b * 255 + 0.5f));
-                Settings::get().fixedAccent = toUtf8(hex);
-                Settings::get().accentMode = AccentMode::Fixed;
-                Settings::get().markDirty();
-                gfx::Theme::get().setAccent(col);
-                Dispatcher::post([this, ref = life_.ref()] {
-                    if (!ref.expired()) build();
-                });
-            };
             toggle(c, tr(L"Hareketi azalt"), tr(L"Sayfa geçişleri ve mikro animasyonlar anında gerçekleşir."),
                    s.reduceMotion, [](bool v) {
                        Settings::get().reduceMotion = v;
                        ui::motion::setReduced(v);
                    });
+            toggle(c, tr(L"Sayfa geçişleri"),
+                   tr(L"Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni "
+                      L"sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken "
+                      L"sayfalar anında değişir."),
+                   s.pageTransitions, [](bool v) { Settings::get().pageTransitions = v; });
             buildDisplayRows(c, rebuilder());   // "Arayüz ölçeği", "Liste yoğunluğu" (app/Display.cpp)
             // Mica (Windows 11 22H2+) behind the main window; the mini player stays opaque. Live once the window was
             // created with it (ui::Window::backdropLive), else from the next start.

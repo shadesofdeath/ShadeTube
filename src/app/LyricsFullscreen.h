@@ -76,6 +76,7 @@ private:
 
     ui::Widget* drag_;                   // the top strip moves the window (the title bar is covered)
     ui::Button *translate_, *earlier_, *offset_, *later_, *close_;
+    ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
 
     CoverBackdrop backdrop_;             // Now Playing's drifting cover colours (app/CoverBackdrop)
     gfx::Text title_, artist_, time_, label_;

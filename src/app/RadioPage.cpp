@@ -171,14 +171,17 @@ bool isCurrentStation(const std::string& trackId) {
     return t && t->id == trackId;
 }
 
-void paintEqualizer(Canvas& c, const Rect& r) {
-    const auto* p = ctx().player;
-    const bool playing = p && p->isPlaying();
-    const int f = playing ? static_cast<int>(ui::frame::now() / 66.0) % 12 : 0;
-    char name[48];
-    snprintf(name, sizeof name, "animations/equalizer/frame-%02d", f);
-    c.icon(name, r, accent().base);
-    if (playing) ui::frame::requestNext();
+// The playing station's live bars (moving while it plays, frozen while paused / buffering).
+void paintEqualizer(Canvas& c, ui::Widget* owner, const Rect& r) { drawPlayingBars(c, owner, r, accent().base); }
+
+// The favorite heart of a station row / tile: hover circle, the heart (outline on hover, filled in the accent when it
+// is a favorite) and the like feedback after a click.
+void paintStationHeart(Canvas& c, const ui::HeartPop& pop, const Rect& heart, bool fav, bool hot, float hover) {
+    const auto& col = colors();
+    if (hot) c.fillCircle({heart.cx(), heart.cy()}, 16, col.overlayHover);
+    if (!fav && !pop.running() && hover <= 0.01f) return;
+    const Color outline = col.fgSecondary.mulAlpha(hot ? 1.f : std::max(hover, pop.running() ? 1.f : 0.f));
+    pop.draw(c, heart.center(16, 16), fav, "heart", "heart-filled", outline, accent().base);
 }
 
 // The small mono codec badge ("MP3 · 128") like the queue's "ENGELLİ" badge. Returns its width (0 = none).
@@ -186,7 +189,7 @@ float paintBadge(Canvas& c, gfx::Text& badge, float right, float cy) {
     if (badge.empty()) return 0;
     const float bw = std::ceil(badge.measure().w) + 10;
     const Rect b{right - bw, cy - 7, bw, 14};
-    c.fillRounded(b, 2, colors().fgPrimary.withAlpha(0.10f));
+    c.fillRounded(b, gfx::radii().badge, colors().fgPrimary.withAlpha(0.10f));
     c.text(badge, b.inset(5, 0), colors().fgSecondary, gfx::VAlign::Center);
     return bw;
 }
@@ -206,9 +209,9 @@ public:
         return heartHot_ ? std::wstring(radio::store().isFavorite(station_.uuid) ? tr(L"Favorilerden kaldır") : tr(L"Favorilere ekle"))
                          : std::wstring();
     }
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
     void onMouseLeave() override {
-        hover_.to(0, ui::motion::fast);
+        hover_.to(0, ui::motion::microMs(ui::motion::fast));
         heartHot_ = false;
     }
     void onMouseMove(const ui::MouseEvent& e) override {
@@ -229,6 +232,7 @@ public:
         if (!rect().contains(e.pos)) return;
         if (heartRect().contains(e.pos)) {
             radio::store().toggleFavorite(station_);
+            pop_.start(radio::store().isFavorite(station_.uuid));
             invalidate();
             return;
         }
@@ -253,20 +257,18 @@ public:
         const auto& acc = accent();
         const bool current = isCurrentStation(trackId_);
         const float h = hover_;
-        if (current) c.fillRounded(r, 2, acc.tint06);
-        c.fillRounded(r, 2, col.overlayHover.mulAlpha(h));
+        if (current) c.fillRounded(r, gfx::radii().surface, acc.tint06);
+        c.fillRounded(r, gfx::radii().surface, col.overlayHover.mulAlpha(h));
         const Rect art{r.x + 8, r.cy() - 22, 44, 44};
-        drawStationArt(c, images_, art, 2, Priority::Normal);
+        drawStationArt(c, images_, art, gfx::radii().art, Priority::Normal);
 
         const Rect heart = heartRect();
         const bool fav = radio::store().isFavorite(station_.uuid);
-        if (heartHot_) c.fillCircle({heart.cx(), heart.cy()}, 16, col.overlayHover);
-        if (fav || h > 0.01f)
-            c.icon(fav ? "heart-filled" : "heart", heart.center(16, 16), fav ? acc.base : col.fgSecondary.mulAlpha(heartHot_ ? 1.f : h));
+        paintStationHeart(c, pop_, heart, fav, heartHot_, h);
         float right = heart.x - 8;
         if (const float bw = paintBadge(c, badge_, right, r.cy()); bw > 0) right -= bw + 12;
         if (current) {
-            paintEqualizer(c, {right - 16, r.cy() - 8, 16, 16});
+            paintEqualizer(c, this, {right - 16, r.cy() - 8, 16, 16});
             right -= 16 + 12;
         }
         const float tx = art.right() + 14, tw = std::max(0.f, right - tx);
@@ -297,6 +299,7 @@ private:
     gfx::Text name_, sub_, badge_;
     std::function<void()> onPlay_;
     ui::Anim hover_;
+    ui::HeartPop pop_;
     bool heartHot_ = false;
 };
 
@@ -337,9 +340,9 @@ public:
         const float cw = (r.w - kRowGap * static_cast<float>(cols - 1)) / static_cast<float>(cols);
         for (int i = 0; i < n_; ++i) {
             const float x = r.x + static_cast<float>(i % cols) * (cw + kRowGap), y = r.y + static_cast<float>(i / cols) * kRowH;
-            c.skeleton({x + 8, y + 10, 44, 44}, 2, now);
-            c.skeleton({x + 66, y + 18, std::min(cw - 120, 200.f - static_cast<float>(i % 3) * 36.f), 12}, 2, now);
-            c.skeleton({x + 66, y + 38, 110, 10}, 2, now);
+            c.skeleton({x + 8, y + 10, 44, 44}, gfx::radii().art, now);
+            c.skeleton({x + 66, y + 18, std::min(cw - 120, 200.f - static_cast<float>(i % 3) * 36.f), 12}, gfx::radii().badge, now);
+            c.skeleton({x + 66, y + 38, 110, 10}, gfx::radii().badge, now);
         }
         ui::frame::requestNext();
     }
@@ -367,9 +370,9 @@ public:
         return heartHot_ ? std::wstring(radio::store().isFavorite(station_.uuid) ? tr(L"Favorilerden kaldır") : tr(L"Favorilere ekle"))
                          : std::wstring();
     }
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
     void onMouseLeave() override {
-        hover_.to(0, ui::motion::fast);
+        hover_.to(0, ui::motion::microMs(ui::motion::fast));
         heartHot_ = false;
     }
     void onMouseMove(const ui::MouseEvent& e) override {
@@ -385,22 +388,24 @@ public:
             return false;
         }
         if (e.button != ui::MouseButton::Left) return false;
-        press_.to(1, 80);
+        if (!heartRect().contains(e.pos)) press_.to(1, ui::motion::microMs(80));
         return true;
     }
     void onMouseUp(const ui::MouseEvent& e) override {
-        press_.to(0, 160);
+        press_.to(0, ui::motion::microMs(160));
         if (!rect().contains(e.pos)) return;
         if (heartRect().contains(e.pos)) {
             radio::store().toggleFavorite(station_);   // may rebuild the section this tile is in (deferred delete)
+            pop_.start(radio::store().isFavorite(station_.uuid));
+            invalidate();
             return;
         }
         play();
     }
     bool activatable() const override { return true; }
     bool onActivate() override {
-        press_.snap(1);
-        press_.to(0, 160);
+        press_.snap(ui::motion::micro() ? 1.f : 0.f);
+        press_.to(0, ui::motion::microMs(160));
         play();
         return true;
     }
@@ -415,21 +420,24 @@ public:
         const Rect r = rect();
         const auto& col = colors();
         const auto& acc = accent();
-        const float h = std::max(hover_.value(), keyboardFocused() ? 1.f : 0.f);
+        const float pointer = hover_.value(), p = press_.value();
+        const float h = std::max(pointer, keyboardFocused() ? 1.f : 0.f);
         const bool current = isCurrentStation(trackId_);
-        c.pushScale(1 - 0.01f * press_, {r.cx(), r.cy()});
+        // The cards' hover look (ui::card): rise, shadow, a brightening hairline (the accent one while it plays).
+        c.pushTransform(D2D1::Matrix3x2F::Translation(0, ui::card::lift(pointer, p)));
+        c.pushScale(ui::card::pressScale(p), {r.cx(), r.cy()});
+        ui::card::paintBack(c, r, h);
         const Color fill = tileFill(tone_);
-        c.fillRounded(r, 2, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
-        if (current) c.strokeRounded(r.inset(0.5f), 2, acc.base, 1.f);
+        c.fillRounded(r, gfx::radii().surface, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
+        if (current) c.strokeRounded(r.inset(0.5f), gfx::radii().surface, acc.base, 1.f);
+        else ui::card::paintEdge(c, r, h);
         const Rect art{r.x + 16, r.y + 16, 56, 56};
-        drawStationArt(c, images_, art, 2);
+        drawStationArt(c, images_, art, gfx::radii().art);
 
         const Rect heart = heartRect();
         const bool fav = radio::store().isFavorite(station_.uuid);
-        if (heartHot_) c.fillCircle({heart.cx(), heart.cy()}, 16, col.overlayHover);
-        if (fav || h > 0.01f)
-            c.icon(fav ? "heart-filled" : "heart", heart.center(16, 16), fav ? acc.base : col.fgSecondary.mulAlpha(heartHot_ ? 1.f : h));
-        if (current) paintEqualizer(c, {heart.x - 20, heart.cy() - 8, 16, 16});
+        paintStationHeart(c, pop_, heart, fav, heartHot_, h);
+        if (current) paintEqualizer(c, this, {heart.x - 20, heart.cy() - 8, 16, 16});
 
         const float tw = r.w - 32;
         const float lineY = r.bottom() - 16 - 16;
@@ -437,6 +445,7 @@ public:
         c.text(sub_, {r.x + 16, lineY, tw - (bw > 0 ? bw + 8 : 0), 16}, col.fgSecondary, gfx::VAlign::Center);
         const float nh = name_.measure(tw).h;
         c.text(name_, {r.x + 16, lineY - 6 - nh, tw, nh}, current ? acc.base : col.fgPrimary);
+        c.popTransform();
         c.popTransform();
     }
 
@@ -469,6 +478,7 @@ private:
     std::function<void()> onPlay_;
     bool recentList_;
     ui::Anim hover_, press_;
+    ui::HeartPop pop_;
     bool heartHot_ = false;
 };
 
@@ -603,7 +613,7 @@ public:
         status_->setRect({4, 0, rect().w - 8, 40});
     }
     void paint(Canvas& c) override {
-        c.strokeRounded(rect(), 2, colors().hairDefault);
+        c.strokeRounded(rect(), gfx::radii().field, colors().hairDefault);
         paintChildren(c);
     }
     void setFilter(const std::wstring& text) {

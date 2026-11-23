@@ -7,8 +7,10 @@
 #include "gfx/Device.h"
 #include "gfx/Types.h"
 
+#include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace st::gfx {
 
@@ -69,7 +71,24 @@ public:
     static const wchar_t* displayFamily();
     static const wchar_t* monoFamily();
     static IDWriteTextFormat3* format(const TextStyle& style, const TextOptions& opts);   // cached
+
+    // The UI font (every non-mono style; Ayarlar › Görünüm › Yazı tipi): "" = the bundled Bricolage Grotesque, else an
+    // installed family ("Segoe UI Variable", "Inter"). A family that is not installed (or not usable for text) keeps
+    // the bundled one and returns false. A change clears the format cache and bumps generation(), so every Text
+    // re-shapes at its next use; the caller relayouts the windows and bumps Theme::generation() for baked output.
+    static bool setUiFamily(const std::wstring& family);
+    static const std::wstring& uiFamily();   // as set ("" = bundled)
+    static bool usable(const std::wstring& family);   // installed, not a symbol font, has Latin letters
+    static uint64_t generation();
+    // Installed families usable for UI text, sorted (case-insensitive); enumerated once, then cached.
+    static const std::vector<std::wstring>& installedFamilies();
+    // "Segoe UI Variable" when installed (Windows 11), else "Segoe UI".
+    static std::wstring segoeFamily();
 };
+
+// One line of `text` in an arbitrary installed family (font previews; not cached, not tracked).
+ComPtr<IDWriteTextLayout4> makeFamilyLayout(std::wstring_view text, const std::wstring& family, float size, float weight,
+                                            float maxWidth);
 
 // Creates a layout. maxHeight <= 0 means "one line tall" for single-line text or unbounded for wrap.
 ComPtr<IDWriteTextLayout4> makeLayout(std::wstring_view text, const TextStyle& style, float maxWidth,
@@ -103,6 +122,7 @@ private:
     TextOptions opts_{};
     ComPtr<IDWriteTextLayout4> layout_;
     float layoutW_ = -1, layoutH_ = -1;
+    uint64_t fontGen_ = 0;   // Fonts::generation() the layout was shaped with
 };
 
 } // namespace st::gfx

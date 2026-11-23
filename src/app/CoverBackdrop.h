@@ -34,7 +34,7 @@ public:
     const cover::Band& band() const { return band_; }
     Color labelColor() const { return label_; }
 
-    // Reduce motion off and Windows' "Show animations in Windows" (SPI_GETCLIENTAREAANIMATION) on; re-read every 2 s.
+    // Reduce motion off and Windows' animation effects (SPI_GETCLIENTAREAANIMATION) on: ui::motion::micro().
     static bool animationsAllowed();
     static constexpr double kDriftStepMs = 1000.0 / 12;   // the field's update rate while it drifts
 

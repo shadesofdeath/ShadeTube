@@ -5,6 +5,7 @@
     ImageCache.cpp ImageCache.h
     Text.cpp Text.h
     Theme.cpp Theme.h
+    ThemeSpec.cpp ThemeSpec.h
     Types.cpp Types.h
 )
 # dcomp: DirectComposition, the swap chain of a window with a system backdrop (Mica, WindowTarget::useComposition).

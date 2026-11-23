@@ -135,6 +135,8 @@ public:
     bool record(const std::string& context, int64_t at);
     int64_t at(const std::string& context) const;
     size_t size() const { return at_.size(); }
+    // The `n` most recently played contexts with their times, newest first (equal times: by context).
+    std::vector<std::pair<std::string, int64_t>> newest(size_t n) const;
     std::string toJson() const;
     static Recents fromJson(std::string_view text);   // tolerant: broken rows are skipped, garbage gives an empty record
     bool save(const std::filesystem::path& file) const;   // write-then-rename

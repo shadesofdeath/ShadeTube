@@ -9,7 +9,7 @@
 //  - Tabs with a sliding indicator: Şarkı sözleri (a station: Canlı yayın, the titles it announced; none for a podcast
 //    episode), Sıradaki (the queue panel) and Hakkında (album and artist from the catalog, an episode's show notes, a
 //    station's details). The toolbar of the open tab sits at the right end of the tab row (lyrics: Çeviri, the timing
-//    −/+, full screen); features add their buttons in buildToolbar().
+//    −/+, full screen, share); features add their buttons in buildToolbar().
 //  - Wide windows: the track on the left, the tabs on the right. Narrow / short ones: a compact track header above the
 //    tabs.
 // A track change slides and fades the cover and the titles like the player bar (TrackSwap); lyrics and details fade in
@@ -110,6 +110,7 @@ private:
     NowPlayingTabs* tabs_;
     QueuePanel* queue_;
     ui::Button *translate_, *earlier_, *offset_, *later_, *fullscreen_;
+    ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
     // The toolbar on the right of the tab row, in this order (the first is leftmost). An entry belongs to one tab (or
     // to every tab: tab = nullopt) and shows while `shown` says so. Features add theirs in buildToolbar().
     struct ToolbarItem {
@@ -122,6 +123,8 @@ private:
     bool toolbarBelow_ = false;          // no room beside the tabs: on the label row below them
     float toolbarLeft_ = 0;              // its left edge (the label row's text stops there)
     std::wstring speedLabel_, jamText_, offsetText_;   // what the buttons show (labels are set only on a change)
+    std::string likedId_;                // the track the heart showed at the last sync and whether it was liked: a
+    bool likedWas_ = false;              // change of the same track plays the like feedback
 
     // ---- state ----------------------------------------------------------------------------------------------------
     Lifetime life_;                      // per track (lyrics / details requests)

@@ -711,10 +711,10 @@ public:
         const auto& col = colors();
         const Rect art{r.x, r.cy() - 24, 48, 48};
         if (rule_.kind == Kind::Liked) {
-            c.fillRounded(art, 2, accent().base);
+            c.fillRounded(art, gfx::radii().art, accent().base);
             c.icon("heart-filled", art.center(20, 20), accent().onAccent);
         } else {
-            drawArtwork(c, rule_.images, art, 2, rule_.kind == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
+            drawArtwork(c, rule_.images, art, gfx::radii().art, rule_.kind == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
         }
         const float x = art.right() + 14, w = r.right() - 48 - x;
         c.text(title_, {x, r.y + 12, w, 20}, col.fgPrimary, gfx::VAlign::Center);

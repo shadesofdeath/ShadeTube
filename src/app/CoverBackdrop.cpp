@@ -3,6 +3,7 @@
 #include "core/Settings.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
+#include "ui/Micro.h"
 #include "ui/Window.h"
 
 #include <algorithm>
@@ -34,18 +35,9 @@ cover::Fitted groundOf(Color bgBase) {
 
 } // namespace
 
-bool CoverBackdrop::animationsAllowed() {
-    if (ui::motion::reduced()) return false;
-    static double checkedAt = -1e9;
-    static BOOL on = TRUE;
-    const double now = ui::frame::realNow();
-    if (now - checkedAt > 2000) {
-        checkedAt = now;
-        BOOL v = TRUE;
-        if (SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &v, 0)) on = v;
-    }
-    return on != FALSE;
-}
+// The micro-interactions' gate (ui/Micro): reduce motion off and Windows' animation effects on (SHADETUBE_CLIENT_ANIM
+// overrides the system value).
+bool CoverBackdrop::animationsAllowed() { return ui::motion::micro(); }
 
 void CoverBackdrop::setPalette(const cover::Palette& p) {
     // From what is on screen now (mid-fade: the mix), to the new colors.

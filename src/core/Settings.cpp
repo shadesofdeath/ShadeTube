@@ -42,7 +42,7 @@ void Settings::load() {
     read(j, "accentMode", accentI);
     repeat = static_cast<RepeatMode>(std::clamp(repeatI, 0, 2));
     quality = static_cast<AudioQuality>(std::clamp(qualityI, 0, 1));
-    accentMode = static_cast<AccentMode>(std::clamp(accentI, 0, 1));
+    accentMode = static_cast<AccentMode>(std::clamp(accentI, 0, 2));
     read(j, "normalizeVolume", normalizeVolume);
     read(j, "loudnessTarget", loudnessTarget);
     loudnessTarget = std::clamp(loudnessTarget, -23, -8);
@@ -59,9 +59,14 @@ void Settings::load() {
     }
     read(j, "grain", grain);
     read(j, "reduceMotion", reduceMotion);
+    read(j, "pageTransitions", pageTransitions);
     read(j, "uiZoom", uiZoom);
     read(j, "compactLists", compactLists);
     read(j, "micaBackdrop", micaBackdrop);
+    read(j, "themeDark", themeDark);
+    read(j, "themeLight", themeLight);
+    read(j, "cornerStyle", cornerStyle);
+    read(j, "uiFont", uiFont);
     read(j, "downloadsDir", downloadsDir);
     read(j, "downloadMp3Kbps", downloadMp3Kbps);
     read(j, "syncPaused", syncPaused);
@@ -93,6 +98,8 @@ void Settings::load() {
     read(j, "sidebarWidth", sidebarWidth);
     sidebarWidth = std::isfinite(sidebarWidth) ? std::clamp(sidebarWidth, 200.f, 420.f) : 240.f;
     read(j, "sidebarCollapsed", sidebarCollapsed);
+    read(j, "sidebarMore", sidebarMore);
+    sidebarMore = std::clamp(sidebarMore, -1, 1);
     read(j, "jamName", jamName);
     read(j, "jamBroker", jamBroker);
     read(j, "newReleaseNotifications", newReleaseNotifications);
@@ -149,9 +156,14 @@ void Settings::save() const {
         {"theme", theme == ThemeMode::Light ? "light" : theme == ThemeMode::System ? "system" : "dark"},
         {"grain", grain},
         {"reduceMotion", reduceMotion},
+        {"pageTransitions", pageTransitions},
         {"uiZoom", uiZoom},
         {"compactLists", compactLists},
         {"micaBackdrop", micaBackdrop},
+        {"themeDark", themeDark},
+        {"themeLight", themeLight},
+        {"cornerStyle", cornerStyle},
+        {"uiFont", uiFont},
         {"downloadsDir", downloadsDir},
         {"downloadMp3Kbps", downloadMp3Kbps},
         {"syncPaused", syncPaused},
@@ -181,6 +193,7 @@ void Settings::save() const {
         {"friendActivityOpen", friendActivityOpen},
         {"sidebarWidth", sidebarWidth},
         {"sidebarCollapsed", sidebarCollapsed},
+        {"sidebarMore", sidebarMore},
         {"jamName", jamName},
         {"jamBroker", jamBroker},
         {"newReleaseNotifications", newReleaseNotifications},

@@ -3,6 +3,7 @@
 #include "app/AppContext.h"
 #include "app/InternetRadio.h"
 #include "app/LyricsService.h"
+#include "app/LyricsShare.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Settings.h"
@@ -113,6 +114,9 @@ LyricsFullscreen::LyricsFullscreen()
     close_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "close");
     close_->setTooltip(tr(L"Kapat (Esc)"));
     close_->onClick = [this] { close(); };
+    share_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "share");
+    share_->setTooltip(tr(L"Sözleri paylaş"));
+    share_->onClick = [this] { openLyricsShare(lyrics_, active_, translation_); };
     open_.to(1, ui::motion::medium, ui::Ease::Decelerate);
     controls_.snap(1);
     lastMove_ = ui::frame::realNow();
@@ -223,6 +227,7 @@ void LyricsFullscreen::syncControls() {
     earlier_->setVisible(synced);
     offset_->setVisible(synced);
     later_->setVisible(synced);
+    share_->setVisible(synced || state_ == State::Plain);
     offset_->setLabel(formatLyricsOffset(trackId_.empty() ? 0 : lyricsOffset(trackId_)));
     requestLayout();
 }
@@ -265,6 +270,11 @@ void LyricsFullscreen::layout() {
     float x = r.w - 24 - bs;
     close_->setRect({x, cy - bs / 2, bs, bs});
     x -= 16;
+    if (share_->visible()) {
+        x -= bs;
+        share_->setRect({x, cy - bs / 2, bs, bs});
+        x -= 12;
+    }
     if (later_->visible()) {
         x -= bs;
         later_->setRect({x, cy - bs / 2, bs, bs});

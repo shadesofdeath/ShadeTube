@@ -319,9 +319,9 @@ public:
         const Rect r = box();
         const auto& col = colors();
         const bool active = focusable;
-        c.fillRounded(r, 2, col.bgRaised);
-        if (active) c.fillRounded(r, 2, col.overlayHover.mulAlpha(hover_));
-        c.strokeRounded(r, 2, col.hairDefault);
+        c.fillRounded(r, gfx::radii().surface, col.bgRaised);
+        if (active) c.fillRounded(r, gfx::radii().surface, col.overlayHover.mulAlpha(hover_));
+        c.strokeRounded(r, gfx::radii().surface, col.hairDefault);
         const Rect icon{r.x + 20, r.cy() - 12, 24, 24};
         c.icon(linkIcon(link_), icon, active ? accent().base : col.fgTertiary);
         const float x = icon.right() + 16;

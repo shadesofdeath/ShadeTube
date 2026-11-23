@@ -58,7 +58,7 @@ ShadeTube/
 │   i18n/         <code>.json translations (en de es fr pt ru uk id ja ko); _keys.json is a local dump
 │   remote/       the phone remote's web page (index.html, app.js, app.css; served by the app, see 3.23)
 │   icons/16|20|24 (*-thin: the player bar's outline set, 3.29), logo/, placeholders/, animations/ (SVG frames),
-│   textures/, tokens/ (dark/light), app.ico
+│   textures/, tokens/ (dark/light), themes/ (preset color themes, 3.x Theme studio), app.ico
 ├─ docs/                         DEVELOPMENT.md, screenshots/
 ├─ packaging/winget/             winget-pkgs manifest of the current release (tools/update_manifests.py)
 ├─ bucket/shadetube.json         Scoop manifest: the repository doubles as a Scoop bucket
@@ -82,6 +82,12 @@ ShadeTube/
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
+│                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO),
+│                                PageMotion (page transitions' timeline + cover flight, 3.x)
+│   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets,
+│                                PageTransition (page transitions + the shared cover, 3.x)
+│   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Acrylic (the
+│                                overlay surface and material, 3.x), Anim,
 │                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO)
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
@@ -97,9 +103,9 @@ ShadeTube/
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
-                                 jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, nowplaying, playback, podcasts,
-                                 radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync,
-                                 tags, updater, winshell
+                                 jam, library, links, liveaudio, localfiles, lyrics, micro, musicbrainz, nowplaying,
+                                 pagetx, playback, podcasts, popups, radio, remote, review, scrobble, shortcuts,
+                                 smartlists, smtc, sponsorblock, spotify, stats, sync, tags, theme, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -177,7 +183,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   used. `frame::begunAt()` is the real start (profiling).
 - Scrolling: every scrolling surface shares one smooth-scroll engine (3.28).
 - `gfx::Theme` loads `assets/tokens/tokens.dark.json` / `tokens.light.json`. The accent is dynamic (extracted from
-  the album art, cross-faded) or fixed (`Settings.accentMode`).
+  the album art, cross-faded) or fixed (`Settings.accentMode`). Preset and custom themes per mode, the theme's own
+  accent, corner radii and the UI font: 3.x Theme studio.
 - Theme mode Dark / Light / System (`Settings.theme`; System follows `AppsUseLightTheme` and is re-read on
   `WM_SETTINGCHANGE` "ImmersiveColorSet"). Switching is live: `Theme::load()` swaps the palette, re-derives the
   accent (the light theme darkens it to ≥ 3:1 against `bg.base`) and bumps `Theme::generation()` for caches that bake
@@ -193,7 +200,9 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   frame is cleared to `Canvas::surface()`, `bg.base` at 55 % (dark) / 50 % (light) (`Palette::bgBackdrop`), instead
   of `bg.base`. Surfaces that cover content use `Canvas::fillSurface()`, which replaces the pixels instead of blending
   over them (sticky headers, player bar, connect screen). Content that dissolves into the background uses
-  `Canvas::pushFade()` (artist banner). Cards, menus, dialogs, tooltips, Now Playing and the lyrics view paint
+  `Canvas::pushFade()` (artist banner). Content faded as a whole over the surface (a page during a page transition,
+  3.x) goes into `Canvas::pushSurfaceGroup()`: inside it `fillSurface()` clears to transparent, since the surface is
+  already below the group. Cards, menus, dialogs, tooltips, Now Playing and the lyrics view paint
   themselves opaque and stay opaque; so does the mini player. A full-surface background must use
   `fillSurface()` / `surface()`, never an opaque `bg.base` fill. Mica off (setting, transparency effects, high
   contrast) is live in such a window: opaque frames into the same swap chain, DWM's backdrop removed after the first
@@ -582,7 +591,8 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
 `radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`, `jam.json`
 (listen together: the device id, a guest's saved playback settings), `jam-own-session.json` (a guest's own queue),
 `spotify-hashes.json`, `library-recents.json`,
-`update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
+`update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `themes\` (custom color themes, 3.x Theme
+studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
 go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
@@ -1111,6 +1121,393 @@ time of the event.
   and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
   a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
 
+### 3.x Page transitions
+
+`app/PageTransition` (drawn by `PageHost` in `app/Shell`) on `ui/PageMotion` (the timeline and the cover's flight,
+standalone, all times passed in; `pagetx_test`). The Router tells how the page changed (`Router::lastChange()`: from,
+to, Push / Back / Forward / Replace).
+
+- **Pages**: Push and Forward: the outgoing page fades out over the first 40 % while it shifts 12 DIP left
+  (accelerating), the incoming one slides 24 DIP in from the right (decelerating over the whole 220 ms) and fades in
+  from 30 % on. Back is the mirror image. Replace (the first page, redirects): a 180 ms fade in place. Re-selecting the
+  current page still only scrolls it to the top.
+- **The outgoing page** is taken out of the tree when the new one arrives (`Widget::release`: `Window::forget` clears
+  hover / capture / focus in it, and a keyboard focus is restored on the new page by type and position as on any page
+  change, 3.3) and kept, detached, until it has faded out, then `deferDelete`d: no input, no layout, not in the Tab
+  order; its own async continuations still land on it. Each page is painted inside `Canvas::pushSurfaceGroup()` (3.3),
+  so under Mica a sticky header fading out never adds a second layer of the translucent tint (measured with
+  `SHADETUBE_BACKDROP=force`: the pinned bar's alpha goes from 147 to the surface's 140, never above). A navigation in
+  the middle of one drops the old outgoing page; the page that was arriving leaves from the opacity it had.
+- **Shared cover**: a card or row with a cover calls `pagetx::arm(SharedCover)` right before it navigates (click,
+  Enter, its play button: "#play" opens the page too): `MediaCard`, `ListRow`, `Tile` (its round photo), the Library's
+  grid / list cells (`LibraryView`, Liked Songs' heart tile included), smart list cards, the sidebar rail's tiles. The
+  page it opens says where its header's cover is (`Page::coverSlot`): `CollectionPage` (album, playlist, Liked Songs),
+  smart lists, a podcast show; while it is still loading, where the header's cover will be (`ScrollPage::
+  loadingCoverSlot`; the loading skeleton leaves its cover block out meanwhile). The cover then flies there
+  (`CoverFlight`: 240 ms, Standard easing, rect and corner radius morphing: a round artist photo into a square
+  header) while the pages only cross-fade. Its owners skip their own artwork (and shadow) while it flies
+  (`pagetx::presence(owner)` = 0). On arrival the header takes over in 120 ms (the flying cover fades out over the
+  header's own artwork while its shadow comes up); if the header's image is not loaded yet the cover holds on the
+  header - no frames, `ImageCache::onLoaded` repaints - until it is, at most 1.5 s, or until the header moves (scrolled).
+  A header that disappears (the page turned into an error) dissolves the cover where it is in 120 ms. The flight draws
+  the sharper of the two loaded bitmaps (source's, destination's) for its current size; painted covers (Liked Songs,
+  smart lists) are drawn by a painter that captures its data by value. It is clipped to the content area (the page and
+  the sidebar).
+- **Back**: every flight remembers its origin (the page, the route it came from, the cover's key: the first image URL,
+  "liked" or "smart:<id>", and where it was). Back from that page to that route flies the header's cover to the
+  `CoverSource` on the rebuilt page that shows the same key, nearest to where it was and at least half on screen;
+  Forward through the history does it again from that card. The card has to be there at the first frame (pages built
+  synchronously: the Library, the logged-in Home, local lists...).
+- **Degrades to the plain transition** when the page opened has no header cover (an artist page, Settings...), the
+  card's image is not loaded, or nothing on the page matches; this is decided at the first frame, before anything has
+  been hidden.
+- **Off** (pages change at once): Ayarlar › Görünüm › *Sayfa geçişleri* (`Settings.pageTransitions`, on by default),
+  *Hareketi azalt*, or Windows' animation effects off (`SPI_GETCLIENTAREAANIMATION`, read at every page change).
+- **Frames**: the frame clock (`frame::now()`), frames asked for only while something moves; after a forward + back
+  transition the app is idle again (0 ms CPU over the next 4 s).
+- **Adding a source**: implement `CoverSource::coverFor` (the cover it shows for a key; `pagetx::imageCover` /
+  `pagetx::likedCover` build it), arm it before navigating and skip the artwork while `pagetx::presence(owner)` is 0.
+  A page with a cover in its header overrides `Page::coverSlot`.
+- **Dev**: `SHADETUBE_NAV_DEMO` (clicks / Back / Forward at set times) with `SHADETUBE_MOTION_SCALE` (slow motion) and
+  `--screenshot` capture the middle of a transition (5.4).
+### 3.x Micro-interactions
+
+`ui/Micro` (logic in `Micro.cpp`, standalone and tested by `micro_test`; drawing in `MicroPaint.cpp`) holds the small
+feedback shared across the app: hover and press fades, the card lift, the heart pop and the playing bars. Durations
+are the motion tokens (80-240 ms, standard / decelerate, no overshoot) and everything is invalidation-driven like
+`Anim`: a value asks for frames only while it changes, so a settled window renders nothing.
+
+- **Gate**: `motion::micro()` = *Hareketi azalt* off **and** Windows' animation effects on (`SPI_GETCLIENTAREAANIMATION`,
+  Settings › Accessibility › Visual effects; read once, again on `WM_SETTINGCHANGE` in `Window::handleMessage`).
+  `motion::microMs(ms)` is `ms` or 0, so a micro-interaction written as `anim.to(v, motion::microMs(motion::fast))`
+  becomes an instant change when either is off; the playing bars then stand still in a fixed pose, the heart and the
+  card just switch. `SHADETUBE_CLIENT_ANIM=0 / 1` overrides the Windows setting (5.4). Reduce motion alone keeps
+  collapsing every `Anim` as before (page transitions, scrolling, the seek wave are not gated by the Windows setting).
+- **Controls** (`ui/Controls`): every hover / press / active fade goes through `microMs`. `Ghost` and `Chip` buttons
+  press to 98 % with `overlay.pressed`, `Nav` / `SidebarItem` get a light pressed fill. `Toggle`: the knob slides
+  (180 ms), hover brightens the off track's outline or the on track's fill and the knob, a press stretches the knob
+  4 DIP towards the middle. `Slider`: held, the thumb grows 15 % over an `accent.tint12` halo (the wave's playhead keeps
+  its hover size while dragged). `Knob`: the ring turns `fg.primary` while held. The Settings `Segmented` control slides
+  its selection pill (180 ms; a label changes color as the pill covers it) and fades a hover fill on the other segments.
+- **Painted lists** (`ui::HoverFade`): the hovered row fades in and the row left fades out (120 ms each; going back
+  resumes the fade-out). Used by `TrackTable` (row background; the number crossfades to the play / pause glyph and the
+  heart / "×" fade in), the queue panel, podcast episode lists; `LibraryView` has its own equivalent (`hot_` / `prevHot_`).
+- **Cards** (`ui::card`): MediaCard, the Library grid, smart list cards, editorial `Tile`s and radio `StationTile`s share
+  one look. Hovered by the pointer the card rises 2 DIP (`card::lift`) over `cardHoverShadow` and a `hairline.strong`
+  edge brightens around the artwork (round artist cards: the accent ring); a press settles it back and scales it to
+  98.5 %. Keyboard focus shows the shadow and the play button but no rise (the focus ring stays on the card). The play
+  button fades in rising 8 DIP and growing from 90 %, brightens (`accent.hover`) and grows 4 % under the pointer and
+  shrinks to 92 % when pressed; a press on it leaves the card still.
+- **Heart** (`ui::HeartPop`): like (220 ms) = the filled heart grows out of the outline, the glyph pops to 116 % and
+  back (a sine hump, no spring) and six thin accent ticks fly out and fade; unlike (160 ms) = the fill shrinks back with
+  a slight dip. A `Button` made a heart with `setHeart(outline, filled)` draws the liked state from `active()` and
+  `pulse()` plays it: the player bar's heart pulses whenever the playing song's liked state changes (its own click, a
+  row's heart, Ctrl+L, a menu, the phone remote), never when another song starts; the album page's save heart pulses on
+  click. Track rows pop on a click of their heart and, for the playing song's row, when it is liked elsewhere; radio
+  station rows / tiles pop their favorite heart. Now Playing's own heart (3.x Now Playing; the player bar is hidden
+  there) pops the same way; the mini player has none at all.
+- **Playing bars** (`ui::paintEqualizer`, app wrapper `drawPlayingBars` in `app/Components`): four 2 DIP pills drawn in
+  code (two slow sines per bar with the design's phases 0 / 0.6 / 1.2 / 1.9 rad), in the playing track's row (in place
+  of its number, also while paused), the queue's current row, the sidebar's and the Library list's playing collection
+  and the playing radio station. One shared `equalizer::Clock` drives them all: it advances with the frame time while
+  the player plays and eases to a stop over 240 ms when it pauses (and back), so every bar on screen freezes where it
+  is. While they move, each painted indicator asks its window for a repaint every `equalizer::kFrameMs` (25 ms, the
+  seek wave's interval) instead of every vblank: a playing list adds no frames of its own to the ones the flowing wave
+  already causes. Rows scrolled away, a page covered by Now Playing, the full-screen lyrics (`LyricsFullscreen::isOpen`)
+  and hidden or minimized windows ask nothing.
+- **Cost** (`micro_test` checks the frame requests): idle and paused windows render nothing. Measured (Release, a
+  1346 × 712 DIP window at 175 %, process CPU over 10 s, a local file playing): idle 0 %, paused 0 %, playing on the
+  *Yerel dosyalar* song list with its bars and the sidebar's moving 8-9 % of one core, the same as playing on *Ayarlar*
+  without any bars (8-11 %): the frames are the seek wave's. (The earlier SVG-frame equalizer asked for every vblank
+  while a playing row was on screen.)
+### 3.x Sidebar: room for the playlists
+
+The page entries used to take most of a short sidebar: at 1280 × 688 DIPs (1920 × 1080 at 150 %) the playlists got
+under three rows. `app/Shell` (`Sidebar::layout`) now budgets the height, top to bottom:
+
+- **Main pages** Ana Sayfa, Ara, Kitaplık; the **"DAHA FAZLA" group** (`NavGroup` header, then İndirilenler, Yerel
+  dosyalar, Radyo, Podcastler, Yeni çıkanlar (Spotify only), İstatistikler); the "Çalma listeleri" label with "+"; the
+  playlist list; Ayarlar pinned at the bottom. The entries live in their own `ScrollView` (`nav_`, content `NavBox`).
+- **Group header**: a mono section label like "ÇALMA LİSTELERİ" with a chevron that turns as it opens. Click, Enter or
+  Space toggle it, Right opens, Left folds; the `sidebar-more` action (palette, bindable, no default key) too. The
+  animation unrolls / rolls up the entries (`motion::medium`; each folding slot clipped to its share and faded; instant
+  with reduce motion); once settled the folded entries are hidden, so they leave the Tab order (keyboard focus on one
+  moves to the header). Folded, the **current page stays visible** under the header when it is one of them, and an
+  accent dot after the label says a folded page has news (podcast episodes, unseen new releases; the count pills of
+  visible entries are unchanged, `NavBox::paintBadge`). In the icon rail the header is a centered chevron (tooltip
+  "Daha fazla göster" / "Daha az göster").
+- **State**: `Settings::sidebarMore` (`"sidebarMore"`: 1 open, 0 folded, -1 automatic, the default). Automatic opens the
+  group while that still leaves the list `kAutoListRows` (8) rows, re-checked at every layout and snapped (it follows
+  window resizes); the first toggle makes it the user's choice.
+- **Guaranteed list**: the playlists always keep `kMinListRows` (5) rows (fewer when there are fewer; 48 DIP tiles in
+  the rail). The nav first switches from the spec's metrics (top 24, rows 36 + 2, group row 36, label block 50,
+  Ayarlar 16 + 36 + 8) to tight ones (top 12, rows 32 + 0, group 28, label block 34, Ayarlar 10 + 32 + 6), also always
+  with the compact list density (3.25); when even those would squeeze the list it scrolls on its own (at least two rows
+  in view, 72 DIPs a notch, a hairline under it while there is more; the current page's entry is scrolled into view).
+- Measured with 18 playlists: 1280 × 688 DIPs, automatic: folded, 9 rows (before: 2.8); open: tight metrics, 5 rows.
+  1440 × 860: folded, 12 rows; 1440 × 900 (the default window): open. Zoom 150 % on a 1440 × 780 window (960 × 520
+  DIPs): tight, the current page kept under the folded header, 5 rows.
+- Unchanged: the resizable width and the rail (3.27), folders, pinned items, drag and drop onto the rows (the list and
+  `rowAt` are the same), the edge's hit strip.
+
+### 3.x Home page
+
+`app/HomePage.cpp` (what is shown, resolving player contexts) on `app/HomeWidgets` (namespace `home`: the widgets).
+
+- **Order**: greeting, hero, quick-access grid, then shelves. Logged in: Yeni çıkanlar (followed artists), Spotify's
+  personalized shelves (two skeleton shelves while `ShelfCache`'s first fetch runs, dropped when it fails), Senin için
+  listeler, Son çalınanlar, Çalma listelerin, Kaydettiğin albümler, Takip ettiğin sanatçılar (the last three link to
+  their Kitaplık tab). Logged out: Son çalınanlar (→ Kitaplık › Geçmiş), Senin için listeler, Çalma listelerin, then the
+  open catalog in a sub-column that loads behind two skeleton shelves (the rest of the page shows at once; a failure
+  puts the retry panel only there): Bu hafta popüler tiles + Yeni çıkanlar list (stacked under 760 DIPs), Sana özel,
+  Popüler sanatçılar, Öne çıkan albümler. The library's first load (logged in) shows the greeting over `TopSkeleton` +
+  two `ShelfSkeleton`s.
+- **Greeting** (`home::Greeting`): `greeting()`'s two parts on one line (800 + 300) when they fit beside the date / count
+  column, else on two; 56 / 44 / 36 DIPs by page width; the mono lines at the right (≥ 900 DIPs) or under it.
+- **Hero** (`home::Hero`, source `heroItem()`): what the player has (playing or paused, so the restored session too):
+  its context resolved from what the app holds (Spotify snapshot or local library; albums / artists also from the
+  history; smart lists with their generated cover), a station (its logo), a podcast episode (progress live from the
+  player, "N DK KALDI"), else the track itself (opens Now Playing); "ŞİMDİ ÇALIYOR" / "KALDIĞIN YERDEN DEVAM ET"
+  follows play / pause and the button pauses / resumes. Nothing loaded: the newest resolvable context of
+  `libraryRecents().newest()` (new in `libview::Recents`, tested) or the newest unfinished podcast episode
+  (`EpisodeState::updatedAt`), else the newest album of the history; its button starts it ("#play" routes, the episode
+  through the podcast queue so it resumes). Re-asked when the player's context or track changes (posted from paint).
+  Look: an opaque `bg.raised` card (Mica stays behind it), a linear gradient of the cover's color
+  (`ImageCache::accentOf`, 34 % dark / 22 % light fading out at 78 % of the width, faded in over `motion::slow` once the
+  cover is decoded), a hairline (strong on hover), the cover, the label, the title (`displayS` 40 / 30 / 24, two lines),
+  the subtitle and the accent `PlayButton`; 216 / 176 / 148 DIPs tall at ≥ 720 / ≥ 480 / narrower. An empty profile
+  gets `home::Welcome` in its place: a short invitation and Ara, Spotify ile bağlan (logged out), Yerel dosyalar, Radyo.
+- **Quick access** (`home::QuickGrid`, `quickItems()`): Liked Songs (logged in, or when it has songs), Spotify's pinned
+  playlists, the newest library recents, then the library's playlists; the hero's own context is left out; fewer than
+  four leaves room for pages (Radyo, Podcastler, Yerel dosyalar, İndirilenler). 4 / 3 / 2 columns at ≥ 880 / ≥ 600 DIPs,
+  two rows (three with two columns); tiles 56 DIPs (Sıkı density 48) with a hairline outline and the artwork flush left;
+  hover: `overlay.hover` + a 28 DIP accent play button; the playing collection shows the equalizer; Enter opens,
+  Shift+Enter plays.
+- **Shelves** (`home::Shelf`, `home::addShelf` / `shelfRow`): one row of the shared cards (`MediaCard`, the smart lists'
+  card), so their own hover / press styles apply. Every shelf of the page uses `home::cardWidth()`: as many columns of
+  ≥ 160 DIPs (Sıkı 140) as fit, at least two, so they line up. The track reaches 40 DIPs (`kBleed`) into the page's
+  gutters: cards that scroll out fade there (`Canvas::pushFade`, only where there is more, so cards inside the page
+  stay whole; Mica-safe), the previous / next card peeks in. Scrolling: horizontal wheel / touchpad swipe or Shift +
+  wheel through `SmoothScroll` (3.28; a plain wheel scrolls the page), the round 36 DIP arrows on the page edges that
+  appear while the pointer is over the shelf and there is more that way (a page of whole cards per click, landing on a
+  column), and keyboard focus (`revealRect`). After a glide the hover is refreshed. `smart::addSection(c, makeRow)` and
+  `addNewReleasesShelf(c, makeRow)` take the row factory so those sections become shelves.
+- **Dev**: `SHADETUBE_SPOTIFY_DEMO` with a `home.json` (Spotify's raw home answer, `tests/spotify/fixtures`) also gives
+  the logged-out Home the personalized shelves; `SHADETUBE_HOME_DEMO` (5.4) scrolls the page / a shelf for screenshots.
+### 3.x Theme studio (presets, custom themes, accent, corners, UI font)
+
+`gfx/ThemeSpec` (themes as data, standalone), `app/ThemeStore` (built-in + the user's themes, standalone),
+`app/ThemeStudio` (selection, live switching, files), `app/ThemeStudioUi` (Ayarlar › Görünüm rows and dialogs).
+
+- **Theme files** (`"$schema": "shadetube-theme/1"`, `gfx/ThemeSpec.h`): `name`, `base` (`dark` / `light`), `keys`
+  (the five key colors: `background`, `surface`, `text`, `outline`, `accent`) and `color` / `effects` in the tokens'
+  paths (`color.bg.raised`, `color.hairline.default`, `effects.menuShadow`...). What a file leaves out comes from the
+  default theme of its base; `keys` derive a whole palette (`derivePalette`: surfaces stepped towards the text color,
+  secondary / tertiary text mixed towards the background but kept ≥ 4.5:1 / ≥ 3:1, hairlines and overlays as the tokens'
+  alphas of outline / text, scrims of the background; status colors and shadows from the base), `color` entries override
+  single values. A tokens file reads the same way. `serializeTheme` writes everything (keys, every palette color,
+  shadows) in a stable order.
+- **Presets**: `tokens/tokens.dark.json` (`dark`, "Koyu") and `tokens/tokens.light.json` (`light`, "Açık") plus
+  `assets/themes/<id>.json`, each a full hand-tuned palette: `amoled` (true black), `nord` ("Kuzey", Nord's arctic
+  blue-greys, frost accent), `sepia` ("Sepya", warm brown, parchment text, amber), `graphite` ("Grafit", dim grey with
+  high-contrast text and stronger hairlines), `pastel` (light lavender paper, plum ink, violet), `snow` ("Kar", Nord's
+  Snow Storm). The list and order are `builtinThemes()` (`ThemeStore.cpp`); display names are translated in
+  `themes::displayName`. Every preset passes `contrastReport()` (`theme_test` prints the table): fg.primary ≥ 7:1 on
+  bg.base / raised and ≥ 4.5:1 on overlay / elevated, secondary ≥ 4.5:1, tertiary ≥ 3:1, fg.inverse on fg.primary ≥
+  4.5:1, the adapted accent ≥ 3:1 on base / raised with onAccent ≥ 4.5:1, error / warning / success ≥ 3:1.
+- **Which theme**: `Settings.themeDark` / `themeLight` (ids; default `dark` / `light`) are used by the mode (Koyu / Açık /
+  Sistem, `Settings.theme`, unchanged). The gallery (two groups of preview tiles: a mini mock of sidebar, card, accent
+  play button and player bar in the theme's colors with the current accent setting) picks the slot of the tile's kind;
+  in Koyu / Açık a tile of the other kind also switches the mode, in Sistem only the slot changes (a toast says when
+  Windows is in the other mode). Right click / Shift+F10 / the menu key: Kullan, Düzenle (custom), Kopyala ve düzenle,
+  Dışa aktar…, Sil (custom); arrows move between tiles, a double click edits a custom theme. The command palette lists
+  every theme ("Tema: Kuzey").
+- **Live switching**: every change goes through `ctx().applyTheme` → `App::applyTheme()`: `themes::applyFor(light)` puts
+  the mode's theme into `gfx::Theme` when it is not there yet (`Theme::apply(spec)`: palette, light / dark, its default
+  accent; the requested accent is re-derived), and whenever `Theme::generation()` moved (palette, corners, font) every
+  window gets `applyWindowTheme` (DWM dark mode, border / caption color from bg.base), a `relayoutAll()` and a repaint,
+  the mini player too, and the tray menus follow light / dark. Mica's tint is `bg.base` of the theme at 55 % / 50 %
+  (`Palette::bgBackdrop`). Album / artist / playlist placeholders are drawn from the palette in every theme except the
+  default dark one, whose SVGs bake its colors.
+- **Accent source** (`Settings.accentMode`): Kapaktan (`Dynamic`, the cover as before), Temadan (`Theme`, new: the
+  theme's own accent, whatever plays; `App::syncAccent` resets to it) and Sabit (`Fixed`, `Settings.fixedAccent`). The
+  fixed row offers five suggestions and a hue-ring swatch that opens the picker (saturation / value area, hue strip, hex
+  field, eight suggestions; arrows move the area / strip, Shift for 10 steps); picking previews live on the whole app
+  (`Theme::setAccent` without fade) and *Vazgeç* / Esc / a click outside restores it. Contrast (`Theme::adaptAccent`): a
+  light theme darkens an accent below 3:1 against its bg.base (as before), a dark theme now lightens one that is too
+  dark the same way; `onAccent` is ink or paper, whichever contrasts more (it was paper below luminance 0.35, which put
+  light text on coral or on the darkened light-theme volt at under 3:1).
+- **Custom themes**: "Kopyala ve düzenle" (or the + tile, or editing a preset) opens the editor on a copy named
+  "<name> (kopya)": name field, the five keys (one selected, edited with the picker on the right) and the text contrast.
+  Each change is `setKey()` (only the palette entries the key drives are re-derived; status colors, shadows and the rest
+  stay) and `themes::preview()`: the theme replaces its mode's theme on screen (a light theme edited in dark mode flips the
+  screen through the run's theme override) until *Kaydet* or *Vazgeç*. Saving needs `readable()` (fg.primary ≥ 4.5:1
+  on bg.base and bg.raised, fg.secondary ≥ 3:1 on bg.base). Saved themes are `themes\<slug>.json` in the user data folder
+  (id `user:<slug>`, numbered when taken; write-then-rename) and become their mode's theme.
+- **Import / export** (*Tema dosyası* row; dialogs posted): import reads at most 256 KB and parses strictly (not JSON,
+  another `$schema`, no colors, a malformed color anywhere, a bad base, unreadable text → refused with a one-line toast,
+  nothing written; details in the log), saves it as a new custom theme (" (2)" on a taken name) and selects it. Export
+  writes the theme on screen with its display name. **A broken file never bricks the UI**: files in `themes\` that fail
+  the strict parse are left out (logged); a chosen theme that is gone or broken falls back to the mode's default (saved)
+  with a toast once the window is up; built-in presets parse leniently.
+- **Corners** (`Settings.cornerStyle`: `sharp` / `default` / `round`): `gfx::radii()` (`Theme::setCornerStyle`, bumps the
+  generation). Default = the tokens' `radius.*` (`surface`, `art`, `badge`, `tooltip`, `menu`, `dialog`, `toast`, `field`,
+  `scrollbarThumb`; `art` and `field` are new tokens), Sharp = 0, Round = 8 / 6 / 4 / 6 / 8 / 12 / 8 / 6 / 3. Pills and
+  circles never change. `metrics::radiusSurface` is now a reference to the live `radii().surface`. The shared widgets and
+  pages (cards, rows, covers, skeletons, badges, menus, dialogs, toasts, tooltips, fields, the scrollbar, the focus ring of
+  a Rect) read `gfx::radii()`, and so does Now Playing (covers `art`, skeleton bars `badge`, the time tip `tooltip`); the
+  full-screen lyrics, the mini player and Home keep their own literals.
+- **UI font** (`Settings.uiFont`: "" = the bundled Bricolage Grotesque): the font dialog lists the bundled font, Segoe UI
+  Variable (Segoe UI on Windows 10) and every installed family usable for text (`Fonts::installedFamilies()`: no symbol
+  fonts, Latin letters present; enumerated once when the dialog first opens: 74 of 80 families in 16 ms on the development
+machine, logged), each name in its own font (only visible rows are shaped), with a search box; a click applies
+  live, *Vazgeç* goes back. `Fonts::setUiFamily()` swaps the non-mono family, clears the format cache and bumps
+  `Fonts::generation()`, which every `gfx::Text` compares before using its cached layout; `Theme::touch()` makes the
+  baked bitmaps (Now Playing, lyrics) rebuild. A family that is not installed keeps the bundled font (a toast at
+  startup); JetBrains Mono is never replaced.
+- **Dev**: `SHADETUBE_THEME_PRESET=<id>` (this run's theme, not saved), `SHADETUBE_THEME_DEMO` (live changes on a timer),
+  `SHADETUBE_THEME_DIALOG` (opens the accent / font picker or the editor), `SHADETUBE_THEME_IMPORT` (imports a file),
+  see 5.4. `theme_test` (5.2) covers parsing, the presets' contrast, import validation and the theme folder.
+### 3.x Menus, dialogs, toasts and tooltips (the overlay family)
+
+Everything that floats above the page shares one surface and one motion: `ui/Popups` (context and dropdown menus,
+toasts, dialogs), the command palette (`app/CommandPalette`) and the Window's tooltips; the mini player's toast and the
+zoom badge use the same surface without the backdrop.
+
+- **Where they live**: every app menu, dialog, toast and tooltip is an in-window overlay (`Window::pushOverlay`,
+  painted above the tree; modal ones trap input and focus, 3.3). No app menu has a popup HWND of its own. Two native
+  Win32 menus stay native: the tray icon's menu (`Tray::showMenu`, `TrackPopupMenuEx`) and the window's system menu
+  (title-bar right click, Alt+Space). Windows draws those (dark or light through `SetPreferredAppMode`,
+  `Tray::setDarkMenus`, its own animation setting), so they keep the OS look, accessibility and keyboard behavior. The
+  mini player is a separate `ui::Window`: its tooltips are the family's, and `MiniView` paints its toast on the opaque
+  surface (no backdrop capture in that small window).
+- **Surface** (`ui/Acrylic`, `paintOverlaySurface()`): the tokens' radius (`overlay::radius()` = `metrics::radiusSurface`),
+  a 1 px `hairline.strong` outline and a two-layer shadow: a tight contact shadow (blur 3-6, y 1-2) under the tokens'
+  elevation shadow (`menuShadow` / `toastShadow` / `dialogShadow` at 75-80 % and a little closer). Surface colors:
+  menus `bg.overlay`, dialogs and the palette `bg.raised`, toasts and tooltips `bg.elevated`.
+- **Acrylic material**: right before an open overlay paints, the Window calls `OverlayLayer::prepareBackdrop()` with
+  nothing pushed on the canvas. `Acrylic::capture()` copies what is painted so far under the surfaces plus a 40 DIP
+  margin (`CopyFromRenderTarget`: the back buffer, or the PNG target of `--screenshot`), blurs it (Gaussian, tokens
+  `backdropBlur` radius 40 DIP, hard borders) through a color matrix into a half-resolution bitmap of the same DIP size.
+  The matrix is the contrast guard: it compresses the backdrop's luma towards the surface color's (kept 15 % dark /
+  20 % light) and keeps part of its chroma around it (60 % / 85 %, hue unchanged). It is linear, so nothing clips (a
+  luminosity blend turned saturated colors into cyan / magenta blotches on paper). Painting: `bg.base` (opaque, so a
+  Mica window never shows through), the bitmap, the surface color at 52 % (dark) / 55 % (light), then the noise
+  (`textures/noise-tile.png` made signed: pixels above mid-grey lighten, below darken, at most 5 %, 80 % / 50 %
+  opacity, one tile pixel per device pixel). Worst cases (a white area behind a dark menu, a black one behind a light
+  one) keep `fg.secondary` at about 5:1 or more; over ordinary content the surface stays within a level or two of its
+  opaque color, with the colors behind showing as soft glows.
+- **Never per frame**: a capture is reused while the overlay is open. It is redone only when the surfaces leave the
+  captured area (a submenu opening beside its menu, a taller toast stack), the theme (`Theme::generation()`), the
+  DPI / zoom or the device changed, or something under it asked for a repaint: the Window records each `invalidate()`
+  of a widget of the tree at the widget's window rect (+ 24 DIP for shadows), a layout of the tree, a resize, zoom or
+  theme switch for the whole window (`contentGeneration()`, `lastChangeIn(since, area)`; not overlays, not animation
+  frames). Only a change touching the captured area counts: a player bar ticking under the page while a menu is open
+  never recaptures it (measured: 5 recaptures in 5 s while playing before this rule, none after). The material then
+  waits until that area has been quiet for 150 ms (a hover fading, a list settling), at the latest 1 s after the last
+  capture. The effects are created per capture and dropped.
+- **Opaque fallback**: with Windows' transparency effects off (`Personalize\EnableTransparency`), in high contrast (both
+  re-read at most once a second) or when a capture fails (logged once), the surface is the plain surface color, the
+  look before acrylic. `SHADETUBE_ACRYLIC=force|off` overrides the system check (5.4).
+- **Memory** (3.2): a material holds one bitmap covering its surfaces plus the 40 DIP margin at half the window's pixel
+  resolution (a track menu at 175 %: about 0.3-0.5 MB), plus the shared 256 KB noise tile. It goes when its overlay is deleted after the
+  exit animation, the toast layer's when its last toast has left, the tooltip's when it has faded out, the noise tile
+  with the last material, and everything on a device release (release hooks). `Acrylic::liveBytes()` counts them.
+- **Motion** (`overlay::duration()`: 0 with *Hareketi azalt* or when Windows' animation effects are off,
+  `SPI_GETCLIENTAREAANIMATION`, read whenever an animation starts): menus open in 150 ms (fade + scale 0.96 → 1 from the
+  corner at the anchor, decelerate) and close in 100 ms (fade + 0.98, accelerate); a submenu slides 8 DIP out of its
+  parent (140 ms) and fades out (90 ms); the hover highlight glides between items (120 ms). Dialogs and the palette:
+  the scrim fades while the panel fades in, rises 8 DIP and grows from 0.98 (240 ms); closing fades both and drops the
+  panel 6 DIP (140 ms). Toasts slide in (24 DIP up + fade, 240 ms), slide out (fade + 12 DIP down, 180 ms) and the
+  others glide to their new places (220 ms). Tooltips: 400 ms delay (60 ms when moving along a row of buttons within
+  300 ms of the last tooltip), fade + 4 DIP rise in 120 ms, fade out in 90 ms. The zoom badge and the mini player's
+  toast follow the same switch.
+- **Exit animations** (`OverlayLayer::exiting()`): `removeOverlay()` takes an overlay out of input, focus and modality
+  at once (keyboard focus is back on the opener, the next click reaches the page, `hasModal()` is false) and keeps
+  painting it, with no `window()`, above the open overlays (so no capture ever contains it) until its animation ends;
+  the next frame deletes it.
+- **Menus** (`Menu`; the public API is unchanged, `open()` now returns the menu): spec geometry (items 34, padY 6,
+  padX 12), width from the content (240-360 DIP), an icon column whenever any item has an icon, `MenuItem::shortcut`
+  hints right-aligned (mono 11, `fg.tertiary`), a trailing column for the check mark (accent) and the submenu chevron,
+  separators tidied (none first, last or doubled), disabled items `fg.disabled` and never highlighted. Submenus:
+  `MenuItem::submenu` builds the items when it opens (a trailing "…" of the label is dropped for the chevron); the
+  pointer opens it after resting 200 ms on the item and closes it after resting 300 ms on another item of the parent;
+  the parent item stays lit. Keys as before (Up / Down / Tab wrap over enabled items, Home / End / PageUp / PageDown,
+  Enter / Space, Escape; Tab never leaves the menu), plus Right / Enter / Space open a submenu with its first item lit,
+  Left / Escape close only the submenu, and type-ahead: letters jump to the next item starting with them (invariant
+  locale, case and accents ignored, so "s" and "ş" both find "Şarkı radyosu"; 800 ms between letters starts a new
+  word; the same letter again cycles). In the app: the track menu's *Çalma listesine ekle*, *Klasöre indir* and
+  *Sanatçıyı engelle* (several artists) and the Yerel dosyalar folder menu's *Çalma listesine ekle* are submenus
+  (they used to replace the menu with a second one at the same spot); the track menu shows the `like` key
+  (`commands::shortcutHint()`) on the playing song's like item.
+- **Toasts**: up to three, the newest at the bottom; a fourth sends the oldest out (animated). The text wraps to three
+  lines and the toast grows (min 56 DIP).
+- **Tooltips** are painted in `--screenshot` captures too (`SHADETUBE_HOVER_AT`).
+- **Checks**: `popups_test` (5.2); `SHADETUBE_OVERLAY_DEMO` (5.4) opens menus, submenus (by key), dialogs, toasts and
+  the palette for `--screenshot`, and its `stats` step logs the captures made and the bytes held.
+### 3.x Share cards: lyrics cards and the year in review
+
+`app/ShareCard` (painting and export, shared), `app/LyricsShare` (the lyrics card and its dialog), `app/YearReview`
+(standalone, pure: the year's numbers; `review_test`) and `app/YearReviewView` (the story view, the Stats page banner,
+the palette command, the dev hooks).
+
+- **Cards**: a card is a `share::Painter` that fills whatever rect it gets with everything sized in card units (360 on
+  the short edge), so one function draws the live preview at any window size / interface scale and the export. The
+  export (`share::render`) paints into an offscreen `ID2D1Bitmap1` on the resource context at `kExportScale` (3 px a
+  unit: 1080 × 1080, 1080 × 1920, 1920 × 1080), opaque, and reads it back. Cards use fixed inks (`share::Ink`: the
+  tokens' dark / light ground and fg roles, off-white on colored grounds), never the app theme, so a card looks the
+  same whichever theme made it. `share::CardContext` requests covers from `gfx::ImageCache` at the export's pixel size
+  (preview and export share the bitmaps), keeps text layouts across paints and counts what was not ready.
+- **Cover colors** (`share::Palette`): the vivid accent `ImageCache` extracts while decoding, a second hue (the most
+  saturated pixels ≥ 40° away from it, else a neighbouring hue) and the deep tone (the darkest quarter), read back from
+  a 16 × 16 downscale of the cover once per image (posted, outside any BeginDraw). `deepen()` turns them into legible
+  grounds for off-white text (lightness pulled down, saturation capped, a dark yellow leaned towards amber instead of
+  olive); `lift()` makes the accent bright enough for numbers and rules. The blurred cover ground is baked at a quarter
+  of the pixels (a few sizes cached, released with the device).
+- **Export** (`share::exportCard`, posted, never inside the click): images or palettes still missing are waited for (a
+  thread timer every 100 ms, at most ~3 s, then the card goes out with placeholders). *Copy* puts a bottom-up 32-bit
+  `CF_DIB` (Windows adds `CF_BITMAP` / `CF_DIBV5`) and the registered `PNG` format (24-bit, what browsers, Discord
+  and WhatsApp paste) on the clipboard; *Save* asks with an `IFileSaveDialog` (Pictures, "Artist - Title" / "ShadeTube
+  2025 - Özet") and writes through a flushed `.tmp`; the toast offers "Dosyayı göster".
+- **Lyrics card** ("Sözleri paylaş": a share button rightmost in Now Playing's lyrics header and in the full-screen
+  lyrics' top controls, for synced and unsynced lyrics; the views only call `openLyricsShare(lyrics, activeLine,
+  translation)`): a dialog with the lines on the left and a live preview on the right. Selection: 1-6 consecutive
+  lines (a click starts a new selection, a neighbour extends it, an end line shrinks it, Shift+click selects a range;
+  instrumental gaps are not selectable and break a range; going past 6 flashes the counter), keyboard Up / Down,
+  Space / Enter, Shift; it starts on the sung line and the next. Options: ground *Renk geçişi* (the cover's colors as a
+  diagonal gradient), *Bulanık kapak*, *Koyu*, *Açık*; *Kare* / *Hikâye* (9:16) / *Geniş* (16:9, the cover large on the
+  left); *Sola* / *Ortaya*; *Çeviri* (only when the view shows a translation: the translated line under each line,
+  smaller). The lines take the largest size that fits between the header (cover, title, artist) and the ShadeTube mark
+  (the logo with the card's accent + the wordmark; binary search on half units). The choices are kept for the session.
+- **Year in review** ("Yılın özeti", `review::build`): one local calendar year or the last 12 months (the 12 calendar
+  months ending with the current one) of `ListenStats` (this PC's plays and the imported history), ListenStats' rules
+  (time counts every play, everything else streams; its song / artist / album groups). It yields the minutes, streams,
+  active days, distinct songs / artists / albums, top 5s (and the top 50 songs), months, weekdays, hours (a play split
+  across the hours it spans) and dayparts, 7-day blocks, the longest streak (the earliest), the busiest day, discoveries
+  (songs / artists whose first stream ever is in the period, the most streamed new artist) and the first stream, all on
+  the local clock. Genres are used only when known: an artist's first three tags (the MusicBrainz tags the Stats page's
+  picture lookups carry, `statsArtistGenres`) share its streams; shown when those artists hold ≥ 25 % of the streams and
+  name ≥ 3 genres. A period qualifies with ≥ 30 streams (`review::available`, one pass without clock calls). Timing
+  (`review_test`, 300 000 plays, Debug): `available` ~35 ms, `build` ~55 ms.
+- **Story view** (`review::open(year)`; a modal overlay over the whole window, opaque): cards Giriş (the year, a cover
+  mosaic), Dinlediğin süre (count-up minutes, active days / streams / songs / artists, a tick per week), Şarkılar,
+  Sanatçılar, Albümler (≥ 2), Türler (only with genres), Ne zaman dinledin (months, hours, the daypart), Seri (streak,
+  busiest day, favorite weekday), Keşifler (when there were any) and Özet, which stays. Each runs 5.5-8.5 s under a
+  segmented progress bar; a click on the card's left third goes back, elsewhere forward; ←/→, PageUp / PageDown, Home /
+  End, Space pauses (the reveal still finishes; only the progress stops), Esc closes; the period picker lists every
+  qualifying period. Motion: numbers count up, rows and bars come in staggered, cards cross-fade (`motion::slow`), the
+  ground's glow drifts in; with *Hareketi azalt* or Windows' "Animation effects" off (`SPI_GETCLIENTAREAANIMATION`)
+  everything is drawn final and cards switch instantly. Frames: every one while something moves (the first ~3.4 s of a
+  card), then ~25 / s for the progress bar only, none while paused at rest. The ground is the card's cover palette
+  (a different pairing per card); the window around it is the theme's ground washed with that color. Covers for imported
+  songs / albums and artist pictures come through `enrichStatsArtwork` (the Stats page's caches and lookups); an album
+  without one takes a top song's cover. *Görseli kopyala* / *Kaydet…* export the current card at 1080 × 1920; *En çok
+  dinlediklerini çal* plays the smart list "<year> en iyileri" when it exists (3.20), else the period's top 50 minus the
+  blocklist (context `review:<year>`); *Liste olarak kaydet* goes through `promptNewPlaylist`.
+- **Entry points**: a banner on the Stats page under the period bar (the selected year in *Yıl özeti*, elsewhere the
+  current year when it qualifies, else the last 12 months, else the newest year; nothing when none qualifies) and the
+  palette command "Yılın özeti hikâyesi".
+
 ### 3.x Now Playing
 
 `app/NowPlaying` (the view), `app/CoverBackdrop` + `app/CoverGradient` (its backdrop, also behind the full-screen
@@ -1135,7 +1532,8 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   duration · match %, the smart shuffle badge, "Yanlış eşleşme?" (not for the user's own files); a station: CANLI +
   codec; an episode: its length.
 - **Controls**: the player bar's widgets (3.29: wave `Slider`, outline `PlayButton`, `*-thin` icons, `Knob`): shuffle
-  (cycling smart shuffle), previous, play, next, repeat; like (a station: favorite); sleep timer, speed (episodes, or
+  (cycling smart shuffle), previous, play, next, repeat; like (a station: favorite; `setHeart` / `pulse`: the
+  micro-interactions' heart pop, as in the bar); sleep timer, speed (episodes, or
   any speed but 1x), listen together (the session pill when it fits, else the icon; a guest's transport is disabled as
   in the bar), volume, mini player. State comes from `onTrackChanged()` (App calls it on every player change while the
   view is visible) and from library / listen-together subscriptions; labels are set only when they change.
@@ -1147,7 +1545,8 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   open (`toggleQueueTab`).
 - **Toolbar**: the open tab's buttons right-aligned on the tab row (on the row below when the tabs leave no room), built
   from one list in `buildToolbar()`: `{widget, tab (or every tab), shown predicate, gap after}`. Lyrics: Çeviri,
-  timing −, the offset (reset), +, full-screen lyrics. **A feature adds its button with one entry there.**
+  timing −, the offset (reset), +, full-screen lyrics, "Sözleri paylaş" (`openLyricsShare`, 3.x Share cards). **A
+  feature adds its button with one entry there.**
 - **Lyrics**: providers, translation, offset, click-to-seek and the 3 s wheel override as in 3.16. A placeholder only
   after 350 ms of loading (a cached / local file answers before it would flash); arriving lyrics fade in (420 ms),
   already scrolled to the active line; lines fade out towards the area's edges by their own alpha (no layer).
@@ -1181,7 +1580,8 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   (a 1440 × 780 DIP view: 145 × 79 texels, 45 KB), uploaded with `CopyFromMemory` and stretched with linear filtering; a 64 px
   grain tile (±2-3 %, one texel per physical pixel; `Settings.grain`) against banding. No effect and no layer.
 - **Cost**: recomputed 12 times a second only while it drifts: the view painted, playing, not under the full-screen
-  lyrics, reduce motion off and Windows' "Show animations" (`SPI_GETCLIENTAREAANIMATION`, re-read every 2 s) on; about
+  lyrics, and the micro-interactions' gate open (`ui::motion::micro()`: reduce motion off, Windows' animation effects
+  on); about
   33 times a second during a 1.2 s color cross-fade; on a resize or theme change; otherwise the bitmap is only drawn.
   The drift clock stands still meanwhile, so a paused view is static and asks for no frames. The view's frame budget
   while playing: the wave 25 ms, synced lyrics 50 ms, the drift 83 ms, else the time label 250 ms; the lyrics' follow
@@ -1207,7 +1607,9 @@ cost). Screenshots: open the view after the playing file started with `SHADETUBE
   to every `assets/i18n/*.json`.
 - Design values come from the tokens (`assets/tokens`) and the existing components. **Don't invent new radii or
   colors**: surfaces 2 px, controls pill/circle, hairlines instead of shadows (menus, toasts and dialogs use the
-  `shadow*` / `scrim` tokens). Both themes must work.
+  `shadow*` / `scrim` tokens). Both themes must work. Corner radii are read at paint time from `gfx::radii()` (the
+  corner style changes them live, 3.x Theme studio), never written as literals; colors only from the palette (every
+  preset and custom theme must work, not just the default dark / light).
 - Keyboard: interactive widgets set `focusable = true`, return `activatable() = true` and implement `onActivate()`
   (Enter/Space); give `focusShape()` / `focusRect()` when the default (rect, radius 2) is wrong. Never paint focus
   yourself: the Window draws the ring. Text fields and lists that need every key stay non-activatable. Callbacks
@@ -1269,10 +1671,16 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, the accent-tinted app icon (sizes, colors, the logo's color against `app.ico`, `WindowIcon` on a test window: sizes, no re-render, no leaked handles, class icon back), AUMID / Start menu identity under a test id | default; `--start-menu`; `--icons <dir> [RRGGBB…]` (writes the tinted icon as `.ico` files to look at) |
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
+| `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json` (and its newest entries, Home's hero), history recency, timing with 10 000 items | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
+| `theme_test` | theme studio core (`gfx/ThemeSpec`, `app/ThemeStore`): strict color syntax, the tokens files as themes, every bundled preset (no warnings, strict parse, keys match the palette, write / read round trip, the full contrast table), key-color derivation and `setKey`, accent adaptation and ink / paper, import validation (every refusal kind, too large, keys-only files, base guessing, names), the theme folder (save / reload / numbered names / remove / import / export / broken files left out), slugs | offline (own temp folder; reads the source tree's `assets/`) |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
 | `nowplaying_test` | Now Playing's backdrop colors (`app/CoverGradient`): palettes of two / three-color covers (largest first, a vivid 4 % speck kept), one-color and grayscale covers padded, the dark / light tokens' contrast band (fg.primary 7:1, fg.secondary 4.5:1) and a custom palette never made stricter than its base, every texel of 7 200 fields from random palettes (white, black, primaries, mid cross-fade) inside the band, fg.tertiary lifted to 3:1, 83 ms of drift moving no texel more than 2 levels, timing of a 144 × 90 field and a palette | offline |
+| `pagetx_test` | page transitions (`ui/PageMotion`) stepped with explicit times: durations 180..240 ms, Push (outgoing fades / shifts out, incoming slides in, both monotonic and exact at the end), Back mirrored, shared / Replace without offsets, the cover's flight (lands exactly, even on a moving target, no overshoot, radius morph), the hand-over, holding for an image (no frames; image / scroll / timeout end it), fading when the target goes, 60 / 144 Hz give the same positions | offline |
+| `popups_test` | the overlay family (3.x) on a hidden window over a red / blue page: menu keys (wrap over disabled items and separators, Home / End, Tab, Enter, Escape), separator tidying, submenus by key (Right / Enter / Left / Escape, parent item lit) and by pointer (200 ms open, 300 ms close, click), type-ahead (accents, cycling), one acrylic capture per opening and one per settled change behind (never per frame), the material showing the page while `fg.secondary` keeps ≥ 4.5:1 (dark and light), close animations (painted without input, then deleted, backdrop freed; none with reduce motion), toast stacking, dialogs (Enter, Escape); `SHADETUBE_ACRYLIC=off` in a child process (no capture, even surface) | offline; `opaque` (the child's mode) |
+| `review_test` | year in review (`app/YearReview`) on fixed synthetic histories: periods (a year, the last 12 months, a running year), time / streams / tops and their order, months, weekdays, hours (a play across midnight split), dayparts, 7-day blocks, streak, busiest day, discoveries, first stream, local days on another time zone, genre shares / coverage / minimum, which periods qualify, timing with 300 000 plays | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
+| `micro_test` | micro-interactions (`ui/Micro`, 3.x): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -1349,7 +1757,19 @@ apps*).
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
 | `SHADETUBE_NP_TAB` | `lyrics`, `queue` or `about`: the tab Now Playing opens on (screenshots; 3.x) |
 | `SHADETUBE_NP_LOG=1` | while Now Playing is open, logs every 5 s its frames/s and the backdrop field's size, renders/s and cost (`nowplaying` lines) |
+| `SHADETUBE_NAV_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after the shell opened: `click=<x>,<y>` (a real left click posted at window DIPs), `back`, `forward`. With `--screenshot`, e.g. `click@2500=559,378` and a capture at 3300 ms for a cover in flight (3.x) |
+| `SHADETUBE_MOTION_SCALE` | `<factor>` (1-50): page transitions and the cover's flight run that many times slower (screenshots of their middle) |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
+| `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.x), instead of `SPI_GETCLIENTAREAANIMATION` |
+| `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
+| `SHADETUBE_THEME_PRESET` | `<theme id>` (`nord`, `pastel`, `user:<file>`...): that theme for this run, whatever the mode; nothing is saved (3.x Theme studio) |
+| `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
+| `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
+| `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.x): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
+| `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.x) |
+| `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.x) |
+| `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
 
 ## 6. Release process
 

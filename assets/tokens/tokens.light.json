@@ -232,6 +232,8 @@
   },
   "radius": {
     "surface": 2,
+    "art": 2,
+    "field": 2,
     "control": 999,
     "circle": 9999,
     "badge": 2,

@@ -4,6 +4,7 @@
 #include "app/InternetRadio.h"
 #include "app/LyricsFullscreen.h"
 #include "app/LyricsService.h"
+#include "app/LyricsShare.h"
 #include "app/PodcastUi.h"
 #include "app/Router.h"
 #include "app/Shell.h"
@@ -217,6 +218,7 @@ NowPlayingView::NowPlayingView()
     repeat_->onClick = [] { ctx().player->cycleRepeat(); };
     heart_ = add<Button>(ButtonKind::Icon, L"", "heart-thin");
     heart_->setTooltip(tr(L"Beğen"));
+    heart_->setHeart("heart-thin", "heart-liked-thin");   // the like feedback (ui::HeartPop), as in the player bar
     heart_->onClick = [this] {
         const auto* t = ctx().player->current();
         if (!t) return;
@@ -302,7 +304,7 @@ NowPlayingView::NowPlayingView()
 // The toolbar on the right of the tab row. Left to right; each entry names its tab (nullopt = every tab) and when it
 // shows. A feature's button goes here (created with add<>, then one entry).
 void NowPlayingView::buildToolbar() {
-    // Lyrics: [Çeviri]  [−] [+0,5 sn] [+]  [full screen].
+    // Lyrics: [Çeviri]  [−] [+0,5 sn] [+]  [full screen] [share].
     translate_ = add<Button>(ButtonKind::Chip, tr(L"Çeviri"));
     translate_->setTooltip(tr(L"Her satırın çevirisini altında göster"));
     translate_->onClick = [this] { translation_.toggle(); };
@@ -329,6 +331,10 @@ void NowPlayingView::buildToolbar() {
     fullscreen_->onClick = [] {
         if (ctx().toggleLyricsFullscreen) ctx().toggleLyricsFullscreen();
     };
+    // "Sözleri paylaş" (app/LyricsShare): a card of the lines around the sung one.
+    share_ = add<Button>(ButtonKind::Icon, L"", "share");
+    share_->setTooltip(tr(L"Sözleri paylaş"));
+    share_->onClick = [this] { openLyricsShare(lyrics_, active_, translation_); };
     auto synced = [this] { return state_ == LyricsState::Synced; };
     auto hasText = [this] { return state_ == LyricsState::Synced || state_ == LyricsState::Plain; };
     toolbar_ = {
@@ -336,7 +342,8 @@ void NowPlayingView::buildToolbar() {
         {earlier_, Tab::Lyrics, synced, 2},
         {offset_, Tab::Lyrics, synced, 2},
         {later_, Tab::Lyrics, synced, 12},
-        {fullscreen_, Tab::Lyrics, hasText, 0},
+        {fullscreen_, Tab::Lyrics, hasText, 6},
+        {share_, Tab::Lyrics, hasText, 0},
     };
 }
 
@@ -479,6 +486,11 @@ void NowPlayingView::syncControls() {
     const bool liked = t && (live ? radio::store().isFavorite(radio::uuidOf(t->id)) : ctx().library.isLiked(t->id));
     heart_->setIcon(liked ? "heart-liked-thin" : "heart-thin");
     heart_->setActive(liked);
+    // Liked / unliked while it plays (this heart, the shortcut, a menu, the phone): the feedback; another song just
+    // shows its own state.
+    if (const std::string id = t ? t->id : std::string(); !id.empty() && id == likedId_ && liked != likedWas_) heart_->pulse();
+    likedId_ = t ? t->id : std::string();
+    likedWas_ = liked;
     heart_->setTooltip(!live ? std::wstring(tr(L"Beğen")) : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
     heart_->setVisible(t && (live || ctx().library.canLike(t->id)));
     {
@@ -909,7 +921,7 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
         const float a = smooth(static_cast<float>((waited - 350) / 300)) * tabIn_.value();
         c.pushOpacity(a);
         for (int i = 0; i < 5; ++i)
-            c.skeleton({area.x, area.y + 40 + i * 48.f, area.w * (0.4f + 0.1f * ((i * 7) % 4)), 22}, 2, ui::frame::now());
+            c.skeleton({area.x, area.y + 40 + i * 48.f, area.w * (0.4f + 0.1f * ((i * 7) % 4)), 22}, gfx::radii().badge, ui::frame::now());
         c.popLayer();
         ui::frame::requestNext();
         return;
@@ -1145,8 +1157,8 @@ float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
         c.text(lab, type::monoLabel, {x, y, w, 14}, label.mulAlpha(fade));
         y += 24;
         const Rect art{x, y, kAboutArt, kAboutArt};
-        drawArtwork(c, a && !a->images.empty() ? a->images : t->album.images, art, 2);
-        c.strokeRounded(art, 2, col.hairDefault);
+        drawArtwork(c, a && !a->images.empty() ? a->images : t->album.images, art, gfx::radii().art);
+        c.strokeRounded(art, gfx::radii().art, col.hairDefault);
         const float tx = art.right() + 18, tw = std::max(60.f, w - kAboutArt - 18);
         aboutTitle_.setText(a ? toWide(a->name) : toWide(t->album.name));
         const float th = std::ceil(aboutTitle_.measure(tw).h);
@@ -1161,7 +1173,7 @@ float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
                 ty += 22;
             }
         } else if (loading) {
-            c.skeleton({tx, ty + 4, tw * 0.45f, 10}, 2, ui::frame::now());
+            c.skeleton({tx, ty + 4, tw * 0.45f, 10}, gfx::radii().badge, ui::frame::now());
             ui::frame::requestNext();
             ty += 22;
         }
@@ -1198,7 +1210,7 @@ float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
             c.text(meta, type::monoMeta, {tx, ty, tw, 18}, col.fgSecondary.mulAlpha(fade));
             ty += 22;
         } else if (loading && !a) {
-            c.skeleton({tx, ty + 4, tw * 0.35f, 10}, 2, ui::frame::now());
+            c.skeleton({tx, ty + 4, tw * 0.35f, 10}, gfx::radii().badge, ui::frame::now());
             ui::frame::requestNext();
             ty += 22;
         }
@@ -1256,8 +1268,8 @@ float NowPlayingView::paintAboutEpisode(Canvas& c, float x, float y, float w, fl
     const float y0 = y;
     // The show: picture, name, the episode's date and length, its page.
     const Rect art{x, y, kAboutArt, kAboutArt};
-    drawArtwork(c, t->album.images, art, 2);
-    c.strokeRounded(art, 2, col.hairDefault);
+    drawArtwork(c, t->album.images, art, gfx::radii().art);
+    c.strokeRounded(art, gfx::radii().art, col.hairDefault);
     const float tx = art.right() + 18, tw = std::max(60.f, w - kAboutArt - 18);
     aboutTitle_.setText(toWide(t->album.name.empty() ? t->artistLine() : t->album.name));
     const float th = std::ceil(aboutTitle_.measure(tw).h);
@@ -1283,9 +1295,9 @@ float NowPlayingView::paintAboutStation(Canvas& c, float x, float y, float w) {
     const auto* t = ctx().player->current();
     const float y0 = y;
     const Rect art{x, y, kAboutArt, kAboutArt};
-    c.fillRounded(art, 2, gfx::isLightTheme() ? col.bgSunken : col.bgOverlay);
-    drawStationArt(c, t->album.images, art.center(std::round(kAboutArt * 0.6f), std::round(kAboutArt * 0.6f)), 2);
-    c.strokeRounded(art, 2, col.hairDefault);
+    c.fillRounded(art, gfx::radii().art, gfx::isLightTheme() ? col.bgSunken : col.bgOverlay);
+    drawStationArt(c, t->album.images, art.center(std::round(kAboutArt * 0.6f), std::round(kAboutArt * 0.6f)), gfx::radii().art);
+    c.strokeRounded(art, gfx::radii().art, col.hairDefault);
     const float tx = art.right() + 18, tw = std::max(60.f, w - kAboutArt - 18);
     aboutTitle_.setText(toWide(t->name));
     const float th = std::ceil(aboutTitle_.measure(tw).h);
@@ -1387,16 +1399,16 @@ void NowPlayingView::paintCover(Canvas& c, const Rect& r, bool outgoing) {
     if (s.kind == Kind::Station) {
         // A station logo is a small favicon: shown at under half the size on the surface with the tiles' ring
         // motif instead of blown up to the hero size.
-        c.fillRounded(r, 2, gfx::isLightTheme() ? col.bgSunken : col.bgOverlay);
+        c.fillRounded(r, gfx::radii().art, gfx::isLightTheme() ? col.bgSunken : col.bgOverlay);
         c.strokeCircle({r.cx(), r.cy()}, r.w * 0.36f, accent().base.withAlpha(0.35f), 1.f);
         const float d = std::round(r.w * 0.42f);
-        drawStationArt(c, s.images, r.center(d, d), 2);
+        drawStationArt(c, s.images, r.center(d, d), gfx::radii().art);
     } else if (outgoing) {
-        drawArtwork(c, s.images, r, 2);
+        drawArtwork(c, s.images, r, gfx::radii().art);
     } else {
-        art_.draw(c, s.images, r, 2);   // a cover still loading fades in over the placeholder
+        art_.draw(c, s.images, r, gfx::radii().art);   // a cover still loading fades in over the placeholder
     }
-    c.strokeRounded(r, 2, col.hairDefault);   // the thin outline
+    c.strokeRounded(r, gfx::radii().art, col.hairDefault);   // the thin outline
 }
 
 void NowPlayingView::paintTrack(Canvas& c) {
@@ -1575,8 +1587,8 @@ void NowPlayingView::paint(Canvas& c) {
         const Rect sr = seek_->rect();
         const std::wstring s = ui::formatDuration(static_cast<int64_t>(hf * dur));
         const Rect tip{r.x + sr.x + hf * sr.w - 24, r.y + sr.cy() - 6 - 22, 48, 18};
-        c.fillRounded(tip, 2, col.bgElevated);
-        c.strokeRounded(tip, 2, col.hairStrong);
+        c.fillRounded(tip, gfx::radii().tooltip, col.bgElevated);
+        c.strokeRounded(tip, gfx::radii().tooltip, col.hairStrong);
         c.text(s, type::monoMeta, tip, col.fgPrimary, gfx::TextAlign::Center, gfx::VAlign::Center);
     }
     c.popClip();
