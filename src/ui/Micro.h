@@ -129,6 +129,7 @@ struct Play {
     float show = 0, hot = 0, press = 0;
     bool pause = false;           // the card's collection is playing: the pause glyph
     float iconSize = 16;
+    float rise = 8;               // DIP it rises while fading in (smaller buttons on list rows: less)
 };
 void paintPlay(gfx::Canvas& c, const gfx::Rect& r, const Play& p, const gfx::Color& fill, const gfx::Color& fillHot,
                const gfx::Color& glyph);

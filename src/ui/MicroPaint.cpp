@@ -87,7 +87,7 @@ void paintEdge(gfx::Canvas& c, const Rect& art, float hover, bool circle) {
 void paintPlay(gfx::Canvas& c, const Rect& r, const Play& p, const Color& fill, const Color& fillHot, const Color& glyph) {
     if (p.show <= 0.01f) return;
     const float e = ease(Ease::Decelerate, std::clamp(p.show, 0.f, 1.f));
-    const Rect pr = r.offset(0, 8.f * (1.f - e));
+    const Rect pr = r.offset(0, p.rise * (1.f - e));
     const Point center{pr.cx(), pr.cy()};
     const float s = (0.9f + 0.1f * e) * (1.f + 0.04f * p.hot) * (1.f - 0.08f * p.press);
     const bool faded = p.show < 0.999f;

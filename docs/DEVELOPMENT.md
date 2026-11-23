@@ -1111,6 +1111,54 @@ time of the event.
   and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
   a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
 
+### 3.x Micro-interactions
+
+`ui/Micro` (logic in `Micro.cpp`, standalone and tested by `micro_test`; drawing in `MicroPaint.cpp`) holds the small
+feedback shared across the app: hover and press fades, the card lift, the heart pop and the playing bars. Durations
+are the motion tokens (80-240 ms, standard / decelerate, no overshoot) and everything is invalidation-driven like
+`Anim`: a value asks for frames only while it changes, so a settled window renders nothing.
+
+- **Gate**: `motion::micro()` = *Hareketi azalt* off **and** Windows' animation effects on (`SPI_GETCLIENTAREAANIMATION`,
+  Settings › Accessibility › Visual effects; read once, again on `WM_SETTINGCHANGE` in `Window::handleMessage`).
+  `motion::microMs(ms)` is `ms` or 0, so a micro-interaction written as `anim.to(v, motion::microMs(motion::fast))`
+  becomes an instant change when either is off; the playing bars then stand still in a fixed pose, the heart and the
+  card just switch. `SHADETUBE_CLIENT_ANIM=0 / 1` overrides the Windows setting (5.4). Reduce motion alone keeps
+  collapsing every `Anim` as before (page transitions, scrolling, the seek wave are not gated by the Windows setting).
+- **Controls** (`ui/Controls`): every hover / press / active fade goes through `microMs`. `Ghost` and `Chip` buttons
+  press to 98 % with `overlay.pressed`, `Nav` / `SidebarItem` get a light pressed fill. `Toggle`: the knob slides
+  (180 ms), hover brightens the off track's outline or the on track's fill and the knob, a press stretches the knob
+  4 DIP towards the middle. `Slider`: held, the thumb grows 15 % over an `accent.tint12` halo (the wave's playhead keeps
+  its hover size while dragged). `Knob`: the ring turns `fg.primary` while held. The Settings `Segmented` control slides
+  its selection pill (180 ms; a label changes color as the pill covers it) and fades a hover fill on the other segments.
+- **Painted lists** (`ui::HoverFade`): the hovered row fades in and the row left fades out (120 ms each; going back
+  resumes the fade-out). Used by `TrackTable` (row background; the number crossfades to the play / pause glyph and the
+  heart / "×" fade in), the queue panel, podcast episode lists; `LibraryView` has its own equivalent (`hot_` / `prevHot_`).
+- **Cards** (`ui::card`): MediaCard, the Library grid, smart list cards, editorial `Tile`s and radio `StationTile`s share
+  one look. Hovered by the pointer the card rises 2 DIP (`card::lift`) over `cardHoverShadow` and a `hairline.strong`
+  edge brightens around the artwork (round artist cards: the accent ring); a press settles it back and scales it to
+  98.5 %. Keyboard focus shows the shadow and the play button but no rise (the focus ring stays on the card). The play
+  button fades in rising 8 DIP and growing from 90 %, brightens (`accent.hover`) and grows 4 % under the pointer and
+  shrinks to 92 % when pressed; a press on it leaves the card still.
+- **Heart** (`ui::HeartPop`): like (220 ms) = the filled heart grows out of the outline, the glyph pops to 116 % and
+  back (a sine hump, no spring) and six thin accent ticks fly out and fade; unlike (160 ms) = the fill shrinks back with
+  a slight dip. A `Button` made a heart with `setHeart(outline, filled)` draws the liked state from `active()` and
+  `pulse()` plays it: the player bar's heart pulses whenever the playing song's liked state changes (its own click, a
+  row's heart, Ctrl+L, a menu, the phone remote), never when another song starts; the album page's save heart pulses on
+  click. Track rows pop on a click of their heart and, for the playing song's row, when it is liked elsewhere; radio
+  station rows / tiles pop their favorite heart. Now Playing has no heart of its own (the player bar's is hidden there)
+  and the mini player none at all.
+- **Playing bars** (`ui::paintEqualizer`, app wrapper `drawPlayingBars` in `app/Components`): four 2 DIP pills drawn in
+  code (two slow sines per bar with the design's phases 0 / 0.6 / 1.2 / 1.9 rad), in the playing track's row (in place
+  of its number, also while paused), the queue's current row, the sidebar's and the Library list's playing collection
+  and the playing radio station. One shared `equalizer::Clock` drives them all: it advances with the frame time while
+  the player plays and eases to a stop over 240 ms when it pauses (and back), so every bar on screen freezes where it
+  is. While they move, each painted indicator asks its window for a repaint every `equalizer::kFrameMs` (25 ms, the
+  seek wave's interval) instead of every vblank: a playing list adds no frames of its own to the ones the flowing wave
+  already causes. Rows scrolled away, a page covered by Now Playing, the full-screen lyrics (`LyricsFullscreen::isOpen`)
+  and hidden or minimized windows ask nothing.
+- **Cost**: idle and paused windows render nothing (0 %); see 5.2 `micro_test` for the frame-request checks and the
+  measurements below for a playing list.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1189,6 +1237,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
+| `micro_test` | micro-interactions (`ui/Micro`, 3.x): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -1264,6 +1313,7 @@ apps*).
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
+| `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.x), instead of `SPI_GETCLIENTAREAANIMATION` |
 
 ## 6. Release process
 

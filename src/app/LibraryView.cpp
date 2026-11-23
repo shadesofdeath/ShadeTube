@@ -216,6 +216,7 @@ void LibraryView::paintPlay(Canvas& c, int d, const LibraryCell& cell, const Rec
     ui::card::Play play{h, d == hot_ ? playHotA_.value() : 0.f, d == hot_ && d == pressed_ ? playPressA_.value() : 0.f};
     play.pause = isCurrent(cell) && ctx().player->isPlaying();
     play.iconSize = iconSize;
+    play.rise = mode_ == Mode::List ? 3.f : 8.f;   // the list row's button sits on a 48 DIP cover
     // On the accent heart tile an accent button would vanish: the inverse there.
     if (cell.likedTile && cell.images.empty()) ui::card::paintPlay(c, pr, play, acc.onAccent, acc.onAccent.mulAlpha(0.85f), acc.base);
     else ui::card::paintPlay(c, pr, play, acc.base, acc.hover, acc.onAccent);
