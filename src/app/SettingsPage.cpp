@@ -356,6 +356,7 @@ private:
             buildEndlessPlaybackRows(c, rebuilder());
             buildSmartShuffleRows(c, rebuilder());
             buildAltSourceRows(c, rebuilder());
+            buildVideoRows(c, rebuilder());
         }
 
         // Equalizer, crossfade, output device.

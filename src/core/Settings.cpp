@@ -132,6 +132,15 @@ void Settings::load() {
     read(j, "miniX", miniX);
     read(j, "miniY", miniY);
     read(j, "taskbarProgress", taskbarProgress);
+    read(j, "videoQuality", videoQuality);
+    if (videoQuality != 480 && videoQuality != 1080) videoQuality = 720;
+    read(j, "rememberVideoMode", rememberVideoMode);
+    read(j, "videoMode", videoMode);
+    read(j, "videoOnTop", videoOnTop);
+    read(j, "videoX", videoX);
+    read(j, "videoY", videoY);
+    read(j, "videoW", videoW);
+    read(j, "videoH", videoH);
     volume = std::clamp(volume, 0.0f, 1.0f);
 }
 
@@ -210,6 +219,14 @@ void Settings::save() const {
         {"miniX", miniX},
         {"miniY", miniY},
         {"taskbarProgress", taskbarProgress},
+        {"videoQuality", videoQuality},
+        {"rememberVideoMode", rememberVideoMode},
+        {"videoMode", videoMode},
+        {"videoOnTop", videoOnTop},
+        {"videoX", videoX},
+        {"videoY", videoY},
+        {"videoW", videoW},
+        {"videoH", videoH},
     };
     // Write-then-rename so a crash never leaves a truncated settings file.
     const auto path = paths::settingsFile();

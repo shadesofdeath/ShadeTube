@@ -72,6 +72,9 @@ constexpr Action kActions[] = {
     {"zoom-out", [] { return tr(L"Arayüzü küçült"); }, Category::View, "Ctrl+Minus", kInText, "minus"},
     {"zoom-reset", [] { return tr(L"Arayüz ölçeğini sıfırla"); }, Category::View, "Ctrl+0", kInText, "refresh"},
     {"compact-lists", [] { return tr(L"Sıkı / rahat liste görünümü"); }, Category::View, "", 0, "list"},
+    // Video modu (app/VideoMode): the song's music video, and its own window.
+    {"video-mode", [] { return tr(L"Video modunu aç / kapat"); }, Category::View, "Ctrl+Shift+V", kMini, "video-thin"},
+    {"video-window", [] { return tr(L"Video penceresi"); }, Category::View, "", kMini, "pop-out-thin"},
 };
 
 // English key names of the text form. Letters and digits are their own name.

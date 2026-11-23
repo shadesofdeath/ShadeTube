@@ -117,13 +117,16 @@ add_executable(ShadeTube WIN32
     FriendActivity.cpp Social.h
     NewReleases.cpp NewReleases.h
     NewReleasesPage.cpp
+    VideoMode.cpp VideoMode.h
+    VideoView.cpp VideoView.h
+    VideoWindow.cpp VideoWindow.h
     ShadeTube.manifest
     ${CMAKE_CURRENT_BINARY_DIR}/resources.rc
 )
 # windowsapp: C++/WinRT SystemMediaTransportControls (Smtc). bcrypt: MD5 for Last.fm signatures, AES-GCM / ECDH for
 # "Birlikte dinle". crypt32: DPAPI. winhttp: the MQTT WebSocket of "Birlikte dinle". secur32: the Windows display name.
 # ws2_32 + iphlpapi + qrcodegen: the phone remote control (LAN server, adapter addresses, pairing QR code).
-target_link_libraries(ShadeTube PRIVATE st_ui st_player st_lyrics st_musicbrainz st_spotify st_youtube st_catalog st_audio st_core webview2
+target_link_libraries(ShadeTube PRIVATE st_ui st_video st_player st_lyrics st_musicbrainz st_spotify st_youtube st_catalog st_audio st_core webview2
     windowsapp bcrypt crypt32 winhttp secur32 ws2_32 iphlpapi qrcodegen)
 # "ShadeTube 0.3" in Ayarlar > Hakkında.
 target_compile_definitions(ShadeTube PRIVATE ST_VERSION_SHORT="${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")

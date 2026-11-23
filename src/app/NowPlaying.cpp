@@ -5,6 +5,7 @@
 #include "app/PodcastUi.h"
 #include "app/Shell.h"
 #include "app/SmartShuffle.h"
+#include "app/VideoView.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -33,6 +34,7 @@ NowPlayingView::NowPlayingView()
     : title_({}, type::displayS), subtitle_({}, type::bodyL.withSize(17)), meta_({}, type::monoMeta),
       liveNow_({}, type::title) {
     queue_ = add<QueuePanel>();
+    video_ = add<VideoView>(VideoView::Style::Inline);
     translate_ = add<ui::Button>(ui::ButtonKind::Chip, tr(L"Çeviri"));
     translate_->setTooltip(tr(L"Her satırın çevirisini altında göster"));
     translate_->onClick = [this] { translation_.toggle(); };
@@ -232,6 +234,7 @@ void NowPlayingView::layout() {
     queue_->setRect({r.w - gfx::metrics::queueW, 0, gfx::metrics::queueW, r.h});
     const float artSize = std::clamp(std::min(r.h - 220, (r.w - gfx::metrics::queueW) * 0.36f), 200.f, 488.f);
     artRect_ = {64, std::max(40.f, (r.h - artSize - 140) * 0.5f), artSize, artSize};
+    video_->setRect(artRect_);   // video mode paints there instead of the art
     const float lx = artRect_.right() + 64;
     lyricsRect_ = {lx, 0, std::max(200.f, r.w - gfx::metrics::queueW - 48 - lx), r.h};
     // Lyrics header, right-aligned on the label's row: [Çeviri]  [−] [+0,5 sn] [+]  [full screen].
@@ -515,8 +518,10 @@ void NowPlayingView::paint(Canvas& c) {
     if (t) {
         // Hero art with glow + depth shadow.
         const bool station = radio::isStationId(t->id);
-        paintArtShadow(c);   // nowPlayingArtShadow
-        if (station) {
+        if (!video_->showing()) paintArtShadow(c);   // nowPlayingArtShadow (video mode: the VideoView child instead)
+        if (video_->showing()) {
+            // The VideoView child (painted with the children) shows the music video, or the cover with a note.
+        } else if (station) {
             // A station logo is a small favicon: shown at under half the size on the surface with the tiles' ring
             // motif instead of blown up to the hero size.
             c.fillRounded(artRect_, 2, gfx::isLightTheme() ? col.bgSunken : col.bgOverlay);

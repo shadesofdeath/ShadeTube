@@ -14,6 +14,7 @@
 namespace st::app {
 
 class QueuePanel;
+class VideoView;
 
 class NowPlayingView : public ui::Widget {
 public:
@@ -44,6 +45,7 @@ private:
     int lineAt(gfx::Point p) const;
 
     QueuePanel* queue_;
+    VideoView* video_;                   // video mode: takes the hero art's place (app/VideoView)
     ui::Button *translate_, *earlier_, *offset_, *later_, *fullscreen_;
     Lifetime life_;
     std::string trackId_;

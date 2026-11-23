@@ -868,7 +868,9 @@ void App::logMemory() {
 void App::manageMemory() {
     constexpr double kGraphicsIdleMs = 30'000;
     const double now = ui::frame::realNow();
-    const bool onScreen = window_->isShown() || (mini_ && mini_->window()->isShown());
+    bool onScreen = window_->isShown() || (mini_ && mini_->window()->isShown());
+    for (auto& extra : ctx().extraWindows)
+        if (ui::Window* w = extra(); w && w->isShown()) onScreen = true;
     if (onScreen) offScreenSince_ = -1;
     else if (offScreenSince_ < 0) offScreenSince_ = now;
 
@@ -1266,7 +1268,12 @@ int App::run() {
         // Render every shown window that needs a frame: the main window and, while open, the mini player. Hidden
         // windows (tray, main window behind the mini player) never need one and never schedule a wake-up.
         bool drew = false;
-        for (ui::Window* w : {window_.get(), mini_ ? mini_->window() : nullptr}) {
+        ui::Window* windows[8] = {window_.get(), mini_ ? mini_->window() : nullptr};
+        size_t windowCount = 2;
+        for (auto& extra : ctx().extraWindows)   // feature windows (the video window)
+            if (ui::Window* w = extra(); w && windowCount < std::size(windows)) windows[windowCount++] = w;
+        for (size_t i = 0; i < windowCount; ++i) {
+            ui::Window* w = windows[i];
             if (!w || !w->needsFrame()) continue;
             // Frame pacing: wait for the swap chain (vsync-aligned, 1 frame latency) then draw.
             if (HANDLE h = w->frameWaitable()) WaitForSingleObjectEx(h, 50, TRUE);
@@ -1277,6 +1284,7 @@ int App::run() {
         // Idle: sleep until input, a dispatcher post, or the next scheduled repaint / housekeeping.
         double wake = std::min(window_->nextWakeMs(), nextHousekeeping);
         if (mini_) wake = std::min(wake, mini_->window()->nextWakeMs());
+        for (size_t i = 2; i < windowCount; ++i) wake = std::min(wake, windows[i]->nextWakeMs());
         if (player_ && player_->isPlaying()) wake = std::min(wake, nextSmtc);   // paused: idle stays 0% CPU
         if (sponsorActive()) wake = std::min(wake, nextSponsor);
         wake = std::min(wake, iconsWake);

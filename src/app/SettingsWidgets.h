@@ -187,5 +187,6 @@ void buildDownloadSyncRows(ui::Column* c, const std::function<void()>& rebuild);
 void buildRemoteSection(ui::Column* c, const std::function<void()>& rebuild);         // TELEFONDAN KUMANDA (app/RemoteControl.cpp)
 void buildJamRows(ui::Column* c, const std::function<void()>& rebuild);               // BİRLİKTE DİNLE (app/TogetherPanel.cpp)
 void buildDisplayRows(ui::Column* c, const std::function<void()>& rebuild);           // Görünüm   (app/Display.cpp)
+void buildVideoRows(ui::Column* c, const std::function<void()>& rebuild);             // OYNATMA   (app/VideoMode.cpp)
 
 } // namespace st::app

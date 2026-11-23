@@ -46,6 +46,7 @@ public:
     D2D1_RECT_F sourceRect() const;
     int width() const { return format_.width; }
     int height() const { return format_.height; }
+    double fps() const { return format_.fps > 0 ? format_.fps : 30; }
     // How long until the next frame is due at `rate` (ms; for the views' repaint), or a short poll while waiting.
     double nextFrameInMs(int64_t clockUs, double rate) const;
 

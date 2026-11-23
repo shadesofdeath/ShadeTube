@@ -158,6 +158,9 @@ struct AppContext {
     std::vector<std::function<void()>> persistHooks;                           // save everything (exit)
     // Offline playback: asked after the downloads, first non-empty path wins (e.g. the local music library).
     std::vector<std::function<std::wstring(const std::string& trackId)>> localFileResolvers;
+    // Windows of features (the video window, app/VideoMode), rendered by App's loop like the main window and the mini
+    // player and counted as "on screen" for the idle graphics release; each returns nullptr while it has none.
+    std::vector<std::function<ui::Window*()>> extraWindows;
 };
 
 AppContext& ctx();
@@ -179,6 +182,7 @@ void initSmartShuffle();       // app/SmartShuffle.cpp   (smart shuffle: recomme
 void initNewReleases();        // app/NewReleasesPage.cpp (Yeni çıkanlar: followed artists' releases, notifications)
 void initRemote();             // app/RemoteControl.cpp  (Telefondan kumanda: the LAN server for the phone's browser)
 void initTogether();           // app/Together.cpp       (Birlikte dinle: listen together sessions)
+void initVideoMode();          // app/VideoMode.cpp      (Video modu: the song's music video, silent, slaved to the audio)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -195,6 +199,7 @@ inline void initFeatures() {
     initNewReleases();
     initRemote();
     initTogether();
+    initVideoMode();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the
