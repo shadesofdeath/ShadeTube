@@ -1111,6 +1111,69 @@ time of the event.
   and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
   a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
 
+### 3.x Share cards: lyrics cards and the year in review
+
+`app/ShareCard` (painting and export, shared), `app/LyricsShare` (the lyrics card and its dialog), `app/YearReview`
+(standalone, pure: the year's numbers; `review_test`) and `app/YearReviewView` (the story view, the Stats page banner,
+the palette command, the dev hooks).
+
+- **Cards**: a card is a `share::Painter` that fills whatever rect it gets with everything sized in card units (360 on
+  the short edge), so one function draws the live preview at any window size / interface scale and the export. The
+  export (`share::render`) paints into an offscreen `ID2D1Bitmap1` on the resource context at `kExportScale` (3 px a
+  unit: 1080 × 1080, 1080 × 1920, 1920 × 1080), opaque, and reads it back. Cards use fixed inks (`share::Ink`: the
+  tokens' dark / light ground and fg roles, off-white on colored grounds), never the app theme, so a card looks the
+  same whichever theme made it. `share::CardContext` requests covers from `gfx::ImageCache` at the export's pixel size
+  (preview and export share the bitmaps), keeps text layouts across paints and counts what was not ready.
+- **Cover colors** (`share::Palette`): the vivid accent `ImageCache` extracts while decoding, a second hue (the most
+  saturated pixels ≥ 40° away from it, else a neighbouring hue) and the deep tone (the darkest quarter), read back from
+  a 16 × 16 downscale of the cover once per image (posted, outside any BeginDraw). `deepen()` turns them into legible
+  grounds for off-white text (lightness pulled down, saturation capped, a dark yellow leaned towards amber instead of
+  olive); `lift()` makes the accent bright enough for numbers and rules. The blurred cover ground is baked at a quarter
+  of the pixels like Now Playing's backdrop (a few sizes cached, released with the device).
+- **Export** (`share::exportCard`, posted, never inside the click): images or palettes still missing are waited for (a
+  thread timer every 100 ms, at most ~3 s, then the card goes out with placeholders). *Copy* puts a bottom-up 32-bit
+  `CF_DIB` (Windows adds `CF_BITMAP` / `CF_DIBV5`) and the registered `PNG` format (24-bit, what browsers, Discord
+  and WhatsApp paste) on the clipboard; *Save* asks with an `IFileSaveDialog` (Pictures, "Artist - Title" / "ShadeTube
+  2025 - Özet") and writes through a flushed `.tmp`; the toast offers "Dosyayı göster".
+- **Lyrics card** ("Sözleri paylaş": a share button rightmost in Now Playing's lyrics header and in the full-screen
+  lyrics' top controls, for synced and unsynced lyrics; the views only call `openLyricsShare(lyrics, activeLine,
+  translation)`): a dialog with the lines on the left and a live preview on the right. Selection: 1-6 consecutive
+  lines (a click starts a new selection, a neighbour extends it, an end line shrinks it, Shift+click selects a range;
+  instrumental gaps are not selectable and break a range; going past 6 flashes the counter), keyboard Up / Down,
+  Space / Enter, Shift; it starts on the sung line and the next. Options: ground *Renk geçişi* (the cover's colors as a
+  diagonal gradient), *Bulanık kapak*, *Koyu*, *Açık*; *Kare* / *Hikâye* (9:16) / *Geniş* (16:9, the cover large on the
+  left); *Sola* / *Ortaya*; *Çeviri* (only when the view shows a translation: the translated line under each line,
+  smaller). The lines take the largest size that fits between the header (cover, title, artist) and the ShadeTube mark
+  (the logo with the card's accent + the wordmark; binary search on half units). The choices are kept for the session.
+- **Year in review** ("Yılın özeti", `review::build`): one local calendar year or the last 12 months (the 12 calendar
+  months ending with the current one) of `ListenStats` (this PC's plays and the imported history), ListenStats' rules
+  (time counts every play, everything else streams; its song / artist / album groups). It yields the minutes, streams,
+  active days, distinct songs / artists / albums, top 5s (and the top 50 songs), months, weekdays, hours (a play split
+  across the hours it spans) and dayparts, 7-day blocks, the longest streak (the earliest), the busiest day, discoveries
+  (songs / artists whose first stream ever is in the period, the most streamed new artist) and the first stream, all on
+  the local clock. Genres are used only when known: an artist's first three tags (the MusicBrainz tags the Stats page's
+  picture lookups carry, `statsArtistGenres`) share its streams; shown when those artists hold ≥ 25 % of the streams and
+  name ≥ 3 genres. A period qualifies with ≥ 30 streams (`review::available`, one pass without clock calls). Timing
+  (`review_test`, 300 000 plays, Debug): `available` ~35 ms, `build` ~55 ms.
+- **Story view** (`review::open(year)`; a modal overlay over the whole window, opaque): cards Giriş (the year, a cover
+  mosaic), Dinlediğin süre (count-up minutes, active days / streams / songs / artists, a tick per week), Şarkılar,
+  Sanatçılar, Albümler (≥ 2), Türler (only with genres), Ne zaman dinledin (months, hours, the daypart), Seri (streak,
+  busiest day, favorite weekday), Keşifler (when there were any) and Özet, which stays. Each runs 5.5-8.5 s under a
+  segmented progress bar; a click on the card's left third goes back, elsewhere forward; ←/→, PageUp / PageDown, Home /
+  End, Space pauses (the reveal still finishes; only the progress stops), Esc closes; the period picker lists every
+  qualifying period. Motion: numbers count up, rows and bars come in staggered, cards cross-fade (`motion::slow`), the
+  ground's glow drifts in; with *Hareketi azalt* or Windows' "Animation effects" off (`SPI_GETCLIENTAREAANIMATION`)
+  everything is drawn final and cards switch instantly. Frames: every one while something moves (the first ~3.4 s of a
+  card), then ~25 / s for the progress bar only, none while paused at rest. The ground is the card's cover palette
+  (a different pairing per card); the window around it is the theme's ground washed with that color. Covers for imported
+  songs / albums and artist pictures come through `enrichStatsArtwork` (the Stats page's caches and lookups); an album
+  without one takes a top song's cover. *Görseli kopyala* / *Kaydet…* export the current card at 1080 × 1920; *En çok
+  dinlediklerini çal* plays the smart list "<year> en iyileri" when it exists (3.20), else the period's top 50 minus the
+  blocklist (context `review:<year>`); *Liste olarak kaydet* goes through `promptNewPlaylist`.
+- **Entry points**: a banner on the Stats page under the period bar (the selected year in *Yıl özeti*, elsewhere the
+  current year when it qualifies, else the last 12 months, else the newest year; nothing when none qualifies) and the
+  palette command "Yılın özeti hikâyesi".
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1188,6 +1251,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
+| `review_test` | year in review (`app/YearReview`) on fixed synthetic histories: periods (a year, the last 12 months, a running year), time / streams / tops and their order, months, weekdays, hours (a play across midnight split), dayparts, 7-day blocks, streak, busiest day, discoveries, first stream, local days on another time zone, genre shares / coverage / minimum, which periods qualify, timing with 300 000 plays | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -1264,6 +1328,8 @@ apps*).
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
+| `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.x) |
+| `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
 
 ## 6. Release process
 
