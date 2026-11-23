@@ -77,7 +77,7 @@ void paintLyricsCard(Canvas& c, const Rect& r, CardContext& ctx, const LyricsCar
     case LyricsCard::Style::Blurred:
         ink = onColorInk(pal.vivid);
         c.fillRect(r, deepen(pal.deep, 0.08f, 0.4f));
-        blurredCover(c, ctx, url, r, 26, u);
+        blurredCover(c, ctx, url, r, 72, u);
         c.fillRect(r, Color::rgb(0x0F0D0B, 0.42f));
         c.fillLinearGradient(r, {0, r.y + r.h * 0.4f}, {0, r.bottom()}, Color::rgb(0x0F0D0B, 0.f), Color::rgb(0x0F0D0B, 0.45f));
         break;
@@ -635,6 +635,7 @@ void startLyricsShareDemo() {
         int a = 0, b = 1;
         std::wstring png;
         bool fakeTranslation = false;
+        bool copy = false;   // also "Görseli kopyala" (the clipboard)
         bool done = false;
     };
     static Demo demo;
@@ -656,6 +657,7 @@ void startLyricsShareDemo() {
         else if (part == L"wide") g_ratio = share::LyricsCard::Ratio::Wide;
         else if (part == L"center") g_centered = true;
         else if (part == L"trdemo") demo.fakeTranslation = true;
+        else if (part == L"copy") demo.copy = true;
         else if (part.rfind(L"png=", 0) == 0) demo.png = part.substr(4);
     }
     ctx().trackChangedHooks.push_back([](const catalog::Track& t) {
@@ -673,7 +675,7 @@ void startLyricsShareDemo() {
                 for (const auto& line : lines) trans.push_back(blank(line) ? std::wstring() : i18n::format(tr(L"Çeviri: {}"), {line}));
             const int a = std::clamp(demo.a, 0, static_cast<int>(lines.size()) - 1);
             const int b = std::clamp(demo.b, a, std::min(static_cast<int>(lines.size()) - 1, a + kMaxLines - 1));
-            if (!demo.png.empty()) {
+            if (!demo.png.empty() || demo.copy) {
                 share::LyricsCard card;
                 card.title = toWide(t.name);
                 card.artist = toWide(t.artistLine());
@@ -685,9 +687,14 @@ void startLyricsShareDemo() {
                     card.lines.push_back(lines[static_cast<size_t>(i)]);
                     if (!trans.empty()) card.translations.push_back(trans[static_cast<size_t>(i)]);
                 }
+                const gfx::Size cu = share::cardUnits(card.ratio);
+                // "Görseli kopyala" exactly as the button does it (waits for the cover itself).
+                if (demo.copy)
+                    share::exportCard([card](Canvas& c, const Rect& rr, share::CardContext& cx) { share::paintLyricsCard(c, rr, cx, card); }, cu.w,
+                                      cu.h, share::Action::Copy, card.title);
                 const std::wstring file = demo.png;
                 // Give the cover a moment to load, as a user would, then render like "PNG olarak kaydet…" does.
-                share::runAfter(1500, [card, file] {
+                if (!file.empty()) share::runAfter(1500, [card, file] {
                     const gfx::Size u = share::cardUnits(card.ratio);
                     share::Pixels px;
                     int misses = 0;

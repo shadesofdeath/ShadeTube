@@ -308,14 +308,14 @@ private:
         const std::wstring sentence = days >= 1 ? i18n::plural(L"{} günden fazla kesintisiz müzik", days)
                                                 : i18n::plural(L"{} saat kesintisiz müzik", std::max<int64_t>(1, mins / 60));
         text(sentence, B(17, 500, 1.3f, -0.01f), R(28, 250, 304, 50, a1), fg2_, a1, gfx::TextAlign::Leading, true, 2);
-        const std::pair<const wchar_t*, int64_t> stats[] = {{L"Aktif gün", r.activeDays},
-                                                            {L"Dinleme", r.streams},
-                                                            {L"Farklı şarkı", r.distinctTracks},
-                                                            {L"Farklı sanatçı", r.distinctArtists}};
+        const std::pair<const wchar_t*, int64_t> stats[] = {{tr(L"Aktif gün"), r.activeDays},
+                                                            {tr(L"Dinleme"), r.streams},
+                                                            {tr(L"Farklı şarkı"), r.distinctTracks},
+                                                            {tr(L"Farklı sanatçı"), r.distinctArtists}};
         for (size_t i = 0; i < 4; ++i) {
             const float a = m_.in(0.9f + 0.1f * static_cast<float>(i));
             const std::wstring v = i18n::number(static_cast<int64_t>(std::llround(m_.count(static_cast<double>(stats[i].second), 1.0f, 1.2f))));
-            stat(tr(stats[i].first), v, 28 + (i % 2) * 156.f, 322 + (i / 2) * 84.f, 148, a);
+            stat(stats[i].first, v, 28 + (i % 2) * 156.f, 322 + (i / 2) * 84.f, 148, a);
         }
         // Week by week: one tick per week, the busiest in the accent.
         const auto& w = r.weekMs;
@@ -444,13 +444,13 @@ private:
         }
         if (r.topDaypart < 0) return;
         const float a2 = m_.in(0.9f);
-        static const wchar_t* const kParts[] = {L"En çok geceleri dinledin", L"En çok sabahları dinledin", L"En çok öğleden sonraları dinledin",
-                                               L"En çok akşamları dinledin"};
+        const wchar_t* const kParts[] = {tr(L"En çok geceleri dinledin"), tr(L"En çok sabahları dinledin"),
+                                         tr(L"En çok öğleden sonraları dinledin"), tr(L"En çok akşamları dinledin")};
         static const wchar_t* const kHours[] = {L"00:00–06:00", L"06:00–12:00", L"12:00–18:00", L"18:00–24:00"};
         int64_t total = 0;
         for (int64_t v : r.daypartMs) total += v;
         const double share = total > 0 ? static_cast<double>(r.daypartMs[static_cast<size_t>(r.topDaypart)]) / static_cast<double>(total) : 0;
-        text(tr(kParts[r.topDaypart]), B(24, 800, 1.1f, -0.03f), R(28, 346, 304, 58, a2), fg_, a2, gfx::TextAlign::Leading, true, 2);
+        text(kParts[r.topDaypart], B(24, 800, 1.1f, -0.03f), R(28, 346, 304, 58, a2), fg_, a2, gfx::TextAlign::Leading, true, 2);
         mono(std::wstring(kHours[r.topDaypart]) + L" · " + percent(share), {28, 408, 304, 14}, fg2_, gfx::TextAlign::Leading, a2);
         int64_t hx = 1;
         for (int64_t v : r.hourMs) hx = std::max(hx, v);

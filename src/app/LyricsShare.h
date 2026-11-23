@@ -40,9 +40,10 @@ void paintLyricsCard(Canvas& c, const Rect& r, CardContext& ctx, const LyricsCar
 
 } // namespace share
 
-// Dev (docs/DEVELOPMENT.md 5.4): SHADETUBE_LYRICS_SHARE=<from>-<to>[,<style>][,<ratio>][,<center>][,png=<file>] opens the
-// dialog for the first track that plays (its lyrics fetched here), with lines from..to selected (0-based) and those
-// options; png=<file> also writes the export there. Called once from initShareFeatures().
+// Dev (docs/DEVELOPMENT.md 5.4): SHADETUBE_LYRICS_SHARE=<from>-<to>[,gradient|blur|dark|light][,square|story|wide]
+// [,center][,trdemo][,copy][,png=<file>] opens the dialog for the first track that plays (its lyrics fetched here), with
+// lines from..to selected (0-based) and those options; trdemo = a stand-in translation under every line, copy = "Görseli
+// kopyala" right away, png=<file> also writes the export there. Called once from initShareFeatures().
 void startLyricsShareDemo();
 
 } // namespace st::app
