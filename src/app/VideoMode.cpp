@@ -486,8 +486,8 @@ namespace {
 
 // Dev (SHADETUBE_VIDEO_DEMO): "<action>@<ms>[=<arg>];..." run that long after startup: on, off, window, close,
 // fullscreen, ontop, nowplaying, seek=<s>, speed=<x>, pause, play, quality=<rows>, minimize, restore, log, devicelost
-// (the device recreated as after a loss), idlerelease (the idle graphics release), shot=<png> (the video window),
-// mainshot=<png> (the main window), quit.
+// (the device recreated as after a loss), idlerelease (the idle graphics release), nchit, captiondblclick,
+// shot=<png> (the video window), mainshot=<png> (the main window), quit.
 void startDemo() {
     wchar_t spec[2048] = {};
     if (!GetEnvironmentVariableW(L"SHADETUBE_VIDEO_DEMO", spec, 2048)) return;

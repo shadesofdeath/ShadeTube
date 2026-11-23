@@ -1204,8 +1204,9 @@ disabled for songs that play from a file or a stand-in source), the `video-mode`
   (`rememberVideoMode`; `videoMode` is the state at exit). Listen together: local only, a guest's picture follows its
   synced audio.
 - **Measured** (2026-11-23, Intel UHD + DXVA, 720p25 H.264 from YouTube, 2355 × 1247 px window): frame vs. heard audio
-  5-9 ms on average and 8-25 ms at worst in steady playback at 0.5×, 1×, 1.5× and 2× (a frame is 33-40 ms; only the
-  catch-up after a slow start or a seek is a frame or two late, for a moment); a paused seek shows the target frame.
+  5-9 ms on average and 8-25 ms at worst in steady playback at 0.5×, 1×, 1.5× and 2× (a frame is 33-40 ms); only the
+  first frame after a slow start or a seek can be up to ~0.2 s late for a moment (the audio resumed before the picture
+  arrived; the next frames catch up); a paused seek shows the target frame.
   First picture 0.7-3 s after the video starts on the network (opening the source and the first segment; local
   files ~30 ms), network seeks 0.4-1.9 s. Release: the video window alone (main window minimized) costs about 4-6 % of
   one core, GPU video decode ~2 %, video processing ~2 %, 3D ~3-5 %; in Now Playing the window repaints at the video's
@@ -1372,7 +1373,7 @@ apps*).
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
 | `SHADETUBE_VIDEO_FILE` | `<path>`: video mode plays this local video (MP4 / WebM) as the picture of every song that has a YouTube video (no stream is fetched): e.g. a burned-in timecode to check the sync against the audio |
-| `SHADETUBE_VIDEO_DEMO` | `<action>@<ms>[=<arg>];…` run that long after startup: `on`, `off`, `window`, `close`, `fullscreen`, `ontop`, `nowplaying`, `seek=<s>`, `speed=<x>`, `pause`, `play`, `quality=<rows>`, `minimize` / `restore` (the main window), `devicelost` (the device recreated as after a loss), `idlerelease` (the idle graphics release), `log` (the sync line now), `shot=<png>` (the video window), `mainshot=<png>` (the main window), `quit` |
+| `SHADETUBE_VIDEO_DEMO` | `<action>@<ms>[=<arg>];…` run that long after startup: `on`, `off`, `window`, `close`, `fullscreen`, `ontop`, `nowplaying`, `seek=<s>`, `speed=<x>`, `pause`, `play`, `quality=<rows>`, `minimize` / `restore` (the main window), `devicelost` (the device recreated as after a loss), `idlerelease` (the idle graphics release), `nchit` (logs the video window's hit test at its center and its close button), `captiondblclick` (a caption double click), `log` (the sync line now), `shot=<png>` (the video window), `mainshot=<png>` (the main window), `quit` |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 
 ## 6. Release process
