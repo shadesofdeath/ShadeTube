@@ -64,9 +64,14 @@ kalır.
   klasör gez, etiketlerini ve kapaklarını düzenle (MP3, FLAC, M4A), tek şarkıda ya da topluca.
 - 🎙️ **Podcastler** — Apple Podcasts dizininde ara ya da herhangi bir RSS beslemesini ekle; abone ol, yeni bölümleri
   gör, kaldığın yerden devam et, bölüm notlarını oku ve bölümleri çevrimdışı dinlemek için indir.
+- 🎬 **Video modu** — şarkının klibini Şimdi Çalıyor'da ya da her zaman üstte duran kendi penceresinde izle; görüntü
+  ShadeTube'un kendi sesine uyar (ekolayzer, geçiş ve hız çalışmaya devam eder).
+- 👆 **Şarkı önizleme** — bir şarkıya, albüme, listeye ya da sanatçıya basılı tut, 20 saniyesini dinle; bırakınca
+  çalan şarkı kaldığı yerden devam eder.
 - 🎤 **Senkron şarkı sözleri** — LRCLIB'den, Spotify'a bağlıyken Spotify'dan ya da kendi `.lrc` dosyalarından; bir
   satıra tıkla, oraya atla, zamanlama kaymışsa düzelt ya da sözleri söylendikçe dolduran tam ekran karaoke
-  görünümünü aç. İndirilenlerin etiketine sözler yazılır, yanlarına `.lrc` kaydedilir.
+  görünümünü aç. İndirilenlerin etiketine sözler yazılır, yanlarına `.lrc` kaydedilir. Birkaç satırı
+  kapaklı bir görsel kart olarak paylaş.
 - 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri,
   yıl özeti, dinleme saatlerin (ısı haritası) ve Spotify'ın veri indirmesinden içe aktarılan geçmişin.
 - ✨ **Senin için listeler** — birlikte dinlediğin sanatçılardan günün karışımları (araya yeni şarkılar katılır), bu
@@ -74,8 +79,9 @@ kalır.
   bilgisayarında oluşan, her gün yenilenen listeler.
 - ⏭️ **SponsorBlock** — çalarken konuşma, sponsor ve tanıtım bölümlerini atlar.
 - 🪟 **Windows'a tam uyum** — medya tuşları ve kilit ekranı kontrolleri, görev çubuğu düğmeleri ve ilerlemesi,
-  her zaman üstte mini oynatıcı, sistem tepsisi, koyu / açık / sistem teması, Windows ile başlatma (istersen tepside).
-- 🎨 **Sana göre görünüm** — vurgu rengi kapağa uyar (başlık çubuğu, görev çubuğu ve tepsi ikonları da); genişliği
+  üç boyutlu mini oynatıcı (şerit, kare kapak, sözlü geniş), sistem tepsisi, koyu / açık / sistem teması, Windows ile başlatma (istersen tepside).
+- 🎨 **Sana göre görünüm** — tema stüdyosu (AMOLED, Kuzey, Sepya, Grafit, Pastel, Kar ya da kendi teman; renk
+  seçici, köşe stili ve yüklü her yazı tipi; temalar dışa / içe aktarılır); vurgu rengi kapağa uyar (başlık çubuğu, görev çubuğu ve tepsi ikonları da); genişliği
   ayarlanan ya da ikon şeridine daralan kenar çubuğu (Ctrl+B), %80–150 arayüz ölçeği (Ctrl + / −), sıkı şarkı
   listeleri, her yerde akıcı kaydırma ve isteğe bağlı Windows 11 Mica arka planı.
 - ⌨️ **Klavyeyle her şey** — her şeye ulaşan komut paleti (Ctrl+K), tam klavye desteği, değiştirilebilir kısayollar

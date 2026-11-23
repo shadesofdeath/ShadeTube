@@ -66,19 +66,24 @@ starts instantly and stays light.
   folder by folder and edit their tags and covers (MP3, FLAC, M4A), one song or many at once.
 - 🎙️ **Podcasts** — search Apple's podcast directory or add any RSS feed; subscribe, get new episodes, continue
   where you left off, read the show notes and download episodes for offline listening.
+- 🎬 **Video mode** — watch the song's music video in Now Playing or in its own always-on-top window, in sync with
+  ShadeTube's own audio (equalizer, crossfade and speed keep working).
+- 👆 **Song preview** — press and hold any song, album, playlist or artist to hear 20 seconds of it; what was playing
+  continues exactly where it was when you let go.
 - 🎤 **Synced lyrics** from LRCLIB, Spotify (when connected) or your own `.lrc` files — click a line to jump there,
   nudge the timing if it's off, or open the full-screen karaoke view that fills each line as it's sung. Downloads
-  get the lyrics in their tags and a `.lrc` next to them.
+  get the lyrics in their tags and a `.lrc` next to them. Share a few lines as an image card with the cover.
 - 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time,
-  a year in review, a heatmap of your listening hours, and your Spotify history imported from Spotify's data
+  a Wrapped-style year in review story with shareable cards, a heatmap of your listening hours, and your Spotify history imported from Spotify's data
   download.
 - ✨ **Made for you** — daily mixes of the artists you play together (with new songs mixed in), this month's
   favorites, new discoveries, forgotten likes, all-time and yearly bests: playlists built on your PC from your own
   listening, refreshed every day.
 - ⏭️ **SponsorBlock** — skips spoken intros, sponsor and self-promo segments while playing.
-- 🪟 **Made for Windows** — media keys and lock-screen controls, taskbar buttons and progress, always-on-top mini
-  player, system tray, dark / light / system theme, start with Windows (optionally in the tray).
-- 🎨 **Make it yours** — the accent color follows the album art (title bar, taskbar and tray icons too), a sidebar
+- 🪟 **Made for Windows** — media keys and lock-screen controls, taskbar buttons and progress, a mini player in
+  three sizes (strip, square cover, wide with lyrics), system tray, dark / light / system theme, start with Windows (optionally in the tray).
+- 🎨 **Make it yours** — a theme studio (AMOLED, Nordic, Sepia, Graphite, Pastel, Snow or your own, with a color
+  picker, corner style and any installed font; themes can be exported and imported); the accent color follows the album art (title bar, taskbar and tray icons too), a sidebar
   you can resize or fold into an icon rail (Ctrl+B), interface scale from 80 to 150 % (Ctrl + / −), compact song lists,
   smooth scrolling everywhere and an optional Windows 11 Mica background.
 - ⌨️ **Keyboard first** — a command palette (Ctrl+K) for everything, full keyboard navigation, shortcuts you can

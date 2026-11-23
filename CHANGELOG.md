@@ -2,6 +2,48 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.10.0 — 2026-11-23
+
+- **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays
+  readable in every theme), with a big cover, large clickable title and artists and the player controls right under
+  them. Lyrics, the queue and a new About tab (album and artist details, similar artists, episode notes, station
+  details) sit beside the cover on wide windows and stack on narrow ones. It uses about half the CPU and GPU it did.
+- **Video mode**: the new video button (or Ctrl+Shift+V) shows the song's music video in Now Playing, or in its own
+  resizable window with always-on-top and full screen. The video is silent and follows ShadeTube's own audio, so the
+  equalizer, crossfade, speed, SponsorBlock and listen together keep working. Songs that are only a still picture on
+  YouTube show their cover instead. Quality (480p / 720p / 1080p) is in Settings › Playback.
+- **Song preview**: press and hold any song, album, playlist or artist to hear about 20 seconds of it. What's playing
+  fades out, waits exactly where it was and continues when you let go. Also in the song menu ("Preview") and on the P
+  key; Settings › Playback switches it to menu-only or off.
+- **Theme studio**: new hand-tuned themes (AMOLED, Nordic, Sepia, Graphite, Pastel, Snow) in a live preview gallery,
+  with a separate theme for dark and light mode. Mix your own accent with a real color picker or use the theme's own
+  color, choose sharp, default or round corners and any installed font. Duplicate a theme to make your own, and share
+  it by exporting or importing theme files.
+- **A new Home**: a time-of-day greeting, a "continue where you left off" card in the cover's colors, a quick-access
+  grid of your lists, and shelves that scroll sideways with arrows and edge fades.
+- **The sidebar keeps room for your playlists**: less used pages fold under "More" (remembered; also in the command
+  palette), and on short windows the menu gets tighter or scrolls instead of squeezing the playlists.
+- **Page transitions**: pages change with a short slide and fade, mirrored when you go back. Open an album, playlist,
+  smart list or podcast from its cover and the cover flies into the new page's header, and back to its card on return.
+- **Collapsing headers**: on album, playlist, Liked Songs, smart list, podcast and artist pages the cover and title
+  shrink into a compact sticky bar with play and shuffle as you scroll, over a soft tint of the cover's color. Artist
+  banners scroll with a parallax effect.
+- **Menus, dialogs, toasts and tooltips** have one new look: a thin outline, a soft shadow and a frosted-glass
+  background that blurs what is behind them (opaque when Windows' transparency effects are off). They open and close
+  with short animations, and menus gain real submenus, a gliding highlight, shortcut hints and type-to-jump.
+- **Small animations everywhere**: cards lift on hover with a play button that slides in, the heart pops when you like
+  a song, and the playing song's row shows live equalizer bars that freeze when you pause.
+- **Mini player in three sizes**: a slim strip, a resizable square cover whose controls fade in on hover, and a wide
+  view with the current lyrics line. Switch with the mode button, the right-click menu or Ctrl+1 / 2 / 3; it snaps to
+  screen edges, remembers where each mode was, and "always on top" can be turned off (Ctrl+T).
+- **Lyrics share card**: pick 1–6 lines in Now Playing or the full-screen lyrics and get a card with the cover, title
+  and artist (gradient, blurred cover, dark or light; square, story or wide), to copy or save as a PNG.
+- **Year in review**: a story of your listening for any year or the last 12 months, computed on your PC: minutes, top
+  songs, artists and albums, when you listened, your longest streak and discoveries. Start it from Stats or the
+  command palette; save or copy any card as an image, play or save your top songs.
+- Every animation follows "Reduce motion" and Windows' animation effects setting; page transitions have their own
+  switch in Settings › Appearance.
+
 ## 0.9.1 — 2026-11-12
 
 - **Fixed: the window could open with its title bar above the screen.** On the first start the window was 1440 × 900
