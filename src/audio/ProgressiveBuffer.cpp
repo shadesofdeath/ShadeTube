@@ -229,6 +229,10 @@ ProgressiveBuffer::ReadStatus ProgressiveBuffer::read(int64_t offset, void* dst,
         if (cancelled_.load()) return ReadStatus::Cancelled;
         const int64_t end = offset + static_cast<int64_t>(size);
         if (data_ && end <= allocated_ && availableLocked(offset, end)) {
+            if (readAhead_.load(std::memory_order_relaxed) > 0) {   // the window follows the reader
+                readPos_ = end;
+                if (windowWait_) SetEvent(attention_);
+            }
             if (!mapped_) {
                 std::memcpy(dst, data_ + offset, size);
                 return ReadStatus::Ok;
@@ -247,6 +251,7 @@ ProgressiveBuffer::ReadStatus ProgressiveBuffer::read(int64_t offset, void* dst,
             const int64_t missing = firstMissingLocked(offset);
             if (missing >= 0 && missing < end) {
                 priority_ = missing;
+                if (readAhead_.load(std::memory_order_relaxed) > 0) readPos_ = missing;   // wanted now: inside the window
                 // Restart the download here unless the active request will reach it shortly.
                 if (reqPos_ < 0 || missing < reqPos_ || missing - reqPos_ > kRestartDistance) {
                     if (reqPos_ >= 0) restart_ = true;
@@ -561,7 +566,7 @@ void ProgressiveBuffer::runHttp() {
     int attempt = 0;
     while (!cancelled_.load()) {
         int64_t start = 0, end = -1;
-        bool waitForSide = false;
+        bool waitForSide = false, waitForReader = false;
         {
             std::lock_guard lock(mutex_);
             if (allocated_ > 0) {
@@ -572,13 +577,20 @@ void ProgressiveBuffer::runHttp() {
                     waitForSide = true;             // only the in-flight tail is left
                 } else {
                     end = std::min(start + kChunk, nextRangeStartLocked(start));
+                    // Read-ahead window: nothing past it until the reader moves on (a read that waits is inside it).
+                    if (const int64_t ahead = readAhead_.load(std::memory_order_relaxed); ahead > 0) {
+                        const int64_t windowEnd = readPos_ + ahead;
+                        if (start >= windowEnd) waitForReader = true;
+                        else end = std::min(end, std::max(windowEnd, start + kPiece * 4));
+                    }
                 }
             }
             restart_ = false;
-            reqPos_ = waitForSide ? -1 : start;
+            windowWait_ = waitForReader;
+            reqPos_ = waitForSide || waitForReader ? -1 : start;
         }
-        if (waitForSide) {
-            WaitForSingleObject(attention_, 200);
+        if (waitForSide || waitForReader) {
+            WaitForSingleObject(attention_, waitForReader ? 1000 : 200);
             continue;
         }
         int64_t got = 0;

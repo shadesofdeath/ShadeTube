@@ -52,6 +52,11 @@ public:
     ProgressiveBuffer(const ProgressiveBuffer&) = delete;
     ProgressiveBuffer& operator=(const ProgressiveBuffer&) = delete;
 
+    // Read-ahead window (video mode's picture stream; 0 = off, the default: the whole stream as fast as it comes).
+    // With a window, the download stays at most `bytes` ahead of the last read (or of a read that waits), so a paused
+    // or slow reader holds the network back; a read elsewhere (a seek) moves the window there. Set before start().
+    void setReadAhead(int64_t bytes) { readAhead_.store(bytes, std::memory_order_release); }
+
     void start();    // spawns the download thread
     void cancel();   // permanent, non-blocking, any thread: aborts the network and fails all reads
     void release();  // joins the download thread and frees the memory (blocks only briefly after cancel)
@@ -120,6 +125,9 @@ private:
     int64_t reservedBegin_ = -1;           // [begin, end) being fetched by the parallel tail request;
     int64_t reservedEnd_ = -1;             //   the scheduler treats it as present, readers don't
     uint64_t interruptGen_ = 0;
+    int64_t readPos_ = 0;                  // end of the last read, or where a waiting read starts (read-ahead window)
+    bool windowWait_ = false;              // the download thread waits for the reader to move the window
+    std::atomic<int64_t> readAhead_{0};
     std::string error_;
 
     std::atomic<int64_t> length_{-1};

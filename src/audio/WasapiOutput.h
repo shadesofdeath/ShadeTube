@@ -43,6 +43,8 @@ public:
     uint32_t sampleRate() const { return sampleRate_; }
     uint32_t channels() const { return channels_; }
     uint32_t bufferFrames() const { return bufferFrames_; }
+    // IAudioClient::GetStreamLatency in frames: how much later than it leaves our buffer a frame is heard.
+    uint32_t latencyFrames() const { return latencyFrames_; }
     void* event() const { return event_; }  // signalled by WASAPI when it wants more data
 
     HRESULT start();
@@ -71,7 +73,7 @@ private:
     Microsoft::WRL::ComPtr<DeviceNotifier> notifier_;
     Microsoft::WRL::ComPtr<IAudioClient> client_;
     Microsoft::WRL::ComPtr<IAudioRenderClient> render_;
-    uint32_t sampleRate_ = 0, channels_ = 0, bufferFrames_ = 0;
+    uint32_t sampleRate_ = 0, channels_ = 0, bufferFrames_ = 0, latencyFrames_ = 0;
     bool running_ = false;
     std::wstring preferred_;
 };
