@@ -6,6 +6,7 @@
 #include "gfx/Theme.h"
 #include "ui/Anim.h"
 #include "ui/Layout.h"
+#include "ui/Micro.h"
 
 #include <dwmapi.h>
 #include <windowsx.h>
@@ -1174,6 +1175,7 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
     case WM_SETTINGCHANGE:
         // Transparency effects ("ImmersiveColorSet") or high contrast (SPI_SETHIGHCONTRAST) changed: Mica follows.
         if (backdropWanted_) updateBackdrop();
+        motion::refreshSystemAnimations();   // Windows' animation effects (SPI_SETCLIENTAREAANIMATION): ui/Micro
         break;
     case WM_ACTIVATE:
         active_ = LOWORD(wp) != WA_INACTIVE;
