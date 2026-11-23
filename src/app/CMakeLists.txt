@@ -55,6 +55,7 @@ add_executable(ShadeTube WIN32
     DroppedFiles.cpp DroppedFiles.h
     HistoryImport.cpp HistoryImport.h
     HomePage.cpp
+    HomeWidgets.cpp HomeWidgets.h
     LibrarySort.cpp LibrarySort.h
     LibraryView.cpp LibraryView.h
     Installer.cpp Installer.h

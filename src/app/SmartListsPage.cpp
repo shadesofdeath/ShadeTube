@@ -720,7 +720,8 @@ private:
 // "Senin için listeler": header + cards, rebuilt when the lists change; hidden while there is none.
 class SmartSection : public ui::Column {
 public:
-    explicit SmartSection(int maxRows) : ui::Column(0), maxRows_(maxRows) {
+    explicit SmartSection(int maxRows, std::function<ui::Widget*(ui::Column*)> makeRow = {})
+        : ui::Column(0), maxRows_(maxRows), makeRow_(std::move(makeRow)) {
         hitTestVisible = false;
         subscribe(life_.ref(), [this] { rebuild(); });
         rebuild();
@@ -737,15 +738,22 @@ private:
             return;
         }
         add<SectionHeader>(tr(L"Senin için listeler"), toUpperTr(tr(L"Her gün yenilenir")));
-        auto* grid = add<ui::Grid>(maxRows_ == 1 ? 150.f : 170.f, gfx::metrics::cardGap,
-                                   [](float w) { return w + 10 + 18 + 4 + 16; }, maxRows_);
-        setSpacingBefore(grid, 16);
-        for (const auto& l : all) grid->add<SmartCard>(l);
+        ui::Widget* row = nullptr;
+        if (makeRow_) {
+            row = makeRow_(this);
+        } else {
+            auto* grid = add<ui::Grid>(maxRows_ == 1 ? 150.f : 170.f, gfx::metrics::cardGap,
+                                       [](float w) { return w + 10 + 18 + 4 + 16; }, maxRows_);
+            setSpacingBefore(grid, 16);
+            row = grid;
+        }
+        for (const auto& l : all) row->add<SmartCard>(l);
         requestLayout();
         invalidate();
     }
 
     int maxRows_;
+    std::function<ui::Widget*(ui::Column*)> makeRow_;
     Lifetime life_;
 };
 
@@ -966,6 +974,9 @@ private:
 } // namespace
 
 void addSection(ui::Column* c, int maxRows) { c->add<SmartSection>(maxRows); }
+void addSection(ui::Column* c, std::function<ui::Widget*(ui::Column*)> makeRow) {
+    c->add<SmartSection>(1, std::move(makeRow));
+}
 
 } // namespace smart
 
