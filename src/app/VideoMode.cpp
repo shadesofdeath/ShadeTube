@@ -15,6 +15,7 @@
 #include "core/Log.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
+#include "gfx/Device.h"
 #include "gfx/Theme.h"
 #include "ui/Window.h"
 #include "video/VideoPlayer.h"
@@ -96,9 +97,12 @@ void invalidateViews() {
     for (auto* v : S().views) v->invalidate();
 }
 
+void logStats();
+
 void dropPlayer(const char* why) {
     auto& s = S();
     if (!s.player) return;
+    logStats();         // what it showed since the last line
     s.player.reset();   // joins the decoder: its thread, GPU surfaces and download go now
     ST_LOG_INFO("video", "picture released ({})", why);
 }
@@ -176,7 +180,10 @@ void openPlayer() {
     const int64_t startUs = static_cast<int64_t>(std::max(0.0, clock.at(audio::AudioEngine::qpcNowMs())) * 1000);
     try {
         s.player = std::make_unique<video::VideoPlayer>(std::move(src), startUs, s.software);
-        s.lastShown = 0;
+        s.lastShown = 0;   // the statistics start over with the new player
+        s.errSumUs = s.errMaxUs = 0;
+        s.errCount = s.offCount = 0;
+        s.statsAt = ui::frame::realNow();
         ST_LOG_INFO("video", "picture of {} from {:.1f} s ({})", s.devFile.empty() ? s.videoId : toUtf8(s.devFile), startUs / 1e6,
                     s.software ? "software" : "GPU");
     } catch (const std::exception& e) {
@@ -466,8 +473,9 @@ void buildVideoRows(ui::Column* c, const std::function<void()>&) {
 namespace {
 
 // Dev (SHADETUBE_VIDEO_DEMO): "<action>@<ms>[=<arg>];..." run that long after startup: on, off, window, close,
-// fullscreen, ontop, nowplaying, seek=<s>, speed=<x>, pause, play, quality=<rows>, minimize, restore, log,
-// shot=<png> (the video window), mainshot=<png> (the main window), quit.
+// fullscreen, ontop, nowplaying, seek=<s>, speed=<x>, pause, play, quality=<rows>, minimize, restore, log, devicelost
+// (the device recreated as after a loss), idlerelease (the idle graphics release), shot=<png> (the video window),
+// mainshot=<png> (the main window), quit.
 void startDemo() {
     wchar_t spec[2048] = {};
     if (!GetEnvironmentVariableW(L"SHADETUBE_VIDEO_DEMO", spec, 2048)) return;
@@ -512,6 +520,8 @@ void startDemo() {
             } else if (a == L"minimize" && ctx().window) ShowWindow(ctx().window->hwnd(), SW_MINIMIZE);
             else if (a == L"restore" && ctx().window) ShowWindow(ctx().window->hwnd(), SW_RESTORE);
             else if (a == L"log") videomode::logStats();
+            else if (a == L"devicelost") gfx::Device::get().recreate();   // as after D2DERR_RECREATE_TARGET
+            else if (a == L"idlerelease") gfx::Device::get().release();   // as App::manageMemory after 30 s off screen
             else if (a == L"shot" && s.window) s.window->window()->renderToPng(st.arg);
             else if (a == L"mainshot" && ctx().window) ctx().window->renderToPng(st.arg);
             else if (a == L"quit" && ctx().quitApp) ctx().quitApp();
