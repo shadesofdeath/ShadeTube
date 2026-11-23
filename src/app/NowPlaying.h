@@ -131,7 +131,8 @@ private:
     Tab beforeQueue_ = Tab::Lyrics;      // toggleQueueTab() goes back here
     Tab shownTab_ = Tab::Lyrics;
     ui::Anim tabIn_{1.f};                // the content fading in after a tab switch
-    ui::Anim contentIn_{1.f};            // lyrics / details fading in once they are there
+    ui::Anim lyricsIn_{1.f};             // a new track's lyrics fading in once they are there
+    ui::Anim aboutIn_{1.f};              // Hakkında brightening once the catalog details arrive
     bool open_ = false;                  // activate() ran, deactivate() not yet
 
     // Track text (and the outgoing track's during a change).

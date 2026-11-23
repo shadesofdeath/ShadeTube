@@ -449,7 +449,7 @@ void NowPlayingView::onTrackChanged() {
     syncTrackText();
     if (t->id != trackId_ && visible()) {
         trackId_ = t->id;
-        contentIn_.snap(0);   // the new lyrics / details fade in once they are there
+        lyricsIn_.snap(0);   // the new lyrics fade in once they are there
         fetchLyrics();
         about_ = {};
         aboutScroll_.snap(0);
@@ -761,11 +761,13 @@ void NowPlayingView::fetchLyrics() {
     if (t && (radio::isStationId(t->id) || catalog::isPodcastId(t->id))) {
         // Live radio: the heard titles take the lyrics' place (paintLive); an episode: its notes are in Hakkında.
         state_ = LyricsState::None;
+        lyricsIn_.to(1, ui::motion::lyrics, ui::Ease::Decelerate);
         syncLyricsControls();
         return;
     }
     if (!t || !Settings::get().lyricsEnabled) {
         state_ = LyricsState::Missing;
+        lyricsIn_.to(1, ui::motion::lyrics, ui::Ease::Decelerate);
         syncLyricsControls();
         return;
     }
@@ -778,8 +780,8 @@ void NowPlayingView::fetchLyrics() {
     async(Priority::High, life_.ref(), [q] { return lyrics::fetch(q); },
           [this](Result<std::optional<lyrics::Lyrics>> r) {
               // Fade in from where the content stands now (a placeholder that already showed fades over).
-              contentIn_.snap(0);
-              contentIn_.to(1, ui::motion::lyrics, ui::Ease::Decelerate);
+              lyricsIn_.snap(0);
+              lyricsIn_.to(1, ui::motion::lyrics, ui::Ease::Decelerate);
               if (!r || !*r) {
                   state_ = LyricsState::Missing;
                   syncLyricsControls();
@@ -863,7 +865,7 @@ float NowPlayingView::lineHeight(int i, float width) {
 void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
     const auto& col = colors();
     const Color label = backdrop_.labelColor();
-    const float fade = contentIn_.value() * tabIn_.value();
+    const float fade = lyricsIn_.value() * tabIn_.value();
     // Lyric sizes follow the layout (the compact header leaves less room).
     if (const gfx::TextStyle inactive = wide_ ? type::lyricInactive : type::lyricInactive.withSize(22);
         !lines_.empty() && !(lines_[0].style() == inactive)) {
@@ -1103,8 +1105,8 @@ void NowPlayingView::fetchAbout() {
                 about_.similar = std::move(r->similar);
                 about_.state = About::State::Ready;
             }
-            contentIn_.snap(0.35f);
-            contentIn_.to(1, ui::motion::slow, ui::Ease::Decelerate);
+            aboutIn_.snap(0.75f);   // the details join what the track itself said: a gentle refresh
+            aboutIn_.to(1, ui::motion::slow, ui::Ease::Decelerate);
             invalidate();
         });
 }
@@ -1119,8 +1121,8 @@ float NowPlayingView::paintLink(Canvas& c, const std::wstring& text, float x, fl
     const Rect r{x, y, w + 18, 20};
     const bool hot = static_cast<int>(links_.size()) == hoverLink_;
     const Color fg = hot ? accent().base : colors().fgPrimary;
-    c.text(it->second, {x, y, w + 1, 20}, fg.mulAlpha(contentIn_.value() * tabIn_.value()), gfx::VAlign::Center);
-    c.icon("arrow-up-right", {x + w + 4, y + 3, 14, 14}, fg.mulAlpha(contentIn_.value() * tabIn_.value()));
+    c.text(it->second, {x, y, w + 1, 20}, fg.mulAlpha(aboutIn_.value() * tabIn_.value()), gfx::VAlign::Center);
+    c.icon("arrow-up-right", {x + w + 4, y + 3, 14, 14}, fg.mulAlpha(aboutIn_.value() * tabIn_.value()));
     links_.push_back({r, std::move(go)});
     return w + 18;
 }
@@ -1128,7 +1130,7 @@ float NowPlayingView::paintLink(Canvas& c, const std::wstring& text, float x, fl
 float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
     const auto& col = colors();
     const Color label = backdrop_.labelColor();
-    const float fade = contentIn_.value() * tabIn_.value();
+    const float fade = aboutIn_.value() * tabIn_.value();
     const auto* t = ctx().player->current();
     const float y0 = y;
     const bool loading = about_.state == About::State::Loading;
