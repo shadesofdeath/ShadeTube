@@ -23,10 +23,10 @@ struct PageLayer {
     bool identity() const { return alpha >= 0.999f && dx == 0 && dy == 0; }
 };
 
-// Timeline of one page change. Push / Back: the outgoing page fades out over the first 45 % while it shifts 12 DIP the
-// other way (accelerating), the incoming page slides 24 DIP in (decelerating over the whole 220 ms) and fades in after the
-// first 20 %. With a shared cover the pages only cross-fade (the cover is what moves) over the flight's 240 ms. Replace:
-// a 180 ms fade in place.
+// Timeline of one page change. Push / Back: the outgoing page fades out over the first 40 % while it shifts 12 DIP the
+// other way (accelerating), the incoming page slides 24 DIP in (decelerating over the whole 220 ms) and fades in from
+// 30 % on (the two barely overlap). With a shared cover the pages only cross-fade (the cover is what moves) over the
+// flight's 240 ms. Replace: a 180 ms fade in place.
 class PageMotion {
 public:
     static constexpr double kSlideMs = 220, kSharedMs = 240, kReplaceMs = 180;
@@ -40,13 +40,13 @@ public:
     PageNav nav() const { return nav_; }
     bool shared() const { return shared_; }
 
-    PageLayer outgoing(double now) const;   // alpha 0 once it is gone (from 45 % on)
+    PageLayer outgoing(double now) const;   // alpha 0 once it is gone (from 40 % on)
     PageLayer incoming(double now) const;   // identity once done
-    bool outgoingDone(double now) const { return !running_ || progress(now) >= outEnd(); }
+    bool outgoingDone(double now) const { return !running_ || progress(now) >= kOutEnd; }
 
 private:
+    static constexpr float kOutEnd = 0.4f;
     float progress(double now) const;       // 0..1 linear
-    float outEnd() const { return shared_ || nav_ == PageNav::Replace ? 0.4f : 0.45f; }
 
     PageNav nav_ = PageNav::Replace;
     bool shared_ = false, running_ = false;

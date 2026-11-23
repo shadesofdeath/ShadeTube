@@ -34,7 +34,7 @@ float PageMotion::progress(double now) const {
 
 PageLayer PageMotion::outgoing(double now) const {
     if (!running_) return {0, 0, 0};
-    const float u = clamp01(progress(now) / outEnd());
+    const float u = clamp01(progress(now) / kOutEnd);
     PageLayer l;
     l.alpha = 1 - u;
     if (!shared_ && nav_ != PageNav::Replace) {
@@ -48,7 +48,7 @@ PageLayer PageMotion::incoming(double now) const {
     const float t = progress(now);
     if (!running_ || t >= 1.f) return {};
     PageLayer l;
-    const float delay = shared_ ? 0.15f : nav_ == PageNav::Replace ? 0.1f : 0.2f;
+    const float delay = shared_ ? 0.15f : nav_ == PageNav::Replace ? 0.1f : 0.3f;
     l.alpha = ease(Ease::Standard, clamp01((t - delay) / (1 - delay)));
     if (!shared_ && nav_ != PageNav::Replace) {
         const float dir = nav_ == PageNav::Back ? -1.f : 1.f;   // Push: in from the right; Back: from the left

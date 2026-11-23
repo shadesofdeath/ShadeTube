@@ -1,7 +1,7 @@
 // Developer test for page transitions (ui/PageMotion), stepped with explicit times (deterministic), offline:
 //   durations  the three timelines last 180..240 ms; a slow-motion scale stretches them; done = not running
-//   push       outgoing fades out (monotonic, gone at 45 %) shifting left; incoming slides in from the right
-//              (monotonic, decelerating) and fades in after 20 %; both end exactly (identity / gone)
+//   push       outgoing fades out (monotonic, gone at 40 %) shifting left; incoming slides in from the right
+//              (monotonic, decelerating) and fades in after 30 %; both end exactly (identity / gone)
 //   back       the mirror image of push: same magnitudes, opposite directions
 //   shared     with a flying cover the pages only cross-fade (no offsets); replace fades in place
 //   fly        the cover lands exactly on the target (rect + radius), approaches it monotonically, never overshoots,
@@ -84,9 +84,9 @@ void push() {
     }
     CHECK(outMono && outLeft);
     CHECK(inMono && inFromRight && inAlphaMono);
-    CHECK(approx(m.outgoing(d * 0.45).alpha, 0) && m.outgoingDone(d * 0.46));
-    CHECK(approx(m.outgoing(d * 0.45).dx, -PageMotion::kOutShift));
-    CHECK(approx(m.incoming(d * 0.2).alpha, 0));   // fades in after the outgoing page has mostly gone
+    CHECK(approx(m.outgoing(d * 0.4).alpha, 0) && m.outgoingDone(d * 0.41) && !m.outgoingDone(d * 0.3));
+    CHECK(approx(m.outgoing(d * 0.4).dx, -PageMotion::kOutShift));
+    CHECK(approx(m.incoming(d * 0.3).alpha, 0));   // fades in once the outgoing page has mostly gone
     CHECK(m.incoming(d * 0.5).dx < PageMotion::kInShift * 0.25f);   // decelerating: most of the way at half time
     CHECK(m.incoming(d).identity());
 }
