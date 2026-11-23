@@ -2,6 +2,7 @@
 
 #include "core/Log.h"
 #include "core/Resources.h"
+#include "gfx/ThemeSpec.h"
 
 #include <nlohmann/json.hpp>
 
@@ -14,106 +15,79 @@ Theme& Theme::get() {
     return instance;
 }
 
-static Color col(const json& j, const char* path, Color fallback) {
-    const json* node = &j;
-    std::string p(path);
-    size_t start = 0;
-    while (start <= p.size()) {
-        const size_t dot = p.find('.', start);
-        const std::string key = p.substr(start, dot == std::string::npos ? std::string::npos : dot - start);
-        if (!node->is_object() || !node->contains(key)) return fallback;
-        node = &(*node)[key];
-        if (dot == std::string::npos) break;
-        start = dot + 1;
-    }
-    return node->is_string() ? parseColor(node->get<std::string>().c_str(), fallback) : fallback;
-}
-
-// effects.<name> = {color, opacity} -> color with that alpha.
-static Color effectColor(const json& fx, const char* name, Color fallback) {
-    const auto it = fx.find(name);
-    if (it == fx.end() || !it->is_object()) return fallback;
-    const Color base = parseColor(it->value("color", std::string{}).c_str(), fallback.withAlpha(1.f));
-    return base.withAlpha(it->value("opacity", fallback.a));
-}
-
 void Theme::load(bool light) {
-    const bool switching = generation_ > 0 && light != light_;
-    light_ = light;
-    ++generation_;
     const auto text = res::load(light ? L"tokens/tokens.light.json" : L"tokens/tokens.dark.json");
-    json j = json::parse(text.begin(), text.end(), nullptr, false);
-    if (j.is_discarded()) {
-        ST_LOG_ERROR("theme", "tokens json missing or invalid");
-        j = json::object();
-    }
-    const json c = j.value("color", json::object());
-    auto& p = palette_;
-    p.bgBase = col(c, "bg.base", Color::rgb(0x0F0D0B));
-    p.bgRaised = col(c, "bg.raised", Color::rgb(0x161311));
-    p.bgOverlay = col(c, "bg.overlay", Color::rgb(0x211D19));
-    p.bgSunken = col(c, "bg.sunken", Color::rgb(0x0A0908));
-    p.bgElevated = col(c, "bg.elevated", Color::rgb(0x2A251F));
-    // Mica shows through 45-50 %: the desktop's hue comes through while the warm paper tone stays, and fg.primary
-    // keeps its contrast on Mica's dark (#202020 luminosity) / light (#F3F3F3) base. Window inactive or energy saver:
-    // Mica is its solid fallback color and the surface just reads a shade lighter / cooler.
-    p.bgBackdrop = p.bgBase.withAlpha(light ? 0.5f : 0.55f);
-    p.fgPrimary = col(c, "fg.primary", Color::rgb(0xF3EDE4));
-    p.fgSecondary = col(c, "fg.secondary", Color::rgb(0xA69E93));
-    p.fgTertiary = col(c, "fg.tertiary", Color::rgb(0x6B645B));
-    p.fgDisabled = col(c, "fg.disabled", Color::rgb(0x4A453F));
-    p.fgInverse = col(c, "fg.inverse", Color::rgb(0x0F0D0B));
-    p.hairSubtle = col(c, "hairline.subtle", p.fgPrimary.withAlpha(0.06f));
-    p.hairDefault = col(c, "hairline.default", p.fgPrimary.withAlpha(0.10f));
-    p.hairStrong = col(c, "hairline.strong", p.fgPrimary.withAlpha(0.16f));
-    p.hairControl = col(c, "hairline.control", p.fgPrimary.withAlpha(0.20f));
-    p.overlayHover = col(c, "overlay.hover", p.fgPrimary.withAlpha(0.05f));
-    p.overlayPressed = col(c, "overlay.pressed", p.fgPrimary.withAlpha(0.09f));
-    p.overlaySelected = col(c, "overlay.selected", p.fgPrimary.withAlpha(0.06f));
-    p.scrim = col(c, "overlay.scrim", p.bgBase.withAlpha(0.55f));
-    p.scrimHeavy = col(c, "overlay.scrimHeavy", p.bgBase.withAlpha(0.80f));
-    p.error = col(c, "status.error", Color::rgb(0xFF5C5C));
-    p.warning = col(c, "status.warning", Color::rgb(0xFFB547));
-    p.success = col(c, "status.success", Color::rgb(0x7CE0A6));
-    p.info = col(c, "status.info", Color::rgb(0x7CE0FF));
-    p.youtube = col(c, "status.youtube", Color::rgb(0xFF3D3D));
-    p.skeletonBase = col(c, "skeleton.base", p.fgPrimary.withAlpha(0.06f));
-    p.skeletonShine = col(c, "skeleton.shine", p.fgPrimary.withAlpha(0.12f));
-    p.captionHover = col(c, "chrome.captionHover", p.fgPrimary.withAlpha(0.08f));
-    p.closeHover = col(c, "chrome.closeHover", Color::rgb(0xC42B1C));
-    p.closeHoverFg = col(c, "chrome.closeHoverFg", Color::rgb(0xFFFFFF));
-    const json fx = j.value("effects", json::object());
-    p.shadowCard = effectColor(fx, "cardHoverShadow", Color{0, 0, 0, 0.45f});
-    p.shadowMenu = effectColor(fx, "menuShadow", Color{0, 0, 0, 0.55f});
-    p.shadowDialog = effectColor(fx, "dialogShadow", Color{0, 0, 0, 0.60f});
-    p.shadowToast = effectColor(fx, "toastShadow", Color{0, 0, 0, 0.50f});
-    p.shadowArt = effectColor(fx, "nowPlayingArtShadow", Color{0, 0, 0, 0.50f});
+    if (text.empty()) ST_LOG_ERROR("theme", "tokens json missing");
+    apply(parseTokens(text, light));
+}
 
-    defaultAccent_ = col(c, "accent.base", Color::rgb(0xDDFF47));
-    // Live switch: the same requested accent (album art / fixed color), re-derived for the new mode. No fade: the
-    // whole palette changes in this frame anyway.
-    const Color base = adaptAccent(hasRequested_ ? requested_ : defaultAccent_, light);
-    target_ = current_ = from_ = Accent::derive(base, light);
+void Theme::apply(const ThemeSpec& spec) {
+    const bool switching = generation_ > 0 && (spec.id != id_ || spec.light != light_);
+    light_ = spec.light;
+    id_ = spec.id;
+    palette_ = spec.palette;
+    defaultAccent_ = spec.accent;
+    ++generation_;
+    if (generation_ == 1) setCornerStyle(corners_);   // the tokens' radii (Default) once they can be read
+    rederive();
+    if (switching) ST_LOG_INFO("theme", "palette switched to {} ({})", id_.empty() ? "?" : id_, light_ ? "light" : "dark");
+}
+
+// Live switch: the same requested accent (album art / fixed color), re-derived for the new palette. No fade: the whole
+// palette changes in this frame anyway.
+void Theme::rederive() {
+    const Color base = adaptAccent(hasRequested_ ? requested_ : defaultAccent_, palette_.bgBase, light_);
+    target_ = current_ = from_ = Accent::derive(base, light_);
     fading_ = false;
-    if (switching) ST_LOG_INFO("theme", "palette switched to {}", light ? "light" : "dark");
+}
+
+Radii Theme::radiiFor(CornerStyle style) {
+    Radii r;   // the defaults equal the tokens' radius.* (read below)
+    if (style == CornerStyle::Sharp) return {0, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (style == CornerStyle::Round) {
+        r.surface = 8, r.art = 6, r.badge = 4, r.tooltip = 6, r.menu = 8, r.dialog = 12, r.toast = 8, r.field = 6;
+        r.scrollbarThumb = 3;
+        return r;
+    }
+    const auto text = res::load(L"tokens/tokens.dark.json");
+    const json j = json::parse(text.begin(), text.end(), nullptr, false);
+    const json radius = j.is_object() ? j.value("radius", json::object()) : json::object();
+    auto read = [&radius](const char* name, float& out) {
+        if (const auto it = radius.find(name); it != radius.end() && it->is_number())
+            out = std::clamp(it->get<float>(), 0.f, 64.f);
+    };
+    read("surface", r.surface);
+    read("art", r.art);
+    read("badge", r.badge);
+    read("tooltip", r.tooltip);
+    read("menu", r.menu);
+    read("dialog", r.dialog);
+    read("toast", r.toast);
+    read("field", r.field);
+    read("scrollbarThumb", r.scrollbarThumb);
+    return r;
+}
+
+void Theme::setCornerStyle(CornerStyle style) {
+    const bool changed = style != corners_;
+    corners_ = style;
+    detail::g_radii = radiiFor(style);
+    if (changed) {
+        ++generation_;
+        ST_LOG_INFO("theme", "corners {}", style == CornerStyle::Sharp ? "sharp" : style == CornerStyle::Round ? "round" : "default");
+    }
 }
 
 Color Theme::adaptAccent(Color base, bool light) {
-    if (!light) return base;
     const Theme& t = get();
-    const Color bg = t.isLight() ? t.c().bgBase : Color::rgb(0xF4EFE6);   // tokens.light bg.base
-    const float bgLum = bg.luminance();
-    auto contrast = [&](const Color& c) { return (bgLum + 0.05f) / (c.luminance() + 0.05f); };
-    if (contrast(base) >= 3.f) return base;
-    // Keep hue and saturation, lower HSL lightness until the contrast holds (the formula of
-    // accent-examples.json: light accents land around L 30-45 %).
-    const Hsl h = toHsl(base);
-    for (float l = h.l - 0.01f; l > 0.f; l -= 0.01f) {
-        const Color c = fromHsl({h.h, h.s, l}, base.a);
-        if (contrast(c) >= 3.f) return c;
-    }
-    return fromHsl({h.h, h.s, 0.f}, base.a);
+    // The palette on screen when it is of this kind, else the default theme's background (tokens bg.base).
+    const Color bg = t.generation_ > 0 && t.isLight() == light ? t.c().bgBase
+                     : light                                   ? Color::rgb(0xF4EFE6)
+                                                               : Color::rgb(0x0F0D0B);
+    return adaptAccentTo(base, bg, light);
 }
+
+Color Theme::adaptAccent(Color base, Color bg, bool light) { return adaptAccentTo(base, bg, light); }
 
 void Theme::retarget(const Accent& next, bool animate) {
     if (next.base == target_.base) return;   // same accent (derive is deterministic per mode)
@@ -137,7 +111,8 @@ Accent Accent::derive(Color base, bool lightTheme) {
     a.pressed = fromHsl({h.h, h.s, h.l - 0.08f});
     a.muted = fromHsl({h.h, h.s - 0.25f, h.l - 0.30f});
     a.subtle = fromHsl({h.h, h.s - 0.30f, h.l - 0.38f});
-    a.onAccent = base.luminance() > 0.35f ? Color::rgb(0x0F0D0B) : Color::rgb(0xF3EDE4);
+    // Ink or paper, whichever reads better on the accent (a mid-bright coral or a darkened light-theme accent gets ink).
+    a.onAccent = onAccentFor(base);
     a.glow = base.withAlpha(0.18f);
     a.tint06 = base.withAlpha(0.06f);
     a.tint12 = base.withAlpha(0.12f);
@@ -166,13 +141,13 @@ void Theme::setAccent(Color base, bool animate) {
     if (hasRequested_ && base == requested_) return;
     requested_ = base;
     hasRequested_ = true;
-    retarget(Accent::derive(adaptAccent(base, light_), light_), animate);
+    retarget(Accent::derive(adaptAccent(base, palette_.bgBase, light_), light_), animate);
 }
 
 void Theme::resetAccent(bool animate) {
     if (!hasRequested_) return;
     hasRequested_ = false;
-    retarget(Accent::derive(adaptAccent(defaultAccent_, light_), light_), animate);
+    retarget(Accent::derive(adaptAccent(defaultAccent_, palette_.bgBase, light_), light_), animate);
 }
 
 bool Theme::tick(double nowMs) {
