@@ -1086,10 +1086,12 @@ void PlayerBar::sync() {
     title_.setText(t ? toWide(t->name) : L"");
     // A station: the song it announces (ICY), else its country and genres.
     artist_.setText(!t ? std::wstring() : live_ && !p->liveTitle().empty() ? p->liveTitle() : toWide(t->artistLine()));
-    play_->setPlaying(p && p->isPlaying());
+    // A song preview holding the current item (app/Preview) shows it as paused until it comes back.
+    previewHeld_ = p && p->previewHoldsCurrent();
+    play_->setPlaying(p && p->isPlaying() && !previewHeld_);
     play_->setLoading(p && p->status() == player::Status::Resolving);
     // The wave flows only while sound plays: paused, stopped, resolving or buffering = a straight line.
-    seek_->setFlowing(p && p->status() == player::Status::Playing);
+    seek_->setFlowing(p && p->status() == player::Status::Playing && !previewHeld_);
     seek_->setLive(live_);
     const auto shuffleMode = smartshuffle::mode();
     shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
@@ -1300,6 +1302,11 @@ void PlayerBar::paint(Canvas& c) {
     const auto& col = colors();
     const auto& acc = accent();
     auto* p = ctx().player;
+    if (p && p->previewHoldsCurrent() != previewHeld_) {   // a song preview started / ended (it repaints the window)
+        previewHeld_ = !previewHeld_;
+        play_->setPlaying(p->isPlaying() && !previewHeld_);
+        seek_->setFlowing(p->status() == player::Status::Playing && !previewHeld_);
+    }
     c.fillSurface(r);   // bg.base (Mica: its translucent tint)
     c.hline(r.x, r.right(), r.y, col.hairSubtle);   // the bar's top edge
     c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
@@ -1503,6 +1510,15 @@ void QueuePanel::onMouseUp(const ui::MouseEvent& e) {
     dragging_ = false;
     dragFrom_ = dragTo_ = -1;
     invalidate();
+}
+
+std::optional<PreviewHit> QueuePanel::previewAt(gfx::Point windowPos, bool keyboard) {
+    auto* p = ctx().player;
+    if (keyboard || !p) return std::nullopt;
+    const int i = rowAt(fromWindow(windowPos));
+    if (i < 0 || i == p->currentOrderIndex()) return std::nullopt;
+    const Rect rr = rowRect(i);
+    return PreviewHit{preview::songTarget(p->items()[p->order()[i]]), toWindow({rect().x + rr.x, rect().y + rr.y, rr.w, rr.h})};
 }
 
 int QueuePanel::dropIndexAt(gfx::Point windowPos) const {

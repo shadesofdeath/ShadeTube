@@ -1715,5 +1715,15 @@
   "Mini oynatıcı her zaman üstte": "ミニプレーヤーを常に手前に表示します",
   "Mini oynatıcı artık üstte kalmıyor": "ミニプレーヤーを常に手前に表示しません",
   "Bu şarkı için ek bilgi yok.": "この曲の詳しい情報はありません。",
-  "Bilgiler yüklenemedi.": "詳細を読み込めませんでした。"
+  "Bilgiler yüklenemedi.": "詳細を読み込めませんでした。",
+  "Önizle": "試聴",
+  "Önizlemeyi durdur": "試聴を停止",
+  "Şu an bu şarkı çalıyor": "この曲は再生中です",
+  "Önizlenecek şarkı bulunamadı": "試聴できる曲がありません",
+  "Önizleme açılamadı": "試聴を読み込めませんでした",
+  "Seçili şarkıyı önizle": "選択した曲を試聴",
+  "Şarkı önizleme": "曲の試聴",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "曲やジャケットを長押しすると約20秒試聴できます。再生中の曲はその位置で待ち、指を離すと続きから再生されます。曲のメニューの「試聴」や {} キーでも試聴できます。",
+  "Basılı tut": "長押し",
+  "Yalnızca menü": "メニューのみ"
 }

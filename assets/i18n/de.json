@@ -1894,5 +1894,15 @@
   "Mini oynatıcı her zaman üstte": "Der Miniplayer bleibt im Vordergrund",
   "Mini oynatıcı artık üstte kalmıyor": "Der Miniplayer bleibt nicht mehr im Vordergrund",
   "Bu şarkı için ek bilgi yok.": "Keine weiteren Details zu diesem Song.",
-  "Bilgiler yüklenemedi.": "Details konnten nicht geladen werden."
+  "Bilgiler yüklenemedi.": "Details konnten nicht geladen werden.",
+  "Önizle": "Reinhören",
+  "Önizlemeyi durdur": "Reinhören beenden",
+  "Şu an bu şarkı çalıyor": "Dieser Song läuft gerade",
+  "Önizlenecek şarkı bulunamadı": "Kein Song zum Reinhören gefunden",
+  "Önizleme açılamadı": "Hörprobe konnte nicht geladen werden",
+  "Seçili şarkıyı önizle": "In den ausgewählten Song reinhören",
+  "Şarkı önizleme": "Reinhören",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "Halte einen Song oder ein Cover gedrückt, um etwa 20 Sekunden davon zu hören; was gerade läuft, wartet an seiner Stelle und geht weiter, sobald du loslässt. Auch „Reinhören“ im Songmenü und die Taste {} starten es.",
+  "Basılı tut": "Gedrückt halten",
+  "Yalnızca menü": "Nur Menü"
 }

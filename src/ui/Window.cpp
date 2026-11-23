@@ -89,6 +89,8 @@ void registerClass() {
     RegisterClassExW(&wc);
 }
 
+constexpr UINT_PTR kHoldTimerId = 0x486F6C64;   // press and hold (onHold)
+
 MouseButton buttonFor(UINT msg, WPARAM wp) {
     switch (msg) {
     case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK: return MouseButton::Right;
@@ -181,6 +183,8 @@ Window::Window(const WindowOptions& options) : options_(options) {
 }
 
 Window::~Window() {
+    onHoldEnd = nullptr;   // the capture released while the tree goes must not reach the app any more
+    hold_.cancel();
     overlays_.clear();
     exiting_.clear();
     root_.reset();
@@ -567,6 +571,10 @@ void Window::forget(Widget* w) {
     std::erase_if(savedFocus_, [&](const SavedFocus& s) { return s.overlay == w; });
     if (contains(pendingOverlayFocus_)) pendingOverlayFocus_ = nullptr;
     if (contains(pressing_)) pressing_ = nullptr;
+    if (contains(holdWidget_)) {
+        holdWidget_ = nullptr;
+        if (hold_.pending()) hold_.cancel();
+    }
     if (contains(tipWidget_)) {
         tipWidget_ = nullptr;
         tipText_.clear();
@@ -1064,6 +1072,11 @@ void Window::onMouseMessage(UINT msg, WPARAM wp, LPARAM lp) {
             TrackMouseEvent(&tme);
             trackingLeave_ = true;
         }
+        if (hold_.owned()) break;   // a press and hold took the gesture: its widget sees no more moves
+        if (hold_.pending() && !hold_.move(p)) {   // moved past the slop: a click / drag after all
+            holdWidget_ = nullptr;
+            KillTimer(hwnd_, kHoldTimerId);
+        }
         if (capture_) {
             capture_->onMouseMove(makeEvent(capture_, p, MouseButton::Left, wp));
             // Keep hover consistent with what's under the cursor for visual feedback.
@@ -1079,6 +1092,12 @@ void Window::onMouseMessage(UINT msg, WPARAM wp, LPARAM lp) {
     case WM_LBUTTONDOWN: case WM_RBUTTONDOWN: case WM_MBUTTONDOWN: case WM_XBUTTONDOWN:
     case WM_LBUTTONDBLCLK: case WM_RBUTTONDBLCLK: case WM_MBUTTONDBLCLK: {
         const MouseButton b = buttonFor(msg, wp);
+        if (hold_.owned()) break;   // another button while a press and hold runs: ignored
+        if (hold_.pending()) {
+            hold_.cancel();
+            holdWidget_ = nullptr;
+            KillTimer(hwnd_, kHoldTimerId);
+        }
         Widget* hit = hitTest(p);
         updateHover(hit);
         tipWidget_ = nullptr;
@@ -1111,10 +1130,38 @@ void Window::onMouseMessage(UINT msg, WPARAM wp, LPARAM lp) {
             }
         }
         if (!handled && (b == MouseButton::Back || b == MouseButton::Forward) && onNavButton) onNavButton(b);
+        // A plain left press a widget took may become a press and hold (onHold).
+        if (msg == WM_LBUTTONDOWN && onHold && capture_ && !(GET_KEYSTATE_WPARAM(wp) & (MK_CONTROL | MK_SHIFT)) &&
+            GetKeyState(VK_MENU) >= 0) {
+            hold_.delayMs = holdDelayMs;
+            hold_.slop = holdSlop;
+            hold_.press(p, frame::realNow());
+            holdWidget_ = capture_;
+            SetTimer(hwnd_, kHoldTimerId, static_cast<UINT>(std::max(1.0, holdDelayMs)), nullptr);
+        }
         invalidate();
         break;
     }
     case WM_LBUTTONUP: case WM_RBUTTONUP: case WM_MBUTTONUP: case WM_XBUTTONUP: {
+        if (hold_.owned()) {
+            if (msg != WM_LBUTTONUP) break;   // another button's release
+            const bool ended = hold_.taken();
+            hold_.release();
+            releasePressed();   // (its press already ended when the hold fired)
+            ReleaseCapture();
+            updateHover(hitTest(p));
+            if (ended && onHoldEnd) {
+                const auto fn = onHoldEnd;
+                fn();
+            }
+            invalidate();
+            break;
+        }
+        if (hold_.pending()) {   // released before the hold: an ordinary click
+            hold_.cancel();
+            holdWidget_ = nullptr;
+            KillTimer(hwnd_, kHoldTimerId);
+        }
         if (Widget* w = capture_) {
             capture_ = nullptr;
             w->pressed_ = false;
@@ -1127,6 +1174,62 @@ void Window::onMouseMessage(UINT msg, WPARAM wp, LPARAM lp) {
     }
     default: break;
     }
+}
+
+void Window::holdTimer() {
+    KillTimer(hwnd_, kHoldTimerId);
+    if (!hold_.pending()) return;
+    const double now = frame::realNow();
+    if (!hold_.due(now)) {   // WM_TIMER may come a little early: wait for the rest
+        SetTimer(hwnd_, kHoldTimerId, static_cast<UINT>(std::max(1.0, std::ceil(hold_.remainingMs(now)))), nullptr);
+        return;
+    }
+    Widget* w = holdWidget_;
+    holdWidget_ = nullptr;
+    if (!w || w != capture_ || !onHold) {
+        hold_.cancel();
+        return;
+    }
+    const auto fn = onHold;   // may change the hooks
+    if (fn(w, hold_.origin())) {
+        hold_.take();
+        // The widget's press ends now: it sees a release outside itself (its press look eases back; no click, no drag
+        // later). The window keeps the mouse capture, so the hold's own release still arrives.
+        if (capture_ == w) releasePressed();
+    } else {
+        hold_.cancel();
+    }
+    invalidate();
+}
+
+void Window::releasePressed() {
+    Widget* w = capture_;
+    if (!w) return;
+    capture_ = nullptr;
+    w->pressed_ = false;
+    w->onMouseUp(makeEvent(w, {-1e6f, -1e6f}, MouseButton::Left, 0));
+}
+
+void Window::cancelHold() {
+    const bool owned = hold_.owned();
+    hold_.cancel();
+    holdWidget_ = nullptr;
+    KillTimer(hwnd_, kHoldTimerId);
+    if (owned) {
+        releasePressed();
+        ReleaseCapture();
+    }
+    invalidate();
+}
+
+void Window::endHold() {
+    if (!hold_.taken()) return;
+    hold_.finish();
+    if (onHoldEnd) {
+        const auto fn = onHoldEnd;
+        fn();
+    }
+    invalidate();
 }
 
 LRESULT Window::hitTestNc(POINT screen) {
@@ -1299,7 +1402,29 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
         trackingLeave_ = false;
         if (!capture_ && !simulatedHover_) updateHover(nullptr);
         return 0;
+    case WM_TIMER:
+        if (wp == kHoldTimerId) {
+            holdTimer();
+            return 0;
+        }
+        break;
     case WM_CAPTURECHANGED:
+        if (reinterpret_cast<HWND>(lp) != hwnd_ && hold_.state() != HoldGesture::State::Idle) {
+            // Alt+Tab, a system dialog or the pressed widget went away: the hold ends here.
+            const bool ended = hold_.taken(), owned = hold_.owned();
+            hold_.cancel();
+            holdWidget_ = nullptr;
+            KillTimer(hwnd_, kHoldTimerId);
+            if (Widget* w = owned ? capture_ : nullptr) {
+                capture_ = nullptr;
+                w->pressed_ = false;
+                w->onMouseUp(makeEvent(w, {-1e6f, -1e6f}, MouseButton::Left, 0));
+            }
+            if (ended && onHoldEnd) {
+                const auto fn = onHoldEnd;
+                fn();
+            }
+        }
         if (capture_ && reinterpret_cast<HWND>(lp) != hwnd_) {
             capture_->pressed_ = false;
             capture_ = nullptr;
@@ -1322,6 +1447,10 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
         return 0;
     }
     case WM_KEYDOWN: case WM_SYSKEYDOWN: {
+        if (wp == VK_ESCAPE && hold_.taken()) {   // Esc ends a press and hold (its release is still swallowed)
+            endHold();
+            return 0;
+        }
         KeyEvent e;
         e.vk = static_cast<UINT>(wp);
         e.ctrl = GetKeyState(VK_CONTROL) < 0;

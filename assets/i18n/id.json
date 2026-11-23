@@ -1715,5 +1715,15 @@
   "Mini oynatıcı her zaman üstte": "Pemutar mini selalu di atas",
   "Mini oynatıcı artık üstte kalmıyor": "Pemutar mini tidak lagi selalu di atas",
   "Bu şarkı için ek bilgi yok.": "Tidak ada detail lain untuk lagu ini.",
-  "Bilgiler yüklenemedi.": "Gagal memuat detail."
+  "Bilgiler yüklenemedi.": "Gagal memuat detail.",
+  "Önizle": "Pratinjau",
+  "Önizlemeyi durdur": "Hentikan pratinjau",
+  "Şu an bu şarkı çalıyor": "Lagu ini sedang diputar",
+  "Önizlenecek şarkı bulunamadı": "Tidak ada lagu untuk dipratinjau",
+  "Önizleme açılamadı": "Pratinjau tidak dapat dimuat",
+  "Seçili şarkıyı önizle": "Pratinjau lagu yang dipilih",
+  "Şarkı önizleme": "Pratinjau lagu",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "Tekan dan tahan lagu atau sampul untuk mendengar sekitar 20 detiknya; yang sedang diputar menunggu di posisinya dan berlanjut saat kamu melepasnya. \"Pratinjau\" di menu lagu dan tombol {} juga membukanya.",
+  "Basılı tut": "Tekan lama",
+  "Yalnızca menü": "Hanya menu"
 }

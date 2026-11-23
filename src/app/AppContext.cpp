@@ -12,6 +12,7 @@
 #include "app/Shell.h"
 #include "app/SmartShuffle.h"
 #include "app/Source.h"
+#include "app/Preview.h"
 #include "app/TagEditor.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
@@ -945,6 +946,7 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
         items.push_back({tr(L"Önerileri gösterme"), "close", L"", [recommendKey] { smartshuffle::stop(recommendKey); }});
         items.push_back(ui::MenuItem::sep());
     }
+    if (auto sample = preview::menuItem(tracks, windowPos)) items.push_back(std::move(*sample));   // song preview
     items.push_back({tr(L"Sonra çal"), "queue", L"", [tracks] {
                          for (auto it = tracks.rbegin(); it != tracks.rend(); ++it) ctx().player->playNext(*it);
                          toast(tr(L"Sıradaki olarak eklendi"));

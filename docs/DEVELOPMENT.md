@@ -83,7 +83,8 @@ ShadeTube/
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
 │                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO),
-│                                PageMotion (page transitions' timeline + cover flight, 3.x)
+│                                PageMotion (page transitions' timeline + cover flight, 3.x),
+│                                HoldGesture (press and hold, 3.x Song preview)
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets,
 │                                PageTransition (page transitions + the shared cover, 3.x)
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Acrylic (the
@@ -100,6 +101,7 @@ ShadeTube/
 │                                CoverGradient + CoverBackdrop (Now Playing's backdrop, 3.x),
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
+│                                Preview + PreviewSession (song preview, 3.x),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
@@ -1122,6 +1124,81 @@ time of the event.
   and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
   a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
 
+### 3.x Song preview
+
+Press and hold a song (or a card's cover) to hear about 20 s of it without touching what plays or the queue.
+`app/PreviewSession` (the state machine, standalone: `preview_test`), `app/Preview` (input, overlay, lookups, settings),
+`ui/HoldGesture` + `ui::Window::onHold` (the gesture), `Player::startPreview` and the engine's preview voice
+(`AudioEngine::openPreview`).
+
+- **Triggers**: a press and hold (`preview::kHoldMs` 350 ms; a plain left press a widget took: Ctrl / Shift / Alt
+  presses and double clicks never start one, moving past the drag threshold `dragdrop::kThreshold` cancels it) on a
+  track row (`TrackTable`: not on its heart, artist link, number or "+" / "×"), a card's cover (`MediaCard` whose page
+  set `previewTarget`, not its play button), a Library cell (the grid's cover, a list row), an upcoming queue row
+  (recommendations too), Home's hero cover, quick-access tiles, shelf cards, popular tiles and release rows (a
+  collection from `home::Item::context`: `preview::contextTarget`), Stats' song rows, Yerel dosyalar' album / artist
+  cards (their first song). The track menu's "Önizle" (one song, not the one that plays; "Önizlemeyi durdur" while it previews) and
+  the `preview` action (default **P**, Ayarlar › Klavye) for the keyboard-focused row / card (a clicked row has the
+  focus) start one too. Widgets opt in as a `PreviewSource` (`previewAt(windowPos, keyboard)`); the window asks the
+  innermost one above the pressed widget when the press has rested. A hold the app takes owns the rest of the gesture:
+  the widget's press ends at once with a release outside every widget (its press micro-animation eases back; no
+  click, so no `pagetx::arm` / navigation, no drop, no drag later) and it sees no more moves; the window keeps the mouse
+  capture for the hold's own release, and the overlay draws the pressed look. The release, Esc or a lost capture
+  (Alt+Tab) stops the preview; Esc's release is still swallowed. A menu / key preview runs until the limit, Esc, the key
+  or its menu item again, or a playback command.
+- **Collections**: an album (`source::album`: its most listened song when ListenBrainz counts came with it, else the
+  first), an artist (the first of its top songs), a Spotify playlist / Liked Songs (`Api::playlistTracks`, first 20
+  rows), a local playlist / Liked Songs logged out (the library). Songs found are cached for the run.
+- **Session** (`preview::Session`, times passed in): Idle → Looking (a collection) → Resolving → Playing, or a Hint:
+  the song already plays ("Şu an bu şarkı çalıyor", nothing starts), nothing to preview, it failed. The limit
+  (`kLimitMs` 20 s) counts from the first sound; no sound within 12 s gives up; a hint stays until the release (hold)
+  or 1.8 s (menu / key). A new preview stops the last first; every `Port::start` is matched by one `Port::stop` unless
+  the player ended or failed it itself. Stations and podcast episodes are not previewed (the press stays a press).
+- **Audio**: resolved like a queue item (a download, a local file, YouTube with the backup source and SoundCloud) on a
+  worker. It starts at `preview::startPoint`: 35 % in (the top for songs up to 30 s or of unknown length), early enough
+  for the 20 s, moved past a SponsorBlock segment the session already knows for that video
+  (`SponsorBlock::knownSegments`: the current video or the small cache of earlier lookups; no lookup is made). The
+  engine's preview voice is a second `Track` mixed in after the current track's block and before the limiter: its own
+  equalizer state, its loudness gain, the volume, the limiter and the device of everything else. With 0.5 s decoded it
+  fades in (350 ms, equal power) while the current track fades out (250 ms) and is then **held**: it is no longer read,
+  so its position, state, playback speed (the stretcher keeps what it holds) and preloaded next track stay; a crossfade
+  in progress drops its outgoing track, as a pause does. Stopping fades the preview out (250 ms) and the current track
+  back in (400 ms) from where it fell silent. A paused or empty player stays so; a live stream keeps running muted and
+  comes back live. A preview stopped before its sound never touched the current track (no blip). It decodes at the
+  rate the device runs at (a station may have opened it at its own); a mismatch later fails it. A replaced audible
+  preview fades out under the new one.
+- **Nothing else moves**: `Player`'s queue, current item, `status()`, `positionMs()` and notifications are untouched, so
+  history, listening stats, scrobbling, SMTC, Discord, smart shuffle and the recently played lists never see the
+  preview. The player bar alone shows it (`PlayerBar`, `Player::previewHoldsCurrent()`): the play button's play glyph
+  and a still wave while the preview holds the current song (not with `keepMainRunning`). A command that changes what
+  is heard (play / pause, next / previous, seek, jump, speed, a new queue, "Yanlış eşleşme?"; `Player::endsPreview`,
+  outside an `Unfiltered` scope) ends the preview first, then applies: Space pauses what was playing before the
+  preview. Queue edits (endless playback appending, smart shuffle, "Sıraya ekle") leave it playing.
+- **Listen together (decision)**: previews stay local and are allowed for hosts and guests. During a session the
+  current song keeps running muted under the preview (`startPreview(..., keepMainRunning)`), so the host's published
+  position never drifts and a guest keeps following; afterwards it comes back at the session's position, not where it
+  fell silent.
+- **Touch**: while the mode is "hold", Windows' press-and-hold right-click is off for the main window
+  (`MicrosoftTabletPenServiceProperty` = `TABLET_DISABLE_PRESSANDHOLD`), so a held finger previews; the menu stays on
+  the menu key / Shift+F10, "Yalnızca menü" gives the gesture back. Not tried on touch hardware.
+- **Overlay**: a non-modal, never hit-tested overlay (`ui::OverlayLayer`): a 300 × 60 card drawn like the toasts
+  (`ui::paintOverlaySurface`, `Elevation::Toast`, its own `ui::Acrylic` material captured in `prepareBackdrop`;
+  `gfx::radii()`) with the cover, the title, "ÖNİZLEME" in the accent's mono label and the artist, and a thin ring
+  (1.25 DIP `hairline.control`, 1.5 DIP accent arc) that spins while the song is looked up / buffered and fills
+  clockwise from 12 o'clock over the 20 s; a hint replaces the second line. The pressed row / cover gets a 1 DIP accent
+  outline over `accent.tint06`. It sits just above a pressed row (below it near the title bar) and above the pointer
+  on covers and tiles; fades in with a 6 DIP rise (`motion::fast`) and out (`motion::normal`) through
+  `ui::overlay::duration` (no rise and a still arc with reduce motion / Windows' animations off). While shown it repaints every 33 ms (spinning) / 100 ms (filling).
+- **Settings**: `Settings.previewMode` `"hold"` (default) | `"menu"` (menu item and key only) | `"off"`, Ayarlar ›
+  Oynatma › Şarkı önizleme.
+- **Safety**: a 50 ms tick runs only while a preview is active; a hold whose button is physically up for 300 ms
+  without the release reaching the window lets go (`Window::cancelHold`). `Window`'s destructor drops `onHoldEnd`
+  before the tree goes (the capture released by dying widgets must not reach the app).
+- **Measured** (Debug, sandbox): a local file is audible 10-20 ms after the hold fires (~370 ms after the press); a
+  MusicBrainz album tile: lookup 1.3-4 s, YouTube resolve ~2.5 s, first sound 5-9 s after the press, the current song
+  playing on until then.
+- Dev: `SHADETUBE_PREVIEW_DEMO` (5.4) presses, holds and releases at window DIPs; the log's `preview` lines give each
+  transition with its time and the current song's state and position.
 ### 3.x Page transitions
 
 `app/PageTransition` (drawn by `PageHost` in `app/Shell`) on `ui/PageMotion` (the timeline and the cover's flight,
@@ -1824,6 +1901,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json` (and its newest entries, Home's hero), history recency, timing with 10 000 items | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
+| `preview_test` | song preview: the press-and-hold gesture (`ui/HoldGesture`: due time, slop, early release, swallowed release, Esc), `preview::startPoint` (short / unknown songs, 35 %, SponsorBlock segments, the end), `preview::Session` with a fake player and clock (modes, release before the audio, the limit, Esc, the key's toggle, the song that plays, collections + cache, failures, timeouts, rapid repeated holds, stale ids), a real `Player` on generated WAVs (the current track holds its position and state and resumes from it, paused stays paused, nothing playing stays so, stopped before its audio = never held, rapid previews, a command ends it first, its own end hands back, `keepMainRunning`, 1.5x speed, stations refused, queue untouched) | offline; needs an audio device |
 | `theme_test` | theme studio core (`gfx/ThemeSpec`, `app/ThemeStore`): strict color syntax, the tokens files as themes, every bundled preset (no warnings, strict parse, keys match the palette, write / read round trip, the full contrast table), key-color derivation and `setKey`, accent adaptation and ink / paper, import validation (every refusal kind, too large, keys-only files, base guessing, names), the theme folder (save / reload / numbered names / remove / import / export / broken files left out), slugs | offline (own temp folder; reads the source tree's `assets/`) |
 | `header_collapse_test` | collapsing page headers (`app/HeaderCollapse`) on real header geometries (album, two-line playlist with a description, podcast, artist): at offset 0 everything is where the expanded header draws it, no element jumps between offsets 1/4 DIP apart, scrolling down only collapses, content never shows through the cover / title (it has dissolved where it passes under them), the docked frame (thumbnail, compact title on the bar's line, buttons, inset, hairline), the settling function, the tint's contrast on dark and light paper | offline |
 | `miniplayer_test` | the mini player's geometry (`app/MiniLayout`): mode ids and sizes, the anchor (corners, edges, thirds, negative monitors), anchored resizes and exact round trips, snapping (margin, threshold, nearer side, corners, far away untouched), fitting into a work area, the default place, square resizing from every corner / edge (opposite corner fixed, limits, always square), the switch animation's rects, saved places | offline |
@@ -1910,6 +1988,7 @@ apps*).
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
 | `SHADETUBE_NP_TAB` | `lyrics`, `queue` or `about`: the tab Now Playing opens on (screenshots; 3.x) |
 | `SHADETUBE_NP_LOG=1` | while Now Playing is open, logs every 5 s its frames/s and the backdrop field's size, renders/s and cost (`nowplaying` lines) |
+| `SHADETUBE_PREVIEW_DEMO` | `<action>@<ms>[=<x>,<y>];…` after startup, at window DIPs: `hold` (left press, kept down), `up`, `move` (with the button down), `click`, `rclick` (the context menu), `key` (the `preview` action), `esc`. E.g. with `--route local:songs`, `SHADETUBE_PLAY_FILES` and `--screenshot`: `hold@3500=900,450;up@7000` (3.x Song preview) |
 | `SHADETUBE_NAV_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after the shell opened: `click=<x>,<y>` (a real left click posted at window DIPs), `back`, `forward`. With `--screenshot`, e.g. `click@2500=559,378` and a capture at 3300 ms for a cover in flight (3.x) |
 | `SHADETUBE_MOTION_SCALE` | `<factor>` (1-50): page transitions and the cover's flight run that many times slower (screenshots of their middle) |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |

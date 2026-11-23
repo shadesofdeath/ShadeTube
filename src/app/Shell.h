@@ -150,6 +150,7 @@ private:
     bool nowPlaying_ = false;
     bool infoHover_ = false;
     bool live_ = false;      // the current item is an internet radio station (no times, no seeking)
+    bool previewHeld_ = false;   // a song preview holds the current item (app/Preview): the bar looks paused
     // Track change: what the bar showed for the previous track, sliding out while the new one slides in.
     TrackSwap swap_;
     FadingArt art_;
@@ -175,7 +176,7 @@ public:
     std::wstring tooltip() const override;
 };
 
-class QueuePanel : public ui::Widget, public DropTarget {
+class QueuePanel : public ui::Widget, public DropTarget, public PreviewSource {
 public:
     QueuePanel();
     void sync();
@@ -195,6 +196,8 @@ public:
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
+    // Song preview (app/Preview): an upcoming row (recommendations too); not the playing one.
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
 
 private:
     int dropIndexAt(gfx::Point windowPos) const;   // order index the dropped songs go in front of

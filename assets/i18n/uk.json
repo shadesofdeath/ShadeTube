@@ -2053,5 +2053,15 @@
   "Mini oynatıcı her zaman üstte": "Мініплеєр тепер поверх усіх вікон",
   "Mini oynatıcı artık üstte kalmıyor": "Мініплеєр більше не поверх усіх вікон",
   "Bu şarkı için ek bilgi yok.": "Інших відомостей про цей трек немає.",
-  "Bilgiler yüklenemedi.": "Не вдалося завантажити відомості."
+  "Bilgiler yüklenemedi.": "Не вдалося завантажити відомості.",
+  "Önizle": "Прослухати фрагмент",
+  "Önizlemeyi durdur": "Зупинити фрагмент",
+  "Şu an bu şarkı çalıyor": "Ця пісня вже грає",
+  "Önizlenecek şarkı bulunamadı": "Немає пісні для прослуховування",
+  "Önizleme açılamadı": "Не вдалося завантажити фрагмент",
+  "Seçili şarkıyı önizle": "Прослухати фрагмент вибраної пісні",
+  "Şarkı önizleme": "Прослуховування фрагментів",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "Натисніть і утримуйте пісню чи обкладинку, щоб послухати близько 20 секунд; те, що грає, зачекає на місці й продовжиться, коли ви відпустите. Також відкривається пунктом «Прослухати фрагмент» у меню пісні та клавішею {}.",
+  "Basılı tut": "Утримання",
+  "Yalnızca menü": "Лише меню"
 }

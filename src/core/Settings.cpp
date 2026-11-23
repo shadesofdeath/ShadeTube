@@ -142,6 +142,8 @@ void Settings::load() {
     read(j, "miniOnTop", miniOnTop);
     read(j, "miniPlaces", miniPlaces);
     read(j, "taskbarProgress", taskbarProgress);
+    read(j, "previewMode", previewMode);
+    if (previewMode != "hold" && previewMode != "menu" && previewMode != "off") previewMode = "hold";
     volume = std::clamp(volume, 0.0f, 1.0f);
 }
 
@@ -229,6 +231,7 @@ void Settings::save() const {
         {"miniOnTop", miniOnTop},
         {"miniPlaces", miniPlaces},
         {"taskbarProgress", taskbarProgress},
+        {"previewMode", previewMode},
     };
     // Write-then-rename so a crash never leaves a truncated settings file.
     const auto path = paths::settingsFile();

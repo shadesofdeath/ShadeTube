@@ -2,6 +2,7 @@
 // App-specific building blocks: artwork, media cards, section headers and the virtualized track table.
 #include "app/AppContext.h"
 #include "app/DragDrop.h"
+#include "app/Preview.h"
 #include "app/PageTransition.h"
 #include "gfx/Text.h"
 #include "ui/Anim.h"
@@ -79,8 +80,9 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
-// Opening it (click, Enter, the play button) arms its cover for the page transition (app/PageTransition).
-class MediaCard : public ui::Widget, public CoverSource {
+// Opening it (click, Enter, the play button) arms its cover for the page transition (app/PageTransition); a press and
+// hold on the cover previews it (app/Preview).
+class MediaCard : public ui::Widget, public CoverSource, public PreviewSource {
 public:
     enum class Shape { Square, Circle };
     MediaCard(std::wstring title, std::wstring subtitle, std::vector<catalog::Image> images, Shape shape = Shape::Square,
@@ -91,6 +93,10 @@ public:
     std::function<void(gfx::Point)> onContext;
     // Small accent pill on the artwork's top-left corner ("YENİ"); "" = none. Square cards only.
     void setBadge(std::wstring text) { badge_ = gfx::Text(std::move(text), gfx::type::monoBadge); }
+    // Song preview (app/Preview): what a press and hold on the cover samples (preview::collectionTarget of the route
+    // it opens); unset = none.
+    std::optional<preview::Target> previewTarget;
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
 
     float preferredHeight(float width) override;
     void paint(Canvas& c) override;
@@ -141,7 +147,7 @@ private:
 // Rows can be dragged (app/DragDrop): the pressed row, or the whole selection when the pressed row is part of it, onto
 // the sidebar's playlists / Liked Songs or the queue panel. Escape cancels the drag. A reorderable table (a playlist the
 // user may edit) also takes its own rows: they move in front of the row under the pointer (a line shows where).
-class TrackTable : public ui::Widget, public DropTarget {
+class TrackTable : public ui::Widget, public DropTarget, public PreviewSource {
 public:
     ~TrackTable() override;
     struct Options {
@@ -189,6 +195,8 @@ public:
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
+    // Song preview: the row under the press (not its heart, artist link, number or "+" / "×"), or the keyboard cursor.
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
 
     static constexpr float kHeaderH = 28;
     float headerHeight() const { return opts_.showHeader ? kHeaderH + 8 : 0; }

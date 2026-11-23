@@ -37,7 +37,7 @@ struct LibraryCell {
 };
 
 // Opening a cell arms its cover for the page transition (app/PageTransition); a cell is the owner of its cover.
-class LibraryView : public ui::Widget, public DropTarget, public CoverSource {
+class LibraryView : public ui::Widget, public DropTarget, public CoverSource, public PreviewSource {
 public:
     enum class Mode { Grid, List };
     static constexpr float kRowH = 64;   // list rows (ListRow's height), 48 DIP artwork
@@ -72,6 +72,9 @@ public:
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
+    // Song preview (app/Preview): a playlist / album / artist / Liked Songs cell (the grid's cover, a list row; not
+    // the play button), or the keyboard cursor's.
+    std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
     bool coverFor(const std::string& key, SharedCover& out) override;
 
 private:

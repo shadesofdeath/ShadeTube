@@ -87,6 +87,9 @@ public:
     static std::string sha256Hex(std::string_view data);   // CNG, lowercase hex
     // Replaces the current video's segments (normalised, all armed) without a lookup: tests / injection.
     void setSegments(std::vector<Segment> raw);
+    // The segments this session already knows for `videoId` (the current video, or one in the small cache of earlier
+    // lookups), normalised; empty when it was never looked up. No lookup (song preview: where a sample starts).
+    std::vector<Segment> knownSegments(const std::string& videoId, int64_t videoDurationMs = 0) const;
 
 private:
     struct CacheEntry {

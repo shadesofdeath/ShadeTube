@@ -188,6 +188,13 @@ std::optional<int64_t> SponsorBlock::check(int64_t positionMs) {
     return std::nullopt;
 }
 
+std::vector<SponsorBlock::Segment> SponsorBlock::knownSegments(const std::string& videoId, int64_t videoDurationMs) const {
+    if (!enabled || videoId.empty()) return {};
+    if (videoId == videoId_ && state_ == State::Ready) return segments_;
+    if (const auto* hit = findCache(videoId + '\n' + categoriesKey(categories))) return normalize(*hit, videoDurationMs);
+    return {};
+}
+
 const SponsorBlock::Segment* SponsorBlock::lastSkipped() const {
     return lastSkipped_ >= 0 && lastSkipped_ < static_cast<int>(segments_.size()) ? &segments_[lastSkipped_] : nullptr;
 }

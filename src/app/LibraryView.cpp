@@ -365,6 +365,24 @@ bool LibraryView::onMouseDown(const ui::MouseEvent& e) {
     return true;
 }
 
+std::optional<PreviewHit> LibraryView::previewAt(gfx::Point windowPos, bool keyboard) {
+    if (order_.empty()) return std::nullopt;
+    int d = std::clamp(cursor_, 0, static_cast<int>(order_.size()) - 1);
+    if (!keyboard) {
+        const gfx::Point p = fromWindow(windowPos);
+        d = cellAt(p);
+        if (d < 0) return std::nullopt;
+        const LibraryCell& c = cell(d);
+        if (c.playable && !(mode_ == Mode::Grid && c.circle) && playRect(d).contains(p)) return std::nullopt;
+        if (mode_ == Mode::Grid && !artRect(d).contains(p)) return std::nullopt;   // a card: its cover
+    }
+    const LibraryCell& c = cell(d);
+    // The cell's player context names it ("liked", "playlist:<id>", "album:<id>", "artist:<id>"; folders: none).
+    auto target = preview::contextTarget(c.context, c.title, c.images);
+    if (!target) return std::nullopt;
+    return PreviewHit{std::move(*target), toWindow(mode_ == Mode::Grid ? artRect(d) : cellRect(d))};
+}
+
 void LibraryView::onMouseUp(const ui::MouseEvent& e) {
     pressA_.to(0, ui::motion::microMs(160));
     playPressA_.to(0, ui::motion::microMs(160));

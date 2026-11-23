@@ -1894,5 +1894,15 @@
   "Mini oynatıcı her zaman üstte": "Le mini-lecteur reste au premier plan",
   "Mini oynatıcı artık üstte kalmıyor": "Le mini-lecteur ne reste plus au premier plan",
   "Bu şarkı için ek bilgi yok.": "Aucun autre détail pour ce titre.",
-  "Bilgiler yüklenemedi.": "Impossible de charger les détails."
+  "Bilgiler yüklenemedi.": "Impossible de charger les détails.",
+  "Önizle": "Écouter un extrait",
+  "Önizlemeyi durdur": "Arrêter l'extrait",
+  "Şu an bu şarkı çalıyor": "Ce titre est déjà en lecture",
+  "Önizlenecek şarkı bulunamadı": "Aucun titre à écouter",
+  "Önizleme açılamadı": "Impossible de charger l'extrait",
+  "Seçili şarkıyı önizle": "Écouter un extrait du titre sélectionné",
+  "Şarkı önizleme": "Extraits des titres",
+  "Bir şarkıya ya da kapağa basılı tutunca yaklaşık 20 saniyesi çalar; çalan şarkı yerinde bekler ve bırakınca kaldığı yerden sürer. Şarkı menüsündeki \"Önizle\" ve {} tuşu da açar.": "Maintenez un titre ou une pochette enfoncé pour en écouter environ 20 secondes ; la lecture en cours attend et reprend dès que vous relâchez. « Écouter un extrait » dans le menu du titre et la touche {} l'ouvrent aussi.",
+  "Basılı tut": "Maintenir enfoncé",
+  "Yalnızca menü": "Menu seulement"
 }

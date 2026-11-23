@@ -183,6 +183,7 @@ void initSmartShuffle();       // app/SmartShuffle.cpp   (smart shuffle: recomme
 void initNewReleases();        // app/NewReleasesPage.cpp (Yeni çıkanlar: followed artists' releases, notifications)
 void initRemote();             // app/RemoteControl.cpp  (Telefondan kumanda: the LAN server for the phone's browser)
 void initTogether();           // app/Together.cpp       (Birlikte dinle: listen together sessions)
+void initPreview();            // app/Preview.cpp        (song preview: press and hold, the key, the menu item)
 void initShareFeatures();      // app/YearReviewView.cpp (lyrics cards, the year in review: dev hooks)
 inline void initFeatures() {
     initListenStats();
@@ -200,6 +201,7 @@ inline void initFeatures() {
     initNewReleases();
     initRemote();
     initTogether();
+    initPreview();
     initShareFeatures();
 }
 

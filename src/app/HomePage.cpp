@@ -500,6 +500,8 @@ void addSpotifyShelf(ui::Column* c, const Shelf& shelf) {
             break;
         }
         auto* card = row->add<MediaCard>(toWide(it.title), toWide(it.subtitle), it.images, shape, ph);
+        card->previewTarget = it.kind == CardItem::Kind::Track ? std::optional(preview::songTarget(it.track))
+                                                               : preview::collectionTarget(open, toWide(it.title), it.images);
         card->onOpen = [open] { ctx().router->navigate(open); };
         if (playable) card->onPlay = [play = playing(open)] { ctx().router->navigate(play); };
     }
@@ -546,6 +548,7 @@ void addAlbumCards(ui::Widget* row, const std::vector<Album>& albums) {
     for (const auto& a : albums) {
         auto* card = row->add<MediaCard>(toWide(a.name), albumSubtitle(a), a.images);
         const std::string id = a.id;
+        card->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.name), a.images);
         card->onOpen = [id] { ctx().router->navigate({RouteKind::Album, id}); };
         card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
     }
@@ -555,6 +558,7 @@ void addArtistCards(ui::Widget* row, const std::vector<Artist>& artists, const s
     for (const auto& a : artists) {
         auto* card = row->add<MediaCard>(toWide(a.name), subtitle, a.images, MediaCard::Shape::Circle, Placeholder::Artist);
         const std::string id = a.id;
+        card->previewTarget = preview::collectionTarget({RouteKind::Artist, id}, toWide(a.name), a.images);
         card->onOpen = [id] { ctx().router->navigate({RouteKind::Artist, id}); };
     }
 }
@@ -577,6 +581,7 @@ void addRecentShelf(ui::Column* c) {
             }
         auto* card = row->add<MediaCard>(toWide(al.name), artist, al.images);
         const std::string id = al.id;
+        card->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(al.name), al.images);
         card->onOpen = [id] { ctx().router->navigate({RouteKind::Album, id}); };
         card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
     }
@@ -726,6 +731,7 @@ private:
                                                                 : std::wstring(tr(L"Çalma listesi"));
                 auto* card = row->add<MediaCard>(toWide(p.name), sub, p.images, MediaCard::Shape::Square, Placeholder::Playlist);
                 const Route open = liked ? Route{RouteKind::Liked} : Route{RouteKind::Playlist, p.id};
+                card->previewTarget = preview::collectionTarget(open, toWide(p.name), p.images);
                 card->onOpen = [open] { ctx().router->navigate(open); };
                 card->onPlay = [play = playing(open)] { ctx().router->navigate(play); };
             }
@@ -783,6 +789,7 @@ private:
             if (!lib.liked().empty()) {
                 auto* liked = row->add<MediaCard>(tr(L"Beğenilen Şarkılar"), i18n::plural(L"{} şarkı", lib.liked().size()),
                                                   std::vector<Image>{}, MediaCard::Shape::Square, Placeholder::Playlist);
+                liked->previewTarget = preview::collectionTarget({RouteKind::Liked}, tr(L"Beğenilen Şarkılar"), {});
                 liked->onOpen = [] { ctx().router->navigate({RouteKind::Liked}); };
                 liked->onPlay = [] { ctx().router->navigate({RouteKind::Liked, "#play"}); };
             }
@@ -790,6 +797,7 @@ private:
                 auto* card = row->add<MediaCard>(toWide(p.name), i18n::plural(L"{} şarkı", p.totalTracks), p.images,
                                                  MediaCard::Shape::Square, Placeholder::Playlist);
                 const std::string id = p.id;
+                card->previewTarget = preview::collectionTarget({RouteKind::Playlist, id}, toWide(p.name), p.images);
                 card->onOpen = [id] { ctx().router->navigate({RouteKind::Playlist, id}); };
                 card->onPlay = [id] { ctx().router->navigate({RouteKind::Playlist, id + "#play"}); };
             }
@@ -870,6 +878,7 @@ private:
                 auto* hero = box->add<Tile>(L"01 · " + toUpperTr(toWide(top.artists.empty() ? "" : top.artists[0].name)),
                                             toWide(top.name), Color::rgb(0x1F2A22), top.images, true);
                 const std::string heroId = top.id;
+                hero->previewTarget = preview::collectionTarget({RouteKind::Album, heroId}, toWide(top.name), top.images);
                 hero->onClick = [heroId] { ctx().router->navigate({RouteKind::Album, heroId}); };
                 tiles.push_back(hero);
                 for (size_t i = 1; i < d.trendingAlbums.size() && i <= 4; ++i) {
@@ -879,6 +888,7 @@ private:
                     const std::wstring label = num + std::wstring(L" · ") + toUpperTr(tr(L"Albüm"));   // "02 · ALBÜM"
                     auto* tile = box->add<Tile>(label, toWide(a.name), tileColor(a.id), a.images);
                     const std::string id = a.id;
+                    tile->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.name), a.images);
                     tile->onClick = [id] { ctx().router->navigate({RouteKind::Album, id}); };
                     tiles.push_back(tile);
                 }
@@ -917,6 +927,7 @@ private:
                     }
                     auto* row = rc->add<ListRow>(toWide(a.name), toWide(a.artists.empty() ? "" : a.artists[0].name), meta, a.images);
                     const std::string id = a.id;
+                    row->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.name), a.images);
                     row->onClick = [id] { ctx().router->navigate({RouteKind::Album, id}); };
                 }
             }

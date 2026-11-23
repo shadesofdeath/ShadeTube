@@ -733,6 +733,9 @@ private:
                 ctx().player->playContext(std::move(tracks), start, context);
             };
             card->onContext = [idx](gfx::Point wp) { showTrackMenu(tracksAt(idx), wp); };
+            // Song preview: a hold on the cover samples the group's first song.
+            if (auto first = idx.empty() ? std::vector<Track>{} : tracksAt({idx.front()}); !first.empty())
+                card->previewTarget = preview::songTarget(first.front());
         }
         if (shown.size() > kMaxCards)
             body_->add<ui::Label>(i18n::plural(L"İlk {} sonuç gösteriliyor; aramayla daralt.", int64_t{kMaxCards}),

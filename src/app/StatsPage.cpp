@@ -1272,6 +1272,7 @@ private:
                     ctx().player->playContext(recent, static_cast<int>(i), {"stats", tr(L"Son çalınanlar")});
                 };
                 row->onContext = [t](gfx::Point wp) { showTrackMenu({t}, wp); };
+                row->previewTarget = preview::songTarget(t);
             }
         }
     }
@@ -1357,6 +1358,7 @@ private:
                                               Placeholder::Artist);
             const Route open = routable(a.artist.id, "spotify:artist:") ? Route{RouteKind::Artist, a.artist.id}
                                                                        : Route{RouteKind::Search, a.artist.name};
+            card->previewTarget = preview::collectionTarget(open, toWide(a.artist.name), artistImages(a.artist));
             card->onOpen = [open] { ctx().router->navigate(open); };
         }
         fetchArtistImages(std::move(lookup), life_.ref(), [this] { scheduleRebuild(); });
@@ -1376,6 +1378,7 @@ private:
             auto* card = grid->add<MediaCard>(toWide(a.album.name), sub, a.album.images);
             if (routable(a.album.id, "spotify:album:")) {
                 const std::string id = a.album.id;
+                card->previewTarget = preview::collectionTarget({RouteKind::Album, id}, toWide(a.album.name), a.album.images);
                 card->onOpen = [id] { ctx().router->navigate({RouteKind::Album, id}); };
                 card->onPlay = [id] { ctx().router->navigate({RouteKind::Album, id + "#play"}); };
             } else {
