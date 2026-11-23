@@ -21,18 +21,19 @@ constexpr float kBlurDip = 40;                 // blur radius in DIPs (standard 
 constexpr float kMarginDip = kBlurDip;         // captured around the surfaces (the blur reaches this far in)
 constexpr double kSettleMs = 150;              // content behind changed: recapture once it has been quiet this long
 constexpr double kMaxStaleMs = 1000;           // ...or at the latest this long after the last capture
-constexpr float kNoiseMax = 0.05f;   // the noise tile's strongest pixel (±45 levels off grey)
-float noiseOpacity() { return gfx::isLightTheme() ? 0.7f : 1.f; }   // finer on paper
+constexpr float kNoiseMax = 0.05f;   // the noise tile's strongest pixel (Â±45 levels off grey)
+float noiseOpacity() { return gfx::isLightTheme() ? 0.5f : 0.8f; }   // finer on paper
 
 // Contrast guard. The blurred backdrop's luma is compressed towards the surface color's (kept: `luma`), its chroma
 // around it is kept by `chroma` (hue unchanged), then the surface color is laid over it at `tint`. A linear color
 // matrix: no clipping steps (a luminosity blend turned saturated colors into cyan / magenta blotches on paper). Worst
 // cases, a white area behind a dark menu / a black one behind a light menu, keep fg.secondary near 5:1 (dark) and
-// above 5:1 (light); over ordinary content the surface stays within a few levels of its opaque color.
+// above 5:1 (light; it keeps more chroma so the paper stays warm); over the page the surface lands within a level
+// or two of its opaque color.
 struct Recipe {
     float luma, chroma, tint;
 };
-Recipe recipe() { return gfx::isLightTheme() ? Recipe{0.25f, 0.6f, 0.5f} : Recipe{0.15f, 0.6f, 0.52f}; }
+Recipe recipe() { return gfx::isLightTheme() ? Recipe{0.2f, 0.85f, 0.55f} : Recipe{0.15f, 0.6f, 0.52f}; }
 float tintAlpha() { return recipe().tint; }
 
 int g_captures = 0;
