@@ -1,6 +1,7 @@
 ﻿add_library(st_ui STATIC
     Anim.cpp Anim.h
     Controls.cpp Controls.h
+    HoldGesture.cpp HoldGesture.h
     Layout.cpp Layout.h
     Popups.cpp Popups.h
     ScrollDemo.cpp

@@ -32,6 +32,11 @@
 // Live tracks: (re)starting waits for a jitter margin (kLivePrebufferMs, more after a stall) instead of 0.25 s;
 // pause / play tell the track (it keeps only the newest audio while paused and flushes what went stale), seek is
 // ignored, and stream titles are fired (onTitle) once the audio they start with is audible.
+//
+// Preview voice (openPreview): its own Track mixed in at the end of render(), after the current track's block and
+// before the limiter: equalizer (a filter state of its own), its loudness gain, the volume and a fade envelope. While it
+// plays, the current track's block is scaled by `duck`; once that reached 0 a seekable current track is held (render()
+// stops reading it, so positions stay), a live one keeps being read at 0 (it stays live).
 #include "audio/AudioEngine.h"
 
 #include "audio/Limiter.h"
@@ -80,6 +85,13 @@ constexpr float kSilence = 0.00316f;
 constexpr int64_t kSilentTailMs = 1500;
 constexpr int64_t kSilentTailWindowMs = 20000;
 constexpr int64_t kSkipLeadMs = 5000;
+// Preview voice: the current track fades out under it and back in after it; the preview's own fades.
+constexpr float kDuckOutSeconds = 0.25f;
+constexpr float kDuckInSeconds = 0.40f;
+constexpr float kPreviewInSeconds = 0.35f;
+constexpr float kPreviewOutSeconds = 0.25f;
+constexpr double kPreviewPrebufferSeconds = 0.5;   // decoded before it fades in (it never rebuffers: a short sample)
+constexpr float kHalfPiF = 1.57079632679f;
 
 // MFAudioFormat_Opus (WAVE_FORMAT_OPUS = 0x704F); defined locally for older SDKs.
 constexpr GUID kAudioFormatOpus = {0x0000704F, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
@@ -93,10 +105,12 @@ float perceptualGain(float linear) {
 float dbToGain(float db) { return db == 0.f ? 1.f : std::pow(10.f, std::clamp(db, -30.f, 15.f) / 20.f); }
 
 struct Command {
-    enum class Type { Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek, SetDevice, SetSpeed } type;
+    enum class Type {
+        Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek, SetDevice, SetSpeed, OpenPreview, StopPreview
+    } type;
     StreamSource source;
     int64_t ms = 0;
-    bool autoplay = true;
+    bool autoplay = true;   // OpenPreview: hold the current track (false: it keeps running muted)
     std::wstring device;   // SetDevice
     float speed = 1;       // SetSpeed
 };
@@ -115,6 +129,17 @@ struct Run {
 
 enum class Phase { None, Active, Ended, Failed };
 enum class Rebuffer { None, Open, Seek, Stall };
+enum class PreviewPhase { None, Loading, Playing, Stopping };
+
+// A preview track with its envelope (0..1 towards `target`), its slewed volume and its own equalizer state.
+struct Voice {
+    std::unique_ptr<Track> track;
+    float env = 0.f, target = 0.f;
+    float vol = -1.f;   // < 0: not mixed yet (starts at the volume)
+    Equalizer eq;
+    uint32_t eqApplied = 0, eqRate = 0, eqChannels = 0;
+    bool eqSynced = false;
+};
 
 } // namespace
 
@@ -190,6 +215,16 @@ struct AudioEngine::Impl {
     int64_t xfadeTotal = 0, xfadeDone = 0;   // frames
     std::vector<float> mixBuf;
 
+    // Preview voice (see the header comment).
+    Voice pv, pvOut;                  // the preview, and a replaced one still fading out
+    PreviewPhase pvPhase = PreviewPhase::None;
+    uint64_t pvTag = 0;
+    bool pvHoldMain = true;
+    float duck = 1.f, duckTarget = 1.f;   // the current track's gain under a preview
+    bool mainHeld = false;            // the current track is not read while the preview plays
+    std::vector<float> pvBuf, pvMix;
+    std::atomic<int64_t> pvPosMs{0};
+
     std::vector<float> tail;  // faded-out audio of the previous state (see header comment)
     size_t tailDone = 0;
     uint64_t tailTag = 0;
@@ -239,6 +274,8 @@ struct AudioEngine::Impl {
         retire(cur);
         retire(next);
         retire(fading);
+        retire(pv.track);
+        retire(pvOut.track);
         retired.clear();  // ~Track joins (quick: everything is cancelled)
         out.reset();
         {
@@ -257,6 +294,7 @@ struct AudioEngine::Impl {
         if (phase == Phase::Active && rebuffer != Rebuffer::None) t = std::min<DWORD>(t, 40);
         if (!retired.empty()) t = std::min<DWORD>(t, 15);
         if (deviceLost) t = std::min<DWORD>(t, 500);
+        if (pvPhase == PreviewPhase::Loading) t = std::min<DWORD>(t, 40);
         return t;
     }
 
@@ -264,6 +302,7 @@ struct AudioEngine::Impl {
         processCommands();
         handleDeviceChange();
         checkTracks();
+        checkPreview();
         if (out->running()) renderAvailable();
         maybeStartOrStop();
         reap();
@@ -301,6 +340,8 @@ struct AudioEngine::Impl {
             case Command::Type::Seek: cmdSeek(c.ms); break;
             case Command::Type::SetDevice: cmdSetDevice(c.device); break;
             case Command::Type::SetSpeed: curSpeed = std::clamp(c.speed, 0.5f, 3.f); break;
+            case Command::Type::OpenPreview: cmdOpenPreview(c.source, c.ms, c.autoplay); break;
+            case Command::Type::StopPreview: cmdStopPreview(); break;
             }
         }
     }
@@ -445,7 +486,7 @@ struct AudioEngine::Impl {
     bool wantOutput() const {
         return phase == Phase::Active && wantPlay && rebuffer == Rebuffer::None && cur && cur->formatReady();
     }
-    bool feedingNow() const { return wantOutput() && formatMatches(*cur); }
+    bool feedingNow() const { return wantOutput() && formatMatches(*cur) && !mainHeld; }
 
     void checkTracks() {
         if (next && next->failed()) {
@@ -569,10 +610,13 @@ struct AudioEngine::Impl {
     }
 
     void maybeStartOrStop() {
+        const bool preview = previewAudible();
         if (wantOutput()) {
             if (!out->isOpen() && !openDevice(cur->sampleRate(), cur->channels())) return;
-            if (!formatMatches(*cur)) return;  // checkTracks() drains and reopens
+            if (!formatMatches(*cur) && !preview) return;  // checkTracks() drains and reopens
             if (!out->running()) startOutput();
+        } else if (preview) {   // only the preview sounds (nothing else played, or the current track is paused)
+            if (out->isOpen() && !out->running()) startOutput();   // checkPreview() opened the device
         } else if (out->running() && tail.empty()) {
             uint32_t pad = 0;
             if (const HRESULT hr = out->padding(pad); FAILED(hr)) {
@@ -635,10 +679,10 @@ struct AudioEngine::Impl {
         tail.resize(got * ch);
         if (got == 0) return;
         tailSpeed = speed;
-        float gain = gainOf(*cur);
+        float gain = gainOf(*cur) * duckGain();   // ducked under a preview: it fades out from there
         if (xfading) {   // the outgoing track of a running mix fades out with it
             mixCrossfade(tail.data(), got, ch, out->sampleRate());
-            gain = 1.f;
+            gain = duckGain();
         }
         syncEq();
         eq.process(tail.data(), got);
@@ -843,10 +887,12 @@ struct AudioEngine::Impl {
                 eq.process(p, got);
                 spectrum.push(p, got, ch);
                 applyGain(p, got, ch, rate, volTarget, true, gain);
+                if (duck < 1.f || duckTarget < 1.f) applyDuck(p, got, ch, rate);
                 addRun(written + done, got, t.tag(), pos, rate, serial, pendingFinishedTag, speed);
                 pendingFinishedTag = 0;
                 done += static_cast<uint32_t>(got);
                 lastRealEnd = written + done + limiter.latencyFrames();   // it leaves the limiter that much later
+                maybeHoldMain();
                 continue;
             }
             if (t.ended() && stretch.empty()) {
@@ -862,8 +908,202 @@ struct AudioEngine::Impl {
             spectrum.pushSilence(n - done);
             addRun(written + done, n - done, 0, -1, rate, serial, 0);
         }
+        mixPreview(dst, n, ch, rate, volTarget);
         limiter.process(dst, n);
         written += n;
+    }
+
+    // ---- preview voice ---------------------------------------------------------------------------
+    float duckGain() const { return duck >= 1.f ? 1.f : std::sin(duck * kHalfPiF); }
+
+    // Moves `duck` towards duckTarget over the block (equal-power curve) and scales the current track's frames by it.
+    void applyDuck(float* p, size_t frames, uint32_t ch, uint32_t rate) {
+        const float down = 1.f / (kDuckOutSeconds * static_cast<float>(rate));
+        const float up = 1.f / (kDuckInSeconds * static_cast<float>(rate));
+        for (size_t f = 0; f < frames; ++f) {
+            if (duck > duckTarget) duck = std::max(duckTarget, duck - down);
+            else if (duck < duckTarget) duck = std::min(duckTarget, duck + up);
+            const float g = duckGain();
+            for (uint32_t c = 0; c < ch; ++c) p[f * ch + c] *= g;
+        }
+    }
+
+    // The current track went silent under a playing preview: a seekable one stops being read (it keeps its position);
+    // the outgoing track of a crossfade goes, as with a pause.
+    void maybeHoldMain() {
+        if (mainHeld || pvPhase != PreviewPhase::Playing || !pvHoldMain || duck > 0.f || duckTarget > 0.f) return;
+        if (!cur || cur->live()) return;
+        mainHeld = true;
+        endCrossfade();
+    }
+
+    // The current track comes back: it is read again and fades in from where `duck` is.
+    void releaseMain() {
+        duckTarget = 1.f;
+        mainHeld = false;
+    }
+
+    bool previewAudible() const {
+        return (pv.track && (pvPhase == PreviewPhase::Playing || pvPhase == PreviewPhase::Stopping)) || pvOut.track;
+    }
+
+    void firePreview(State s) {
+        if (events.onPreview) events.onPreview(s, pvTag);
+    }
+
+    void retireVoice(Voice& v) {
+        retire(v.track);
+        v = Voice{};
+    }
+
+    void cmdOpenPreview(const StreamSource& s, int64_t startMs, bool hold) {
+        if (pv.track) {
+            if (pvPhase == PreviewPhase::Playing || pvPhase == PreviewPhase::Stopping) {   // audible: fades out under the new one
+                retireVoice(pvOut);
+                pvOut = std::move(pv);
+                pvOut.target = 0.f;
+            } else {
+                retireVoice(pv);
+            }
+            pv = Voice{};
+        }
+        releaseMain();   // until the new one is audible
+        // Decoded straight to the rate the device runs at now (a live station may have opened it at its own).
+        const uint32_t rate = out->isOpen() ? out->sampleRate() : outputRate;
+        pv.track = std::make_unique<Track>(s, std::max<int64_t>(0, startMs), &memBytes, wake, rate);
+        pv.track->requestWake();
+        pvPhase = PreviewPhase::Loading;
+        pvTag = s.tag;
+        pvHoldMain = hold;
+        pvPosMs.store(0);
+        firePreview(State::Loading);
+    }
+
+    void cmdStopPreview() {
+        if (!pv.track) return;
+        if (pvPhase == PreviewPhase::Loading) {   // never audible: nothing to fade
+            retireVoice(pv);
+            pvPhase = PreviewPhase::None;
+        } else if (pvPhase == PreviewPhase::Playing) {
+            pv.target = 0.f;
+            pvPhase = PreviewPhase::Stopping;
+        }
+        releaseMain();
+        firePreview(State::Idle);
+    }
+
+    // Engine thread, every step: starts a loaded preview, notices its end / failure, frees faded voices.
+    void checkPreview() {
+        if (pvOut.track && pvOut.env <= 0.f) retireVoice(pvOut);
+        if (!pv.track) return;
+        Track& t = *pv.track;
+        auto fail = [&](const std::string& why) {
+            ST_LOG_WARN("audio", "preview {}: {}", pvTag, why);
+            if (pvPhase == PreviewPhase::Loading) {
+                retireVoice(pv);
+                pvPhase = PreviewPhase::None;
+            } else {
+                pv.target = 0.f;
+                pvPhase = PreviewPhase::Stopping;
+            }
+            releaseMain();
+            firePreview(State::Error);
+        };
+        switch (pvPhase) {
+        case PreviewPhase::Loading: {
+            if (t.failed() && t.available() == 0) return fail(t.errorMessage());
+            if (!t.formatReady()) return t.requestWake();
+            const size_t need = std::min(static_cast<size_t>(t.sampleRate() * kPreviewPrebufferSeconds), t.capacity() * 9 / 10);
+            if (t.available() < need && !t.decoderEnded()) return t.requestWake();
+            if (out->isOpen() && out->sampleRate() != t.sampleRate()) return fail("sample rate differs from the device");
+            if (!out->isOpen() && !openDevice(t.sampleRate(), t.channels())) return;   // retried next step
+            pvPhase = PreviewPhase::Playing;
+            pv.env = 0.f;
+            pv.target = 1.f;
+            duckTarget = 0.f;
+            // A current track that isn't sounding now (paused, loading, nothing) has nothing to fade: it starts silent.
+            if (!feedingNow()) {
+                duck = 0.f;
+                maybeHoldMain();
+            }
+            ST_LOG_INFO("audio", "preview {} audible ({} Hz, {} ch)", pvTag, t.sampleRate(), t.channels());
+            firePreview(State::Playing);
+            break;
+        }
+        case PreviewPhase::Playing:
+            if (t.failed() && t.available() == 0) return fail(t.errorMessage());
+            if (out->isOpen() && out->sampleRate() != t.sampleRate()) return fail("the device changed its rate");
+            if (t.ended()) {
+                pv.target = 0.f;
+                pvPhase = PreviewPhase::Stopping;
+                releaseMain();
+                firePreview(State::Ended);
+            }
+            break;
+        case PreviewPhase::Stopping:
+            if (pv.env <= 0.f || t.ended()) {
+                retireVoice(pv);
+                pvPhase = PreviewPhase::None;
+            }
+            break;
+        case PreviewPhase::None: break;
+        }
+    }
+
+    // Adds one voice's next `n` frames to dst (its channels mapped onto the device's). False when nothing came.
+    bool mixVoice(Voice& v, float* dst, uint32_t n, uint32_t ch, uint32_t rate, float volTarget, bool current) {
+        if (!v.track || !v.track->formatReady() || (v.env <= 0.f && v.target <= 0.f)) return false;
+        Track& t = *v.track;
+        if (t.sampleRate() != rate) return false;
+        const uint32_t tch = std::max<uint32_t>(1, t.channels());
+        pvBuf.resize(size_t(n) * tch);
+        int64_t pos = 0;
+        const size_t got = t.read(pvBuf.data(), n, pos, tch, rate);
+        if (got == 0) return false;
+        if (current) pvPosMs.store((pos + static_cast<int64_t>(got)) * 1000 / rate);
+        pvMix.resize(got * ch);
+        for (size_t i = 0; i < got; ++i) {
+            const float* src = pvBuf.data() + i * tch;
+            float* d = pvMix.data() + i * ch;
+            if (ch == 1 && tch > 1) d[0] = (src[0] + src[1]) * 0.5f;
+            else
+                for (uint32_t c = 0; c < ch; ++c) d[c] = src[std::min(c, tch - 1)];
+        }
+        const uint32_t ver = eqVersion.load(std::memory_order_acquire);
+        if (!v.eqSynced || v.eqApplied != ver || v.eqRate != rate || v.eqChannels != ch) {
+            EqSettings s;
+            {
+                std::lock_guard lock(eqMutex);
+                s = eqPending;
+            }
+            v.eq.configure(s, rate, ch);
+            v.eqApplied = ver;
+            v.eqRate = rate;
+            v.eqChannels = ch;
+            v.eqSynced = true;
+        }
+        v.eq.process(pvMix.data(), got);
+        const float inStep = 1.f / (kPreviewInSeconds * static_cast<float>(rate));
+        const float outStep = 1.f / (kPreviewOutSeconds * static_cast<float>(rate));
+        const float volStep = 1.f / (kVolumeRampSeconds * static_cast<float>(rate));
+        const float loudness = gainOf(t);
+        if (v.vol < 0.f) v.vol = volTarget;
+        for (size_t i = 0; i < got; ++i) {
+            if (v.env < v.target) v.env = std::min(v.target, v.env + inStep);
+            else if (v.env > v.target) v.env = std::max(v.target, v.env - outStep);
+            if (v.vol < volTarget) v.vol = std::min(volTarget, v.vol + volStep);
+            else if (v.vol > volTarget) v.vol = std::max(volTarget, v.vol - volStep);
+            const float g = std::sin(v.env * kHalfPiF) * v.vol * loudness;
+            for (uint32_t c = 0; c < ch; ++c) dst[i * ch + c] += pvMix[i * ch + c] * g;
+        }
+        return true;
+    }
+
+    void mixPreview(float* dst, uint32_t n, uint32_t ch, uint32_t rate, float volTarget) {
+        bool any = mixVoice(pvOut, dst, n, ch, rate, volTarget, false);
+        if (pvPhase == PreviewPhase::Playing || pvPhase == PreviewPhase::Stopping)
+            any = mixVoice(pv, dst, n, ch, rate, volTarget, true) || any;
+        if (any) lastRealEnd = written + n + limiter.latencyFrames();
     }
 
     // `played` = device frames already heard. Updates the position, fires audible transitions.
@@ -952,6 +1192,12 @@ void AudioEngine::setSpeed(float speed) {
     c.speed = speed;
     impl_->post(std::move(c));
 }
+
+void AudioEngine::openPreview(const StreamSource& source, int64_t startMs, bool holdMain) {
+    impl_->post({Command::Type::OpenPreview, source, startMs, holdMain});
+}
+void AudioEngine::stopPreview() { impl_->post({Command::Type::StopPreview, {}}); }
+int64_t AudioEngine::previewPositionMs() const { return impl_->pvPosMs.load(std::memory_order_relaxed); }
 
 void AudioEngine::setOutputDevice(const std::wstring& id) {
     Command c{Command::Type::SetDevice, {}};

@@ -32,6 +32,7 @@ Player::Player(youtube::MatchService& matcher) : matcher_(matcher) {
         Dispatcher::post([this, k, m, tag] { onEngineError(k, m, tag); });
     };
     ev.onTitle = [this](const std::string& title, uint64_t tag) { Dispatcher::post([this, title, tag] { onEngineTitle(title, tag); }); };
+    ev.onPreview = [this](audio::State s, uint64_t tag) { Dispatcher::post([this, s, tag] { onEnginePreview(s, tag); }); };
     engine_ = std::make_unique<audio::AudioEngine>(std::move(ev));
     allowWebm_ = audio::AudioEngine::supportsWebm();
     const auto& s = Settings::get();
@@ -52,6 +53,7 @@ Player::~Player() {
     g_timerOwner = nullptr;
     if (resolveCts_) resolveCts_->cancel();
     if (prefetchCts_) prefetchCts_->cancel();
+    if (previewCts_) previewCts_->cancel();
     engine_.reset();   // joins the engine thread before members die
 }
 
@@ -1168,6 +1170,96 @@ void Player::restoreSessionFile() {
     if (live_) pendingSeekMs_ = -1;
     status_ = Status::Paused;   // shown in the player bar; pressing play resolves and resumes
     notify();
+}
+
+// --- song preview ----------------------------------------------------------------------------------------------
+
+uint64_t Player::startPreview(const Track& track, int64_t startMs, bool keepMainRunning) {
+    stopPreview();
+    if (track.name.empty() || !track.playable) return 0;
+    if (liveStreamFor && liveStreamFor(track)) return 0;          // a station has nothing to sample
+    if (directStreamFor && directStreamFor(track)) return 0;      // nor is a podcast episode a song
+    const uint64_t id = ++previewId_;
+    const uint64_t tag = ++tagCounter_;
+    previewTag_ = tag;
+    previewKeepMain_ = keepMainRunning;
+    setPreviewState(PreviewState::Resolving);
+    // A download / local file plays from disk (offline too).
+    if (const std::wstring path = localFileFor ? localFileFor(track.id) : std::wstring{}; !path.empty()) {
+        openPreview(localSource(path, tag, track.durationMs), startMs, track, nullptr, track.durationMs);
+        return id;
+    }
+    previewCts_ = std::make_shared<YoutubeExplode::CancellationTokenSource>();
+    auto token = previewCts_->token();
+    const bool webm = allowWebm_ && Settings::get().quality == AudioQuality::High;
+    const bool low = Settings::get().quality == AudioQuality::Normal;
+    auto* matcher = &matcher_;
+    async(
+        Priority::High, life_.ref(),
+        [matcher, track, webm, low, token] { return matcher->resolveForPlayback(track, webm, low, false, token); },
+        [this, tag, startMs, track](Result<youtube::Resolved> r) {
+            if (tag != previewTag_ || previewState_ != PreviewState::Resolving) return;   // stopped / replaced
+            previewCts_.reset();
+            if (!r) {
+                const std::string err = r.errorMessage();
+                if (err.find("canceled") != std::string::npos) return;
+                ST_LOG_WARN("player", "preview: no stream for \"{}\": {}", track.name, err);
+                previewTag_ = 0;
+                setPreviewState(PreviewState::Failed);
+                return;
+            }
+            const int64_t duration = r->match.durationSec > 0 ? r->match.durationSec * 1000LL : track.durationMs;
+            openPreview(sourceFor(*r, tag, track.durationMs), startMs, track, &r->match, duration);
+        });
+    return id;
+}
+
+void Player::openPreview(audio::StreamSource s, int64_t startMs, const Track& track, const youtube::Match* match,
+                         int64_t durationMs) {
+    if (startMs < 0) {
+        if (previewStartFor) startMs = previewStartFor(track, match, durationMs);
+        else startMs = durationMs > 30'000 ? durationMs * 35 / 100 : 0;
+    }
+    s.speed = 1;          // a sample plays as it is, whatever the queue's speed
+    s.crossfadeMs = 0;
+    ST_LOG_INFO("player", "preview \"{}\" from {} ms{}", track.name, startMs, previewKeepMain_ ? " (current item keeps running)" : "");
+    engine_->openPreview(s, std::max<int64_t>(0, startMs), !previewKeepMain_);
+}
+
+void Player::stopPreview() {
+    if (previewState_ == PreviewState::Idle) return;
+    if (previewCts_) {
+        previewCts_->cancel();
+        previewCts_.reset();
+    }
+    previewTag_ = 0;   // its late results and engine events are ignored
+    engine_->stopPreview();
+    setPreviewState(PreviewState::Idle);
+}
+
+void Player::setPreviewState(PreviewState s) {
+    if (s == previewState_) return;
+    previewState_ = s;
+    if (onPreview) {
+        const auto handler = onPreview;   // may start another preview
+        handler(previewId_, s);
+    }
+}
+
+void Player::onEnginePreview(audio::State s, uint64_t tag) {
+    if (tag == 0 || tag != previewTag_) return;
+    switch (s) {
+    case audio::State::Playing: setPreviewState(PreviewState::Playing); break;
+    case audio::State::Error:
+        previewTag_ = 0;
+        setPreviewState(PreviewState::Failed);
+        break;
+    case audio::State::Ended:   // it played to its end: the current item is back
+        previewTag_ = 0;
+        setPreviewState(PreviewState::Idle);
+        break;
+    default: break;
+    }
 }
 
 } // namespace st::player

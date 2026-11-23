@@ -8,6 +8,7 @@
 // - Overlays (menus, dialogs, toasts) live in a separate layer above the root, with optional modality.
 #include "gfx/Device.h"
 #include "ui/Anim.h"
+#include "ui/HoldGesture.h"
 #include "ui/Widget.h"
 
 #include <functional>
@@ -151,6 +152,18 @@ public:
     // were there, without touching the real cursor.
     void simulatePointer(Point pos);
 
+    // Press and hold (song preview, app/Preview; logic in ui/HoldGesture): a plain left press (no modifier, not a
+    // double click) that a widget took and that stays within holdSlop DIPs for holdDelayMs is offered to
+    // onHold(widget, press position). Returning true takes the rest of the gesture: the widget sees no more moves,
+    // its release arrives at a point outside every widget (no click, no drag starts) and onHoldEnd fires when the
+    // button goes up, at Esc or when the capture is lost. Declined, moved past the slop, released early or another
+    // button pressed: nothing changes, so clicks, double clicks, drags and selections behave as before.
+    std::function<bool(Widget* pressed, Point windowPos)> onHold;
+    std::function<void()> onHoldEnd;
+    double holdDelayMs = 350;
+    float holdSlop = 6;
+    bool holdTaken() const { return hold_.owned(); }
+
     static Window* fromHwnd(HWND hwnd);
     LRESULT handleMessageThunk(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
     // Window class of every Window ("ShadeTube.Window"; single-instance lookups find the app by it). setClassName only
@@ -236,6 +249,12 @@ private:
         double until = 0;
     } lost_;
     void applyFocusRestore();
+
+    // Press and hold (onHold)
+    HoldGesture hold_;
+    Widget* holdWidget_ = nullptr;   // the pressed widget while a hold is pending (nulled by forget())
+    void holdTimer();
+    void endHold();                  // a hold that owns the gesture ended before the release (Esc, capture lost)
 
     // Tooltip state
     Widget* tipWidget_ = nullptr;
