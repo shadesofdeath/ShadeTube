@@ -1699,5 +1699,19 @@
   "{} saat kesintisiz müzik": "{} jam musik tanpa henti",
   "ve {} yeni şarkı": "dan {} lagu baru",
   "Yıl özeti için en az {} dinleme gerekiyor": "Ringkasan tahunan butuh setidaknya {} putaran",
-  "Dinleme": "Putaran"
+  "Dinleme": "Putaran",
+  "Şerit": "Bilah",
+  "Görünüm: {}": "Tampilan: {}",
+  "Senkron söz yok": "Tidak ada lirik tersinkron",
+  "Bu şarkının sözü yok": "Tidak ada lirik untuk lagu ini",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Lirik dimatikan",
+  "Her zaman üstte": "Selalu di atas",
+  "Ana pencereye dön": "Kembali ke jendela utama",
+  "Mini oynatıcı: şerit": "Pemutar mini: bilah",
+  "Mini oynatıcı: kare": "Pemutar mini: persegi",
+  "Mini oynatıcı: geniş": "Pemutar mini: lebar",
+  "Mini oynatıcı: her zaman üstte": "Pemutar mini: selalu di atas",
+  "Mini oynatıcı her zaman üstte": "Pemutar mini selalu di atas",
+  "Mini oynatıcı artık üstte kalmıyor": "Pemutar mini tidak lagi selalu di atas"
 }

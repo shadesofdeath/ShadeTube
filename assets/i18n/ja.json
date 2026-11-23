@@ -1699,5 +1699,19 @@
   "{} saat kesintisiz müzik": "ノンストップで{}時間分の音楽",
   "ve {} yeni şarkı": "そして新しい曲が{}曲",
   "Yıl özeti için en az {} dinleme gerekiyor": "年間まとめには{}回以上の再生が必要です",
-  "Dinleme": "再生回数"
+  "Dinleme": "再生回数",
+  "Şerit": "バー",
+  "Görünüm: {}": "表示: {}",
+  "Senkron söz yok": "同期歌詞なし",
+  "Bu şarkının sözü yok": "この曲の歌詞はありません",
+  "Sadece müzik": "インストゥルメンタル",
+  "Sözler kapalı": "歌詞はオフです",
+  "Her zaman üstte": "常に手前に表示",
+  "Ana pencereye dön": "メインウィンドウに戻る",
+  "Mini oynatıcı: şerit": "ミニプレーヤー: バー",
+  "Mini oynatıcı: kare": "ミニプレーヤー: スクエア",
+  "Mini oynatıcı: geniş": "ミニプレーヤー: ワイド",
+  "Mini oynatıcı: her zaman üstte": "ミニプレーヤー: 常に手前に表示",
+  "Mini oynatıcı her zaman üstte": "ミニプレーヤーを常に手前に表示します",
+  "Mini oynatıcı artık üstte kalmıyor": "ミニプレーヤーを常に手前に表示しません"
 }

@@ -1878,5 +1878,19 @@
     "one": "A retrospectiva do ano precisa de pelo menos {} reprodução",
     "other": "A retrospectiva do ano precisa de pelo menos {} reproduções"
   },
-  "Dinleme": "Reproduções"
+  "Dinleme": "Reproduções",
+  "Şerit": "Faixa",
+  "Görünüm: {}": "Visualização: {}",
+  "Senkron söz yok": "Sem letra sincronizada",
+  "Bu şarkının sözü yok": "Sem letra para esta música",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Letras desativadas",
+  "Her zaman üstte": "Sempre visível",
+  "Ana pencereye dön": "Voltar à janela principal",
+  "Mini oynatıcı: şerit": "Miniplayer: faixa",
+  "Mini oynatıcı: kare": "Miniplayer: quadrado",
+  "Mini oynatıcı: geniş": "Miniplayer: largo",
+  "Mini oynatıcı: her zaman üstte": "Miniplayer: sempre visível",
+  "Mini oynatıcı her zaman üstte": "O miniplayer fica sempre visível",
+  "Mini oynatıcı artık üstte kalmıyor": "O miniplayer não fica mais sempre visível"
 }

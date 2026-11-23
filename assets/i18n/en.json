@@ -1878,5 +1878,19 @@
     "one": "A year in review needs at least {} play",
     "other": "A year in review needs at least {} plays"
   },
-  "Dinleme": "Plays"
+  "Dinleme": "Plays",
+  "Şerit": "Strip",
+  "Görünüm: {}": "View: {}",
+  "Senkron söz yok": "No synced lyrics",
+  "Bu şarkının sözü yok": "No lyrics for this song",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Lyrics are off",
+  "Her zaman üstte": "Always on top",
+  "Ana pencereye dön": "Back to the main window",
+  "Mini oynatıcı: şerit": "Mini player: strip",
+  "Mini oynatıcı: kare": "Mini player: square",
+  "Mini oynatıcı: geniş": "Mini player: wide",
+  "Mini oynatıcı: her zaman üstte": "Mini player: always on top",
+  "Mini oynatıcı her zaman üstte": "The mini player stays on top",
+  "Mini oynatıcı artık üstte kalmıyor": "The mini player no longer stays on top"
 }

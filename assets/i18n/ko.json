@@ -1699,5 +1699,19 @@
   "{} saat kesintisiz müzik": "쉬지 않고 {}시간 들은 음악",
   "ve {} yeni şarkı": "그리고 새로운 곡 {}곡",
   "Yıl özeti için en az {} dinleme gerekiyor": "연말 결산에는 최소 {}회 재생이 필요합니다",
-  "Dinleme": "재생 수"
+  "Dinleme": "재생 수",
+  "Şerit": "막대",
+  "Görünüm: {}": "보기: {}",
+  "Senkron söz yok": "동기화된 가사 없음",
+  "Bu şarkının sözü yok": "이 곡의 가사가 없습니다",
+  "Sadece müzik": "연주곡",
+  "Sözler kapalı": "가사 꺼짐",
+  "Her zaman üstte": "항상 위에 표시",
+  "Ana pencereye dön": "기본 창으로 돌아가기",
+  "Mini oynatıcı: şerit": "미니 플레이어: 막대",
+  "Mini oynatıcı: kare": "미니 플레이어: 정사각형",
+  "Mini oynatıcı: geniş": "미니 플레이어: 와이드",
+  "Mini oynatıcı: her zaman üstte": "미니 플레이어: 항상 위에 표시",
+  "Mini oynatıcı her zaman üstte": "미니 플레이어가 항상 위에 표시됩니다",
+  "Mini oynatıcı artık üstte kalmıyor": "미니 플레이어가 더 이상 항상 위에 표시되지 않습니다"
 }

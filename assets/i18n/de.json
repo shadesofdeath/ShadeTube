@@ -1878,5 +1878,19 @@
     "one": "Ein Jahresrückblick braucht mindestens {} Wiedergabe",
     "other": "Ein Jahresrückblick braucht mindestens {} Wiedergaben"
   },
-  "Dinleme": "Wiedergaben"
+  "Dinleme": "Wiedergaben",
+  "Şerit": "Leiste",
+  "Görünüm: {}": "Ansicht: {}",
+  "Senkron söz yok": "Keine synchronisierten Songtexte",
+  "Bu şarkının sözü yok": "Kein Songtext für diesen Song",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Songtexte sind aus",
+  "Her zaman üstte": "Immer im Vordergrund",
+  "Ana pencereye dön": "Zurück zum Hauptfenster",
+  "Mini oynatıcı: şerit": "Miniplayer: Leiste",
+  "Mini oynatıcı: kare": "Miniplayer: Quadrat",
+  "Mini oynatıcı: geniş": "Miniplayer: breit",
+  "Mini oynatıcı: her zaman üstte": "Miniplayer: immer im Vordergrund",
+  "Mini oynatıcı her zaman üstte": "Der Miniplayer bleibt im Vordergrund",
+  "Mini oynatıcı artık üstte kalmıyor": "Der Miniplayer bleibt nicht mehr im Vordergrund"
 }

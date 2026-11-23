@@ -92,7 +92,7 @@ ShadeTube/
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
-│                                ConnectScreen, MiniPlayer
+│                                ConnectScreen, MiniPlayer (+ MiniLayout, its geometry)
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats, LibrarySort +
 │                                LibraryView (Library views, 3.22), Display (interface scale + list density, 3.25),
 │                                CollapsingHeader + HeaderCollapse (collapsing page headers, 3.x),
@@ -114,6 +114,7 @@ ShadeTube/
                                  headers, jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, pagetx,
                                  playback, podcasts, radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock,
                                  spotify, stats, sync, tags, updater, winshell
+                                 tags, updater, winshell, miniplayer
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -957,7 +958,7 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
   drag and drop divide by the same scale; the resize borders stay system metrics. The minimum track size is the
   960 × 600 DIP minimum at the zoomed scale, capped at the monitor's work area. `WM_DPICHANGED` keeps the zoom (only
   the DPI part changes). The saved window size stays in monitor DIPs (`Window::dpiScale()`), independent of the zoom.
-  The **mini player stays at 100 %**: its fixed layout is sized for the DPI alone.
+  The mini player follows it too: its DIP sizes are multiplied by it (3.x Mini player modes).
 - Changed by the `zoom-in` / `zoom-out` / `zoom-reset` actions (Ctrl+Plus / Ctrl+Minus / Ctrl+0, also while typing;
   the keypad's + / - / 0 and the layout's "+" key through `shortcuts::fallback`, 3.10.1), Ctrl + mouse wheel
   (`Window::onCtrlWheel`; notches add up to a step, so a touchpad pinch works too) and Ayarlar › Görünüm (a segmented
@@ -1115,8 +1116,8 @@ time of the event.
   accent pill that grows to 4 × 18 on hover, drag and keyboard focus (the focus ring circles it); the hover time shows
   in a small box just above the wave. Seeking, keyboard steps (5 s) and the time labels work as before. A live stream
   is all "now": a wave end to end, no playhead, the "CANLI" badge after it; a listen-together guest without control
-  sees it at 38 % without a playhead. The mini player draws the same wave (amplitude 2.5, no playhead) under the
-  artwork.
+  sees it at 38 % without a playhead. The mini player's wide and square modes use the same seek wave; its strip a
+  plain progress line (3.x Mini player modes).
 - **Frame budget**: while the wave flows the bar asks for a repaint every `ui::kWaveFrameMs` (25 ms: with the wait for
   vsync every second 60 Hz frame, ~30 fps; each one a full-window frame) only when it can be seen: hidden and minimized
   windows never render (3.3; the mini player alone then renders its own small window) and the full-screen lyrics,
@@ -1585,6 +1586,85 @@ the palette command, the dev hooks).
   arithmetic. `SHADETUBE_SCROLL_DEMO=notch,touch` through the collapse of a playlist (Debug, 120 Hz): 292 frames, median
   gap 8.3 ms, frame CPU at most 2.9 ms.
 - Dev: `SHADETUBE_HEADER_SCROLL=<dips>` (5.4) opens such pages scrolled that far (screenshots of any stage).
+### 3.x Mini player modes
+
+`app/MiniPlayer` (the window, its widgets and messages) on `app/MiniLayout` (standalone geometry: modes, sizes,
+anchoring, snapping, square resizing, saved places; `miniplayer_test`). Opened by the player bar's button, Ayarlar,
+the tray's jump list task, `Ctrl+Shift+M` or a mode key; it hides the main window while it is open.
+
+- **Modes** (`mini::Mode`, `Settings.miniMode`, default Wide). **Strip** 380 × 56 DIP: cover 40, title / artist,
+  prev · play 32 · next, a 2 DIP progress line on the bottom edge (accent over `hairline.subtle`; a station: all
+  accent). **Square** 240 DIP (168..480, never more than the work area): the cover alone, full bleed; on hover the
+  `scrim` token plus a `scrimHeavy` gradient towards the bottom fade in (both follow the theme, so the overlay is
+  paper-colored in the light theme), with the window buttons, prev · play 40 · next in the middle, title / artist
+  and the wave seek bar (`ui::Slider::Look::Wave`, with its playhead) at the bottom. **Wide** 520 × 168: cover 136,
+  title / artist, shuffle · prev · play 36 · next · repeat, the time, the heart, the wave seek bar under everything
+  and two lyrics lines. All of them use the player bar's thin outline icons and outline play button (3.29), its
+  track-change slide (`TrackSwap`, `FadingArt`; the square cross-fades its cover in place) and the faint accent wash.
+- **Lyrics** (Wide only, fetched only while it is on and kept for the track): `lyricsQueryFor` + `lyrics::fetch` on a
+  worker (the track's own `.lrc` / tags, LRCLIB, Spotify; 3.16), on the song's clock (`lyricsClockMs`: SponsorBlock
+  segments and the per-track offset) with Now Playing's 150 ms lookahead. The line being sung (B 15/600,
+  `fg.primary`) over the next one (13, `fg.tertiary`); at a line change the sung line moves up and fades while the next
+  rises into its place and brightens (`motion::medium`, instant with reduce motion). Without synced lyrics the album
+  name and a mono note take their place (SENKRON SÖZ YOK, BU ŞARKININ SÖZÜ YOK, SADECE MÜZİK, SÖZLER KAPALI); a
+  podcast episode shows its show there, a station nothing (its song is the title).
+- **Hover**. The surface is the drag region (`HTCAPTION`), so the pointer over it arrives as `WM_NCMOUSEMOVE`:
+  `MiniPlayer` follows client and non-client moves and leaves (`TME_NONCLIENT`; after a leave a posted check asks
+  whether the pointer is still over the window) as one "pointer inside" state. The hover-only controls (the window
+  buttons mode · Büyüt · Kapat; in the square everything but the cover) fade in with it (`motion::normal` in,
+  `medium` out), also while one of them has keyboard focus (Tab) or the context menu is open. Hidden, they take no
+  clicks (`MiniView::hitTest` returns the surface, so the press drags).
+- **Switching**: the mode button (the next mode's icon, `mini-strip-thin` / `mini-square-thin` / `mini-wide-thin`),
+  the context menu or the keys. The window keeps its anchor (`mini::anchorFor`): per axis the work area edge it sits
+  at (within the 12 DIP snap margin + 6), else the third of the work area its center is in, so a window in the
+  bottom-right corner grows up and to the left, one at the top edge downwards, one in the middle from its center; then
+  `ui::Window::fitToWorkArea`. Going straight back to the mode it came from without moving the window returns exactly
+  to where that mode was (this run). The size animates over `motion::slow` (320 ms, Standard) in `WM_TIMER` steps
+  (`USER_TIMER_MINIMUM`, ~64 a second): each `SetWindowPos` resizes the swap chain and draws the new size
+  synchronously through `WM_SIZE`. Every mode's layout is a function of the window rect, so the content follows the
+  window; the old mode's content cross-fades into the new one and the new controls come in over the second half.
+  Instant with reduce motion and never while the window is hidden (`show()` re-fits instead).
+- **Placement** (`Settings.miniPlaces`: mode → `[x, y, w, h]`, the top-left in screen pixels and the size in DIPs):
+  written after a drag, a resize, a switch and on hide / exit; `miniX` / `miniY` keep the last top-left of any mode
+  (what older versions read). Opening: the mode's place, else `miniX` / `miniY`, else the bottom-right corner of the
+  main window's monitor, 12 DIP from the edges; `ui::Window` keeps it on a monitor (one that is gone: the nearest).
+- **Dragging** anywhere on the surface runs the system move loop; `WM_MOVING` snaps every edge that comes within 20 DIP
+  of the work area's edge inset by 12 DIP, on the monitor under the pointer (edges and corners; dragging on frees
+  it). After the loop, on `WM_DISPLAYCHANGE`, `SPI_SETWORKAREA` and `WM_DPICHANGED` the window goes back inside the
+  work area of the monitor it is mostly on (`ui::Window::fitToWorkArea`, the constructor's placement rule, made
+  public for this). A monitor with another DPI rescales it during the drag (Per-Monitor V2): the DIP size stays.
+- **Square resizing** has its own grips (corners 14 DIP, edges 5 DIP, resize cursors) instead of `WS_THICKFRAME`, which
+  would bring Aero Snap and lose the square: the side follows the pointer's larger movement outwards, the opposite
+  corner stays; 168..480 DIP and the work area. The side is the square's saved size.
+- **Mouse**: a double click on the surface returns to the main window (`WM_NCLBUTTONDBLCLK`), a right click opens the
+  context menu, the wheel sets the volume like the player bar's knob (5 % a notch, touchpad deltas in proportion) and
+  shows a small pill (the speaker icon of the level, a level line, the percentage) for a second.
+- **Context menu**: a native popup menu, like the tray's (it can extend past the 56 DIP strip; dark / light with the
+  app, `Tray::setDarkMenus`): Şerit / Kare / Geniş, Her zaman üstte, Ana pencereye dön, each with the user's key.
+  Right click, the menu key or Shift+F10.
+- **Keys** (shortcut actions with `kMini`, rebindable in Ayarlar › Klavye): `Ctrl+1` / `Ctrl+2` / `Ctrl+3` Strip /
+  Square / Wide (`mini-strip`, `mini-square`, `mini-wide`; in the main window they open the mini player in that mode,
+  and they may get global keys), `Ctrl+T` always on top (`mini-on-top`, a toast says which), `Ctrl+Shift+M` back to
+  the main window (`mini-player` now also works inside it), and the player's own keys (Space, Ctrl+← / →, ← / →,
+  Shift+← / →, Ctrl+↑ / ↓, Ctrl+M, Ctrl+L, Ctrl+S, Ctrl+R, the speed keys). Tab walks the controls (they show while
+  focused).
+- **Always on top** (`Settings.miniOnTop`, on by default): `HWND_TOPMOST` / `HWND_NOTOPMOST`, live. Off, the tool
+  window (no taskbar button) can go behind other windows; the tray icon, a second launch or the show-window hotkey
+  bring it back.
+- **Theme, accent, scale**: palette and accent are read at paint time (live switches; the DWM hairline border is
+  re-applied). It follows "Arayüz ölçeği" (3.25): its DIP sizes are multiplied by it (`WindowOptions::zoom`, re-applied
+  when it is shown after a change).
+- **Cost**: invalidation-driven like the player bar. Paused: no wake-ups at all. Playing: the wide mode (and the square
+  while its controls show) asks for the flowing wave's `kWaveFrameMs`, else 250 ms; the strip repaints once per pixel
+  of progress (250..1000 ms); the square's bare cover never. Lyrics lines change in that rhythm (with reduce motion the
+  next line's time is scheduled). Measured (Debug build, 2560 × 1440 at 175 %, 240 Hz, a local MP3; frames from the
+  mini player's debug log `N frames in X s`, process CPU over 10 s): paused, every mode: no frames, 0-16 ms of CPU;
+  playing: the square at rest no frames at all, the strip 4 frames a second (~2 % of one core), the wide mode ~32
+  frames a second plus vsync during each 240 ms lyrics slide (~4-7 %), the square while its controls show ~32 (~4 %).
+- **Memory** (3.2): the mini player owns no device objects (covers through `ImageCache`, DirectWrite layouts); a hidden
+  mini player never draws or moves, so the idle graphics release works as before.
+- **Dev**: `--mini` with `SHADETUBE_MINI_MODE` and `SHADETUBE_MINI_DEMO` (5.4) for captures of every mode, the hover
+  look, a frame in the middle of a switch, the volume pill.
 
 ## 4. Coding conventions
 
@@ -1667,6 +1747,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
 | `theme_test` | theme studio core (`gfx/ThemeSpec`, `app/ThemeStore`): strict color syntax, the tokens files as themes, every bundled preset (no warnings, strict parse, keys match the palette, write / read round trip, the full contrast table), key-color derivation and `setKey`, accent adaptation and ink / paper, import validation (every refusal kind, too large, keys-only files, base guessing, names), the theme folder (save / reload / numbered names / remove / import / export / broken files left out), slugs | offline (own temp folder; reads the source tree's `assets/`) |
 | `header_collapse_test` | collapsing page headers (`app/HeaderCollapse`) on real header geometries (album, two-line playlist with a description, podcast, artist): at offset 0 everything is where the expanded header draws it, no element jumps between offsets 1/4 DIP apart, scrolling down only collapses, content never shows through the cover / title (it has dissolved where it passes under them), the docked frame (thumbnail, compact title on the bar's line, buttons, inset, hairline), the settling function, the tint's contrast on dark and light paper | offline |
+| `miniplayer_test` | the mini player's geometry (`app/MiniLayout`): mode ids and sizes, the anchor (corners, edges, thirds, negative monitors), anchored resizes and exact round trips, snapping (margin, threshold, nearer side, corners, far away untouched), fitting into a work area, the default place, square resizing from every corner / edge (opposite corner fixed, limits, always square), the switch animation's rects, saved places | offline |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
 | `pagetx_test` | page transitions (`ui/PageMotion`) stepped with explicit times: durations 180..240 ms, Push (outgoing fades / shifts out, incoming slides in, both monotonic and exact at the end), Back mirrored, shared / Replace without offsets, the cover's flight (lands exactly, even on a moving target, no overshoot, radius morph), the hand-over, holding for an image (no frames; image / scroll / timeout end it), fading when the target goes, 60 / 144 Hz give the same positions | offline |
 | `popups_test` | the overlay family (3.x) on a hidden window over a red / blue page: menu keys (wrap over disabled items and separators, Home / End, Tab, Enter, Escape), separator tidying, submenus by key (Right / Enter / Left / Escape, parent item lit) and by pointer (200 ms open, 300 ms close, click), type-ahead (accents, cycling), one acrylic capture per opening and one per settled change behind (never per frame), the material showing the page while `fg.secondary` keeps ≥ 4.5:1 (dark and light), close animations (painted without input, then deleted, backdrop freed; none with reduce motion), toast stacking, dialogs (Enter, Escape); `SHADETUBE_ACRYLIC=off` in a child process (no capture, even surface) | offline; `opaque` (the child's mode) |
@@ -1697,7 +1778,7 @@ guest with `SHADETUBE_JAM_DEV=control` on the host), `--open-link <YouTube URL>`
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz / `shadetube://jam/` invite) once a saved Spotify session has connected; with an instance running (not `--preview`) the link is handed to it |
 | `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:albums` / `artists` / `history`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `local:<view>` (`songs`, `albums`, `artists`, `folders`, `folder:<path>`), `settings`, `settings:<card>` (that card opened and scrolled into view: `spotify`, `connections`, `playback`, `audio`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `remote`, `jam`, `blocklist`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...), `jam` (the "Birlikte dinle" panel), `queue` (the queue panel) |
 | `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
-| `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured) |
+| `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured; `SHADETUBE_MINI_MODE` / `SHADETUBE_MINI_DEMO` pick its mode and drive it, 5.4) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |
 | `--toast-at <ms> <text>` | show a toast after `<ms>`; `!` prefix = error, `~` prefix = hide all windows first and send it 3× (tray routing) |
@@ -1761,6 +1842,8 @@ apps*).
 | `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.x) |
 | `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
 | `SHADETUBE_HEADER_SCROLL` | `<dips>`: pages with a collapsing header (album, playlist, Liked Songs, smart list, podcast show, artist; 3.x) open scrolled that far once their content is built, e.g. `150` (half collapsed) or `400` (docked) with `--route playlist:<id>` and `--screenshot` |
+| `SHADETUBE_MINI_MODE` | `strip`, `square` or `wide`: the mini player opens in that mode (a switch is saved as usual) |
+| `SHADETUBE_MINI_DEMO` | `<action>@<ms>[=<arg>];…`, each run `<ms>` after the mini player opened: `mode=<strip\|square\|wide>`, `hover[=x,y]` (the pointer counts as inside: the hover controls show; with x,y also the hover look of what is there), `leave`, `focus` (Tab), `wheel=<notches>` (volume), `size=<DIP>` (the square's side), `ontop=<0\|1>`, `key=<combo>` (through the mini player's shortcuts, e.g. `Ctrl+1`), `toast=<text>`. With `--mini --screenshot`: `mode@3000=square` and a capture at 3130 ms for a frame in the middle of a switch |
 
 ## 6. Release process
 

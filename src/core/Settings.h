@@ -124,6 +124,11 @@ struct Settings {
 
     WindowPlacementData window;
     int miniX = -1, miniY = -1;
+    // Mini player (app/MiniPlayer): its mode ("strip" | "square" | "wide"), always on top, and where each mode was last:
+    // mode -> [x, y, w, h] (top-left in screen px, size in DIPs; app/MiniLayout).
+    std::string miniMode = "wide";
+    bool miniOnTop = true;
+    std::map<std::string, std::vector<int>> miniPlaces;
     bool taskbarProgress = true;         // the playing song's position on the taskbar button
 
     static Settings& get();

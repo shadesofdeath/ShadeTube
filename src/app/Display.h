@@ -5,8 +5,8 @@
 // the window keeps its pixel size and the content reflows, independent of Windows' own scaling (a monitor change keeps
 // it). It changes with the zoom-in / zoom-out / zoom-reset actions (Ctrl+Plus, Ctrl+Minus, Ctrl+0 by default; the
 // numeric keypad's + / - / 0 as well, see shortcuts::fallback), Ctrl + mouse wheel and the settings row. Keyboard and
-// wheel changes show a short badge with the new value. The mini player stays at 100 % (its fixed layout is sized for
-// the DPI alone).
+// wheel changes show a short badge with the new value. The mini player follows it too: its DIP sizes are multiplied by
+// it when it opens (app/MiniPlayer).
 //
 // Density: Settings::compactLists. TrackTable (app/Components) reads it at every layout / paint: Rahat = 56 DIP rows
 // with 40 DIP art, Sıkı = 40 DIP rows with 28 DIP art. A change re-lays out the open page (ui::Window::relayoutAll).

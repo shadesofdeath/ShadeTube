@@ -64,7 +64,7 @@ constexpr Action kActions[] = {
      Category::View, "Ctrl+Shift+Left", kRepeat, "chevron-left"},
     {"lyrics-later", [] { return tr(L"Sözleri 0,25 sn geç göster"); },
      Category::View, "Ctrl+Shift+Right", kRepeat, "chevron-right"},
-    {"mini-player", [] { return tr(L"Mini oynatıcı"); }, Category::View, "Ctrl+Shift+M", kGlobal, "mini-player"},
+    {"mini-player", [] { return tr(L"Mini oynatıcı"); }, Category::View, "Ctrl+Shift+M", kGlobal | kMini, "mini-player"},
     {"show-window", [] { return tr(L"ShadeTube'u göster / gizle"); },
      Category::View, "", kGlobal | kGlobalOnly, "restore"},
     {"toggle-theme", [] { return tr(L"Koyu / açık tema"); }, Category::View, "", 0, "palette"},
@@ -73,6 +73,11 @@ constexpr Action kActions[] = {
     {"zoom-out", [] { return tr(L"Arayüzü küçült"); }, Category::View, "Ctrl+Minus", kInText, "minus"},
     {"zoom-reset", [] { return tr(L"Arayüz ölçeğini sıfırla"); }, Category::View, "Ctrl+0", kInText, "refresh"},
     {"compact-lists", [] { return tr(L"Sıkı / rahat liste görünümü"); }, Category::View, "", 0, "list"},
+    // Mini player modes (app/MiniPlayer): switch it, or from the main window open it in that mode.
+    {"mini-strip", [] { return tr(L"Mini oynatıcı: şerit"); }, Category::View, "Ctrl+1", kGlobal | kMini, "mini-strip-thin"},
+    {"mini-square", [] { return tr(L"Mini oynatıcı: kare"); }, Category::View, "Ctrl+2", kGlobal | kMini, "mini-square-thin"},
+    {"mini-wide", [] { return tr(L"Mini oynatıcı: geniş"); }, Category::View, "Ctrl+3", kGlobal | kMini, "mini-wide-thin"},
+    {"mini-on-top", [] { return tr(L"Mini oynatıcı: her zaman üstte"); }, Category::View, "Ctrl+T", kMini, "pin"},
 };
 
 // English key names of the text form. Letters and digits are their own name.

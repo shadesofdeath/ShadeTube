@@ -1878,5 +1878,19 @@
     "one": "Le récap de l'année demande au moins {} écoute",
     "other": "Le récap de l'année demande au moins {} écoutes"
   },
-  "Dinleme": "Écoutes"
+  "Dinleme": "Écoutes",
+  "Şerit": "Bandeau",
+  "Görünüm: {}": "Affichage : {}",
+  "Senkron söz yok": "Pas de paroles synchronisées",
+  "Bu şarkının sözü yok": "Pas de paroles pour ce titre",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Paroles désactivées",
+  "Her zaman üstte": "Toujours au premier plan",
+  "Ana pencereye dön": "Revenir à la fenêtre principale",
+  "Mini oynatıcı: şerit": "Mini-lecteur : bandeau",
+  "Mini oynatıcı: kare": "Mini-lecteur : carré",
+  "Mini oynatıcı: geniş": "Mini-lecteur : large",
+  "Mini oynatıcı: her zaman üstte": "Mini-lecteur : toujours au premier plan",
+  "Mini oynatıcı her zaman üstte": "Le mini-lecteur reste au premier plan",
+  "Mini oynatıcı artık üstte kalmıyor": "Le mini-lecteur ne reste plus au premier plan"
 }

@@ -181,6 +181,9 @@ public:
     // before the first Window exists: a test instance gets a class of its own (main.cpp, SHADETUBE_INSTANCE_CLASS).
     static void setClassName(std::wstring name);
     static const std::wstring& className();
+    // `r` (screen pixels) moved and, if needed, shrunk into the work area of the monitor it is mostly on (the nearest one
+    // when it is on none): the constructor's placement rule, also kept by the mini player after a drag / mode switch.
+    static RECT fitToWorkArea(const RECT& r);
 
 protected:
     virtual LRESULT handleMessage(UINT msg, WPARAM wp, LPARAM lp);

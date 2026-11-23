@@ -1878,5 +1878,19 @@
     "one": "El resumen del año necesita al menos {} escucha",
     "other": "El resumen del año necesita al menos {} escuchas"
   },
-  "Dinleme": "Escuchas"
+  "Dinleme": "Escuchas",
+  "Şerit": "Barra",
+  "Görünüm: {}": "Vista: {}",
+  "Senkron söz yok": "Sin letra sincronizada",
+  "Bu şarkının sözü yok": "No hay letra para esta canción",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Letras desactivadas",
+  "Her zaman üstte": "Siempre visible",
+  "Ana pencereye dön": "Volver a la ventana principal",
+  "Mini oynatıcı: şerit": "Minirreproductor: barra",
+  "Mini oynatıcı: kare": "Minirreproductor: cuadrado",
+  "Mini oynatıcı: geniş": "Minirreproductor: ancho",
+  "Mini oynatıcı: her zaman üstte": "Minirreproductor: siempre visible",
+  "Mini oynatıcı her zaman üstte": "El minirreproductor queda siempre visible",
+  "Mini oynatıcı artık üstte kalmıyor": "El minirreproductor ya no queda siempre visible"
 }
