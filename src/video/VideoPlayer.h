@@ -57,6 +57,7 @@ public:
     bool hardware() const { return format_.hardware; }
     const SchedulerStats& stats() const { return sched_.stats(); }
     size_t gpuBytes() const;                              // slots + display texture (not the decoder's own pool)
+    float bufferedFraction() const { return decoder_ ? decoder_->bufferedFraction() : 0.f; }   // of the stream downloaded
 
 private:
     bool convert(ID2D1DeviceContext* dc, const VideoDecoder::Frame& f);

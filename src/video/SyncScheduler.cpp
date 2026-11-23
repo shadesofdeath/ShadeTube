@@ -15,7 +15,9 @@ SyncScheduler::Pick SyncScheduler::resyncTo(int64_t clockUs, double rate, double
     ++stats_.resyncs;
     Pick p;
     p.resync = true;
-    p.resyncUs = std::max<int64_t>(0, clockUs + static_cast<int64_t>(kSeekLeadUs * std::clamp(rate, 0.0, 3.0)));
+    // Aim where the clock will be when the decoder gets there: a seek on the network takes a while.
+    const double leadUs = std::clamp(seekLatencyMs_ * 1000.0 * 1.2, static_cast<double>(kSeekLeadUs), 3'000'000.0);
+    p.resyncUs = std::max<int64_t>(0, clockUs + static_cast<int64_t>(leadUs * std::clamp(rate, 0.0, 3.0)));
     p.consume = queued;
     restart(p.resyncUs);
     return p;
@@ -42,7 +44,6 @@ SyncScheduler::Pick SyncScheduler::pick(const std::vector<FrameTime>& q, int64_t
         lastNowMs_ = nowMs;
     }
     const bool cooled = nowMs - lastResyncMs_ >= kResyncCooldownMs;
-    const int64_t lateUs = static_cast<int64_t>(kLateUs * std::max(1.0, rate));
     auto show = [&](int i) {
         Pick p;
         p.show = i;
@@ -54,6 +55,14 @@ SyncScheduler::Pick SyncScheduler::pick(const std::vector<FrameTime>& q, int64_t
         return p;
     };
 
+    // How far the decoder's newest output is behind the clock: it catches up by skipping (cheap: nothing is copied or
+    // shown), and only a long way behind with frames on hand it is moved by a seek (which skips the download too).
+    const double scale = std::max(1.0, rate);
+    const int64_t newest = n > 0 ? q.back().ptsUs : shownPts_ != kNone && !awaitFirst_ ? shownPts_ : targetUs_;
+    const int64_t behind = decoderEnded ? 0 : clockUs - newest;
+    const bool farBehind = cooled && (n > 0 || (!awaitFirst_ && shownPts_ != kNone)) && behind > static_cast<int64_t>(kFarBehindUs * scale);
+    const int64_t catchUp = behind > static_cast<int64_t>(kCatchUpUs * scale) ? clockUs + static_cast<int64_t>(kCatchUpLeadUs * scale) : -1;
+
     if (awaitFirst_) {
         // Frames from before the target are leftovers of the decoder's way from the key frame: never shown.
         int first = 0;
@@ -64,29 +73,33 @@ SyncScheduler::Pick SyncScheduler::pick(const std::vector<FrameTime>& q, int64_t
             while (i + 1 < n && q[i + 1].ptsUs <= clockUs + kToleranceUs) ++i;
             stats_.dropped += static_cast<uint64_t>(i - first);
             awaitFirst_ = false;
-            return show(i);
+            Pick p = show(i);
+            p.catchUpUs = catchUp;
+            return p;
         }
+        // Still on its way (opening, the network, the key frame): never aimed again, which would restart the wait;
+        // what it decodes before the clock by the time it gets there is skipped.
         Pick p;
         p.consume = first;
-        // Nothing from the new place for a long time (slow network, a decoder that can't keep up): aim again.
-        if (!decoderEnded && cooled && clockUs - targetUs_ > lateUs) return resyncTo(clockUs, rate, nowMs, n);
+        p.catchUpUs = catchUp;
         return p;
     }
 
-    // The decoder fell behind: even its newest frame is long past.
-    if (n > 0 && !decoderEnded && cooled && q.back().ptsUs + lateUs < clockUs) return resyncTo(clockUs, rate, nowMs, n);
+    if (farBehind) return resyncTo(clockUs, rate, nowMs, n);
     int due = -1;
     for (int i = 0; i < n && q[i].ptsUs <= clockUs + kToleranceUs; ++i) due = i;
     if (due >= 0) {
         stats_.dropped += static_cast<uint64_t>(due);
-        return show(due);
+        Pick p = show(due);
+        p.catchUpUs = catchUp;
+        return p;
     }
-    // Nothing due: the picture on screen stays (repeats). A decoder far ahead, or one that delivers nothing while the
-    // clock runs away from the last picture, is moved to the clock.
+    // Nothing due: the picture on screen stays (repeats). A decoder far ahead (the clock went back without a jump the
+    // checks above saw) is moved to the clock.
     if (n > 0 && cooled && q.front().ptsUs - clockUs > kAheadUs) return resyncTo(clockUs, rate, nowMs, n);
-    if (n == 0 && !decoderEnded && cooled && shownPts_ != kNone && clockUs - (shownPts_ + shownDur_) > lateUs)
-        return resyncTo(clockUs, rate, nowMs, 0);
-    return {};
+    Pick p;
+    p.catchUpUs = catchUp;
+    return p;
 }
 
 } // namespace st::video

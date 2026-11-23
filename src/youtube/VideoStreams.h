@@ -11,8 +11,9 @@
 //
 // Static picture: many songs resolve to an "Art Track" (a still of the cover over the audio) or a lyric / audio upload
 // with one image. Such a stream compresses to almost nothing, so its average bit rate (content length over the video's
-// duration) gives it away before a byte is downloaded: under ~110 kbps at 720 rows (scaled by area, floor 45 kbps),
-// where a real 720p music video needs 600-3000 kbps.
+// duration) gives it away before a byte is downloaded: under 200 kbps for 1280x720 (scaled by the picture's area,
+// floor 45 kbps). Measured 2026-11-23 at 720p: Art Tracks 26-32 kbps, "(Official Audio)" / "(Audio)" stills 71-140,
+// a lyric video 334, music videos 438-1058 (averages; YouTube's peak figure is 1.3-3x that).
 #include <cstdint>
 #include <optional>
 #include <string>

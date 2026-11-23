@@ -1,16 +1,22 @@
 #pragma once
 // Video mode's A/V scheduler: which decoded frame goes on screen for the audio clock, which ones are dropped, and when
-// the decoder has to be moved (seek / resync). Pure logic with the times passed in, so tests/video drives it with a
-// fake clock.
+// the decoder has to skip ahead or be moved (seek). Pure logic with the times passed in, so tests/video drives it with
+// a fake clock.
 //
 // The audio is the master. `clockUs` is the media time that will be heard while the frame being painted is on screen
 // (the engine's heard position, extrapolated to the frame's vblank). The frame shown is the newest one that has started
 // by then (pts <= clock + 8 ms, half a 60 Hz refresh): older ones are dropped unshown, a frame that is not due yet
-// waits (the current picture repeats). The clock is checked against where it should be after the real time that passed
-// at its rate: a jump of more than 400 ms (a seek, a SponsorBlock skip, a listen-together correction, a new track at
-// another position) moves the decoder there; so does a decoder that fell more than a second (times the rate) behind or
-// sits more than 3 s ahead, at most once per 2 s. After a move, the first frame from the new place is shown at once,
-// even before its time (the old picture would be the wrong scene), then the clock takes over again.
+// waits (the current picture repeats).
+//
+// Jumps: the clock is checked against where it should be after the real time that passed at its rate; more than 400 ms
+// off (a seek, a SponsorBlock skip, a listen-together correction) moves the decoder there with a seek. The seek aims
+// ahead by what seeks have been taking (setSeekLatency; 150 ms at least, 3 s at most, times the rate), and the first
+// frame from the new place is shown at once, even before its time (the old picture would be the wrong scene).
+// Falling behind (a slow start on the network, a speed the decoder can't keep up with): more than 250 ms (times the
+// rate) behind, the decoder is told to skip what it decodes before the clock (catchUpUs: nothing copied or shown, so it
+// catches up at full decoding speed); only more than 5 s behind with frames on hand it is moved by a seek, which also
+// skips downloading the gap. Moves happen at most once per 2 s; a decoder still on its way to a seek's target is never
+// moved again (that would restart the wait).
 #include <cstdint>
 #include <vector>
 
@@ -24,7 +30,7 @@ struct FrameTime {
 struct SchedulerStats {
     uint64_t shown = 0;       // frames put on screen
     uint64_t dropped = 0;     // decoded frames skipped because a newer one was due
-    uint64_t resyncs = 0;     // decoder moves asked for (jumps + late / ahead decoders)
+    uint64_t resyncs = 0;     // decoder seeks asked for (jumps, a decoder far behind or ahead)
     int64_t lastErrorUs = 0;  // shown frame's start minus the clock when it was picked (+ = early)
 };
 
@@ -32,17 +38,20 @@ class SyncScheduler {
 public:
     static constexpr int64_t kToleranceUs = 8'000;
     static constexpr int64_t kJumpUs = 400'000;
-    static constexpr int64_t kLateUs = 1'000'000;
+    static constexpr int64_t kCatchUpUs = 250'000;
+    static constexpr int64_t kCatchUpLeadUs = 100'000;
+    static constexpr int64_t kFarBehindUs = 5'000'000;
     static constexpr int64_t kAheadUs = 3'000'000;
     static constexpr double kResyncCooldownMs = 2000;
-    static constexpr int64_t kSeekLeadUs = 250'000;   // aim a resync this far ahead (times the rate): seeking + decoding
+    static constexpr int64_t kSeekLeadUs = 150'000;
 
     struct Pick {
-        int show = -1;        // index in the queue of the frame to show now; frames before it are dropped. -1 = keep
-                              // the picture on screen.
-        int consume = 0;      // frames to take off the queue's front (the dropped ones and the shown one)
-        bool resync = false;  // move the decoder to resyncUs (restart(resyncUs) is already applied); the queue is stale
+        int show = -1;          // index in the queue of the frame to show now; frames before it are dropped. -1 = keep
+                                // the picture on screen.
+        int consume = 0;        // frames to take off the queue's front (the dropped ones and the shown one)
+        bool resync = false;    // seek the decoder to resyncUs (restart(resyncUs) is already applied); the queue is stale
         int64_t resyncUs = 0;
+        int64_t catchUpUs = -1; // >= 0: the decoder should skip the frames that end before this
     };
 
     // `queue`: decoded, not yet shown frames in decode order (pts ascending). `rate`: the clock's speed (0 = standing
@@ -51,6 +60,8 @@ public:
 
     // The decoder was (re)started at `targetUs`: the first frame at or after it is shown as soon as it arrives.
     void restart(int64_t targetUs);
+    // How long the decoder's last seek took to its first frame (ms): later seeks aim that much ahead.
+    void setSeekLatency(double ms) { seekLatencyMs_ = ms; }
     bool waitingForFirst() const { return awaitFirst_; }
     bool hasShown() const { return shownPts_ != kNone; }
     int64_t shownPts() const { return shownPts_; }
@@ -69,6 +80,7 @@ private:
     double lastRate_ = 0;
     double lastNowMs_ = 0;
     double lastResyncMs_ = -1e18;
+    double seekLatencyMs_ = 0;
     SchedulerStats stats_;
 };
 

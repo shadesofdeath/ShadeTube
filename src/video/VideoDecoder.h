@@ -18,6 +18,8 @@
 //
 // Threading: public methods are UI thread (any thread for the getters). stop() / the destructor cancel the download
 // (a blocked read fails at once) and join the thread, which releases every Media Foundation and D3D object it made.
+#include "video/Fmp4Index.h"
+
 #include <d3d11.h>
 #include <wrl/client.h>
 
@@ -77,7 +79,11 @@ public:
     VideoDecoder& operator=(const VideoDecoder&) = delete;
 
     void seek(int64_t us);
+    // Catching up without a seek: frames that end before `us` are decoded but not delivered (queued ones are dropped).
+    void skipUntil(int64_t us);
     void stop();
+    // How long the last seek took from the request to its first frame (ms; 0 before the first).
+    double lastSeekLatencyMs() const { return seekLatencyMs_.load(std::memory_order_relaxed); }
 
     DecoderState state() const { return state_.load(std::memory_order_acquire); }
     std::string error() const;
@@ -99,8 +105,10 @@ public:
 
 private:
     void run();
-    bool open();                    // the download, then openReader()
-    bool openReader(bool hardware); // Source Reader on the buffer (hardware: DXVA, falling back to software)
+    bool open();                    // the download (and the segment index), then openReader()
+    // A Source Reader on the buffer (hardware: DXVA, falling back to software); with a segment index, on a view that
+    // starts at the segment holding `atUs`.
+    bool openReader(bool hardware, int64_t atUs);
     bool decodeOne();
     void flushQueueLocked();
     void fail(std::string message);
@@ -111,6 +119,12 @@ private:
     std::shared_ptr<audio::ProgressiveBuffer> buffer_;
     struct Mf;   // Media Foundation objects (decode thread only)
     std::unique_ptr<Mf> mf_;
+    // Decode thread only: the segment index (fragmented MP4), where the current view starts, the decoder's position.
+    Fmp4Index index_;
+    int64_t viewStartUs_ = 0;
+    int64_t ptsOffsetUs_ = 0;
+    int64_t lastPtsUs_ = 0;
+    bool checkOffset_ = false;
 
     mutable std::mutex mutex_;
     std::condition_variable cv_;
@@ -120,6 +134,9 @@ private:
     int64_t seekTo_ = -1;            // a seek waiting for the decode thread
     int64_t discardUntilUs_ = 0;     // frames ending before it are skipped (the way from the key frame)
     uint32_t seekGen_ = 0;
+    uint64_t seekStartedAt_ = 0;     // GetTickCount64 of the seek whose first frame is awaited (log, seek latency)
+    uint64_t seekRequestedAt_ = 0;   // when seek() was called (the start counts from the constructor: 0 = open time)
+    int64_t seekTarget_ = 0;
     VideoFormat format_;
     std::string error_;
     bool quit_ = false;
@@ -127,6 +144,7 @@ private:
     std::atomic<bool> expired_{false};
     std::atomic<uint32_t> slotGen_{0};
     std::atomic<size_t> slotBytes_{0};
+    std::atomic<double> seekLatencyMs_{0};
     std::thread thread_;
 };
 

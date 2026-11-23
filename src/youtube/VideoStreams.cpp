@@ -79,7 +79,7 @@ bool looksStatic(const VideoCandidate& s, double durationSec) {
     const int kbps = averageKbps(s, durationSec);
     if (kbps <= 0 || s.muxed) return false;   // unknown: show it; a muxed stream's size includes its audio
     const double pixels = static_cast<double>(std::max(1, s.width)) * std::max(1, s.height);
-    const double threshold = std::max(45.0, 110.0 * pixels / (1280.0 * 720.0));
+    const double threshold = std::max(45.0, 200.0 * pixels / (1280.0 * 720.0));
     return kbps < threshold;
 }
 

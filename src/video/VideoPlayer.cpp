@@ -88,6 +88,7 @@ ID2D1Bitmap1* VideoPlayer::frame(ID2D1DeviceContext*, int64_t clockUs, double ra
     decoder_->peek(queue_);
     times_.resize(queue_.size());
     for (size_t i = 0; i < queue_.size(); ++i) times_[i] = {queue_[i].ptsUs, queue_[i].durUs};
+    sched_.setSeekLatency(decoder_->lastSeekLatencyMs());
     const auto p = sched_.pick(times_, clockUs, rate, nowMs, st == DecoderState::Ended);
     if (p.resync) {
         ST_LOG_DEBUG("video", "resync: clock {} ms, decoder at {} ms", clockUs / 1000,
@@ -105,9 +106,15 @@ ID2D1Bitmap1* VideoPlayer::frame(ID2D1DeviceContext*, int64_t clockUs, double ra
             ST_LOG_WARN("video", "a frame could not be converted");
         }
     }
+    // Only the UI takes frames off the queue, so the peeked indices hold until here; the catch-up comes after (it may
+    // drop more of them).
     if (p.consume > 0) {
         decoder_->take(p.consume);
         queue_.erase(queue_.begin(), queue_.begin() + std::min<size_t>(queue_.size(), static_cast<size_t>(p.consume)));
+    }
+    if (p.catchUpUs >= 0) {
+        decoder_->skipUntil(p.catchUpUs);
+        std::erase_if(queue_, [&](const VideoDecoder::Frame& f) { return f.ptsUs + f.durUs <= p.catchUpUs; });
     }
     return bitmap_.Get();
 }
