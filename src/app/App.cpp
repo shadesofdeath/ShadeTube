@@ -494,7 +494,11 @@ void App::showShell() {
     shell_ = shell.get();
     router_ = std::make_unique<Router>([](const Route& r) { return createPage(r); });
     c.router = router_.get();
-    router_->onShow = [this](std::unique_ptr<Page> p) { shell_->pageHost()->show(std::move(p)); };
+    router_->onShow = [this](std::unique_ptr<Page> p) {
+        // Going to a page (a link in Now Playing, the track menu, a shortcut) leaves Now Playing to show it.
+        if (shell_->nowPlaying()) shell_->setNowPlaying(false);
+        shell_->pageHost()->show(std::move(p));
+    };
     router_->currentPage = [this]() -> Page* { return shell_ ? shell_->pageHost()->page() : nullptr; };
     router_->onChanged = [this] {
         if (shell_) shell_->sidebar()->syncActive();
@@ -506,6 +510,10 @@ void App::showShell() {
     };
     c.toggleQueue = [this](bool) {
         if (!shell_) return;
+        if (shell_->nowPlaying()) {   // Now Playing has the queue as a tab
+            shell_->nowPlayingView()->toggleQueueTab();
+            return;
+        }
         shell_->setQueueOpen(!shell_->queueOpen());
         shell_->queuePanel()->sync();
         if (shell_->queueOpen() && Settings::get().friendActivityOpen) {   // it took the friend activity's place
