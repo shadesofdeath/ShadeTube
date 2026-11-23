@@ -1540,5 +1540,12 @@
   "Yeniden başlatma gerekiyor": "다시 시작해야 합니다",
   "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다.",
   "Sayfa geçişleri": "페이지 전환 효과",
-  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "페이지가 짧게 밀리며 페이드되어 바뀌고, 연 앨범이나 플레이리스트의 커버가 새 페이지의 제자리로 날아가요. 동작 줄이기가 켜져 있거나 Windows 애니메이션 효과가 꺼져 있으면 페이지가 바로 바뀌어요."
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "페이지가 짧게 밀리며 페이드되어 바뀌고, 연 앨범이나 플레이리스트의 커버가 새 페이지의 제자리로 날아가요. 동작 줄이기가 켜져 있거나 Windows 애니메이션 효과가 꺼져 있으면 페이지가 바로 바뀌어요.",
+  "Daha fazla": "더 보기",
+  "Daha fazla göster": "더 보기",
+  "Daha az göster": "간단히 보기",
+  "Kaldığın yerden devam et": "이어서 듣기",
+  "Müziğe buradan başla": "여기서 음악을 시작하세요",
+  "Bir şarkı ara, bir radyo istasyonu aç ya da kendi müzik klasörünü ekle. Çaldıkların burada, kaldığın yerde seni bekler.": "노래를 검색하거나 라디오 방송국을 듣거나 내 음악 폴더를 추가해 보세요. 재생한 음악은 멈춘 곳 그대로 여기에서 기다립니다.",
+  "Kenar çubuğunda diğer sayfaları göster / gizle": "사이드바에서 다른 페이지 표시 / 숨기기"
 }

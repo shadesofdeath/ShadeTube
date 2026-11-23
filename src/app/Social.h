@@ -79,8 +79,9 @@ private:
 
 // ---- New releases ---------------------------------------------------------------------------------------------------
 int newReleasesUnseenCount();   // sidebar badge (0 when unavailable)
-// Home (logged in): a "Yeni çıkanlar" shelf of the last two weeks at the top, when there is anything.
-void addNewReleasesShelf(ui::Column* c);
+// Home (logged in): a "Yeni çıkanlar" shelf of the last two weeks at the top, when there is anything. `makeRow` adds
+// the widget the cards go into under the header (Home's sideways shelf); unset = a one-row grid.
+void addNewReleasesShelf(ui::Column* c, std::function<ui::Widget*(ui::Column*)> makeRow = {});
 // Fired (UI thread) when the releases change; dies with the owner's Lifetime.
 void subscribeNewReleases(Lifetime::Ref owner, std::function<void()> fn);
 std::unique_ptr<Page> makeNewReleasesPage();

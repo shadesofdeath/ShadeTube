@@ -94,6 +94,8 @@ void Settings::load() {
     read(j, "sidebarWidth", sidebarWidth);
     sidebarWidth = std::isfinite(sidebarWidth) ? std::clamp(sidebarWidth, 200.f, 420.f) : 240.f;
     read(j, "sidebarCollapsed", sidebarCollapsed);
+    read(j, "sidebarMore", sidebarMore);
+    sidebarMore = std::clamp(sidebarMore, -1, 1);
     read(j, "jamName", jamName);
     read(j, "jamBroker", jamBroker);
     read(j, "newReleaseNotifications", newReleaseNotifications);
@@ -183,6 +185,7 @@ void Settings::save() const {
         {"friendActivityOpen", friendActivityOpen},
         {"sidebarWidth", sidebarWidth},
         {"sidebarCollapsed", sidebarCollapsed},
+        {"sidebarMore", sidebarMore},
         {"jamName", jamName},
         {"jamBroker", jamBroker},
         {"newReleaseNotifications", newReleaseNotifications},

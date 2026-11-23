@@ -319,6 +319,18 @@ void Recents::trim() {
     for (size_t i = kMax; i < v.size(); ++i) at_.erase(v[i].second);
 }
 
+std::vector<std::pair<std::string, int64_t>> Recents::newest(size_t n) const {
+    std::vector<std::pair<std::string, int64_t>> v(at_.begin(), at_.end());
+    const auto newer = [](const auto& a, const auto& b) { return a.second != b.second ? a.second > b.second : a.first < b.first; };
+    if (n < v.size()) {
+        std::partial_sort(v.begin(), v.begin() + static_cast<std::ptrdiff_t>(n), v.end(), newer);
+        v.resize(n);
+    } else {
+        std::sort(v.begin(), v.end(), newer);
+    }
+    return v;
+}
+
 std::string Recents::toJson() const {
     std::vector<std::pair<std::string, int64_t>> v(at_.begin(), at_.end());
     std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.second != b.second ? a.second > b.second : a.first < b.first; });

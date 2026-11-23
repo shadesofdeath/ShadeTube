@@ -338,16 +338,168 @@ private:
     ui::Anim hover_, activeA_;
 };
 
+// The page entries of the sidebar (the content of its nav scroller): the "Daha fazla" group's pages unroll / roll up
+// with the group's animation (each slot clipped to its share and faded), and the count pills are painted over them.
+class NavBox : public ui::Widget {
+public:
+    explicit NavBox(Sidebar& sidebar) : sb_(sidebar) { hitTestVisible = false; }
+    float contentH = 0;   // set by Sidebar::layout()
+    float rowStep = 0;    // row height + gap of the metrics in use
+    float preferredHeight(float) override { return contentH; }
+
+    void paint(Canvas& c) override {
+        const Rect r = rect();
+        const float open = sb_.moreAnim_.value();
+        const auto group = sb_.groupButtons();
+        const Button* pinned = sb_.pinnedButton();
+        c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
+        const Rect visible = c.clip();
+        for (const auto& child : children()) {
+            if (!child->visible() || !child->rect().intersects(visible)) continue;
+            auto* b = dynamic_cast<Button*>(child.get());
+            const bool folding = b && b != pinned && open < 0.999f && std::find(group.begin(), group.end(), b) != group.end();
+            if (!folding) {
+                child->paint(c);
+                if (b) paintBadge(c, b);
+                continue;
+            }
+            if (open <= 0.001f) continue;
+            const Rect cr = child->rect();
+            c.pushClip({cr.x - 4, cr.y, cr.w + 8, std::max(0.f, rowStep * open)});
+            c.pushOpacity(open);
+            child->paint(c);
+            paintBadge(c, b);
+            c.popLayer();
+            c.popClip();
+        }
+        c.popTransform();
+    }
+
+private:
+    // A count pill on a nav entry: new episodes of the podcast subscriptions, unseen new releases. In the rail: a dot on
+    // the icon's corner (the tooltip names the page).
+    void paintBadge(Canvas& c, const Button* b) {
+        int n = 0;
+        if (b == sb_.podcasts_) n = podcastNewEpisodeCount();
+        else if (b == sb_.releases_) n = newReleasesUnseenCount();
+        if (n <= 0) return;
+        const auto& col = colors();
+        const Rect br = b->rect();
+        if (sb_.labelOpacity() < 0.5f) {
+            const gfx::Point p{br.cx() + metrics::navIcon * 0.5f - 1, br.cy() - metrics::navIcon * 0.5f + 1};
+            // Ringed in what is under it (the selected pill of the current page) so it stands off the glyph.
+            const Color under = b->active() ? Color::lerp(col.bgBase, col.overlaySelected.withAlpha(1.f), col.overlaySelected.a)
+                                            : col.bgBase;
+            c.fillCircle(p, 5.5f, under);
+            c.fillCircle(p, 3.5f, accent().base);
+            return;
+        }
+        const std::wstring label = n > 99 ? std::wstring(L"99+") : std::to_wstring(n);
+        auto layout = gfx::makeLayout(label, type::monoBadge, 100);
+        DWRITE_TEXT_METRICS m{};
+        layout->GetMetrics(&m);
+        const float w = std::max(18.f, std::ceil(m.widthIncludingTrailingWhitespace) + 10);
+        const Rect pill{br.right() - 10 - w, br.cy() - 9, w, 18};
+        c.fillPill(pill, accent().base);
+        c.text(label, type::monoBadge, pill, accent().onAccent, gfx::TextAlign::Center, gfx::VAlign::Center);
+    }
+
+    Sidebar& sb_;
+};
+
+// "DAHA FAZLA ⌄": the header of the folding page group, a section label like "ÇALMA LİSTELERİ" with a chevron that turns
+// as the group opens. Click / Enter / Space toggle it, Right opens and Left folds it. Folded, an accent dot after it
+// says a hidden page has news (podcast episodes, new releases). In the rail only the chevron is left (centered; the
+// tooltip names it).
+class NavGroup : public ui::Widget {
+public:
+    explicit NavGroup(Sidebar& sidebar) : sb_(sidebar), label_(toUpperTr(tr(L"Daha fazla")), type::monoLabel) {
+        focusable = true;
+    }
+
+    void paint(Canvas& c) override {
+        const Rect r = rect();
+        const auto& col = colors();
+        const float h = hover_, show = sb_.labelOpacity(), open = sb_.moreAnim_.value();
+        if (show < 0.5f) c.fillPill(r.center(std::min(r.w, 48.f), r.h), col.overlayHover.mulAlpha(h));   // the rail's hit pill
+        const Color fg = Color::lerp(col.fgTertiary, col.fgPrimary, h * 0.8f);
+        const float lw = std::ceil(label_.measure().w);
+        const float tx = r.x + 12;
+        if (show > 0.01f) c.text(label_, {tx, r.y, lw + 1, r.h}, fg.mulAlpha(show), gfx::VAlign::Center);
+        constexpr float cs = 12;
+        const float cx = std::round(ui::lerp(r.cx() - cs * 0.5f, tx + lw + 6, show));
+        const D2D1_POINT_2F pivot{cx + cs * 0.5f, r.cy()};
+        c.pushTransform(D2D1::Matrix3x2F::Rotation(180.f * open, pivot));
+        c.icon("chevron-down", {cx, r.cy() - cs * 0.5f, cs, cs}, fg);
+        c.popTransform();
+        // News on a folded page: the dot fades in as the group folds.
+        const float dot = (1 - open) * (hiddenNews() ? 1.f : 0.f);
+        if (dot > 0.01f) c.fillCircle({cx + cs + 7, r.cy()}, 3, accent().base.mulAlpha(dot));
+    }
+
+    std::wstring tooltip() const override {
+        if (sb_.labelOpacity() >= 0.5f) return {};
+        return sb_.moreOpen() ? std::wstring(tr(L"Daha az göster")) : std::wstring(tr(L"Daha fazla göster"));
+    }
+    bool onMouseDown(const ui::MouseEvent& e) override { return e.button == ui::MouseButton::Left; }
+    void onMouseUp(const ui::MouseEvent& e) override {
+        if (hovered() && rect().contains(e.pos)) sb_.setMoreOpen(!sb_.moreOpen());
+    }
+    void onMouseEnter() override {
+        hover_.to(1, ui::motion::fast);
+        invalidate();
+    }
+    void onMouseLeave() override {
+        hover_.to(0, ui::motion::fast);
+        invalidate();
+    }
+    LPCWSTR cursor() const override { return IDC_HAND; }
+    bool activatable() const override { return true; }
+    bool onActivate() override {
+        sb_.setMoreOpen(!sb_.moreOpen());
+        return true;
+    }
+    bool onKeyDown(const ui::KeyEvent& e) override {
+        if (e.ctrl || e.alt || (e.vk != VK_RIGHT && e.vk != VK_LEFT)) return false;
+        const bool open = e.vk == VK_RIGHT;
+        if (open == sb_.moreOpen()) return false;
+        sb_.setMoreOpen(open);
+        return true;
+    }
+    Rect focusRect() const override {
+        const Rect r = rect();
+        if (sb_.labelOpacity() < 0.5f) return r.center(std::min(r.w, 48.f), r.h);
+        return {r.x, r.y + 4, std::min(r.w, std::ceil(label_.measure().w) + 12 + 6 + 12 + 14), r.h - 8};
+    }
+    ui::FocusShape focusShape() const override { return ui::FocusShape::Pill; }
+
+private:
+    bool hiddenNews() const {
+        const Button* pinned = sb_.pinnedButton();
+        if (sb_.podcasts_ != pinned && podcastNewEpisodeCount() > 0) return true;
+        return sb_.releases_ != pinned && newReleasesUnseenCount() > 0;   // 0 without a Spotify session
+    }
+
+    Sidebar& sb_;
+    mutable gfx::Text label_;   // measured by focusRect() too
+    ui::Anim hover_;
+};
+
 Sidebar::Sidebar() {
+    // The page entries live in their own scroller (it only scrolls when even the tight nav would squeeze the playlists).
+    nav_ = add<ui::ScrollView>();
+    nav_->notchDip = 72;
+    navBox_ = nav_->setContent<NavBox>(*this);
     // Page names ("Ara" = the Search page); in the icon rail they are the tooltips.
     auto nav = [this](std::wstring name, const char* icon) {
-        auto* b = add<Button>(ButtonKind::Nav, name, icon);
+        auto* b = navBox_->add<Button>(ButtonKind::Nav, name, icon);
         navNames_.emplace_back(b, std::move(name));
         return b;
     };
     home_ = nav(tr(L"Ana Sayfa"), "home");
     search_ = nav(tr(L"Ara"), "search");
     library_ = nav(tr(L"Kitaplık"), "library");
+    group_ = navBox_->add<NavGroup>(*this);
     downloads_ = nav(tr(L"İndirilenler"), "download");
     local_ = nav(tr(L"Yerel dosyalar"), "music-note");
     radio_ = nav(tr(L"Radyo"), "radio");
@@ -355,7 +507,16 @@ Sidebar::Sidebar() {
     releases_ = nav(tr(L"Yeni çıkanlar"), "sparkle");
     releases_->setVisible(false);
     stats_ = nav(tr(L"İstatistikler"), "stats");
-    settings_ = nav(tr(L"Ayarlar"), "settings");
+    settings_ = add<Button>(ButtonKind::Nav, tr(L"Ayarlar"), "settings");   // pinned to the bottom, outside the scroller
+    navNames_.emplace_back(settings_, tr(L"Ayarlar"));
+    // "Daha fazla": the saved choice, else open until the first layout decides by the height.
+    moreOpen_ = Settings::get().sidebarMore != 0;
+    moreAnim_.snap(moreOpen_ ? 1.f : 0.f);
+    // The command palette / a key of the user's choosing toggles the group too (the sidebar lives as long as the app).
+    commands::setHandler("sidebar-more", [this] {
+        setMoreOpen(!moreOpen_);
+        return true;
+    });
     home_->onClick = [] { ctx().router->navigate({RouteKind::Home}); };
     search_->onClick = [] { ctx().router->navigate({RouteKind::Search}); };
     library_->onClick = [] { ctx().router->navigate({RouteKind::Library}); };
@@ -387,10 +548,7 @@ Sidebar::Sidebar() {
 }
 
 void Sidebar::refresh() {
-    if (releases_->visible() != socialAvailable()) {   // Spotify only: logging in / out shows / hides it
-        releases_->setVisible(socialAvailable());
-        requestLayout();
-    }
+    // (Yeni çıkanlar is Spotify only: logging in / out shows / hides it at the next layout, see groupButtons().)
     listCol_->clearChildren();
     items_.clear();
     dropRow_ = restingFolder_ = nullptr;
@@ -530,6 +688,77 @@ std::vector<Button*> Sidebar::navButtons() const {
     return {home_, search_, library_, downloads_, local_, radio_, podcasts_, releases_, stats_, settings_};
 }
 
+std::vector<Button*> Sidebar::groupButtons() const {
+    std::vector<Button*> out{downloads_, local_, radio_, podcasts_};
+    if (socialAvailable()) out.push_back(releases_);   // Spotify only
+    out.push_back(stats_);
+    return out;
+}
+
+Button* Sidebar::pinnedButton() const {
+    if (moreOpen_ && !moreAnim_.running()) return nullptr;   // nothing to keep: the whole group shows
+    for (Button* b : groupButtons())
+        if (b->active()) return b;
+    return nullptr;
+}
+
+void Sidebar::setMoreOpen(bool open) {
+    auto& s = Settings::get();
+    if (s.sidebarMore != (open ? 1 : 0)) {
+        s.sidebarMore = open ? 1 : 0;   // from now on the user's choice, no longer by the height
+        s.markDirty();
+    }
+    if (open == moreOpen_) return;
+    // Folding with the keyboard focus on a page that goes away: the focus stays on the header.
+    if (!open)
+        if (auto* w = window())
+            for (Button* b : groupButtons())
+                if (b->focused() && !b->active()) {
+                    if (w->focusVisible()) w->focusByKeyboard(group_);
+                    else group_->focus();
+                }
+    moreOpen_ = open;
+    for (Button* b : groupButtons()) b->setVisible(true);   // layoutNav() hides the folded ones when it settles
+    moreAnim_.to(open ? 1.f : 0.f, ui::motion::medium, ui::Ease::Standard);
+    requestLayout();
+    invalidate();
+}
+
+float Sidebar::navContentHeight(float rowH, float gap, float groupH, float open) const {
+    const float step = rowH + gap;
+    float h = 3 * step + groupH;
+    // The current page keeps its row while the others unroll / roll up.
+    const Button* pinned = pinnedButton();
+    for (Button* b : groupButtons()) h += (b == pinned ? 1.f : open) * step;
+    return h + 2;   // room for the last entry's focus ring
+}
+
+void Sidebar::layoutNav(float rowH, float gap, float groupH) {
+    const float t = rail_;
+    const float x = std::round(ui::lerp(16.f, 12.f, t)), w = std::max(0.f, rect().w - 2 * x);
+    const float open = moreAnim_.value();
+    const float step = rowH + gap;
+    float y = 0;
+    for (Button* b : {home_, search_, library_}) {
+        b->setRect({x, y, w, rowH});
+        y += step;
+    }
+    group_->setRect({x, y, w, groupH});
+    y += groupH;
+    const auto group = groupButtons();
+    if (std::find(group.begin(), group.end(), releases_) == group.end()) releases_->setVisible(false);
+    const bool settledFolded = !moreOpen_ && !moreAnim_.running();
+    const Button* pinned = pinnedButton();
+    for (Button* b : group) {
+        // Folded (and settled): only the current page stays; the others leave the Tab order.
+        const bool shown = !settledFolded || b == pinned;
+        b->setVisible(shown);
+        if (!shown) continue;
+        b->setRect({x, y, w, rowH});
+        y += (b == pinned ? 1.f : open) * step;
+    }
+}
+
 float Sidebar::labelOpacity() const {
     // As ButtonKind::Nav fades its name: by the room the name has next to the icon.
     const float labelW = home_->rect().w - 36 - metrics::navIcon;
@@ -564,6 +793,11 @@ void Sidebar::syncActive() {
     releases_->setActive(cur.kind == RouteKind::NewReleases);
     stats_->setActive(cur.kind == RouteKind::Stats);
     settings_->setActive(cur.kind == RouteKind::Settings);
+    requestLayout();   // a folded group keeps the current page's entry
+    // A nav that scrolls (short window) shows the current page's entry.
+    if (nav_->maxScroll() > 0)
+        for (Button* b : groupButtons())
+            if (b->active() && b->visible()) b->scrollIntoView();
     for (auto& [b, route] : items_) b->setActive(route == cur);
     // Show an equalizer next to the playlist that is currently playing.
     const auto* p = ctx().player;
@@ -649,29 +883,73 @@ void Sidebar::layout() {
         for (auto& [b, _] : items_) b->setCompact(compact);
         listCol_->requestLayout();
     }
-    // Expanded: 16 DIP margins; the rail (72 DIPs): 48 DIP wide icon pills.
+    // Expanded: 16 DIP margins; the rail (72 DIPs): 48 DIP wide icon pills. The list ends 8 DIPs before the edge (its
+    // scrollbar); in the rail its tiles center on the rail.
     const float x = std::round(ui::lerp(16.f, 12.f, t)), w = std::max(0.f, r.w - 2 * x);
-    float y = 24;
-    for (auto* b : {home_, search_, library_, downloads_, local_, radio_, podcasts_, releases_, stats_}) {
-        if (!b->visible()) continue;
-        b->setRect({x, y, w, metrics::navItemH});
-        y += metrics::navItemH + 2;
+    const float lx = std::round(ui::lerp(16.f, 8.f, t)), listW = std::max(0.f, r.w - 8 - lx);
+
+    // Vertical metrics: the spec's (nav rows 36 + 2) and a tight set (32 + 0, smaller margins) for a short sidebar or
+    // the compact list density. `label` = the "Çalma listeleri" label block above the list (`labelC`: its center above
+    // the list's top), `bottom` = Ayarlar with its margins.
+    struct Metrics {
+        float top, rowH, gap, groupH, label, labelC, bottom, settingsPad;
+    };
+    static constexpr Metrics kNormal{24, metrics::navItemH, 2, 36, 50, 28, 16 + metrics::navItemH + 8, 16};
+    static constexpr Metrics kTight{12, 32, 0, 28, 34, 19, 10 + 32 + 6, 10};
+    // The list needs its rows, but no more than `rows` of them for the budget.
+    const float listAll = listCol_->preferredHeight(listW);
+    const float rowH = compact_ ? SidebarRow::kTileH : metrics::playlistItemH;
+    auto listNeed = [&](int rows) { return std::min(listAll, rows * rowH); };
+    auto need = [&](const Metrics& m, float open, int rows) {
+        return m.top + navContentHeight(m.rowH, m.gap, m.groupH, open) + m.label + listNeed(rows) + m.bottom;
+    };
+    const bool compactDensity = Settings::get().compactLists;
+    // "Daha fazla" left to the height (never toggled): open while that still leaves kAutoListRows playlist rows. Snapped,
+    // not animated (it follows window resizes).
+    if (const int pref = Settings::get().sidebarMore; pref < 0) {
+        const bool open = need(compactDensity ? kTight : kNormal, 1.f, kAutoListRows) <= r.h;
+        if (open != moreOpen_) {
+            moreOpen_ = open;
+            moreAnim_.snap(open ? 1.f : 0.f);
+        }
     }
-    listLabelY_ = y + 28 - 14;
-    y += 28 + 14 + 8;   // section label
-    const float bottom = r.h - 16 - metrics::navItemH - 8;
-    // The list ends 8 DIPs before the edge (its scrollbar); in the rail its tiles center on the rail.
-    const float lx = std::round(ui::lerp(16.f, 8.f, t));
-    list_->setRect({lx, y, std::max(0.f, r.w - 8 - lx), std::max(0.f, bottom - y)});
+    const float open = moreAnim_.value();
+    tight_ = compactDensity || need(kNormal, open, kMinListRows) > r.h;
+    const Metrics& m = tight_ ? kTight : kNormal;
+    // The nav takes what it needs; when that would leave the list fewer than kMinListRows rows it scrolls instead
+    // (keeping at least two of its rows in view).
+    layoutNav(m.rowH, m.gap, m.groupH);
+    const float navH = navContentHeight(m.rowH, m.gap, m.groupH, open);
+    const float navRoom = r.h - m.top - m.label - listNeed(kMinListRows) - m.bottom;
+    // (A few DIPs short: the list gives them up rather than the nav scrolling by a hair.)
+    const float navViewH = std::round(navH <= navRoom + 6 ? navH : std::max(navRoom, 2 * m.rowH + m.gap));
+    navBox_->contentH = navH;
+    navBox_->rowStep = m.rowH + m.gap;
+    nav_->setRect({0, m.top, r.w, navViewH});
+    nav_->layout();   // the content height may change at the same view size (re-measures; no new layout pass)
+
+    const float listTop = m.top + navViewH + m.label;
+    listLabelY_ = listTop - m.labelC - 7;
+    const float bottom = r.h - m.bottom;
+    list_->setRect({lx, listTop, listW, std::max(0.f, bottom - listTop)});
     // "+": at the end of the section label; centered in the rail.
     const float plusX = std::round(ui::lerp(r.w - 16 - 28, r.w * 0.5f - 12, t));
-    newPlaylist_->setRect({plusX, y - 14 - 8 - 24 + 6, 24, 24});
-    settings_->setRect({x, r.h - 16 - metrics::navItemH, w, metrics::navItemH});
+    newPlaylist_->setRect({plusX, listTop - m.labelC - 12, 24, 24});
+    settings_->setRect({x, r.h - m.settingsPad - m.rowH, w, m.rowH});
 }
 
 void Sidebar::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
+    // The group folding / unfolding moves everything below it: lay out every frame, and once more when it settles
+    // (the folded entries leave the Tab order then).
+    if (moreAnim_.running()) {
+        requestLayout();
+        moreSettling_ = true;
+    } else if (moreSettling_) {
+        moreSettling_ = false;
+        requestLayout();
+    }
     c.vline(r.right() - 1, r.y, r.bottom(), col.hairSubtle);
     const float show = labelOpacity();
     if (show > 0.01f) {
@@ -679,32 +957,12 @@ void Sidebar::paint(Canvas& c) {
         c.text(toUpperTr(tr(L"Çalma listeleri")), type::monoLabel, {r.x + 28, r.y + listLabelY_, std::max(0.f, labelW), 14},
                col.fgTertiary.mulAlpha(show));
     }
+    // A nav that scrolls: a hairline under it while the list's label would otherwise touch scrolled-away entries.
+    if (nav_->maxScroll() > 0 && nav_->scrollY() < nav_->maxScroll() - 0.5f) {
+        const Rect nr = nav_->rect();
+        c.hline(r.x + 16, r.right() - 16, r.y + nr.bottom(), col.hairSubtle);
+    }
     paintChildren(c);
-    // A count pill on a nav entry: new episodes of the podcast subscriptions, unseen new releases. In the rail: a dot on
-    // the icon's corner (the tooltip names the page).
-    auto badge = [&](const Button* b, int n) {
-        if (n <= 0 || !b->visible()) return;
-        const Rect br = b->rect();
-        if (show < 0.5f) {
-            const gfx::Point p{r.x + br.cx() + metrics::navIcon * 0.5f - 1, r.y + br.cy() - metrics::navIcon * 0.5f + 1};
-            // Ringed in what is under it (the selected pill of the current page) so it stands off the glyph.
-            const Color under = b->active() ? Color::lerp(col.bgBase, col.overlaySelected.withAlpha(1.f), col.overlaySelected.a)
-                                            : col.bgBase;
-            c.fillCircle(p, 5.5f, under);
-            c.fillCircle(p, 3.5f, accent().base);
-            return;
-        }
-        const std::wstring label = n > 99 ? std::wstring(L"99+") : std::to_wstring(n);
-        auto layout = gfx::makeLayout(label, type::monoBadge, 100);
-        DWRITE_TEXT_METRICS m{};
-        layout->GetMetrics(&m);
-        const float w = std::max(18.f, std::ceil(m.widthIncludingTrailingWhitespace) + 10);
-        const Rect pill{r.x + br.right() - 10 - w, r.y + br.cy() - 9, w, 18};
-        c.fillPill(pill, accent().base);
-        c.text(label, type::monoBadge, pill, accent().onAccent, gfx::TextAlign::Center, gfx::VAlign::Center);
-    };
-    badge(podcasts_, podcastNewEpisodeCount());
-    badge(releases_, newReleasesUnseenCount());
 }
 
 // ===================================================================================================

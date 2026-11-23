@@ -1707,5 +1707,12 @@
   "Yeniden başlatma gerekiyor": "Neustart erforderlich",
   "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Der Mica-Hintergrund wird nach einem Neustart von ShadeTube angewendet.",
   "Sayfa geçişleri": "Seitenübergänge",
-  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "Seiten wechseln mit kurzem Gleiten und Überblenden; das Cover des geöffneten Albums oder der Playlist fliegt an seinen Platz auf der neuen Seite. Mit „Bewegung reduzieren“ oder ausgeschalteten Animationseffekten in Windows wechseln Seiten sofort."
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "Seiten wechseln mit kurzem Gleiten und Überblenden; das Cover des geöffneten Albums oder der Playlist fliegt an seinen Platz auf der neuen Seite. Mit „Bewegung reduzieren“ oder ausgeschalteten Animationseffekten in Windows wechseln Seiten sofort.",
+  "Daha fazla": "Mehr",
+  "Daha fazla göster": "Mehr anzeigen",
+  "Daha az göster": "Weniger anzeigen",
+  "Kaldığın yerden devam et": "Weiterhören, wo du aufgehört hast",
+  "Müziğe buradan başla": "Starte hier mit deiner Musik",
+  "Bir şarkı ara, bir radyo istasyonu aç ya da kendi müzik klasörünü ekle. Çaldıkların burada, kaldığın yerde seni bekler.": "Suche einen Song, schalte einen Radiosender ein oder füge deinen eigenen Musikordner hinzu. Was du hörst, wartet hier genau dort auf dich, wo du aufgehört hast.",
+  "Kenar çubuğunda diğer sayfaları göster / gizle": "Weitere Seiten in der Seitenleiste ein- / ausblenden"
 }

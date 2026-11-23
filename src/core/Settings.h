@@ -94,6 +94,7 @@ struct Settings {
     // (Ctrl+B, or the edge dragged narrower than 150 DIPs).
     float sidebarWidth = 240;
     bool sidebarCollapsed = false;
+    int sidebarMore = -1;                // its "Daha fazla" page group: 1 open, 0 folded, -1 automatic (by its height)
     // "Birlikte dinle" (app/Together): the name others see ("" = Spotify / Windows name) and a broker of the user's own
     // tried before the built-in public ones (wss://host[:port]/path, "" = none).
     std::string jamName;

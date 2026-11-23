@@ -1540,5 +1540,12 @@
   "Yeniden başlatma gerekiyor": "再起動が必要です",
   "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 背景は ShadeTube の再起動後に適用されます。",
   "Sayfa geçişleri": "ページ切り替えのアニメーション",
-  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "ページは短いスライドとフェードで切り替わり、開いたアルバムやプレイリストのジャケットが新しいページの定位置へ移動します。「アニメーションを減らす」がオンのとき、または Windows のアニメーション効果がオフのときは、すぐに切り替わります。"
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "ページは短いスライドとフェードで切り替わり、開いたアルバムやプレイリストのジャケットが新しいページの定位置へ移動します。「アニメーションを減らす」がオンのとき、または Windows のアニメーション効果がオフのときは、すぐに切り替わります。",
+  "Daha fazla": "その他",
+  "Daha fazla göster": "さらに表示",
+  "Daha az göster": "表示を減らす",
+  "Kaldığın yerden devam et": "前回の続きから",
+  "Müziğe buradan başla": "ここから音楽を始めよう",
+  "Bir şarkı ara, bir radyo istasyonu aç ya da kendi müzik klasörünü ekle. Çaldıkların burada, kaldığın yerde seni bekler.": "曲を検索したり、ラジオ局を聴いたり、自分の音楽フォルダーを追加したりしましょう。再生したものは、止めたところからここで待っています。",
+  "Kenar çubuğunda diğer sayfaları göster / gizle": "サイドバーのその他のページを表示 / 非表示"
 }
