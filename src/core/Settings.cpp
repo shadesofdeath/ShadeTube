@@ -42,7 +42,7 @@ void Settings::load() {
     read(j, "accentMode", accentI);
     repeat = static_cast<RepeatMode>(std::clamp(repeatI, 0, 2));
     quality = static_cast<AudioQuality>(std::clamp(qualityI, 0, 1));
-    accentMode = static_cast<AccentMode>(std::clamp(accentI, 0, 1));
+    accentMode = static_cast<AccentMode>(std::clamp(accentI, 0, 2));
     read(j, "normalizeVolume", normalizeVolume);
     read(j, "loudnessTarget", loudnessTarget);
     loudnessTarget = std::clamp(loudnessTarget, -23, -8);
@@ -63,6 +63,10 @@ void Settings::load() {
     read(j, "uiZoom", uiZoom);
     read(j, "compactLists", compactLists);
     read(j, "micaBackdrop", micaBackdrop);
+    read(j, "themeDark", themeDark);
+    read(j, "themeLight", themeLight);
+    read(j, "cornerStyle", cornerStyle);
+    read(j, "uiFont", uiFont);
     read(j, "downloadsDir", downloadsDir);
     read(j, "downloadMp3Kbps", downloadMp3Kbps);
     read(j, "syncPaused", syncPaused);
@@ -156,6 +160,10 @@ void Settings::save() const {
         {"uiZoom", uiZoom},
         {"compactLists", compactLists},
         {"micaBackdrop", micaBackdrop},
+        {"themeDark", themeDark},
+        {"themeLight", themeLight},
+        {"cornerStyle", cornerStyle},
+        {"uiFont", uiFont},
         {"downloadsDir", downloadsDir},
         {"downloadMp3Kbps", downloadMp3Kbps},
         {"syncPaused", syncPaused},

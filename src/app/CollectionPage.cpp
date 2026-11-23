@@ -166,17 +166,17 @@ public:
         const Rect cover = coverRect();
         // Page transition: 0 while a cover flies here (it lands at this spot), rising as it lands.
         const float shown = pagetx::presence(this);
-        if (shown > 0.f) c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f * shown));   // dark: black 35 %
+        if (shown > 0.f) c.shadow(cover, gfx::radii().art, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f * shown));   // dark: black 35 %
         if (shown <= 0.f) {
             // the flight draws the cover
         } else if (kind_ == Kind::Liked) {
-            paintLikedCover(c, cover, 2);
+            paintLikedCover(c, cover, gfx::radii().art);
         } else {
-            drawArtwork(c, meta_.images, cover, 2, kind_ == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
+            drawArtwork(c, meta_.images, cover, gfx::radii().art, kind_ == Kind::Album ? Placeholder::Album : Placeholder::Playlist);
         }
         coverRect_ = cover;
         if (coverHover_) {   // "edit": the dialog that changes the picture
-            c.fillRounded(cover, 2, Color{0, 0, 0, 0.5f});
+            c.fillRounded(cover, gfx::radii().art, Color{0, 0, 0, 0.5f});
             c.icon("edit", cover.center(48, 48), Color{1, 1, 1, 1});
         }
         const float tx = cover.right() + 32, tw = r.right() - tx;

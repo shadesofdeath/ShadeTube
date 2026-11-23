@@ -337,23 +337,23 @@ public:
 
     void paint(Canvas& c) override {
         const Rect tile = coverRect();
-        c.shadow(tile, 2, 24, 10, colors().shadowCard.mulAlpha(0.5f));
+        c.shadow(tile, gfx::radii().art, 24, 10, colors().shadowCard.mulAlpha(0.5f));
         const bool showMixed = loaded_->coverMixed && cover_ == Cover::Keep;
         if (showMixed) {   // the files' covers differ: a plain surface that says so
-            c.fillRounded(tile, 2, gfx::isLightTheme() ? colors().bgSunken : colors().bgOverlay);
+            c.fillRounded(tile, gfx::radii().art, gfx::isLightTheme() ? colors().bgSunken : colors().bgOverlay);
             c.icon("album", {tile.cx() - 16, tile.cy() - 30, 32, 32}, colors().fgTertiary);
             c.text(tr(L"Farklı kapaklar"), type::caption, {tile.x + 8, tile.cy() + 10, tile.w - 16, 18}, colors().fgSecondary,
                    gfx::TextAlign::Center);
         } else if (cover_ == Cover::Remove || previewUrl_.empty()) {
-            drawArtwork(c, {}, tile, 2, Placeholder::Album);
+            drawArtwork(c, {}, tile, gfx::radii().art, Placeholder::Album);
         } else {
-            drawArtwork(c, {{previewUrl_, 0, 0}}, tile, 2, Placeholder::Album);
+            drawArtwork(c, {{previewUrl_, 0, 0}}, tile, gfx::radii().art, Placeholder::Album);
         }
         if (busy_) {
-            c.skeleton(tile, 2, ui::frame::now());
+            c.skeleton(tile, gfx::radii().art, ui::frame::now());
             ui::frame::requestNext();
         } else if (hover_) {
-            c.fillRounded(tile, 2, Color{0, 0, 0, 0.55f});
+            c.fillRounded(tile, gfx::radii().art, Color{0, 0, 0, 0.55f});
             c.icon("edit", tile.center(32, 32), Color{1, 1, 1, 1});
         }
         paintChildren(c);

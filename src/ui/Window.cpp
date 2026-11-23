@@ -805,8 +805,8 @@ void Window::paintTooltip(Canvas& c) {
     y += (1 - ease(Ease::Standard, t)) * 4;
     const Rect box{x, y, w, h};
     c.pushOpacity(ease(Ease::Standard, t));
-    c.fillRounded(box, 2, col.bgElevated);
-    c.strokeRounded(box, 2, col.hairStrong);
+    c.fillRounded(box, gfx::radii().tooltip, col.bgElevated);
+    c.strokeRounded(box, gfx::radii().tooltip, col.hairStrong);
     c.text(layout.Get(), x + 10, y + (h - m.height) * 0.5f, col.fgPrimary);
     c.popLayer();
 }
@@ -844,7 +844,11 @@ void Window::paintFocusRing(Canvas& c) {
         break;
     }
     case FocusShape::Pill: c.strokePill(fr.inset(-mid), col, kWidth); break;
-    default: c.strokeRounded(fr.inset(-mid), 2, col, kWidth); break;
+    default: {   // concentric with the widget's corner (gfx::radii().surface) once that is rounder than 2
+        const float rr = gfx::radii().surface;
+        c.strokeRounded(fr.inset(-mid), rr > 2 ? rr + mid : rr, col, kWidth);
+        break;
+    }
     }
     c.popClip();
 }

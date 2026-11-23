@@ -668,7 +668,7 @@ public:
         c.fillRounded(r, gfx::metrics::radiusSurface, col.overlayHover.mulAlpha(hover_));
         c.text(rank_, {r.x + 8, r.y, 28, r.h}, first_ ? accent().base : col.fgTertiary, gfx::VAlign::Center);
         const Rect art{r.x + 44, r.cy() - 22, 44, 44};
-        drawArtwork(c, images_, art, gfx::metrics::radiusSurface, Placeholder::Album);
+        drawArtwork(c, images_, art, gfx::radii().art, Placeholder::Album);
         const float mw = std::max(kBarW, std::ceil(meta_.measure().w));
         const float tx = art.right() + 14, tw = r.right() - tx - mw - 28;
         c.text(title_, {tx, r.cy() - 19, tw, 20}, col.fgPrimary, gfx::VAlign::Center);
@@ -778,12 +778,12 @@ public:
                 const Rect cell = cellRect(d, hr);
                 const int64_t v = h_.at(d, hr);
                 if (v <= 0 || h_.maxMs <= 0) {
-                    c.fillRounded(cell, gfx::metrics::radiusSurface, col.bgRaised);
+                    c.fillRounded(cell, gfx::radii().badge, col.bgRaised);
                 } else {
                     const float t = std::sqrt(static_cast<float>(v) / static_cast<float>(h_.maxMs));
-                    c.fillRounded(cell, gfx::metrics::radiusSurface, accent().base.mulAlpha(0.16f + 0.84f * t));
+                    c.fillRounded(cell, gfx::radii().badge, accent().base.mulAlpha(0.16f + 0.84f * t));
                 }
-                if (d * 24 + hr == hot_) c.strokeRounded(cell.inset(-1), gfx::metrics::radiusSurface, col.fgPrimary, 1.5f);
+                if (d * 24 + hr == hot_) c.strokeRounded(cell.inset(-1), gfx::radii().badge, col.fgPrimary, 1.5f);
             }
         }
         // Readout + legend.
@@ -798,7 +798,7 @@ public:
         x += lw + 8;
         for (int i = 0; i < 5; ++i) {
             const Rect sw{x + i * (kSwatch + 3), ly + (kReadout - kSwatch) * 0.5f, kSwatch, kSwatch};
-            c.fillRounded(sw, gfx::metrics::radiusSurface, i == 0 ? col.bgRaised : accent().base.mulAlpha(0.16f + 0.84f * std::sqrt(i / 4.f)));
+            c.fillRounded(sw, gfx::radii().badge, i == 0 ? col.bgRaised : accent().base.mulAlpha(0.16f + 0.84f * std::sqrt(i / 4.f)));
         }
         x += 5 * (kSwatch + 3) + 5;
         c.text(legendHigh_, {x, ly, std::ceil(legendHigh_.measure().w), kReadout}, col.fgTertiary, gfx::VAlign::Center);
@@ -884,7 +884,7 @@ public:
             const float h = max_ > 0 ? std::max(2.f, (base - top) * static_cast<float>(ms_[static_cast<size_t>(m)]) / static_cast<float>(max_)) : 2.f;
             const Rect bar{cx - bw * 0.5f, base - h, bw, h};
             const Color fill = m == top_ ? accent().base : m == hot_ ? col.fgSecondary : col.hairStrong;
-            c.fillRounded(bar, gfx::metrics::radiusSurface, fill);
+            c.fillRounded(bar, gfx::radii().badge, fill);
             c.text(labels_[static_cast<size_t>(m)], {cx - slot * 0.5f, base + 6, slot, 14}, m == shown ? col.fgPrimary : col.fgTertiary,
                    gfx::VAlign::Center);
             if (m == shown && ms_[static_cast<size_t>(m)] > 0) {

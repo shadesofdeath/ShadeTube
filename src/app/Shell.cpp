@@ -1282,10 +1282,10 @@ void PlayerBar::paintInfo(Canvas& c, bool outgoing) {
     const bool group = layer.alpha < 0.999f;
     if (group) c.pushOpacity(layer.alpha);
     c.pushTransform(D2D1::Matrix3x2F::Translation(0, layer.dy));
-    c.shadow(artRect_, 2, 40, 0, accent().glow);   // playerThumbGlow
-    if (s.live) drawStationArt(c, s.images, artRect_, 2);
-    else if (outgoing) drawArtwork(c, s.images, artRect_, 2);
-    else art_.draw(c, s.images, artRect_, 2);   // a cover still loading fades in over the placeholder
+    c.shadow(artRect_, gfx::radii().art, 40, 0, accent().glow);   // playerThumbGlow
+    if (s.live) drawStationArt(c, s.images, artRect_, gfx::radii().art);
+    else if (outgoing) drawArtwork(c, s.images, artRect_, gfx::radii().art);
+    else art_.draw(c, s.images, artRect_, gfx::radii().art);   // a cover still loading fades in over the placeholder
     c.text(title, {infoRect_.x, infoRect_.y + 1, s.titleW, 20}, col.fgPrimary, gfx::VAlign::Center);
     c.text(artist, {infoRect_.x, infoRect_.y + 21, 320, 18}, infoHover_ && !outgoing ? col.fgPrimary : col.fgSecondary,
            gfx::VAlign::Center);
@@ -1345,8 +1345,8 @@ void PlayerBar::paint(Canvas& c) {
         const std::wstring s = ui::formatDuration(static_cast<int64_t>(hf * dur));
         const float x = std::clamp(sr.x + hf * sr.w, 24.f, r.w - 24.f);
         const Rect tip{r.x + x - 24, r.y + sr.cy() - 6 - 18, 48, 18};
-        c.fillRounded(tip, 2, col.bgElevated);
-        c.strokeRounded(tip, 2, col.hairStrong);
+        c.fillRounded(tip, gfx::radii().tooltip, col.bgElevated);
+        c.strokeRounded(tip, gfx::radii().tooltip, col.hairStrong);
         c.text(s, type::monoMeta, tip, col.fgPrimary, gfx::TextAlign::Center, gfx::VAlign::Center);
     }
     // Keep repainting while playing: the wave flows at ~30 fps while it is on screen (not under the full-screen lyrics,
@@ -1570,7 +1570,7 @@ void QueuePanel::paint(Canvas& c) {
     if (!p || p->currentOrderIndex() < 0) {
         c.text(tr(L"Sıra boş. Bir şarkı çal, burada görünsün."), type::secondary, {padX, 80, r.w - padX * 2, 20},
                col.fgTertiary);
-        if (dropAt_ >= 0) c.strokeRounded({8, 8, r.w - 16, r.h - 16}, 2, acc.base, 2);   // songs dragged in play here
+        if (dropAt_ >= 0) c.strokeRounded({8, 8, r.w - 16, r.h - 16}, gfx::radii().surface, acc.base, 2);   // songs dragged in play here
         c.popTransform();
         c.popClip();
         paintChildren(c);
@@ -1594,8 +1594,8 @@ void QueuePanel::paint(Canvas& c) {
         const float art = current ? 40.f : Settings::get().compactLists ? 28.f : 36.f;
         const Rect artR{x, rr.cy() - art * 0.5f, art, art};
         const bool station = radio::isStationId(t.id);
-        if (station) drawStationArt(c, t.album.images, artR, 2, current ? Priority::High : Priority::Normal);
-        else drawArtwork(c, t.album.images, artR, 2, Placeholder::Album, false, current ? Priority::High : Priority::Normal);
+        if (station) drawStationArt(c, t.album.images, artR, gfx::radii().art, current ? Priority::High : Priority::Normal);
+        else drawArtwork(c, t.album.images, artR, gfx::radii().art, Placeholder::Album, false, current ? Priority::High : Priority::Normal);
         if (alpha < 1) c.fillRect(artR, col.bgBase.withAlpha(0.6f));
         x += art + 12;
         float rightW = current ? 24.f : 52.f;
@@ -1612,7 +1612,7 @@ void QueuePanel::paint(Canvas& c) {
         if (blocked) {
             const float bw = std::ceil(blockedBadge_.measure().w) + 10;
             const Rect badge{r.w - padX - rightW - 8 - bw, rr.cy() - 7, bw, 14};
-            c.fillRounded(badge, 2, col.fgPrimary.withAlpha(0.14f));
+            c.fillRounded(badge, gfx::radii().badge, col.fgPrimary.withAlpha(0.14f));
             c.text(blockedBadge_, badge.inset(5, 0), col.fgSecondary, gfx::VAlign::Center);
             rightW += bw + 8;
         }

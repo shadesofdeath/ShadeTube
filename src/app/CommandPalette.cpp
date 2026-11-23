@@ -8,6 +8,7 @@
 #include "app/SmartListsPage.h"
 #include "app/Social.h"
 #include "app/Source.h"
+#include "app/ThemeStudio.h"
 #include "app/Together.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -233,6 +234,11 @@ std::vector<Item> staticItems() {
     items.push_back(commandItem("theme:light", tr(L"Açık tema"), tr(L"Görünüm"), "palette", [] { setThemeMode(ThemeMode::Light); }));
     items.push_back(commandItem("theme:system", tr(L"Sistem teması"), tr(L"Görünüm"), "palette",
                                 [] { setThemeMode(ThemeMode::System); }));
+    // Every theme of the studio (app/ThemeStudio): "Tema: Kuzey".
+    for (const auto* list : {&themes::store().presets(), &themes::store().custom()})
+        for (const auto& t : *list)
+            items.push_back(commandItem("theme:" + t.id, i18n::format(tr(L"Tema: {}"), {themes::displayName(t)}), tr(L"Görünüm"),
+                                        "palette", [id = t.id] { themes::select(id); }));
     items.push_back(commandItem("cmd:new-playlist", tr(L"Yeni çalma listesi"), tr(L"Kitaplık"), "plus", [] { promptNewPlaylist(); }));
     if (ctx().player && !ctx().player->items().empty())
         items.push_back(commandItem("cmd:clear-queue", tr(L"Çalma sırasını temizle"), tr(L"Oynatma"), "trash", [] {
@@ -362,9 +368,9 @@ public:
         c.fillRect(rect(), col.scrim.mulAlpha(t));
         c.pushOpacity(t);
         c.pushScale(0.98f + 0.02f * t, {panel_.cx(), panel_.y});
-        c.shadow(panel_, 2, 64, 32, col.shadowDialog);
-        c.fillRounded(panel_, 2, col.bgRaised);
-        c.strokeRounded(panel_, 2, col.hairStrong);
+        c.shadow(panel_, gfx::radii().dialog, 64, 32, col.shadowDialog);
+        c.fillRounded(panel_, gfx::radii().dialog, col.bgRaised);
+        c.strokeRounded(panel_, gfx::radii().dialog, col.hairStrong);
         paintChildren(c);
         paintList(c);
         paintFooter(c);
@@ -658,7 +664,7 @@ private:
             const bool selected = i == sel_;
             const Rect bg = r.inset(6, 2);
             if (selected) {
-                c.fillRounded(bg, 2, col.overlaySelected);
+                c.fillRounded(bg, gfx::radii().surface, col.overlaySelected);
                 c.fillRect({bg.x, bg.y + 8, 2, bg.h - 16}, accent().base);
             }
             const Rect art{r.x + 16, r.cy() - 16, 32, 32};
@@ -666,10 +672,10 @@ private:
                                                     : gfx::ImageCache::get().request(it.imageUrl, static_cast<int>(32 * c.scale()));
             if (bmp) {
                 if (it.round) c.imageCircle(bmp, art);
-                else c.image(bmp, art, 2);
+                else c.image(bmp, art, gfx::radii().art);
             } else {
                 if (it.round) c.fillCircle({art.cx(), art.cy()}, 16, col.bgOverlay);
-                else c.fillRounded(art, 2, col.bgOverlay);
+                else c.fillRounded(art, gfx::radii().art, col.bgOverlay);
                 c.icon(it.icon.empty() ? "music-note" : it.icon, art.center(18, 18), selected ? accent().base : col.fgSecondary);
             }
             const float x = art.right() + 12;

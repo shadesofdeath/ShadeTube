@@ -16,6 +16,7 @@
 #include "app/Shell.h"
 #include "app/Smtc.h"
 #include "app/Social.h"
+#include "app/ThemeStudio.h"
 #include "app/Together.h"
 #include "catalog/TrackKind.h"
 #include "core/CrashHandler.h"
@@ -105,9 +106,9 @@ public:
         }
         const Rect th{r.x + 10, r.cy() - 27, 96, 54};
         if (auto* bmp = gfx::ImageCache::get().request(match_.thumbnailUrl, static_cast<int>(96 * c.scale())))
-            c.image(bmp, th, 2);
+            c.image(bmp, th, gfx::radii().art);
         else
-            c.fillRounded(th, 2, col.bgOverlay);
+            c.fillRounded(th, gfx::radii().art, col.bgOverlay);
         const float x = th.right() + 14;
         c.text(title_, {x, r.y + 12, r.right() - x - 10, 20}, current_ ? accent().base : col.fgPrimary, gfx::VAlign::Center);
         c.text(channel_, {x, r.y + 32, r.right() - x - 10, 16}, col.fgSecondary, gfx::VAlign::Center);
@@ -764,6 +765,10 @@ void App::syncAccent(const catalog::Track& t) {
         gfx::Theme::get().setAccent(gfx::parseColor(s.fixedAccent.c_str()));
         return;
     }
+    if (s.accentMode == AccentMode::Theme) {   // "Temadan": the theme's own accent, whatever plays
+        gfx::Theme::get().resetAccent();
+        return;
+    }
     const auto* img = catalog::pickImage(t.album.images, 128);
     if (!img) return;
     const std::string id = t.id;
@@ -1111,17 +1116,26 @@ void App::trimMemory() {
 void App::applyTheme() {
     const bool light = resolveLightTheme(themeMode());
     auto& theme = gfx::Theme::get();
-    if (light == theme.isLight()) return;   // e.g. an ImmersiveColorSet broadcast for an accent-color change
+    static uint64_t applied = 0;   // Theme::generation() the windows were last refreshed for
     try {
-        // Palette + accent: the requested accent (album art / fixed color / default) is re-derived for the mode.
-        theme.load(light);
-        // Every window: native frame (dark title-bar attribute, border), relayout, repaint. Palette colors are read
-        // at paint time everywhere; the few caches that bake them compare Theme::generation().
+        // The mode's theme (Ayarlar › Görünüm: a preset, a custom theme, a live edit; app/ThemeStudio) with the
+        // requested accent (album art / fixed color / default) re-derived for it. Nothing changed (e.g. an
+        // ImmersiveColorSet broadcast for an accent-color change, the same theme again): nothing to do.
+        themes::applyFor(light);
+        if (theme.generation() == applied) return;
+        applied = theme.generation();
+        // Every window: native frame (dark title-bar attribute, border), relayout (the UI font / corners may have
+        // changed too), repaint. Palette colors are read at paint time everywhere; the few caches that bake them
+        // compare Theme::generation().
         applyWindowTheme(window_.get());
-        if (mini_) mini_->applyTheme();
-        if (tray_) tray_->setDarkMenus(!light);
+        window_->relayoutAll();
+        if (mini_) {
+            mini_->applyTheme();
+            mini_->window()->relayoutAll();
+        }
+        if (tray_) tray_->setDarkMenus(!theme.isLight());
         if (shell_) shell_->playerBar()->sync();
-        ST_LOG_INFO("theme", "{} theme applied live", light ? "light" : "dark");
+        ST_LOG_INFO("theme", "{} theme {} applied live", theme.isLight() ? "light" : "dark", theme.themeId());
     } catch (const std::exception& e) {
         ST_LOG_ERROR("theme", "theme switch failed: {}", e.what());
     }

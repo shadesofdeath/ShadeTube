@@ -697,7 +697,7 @@ public:
         c.pushScale(ui::card::pressScale(p), {art.cx(), art.cy()});
         if (shown > 0.f) {
             ui::card::paintBack(c, art, h * shown);
-            drawCover(c, list_, art, 2);
+            drawCover(c, list_, art, gfx::radii().art);
             ui::card::paintEdge(c, art, h);
             ui::card::paintPlay(c, playRect(), {h, playHotA_.value(), playPressA_.value()}, accent().base,
                                 accent().hover, accent().onAccent);
@@ -837,8 +837,8 @@ public:
         const Rect cover{r.x, r.y, 232, 232};
         const float shown = pagetx::presence(this);   // 0 while a cover flies here, rising as it lands
         if (shown > 0.f) {
-            c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f * shown));
-            drawCover(c, list_, cover, 2);
+            c.shadow(cover, gfx::radii().art, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f * shown));
+            drawCover(c, list_, cover, gfx::radii().art);
         }
         const float tx = cover.right() + 32, tw = r.right() - tx;
         float size = 88;

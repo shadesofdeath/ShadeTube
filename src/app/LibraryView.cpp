@@ -242,11 +242,11 @@ void LibraryView::paintCard(Canvas& c, int d, const Rect& r) {
         if (d == dropHot_) c.strokeCircle({art.cx(), art.cy()}, art.w * 0.5f, acc.base, 2.f);
     } else {
         ui::card::paintBack(c, art, h * shown);
-        paintArt(c, cl, art, 2);
+        paintArt(c, cl, art, gfx::radii().art);
         ui::card::paintEdge(c, art, h);
         if (d == dropHot_) {   // dragged songs would go here: the sidebar row's drop look
-            c.fillRounded(art, 2, acc.tint12);
-            c.strokeRounded(art, 2, acc.base);
+            c.fillRounded(art, gfx::radii().art, acc.tint12);
+            c.strokeRounded(art, gfx::radii().art, acc.base);
         }
         if (cl.playable) paintPlay(c, d, cl, playRect(d), h, 16);
     }
@@ -265,13 +265,13 @@ void LibraryView::paintRow(Canvas& c, int d, const Rect& r) {
     const auto& acc = accent();
     const LibraryCell& cl = cell(d);
     const float h = hoverOf(d);
-    c.fillRounded(r, 2, col.overlayHover.mulAlpha(h));
+    c.fillRounded(r, gfx::radii().surface, col.overlayHover.mulAlpha(h));
     if (d == dropHot_) {
-        c.fillRounded(r, 2, acc.tint12);
-        c.strokeRounded(r, 2, acc.base);
+        c.fillRounded(r, gfx::radii().surface, acc.tint12);
+        c.strokeRounded(r, gfx::radii().surface, acc.base);
     }
     const Rect art = artRect(d);
-    paintArt(c, cl, art, 2);
+    paintArt(c, cl, art, gfx::radii().art);
     if (cl.playable && pagetx::presence(&cl) > 0.f) paintPlay(c, d, cl, playRect(d), h, 14);
     auto& tx = text(d);
     if (!tx.metaDone) {

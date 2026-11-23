@@ -120,8 +120,8 @@ public:
     void paint(Canvas& c) override {
         const Rect r = rect();
         const auto& col = colors();
-        c.fillRounded(r, 2, col.bgRaised);
-        c.strokeRounded(r, 2, col.hairDefault);
+        c.fillRounded(r, gfx::radii().field, col.bgRaised);
+        c.strokeRounded(r, gfx::radii().field, col.hairDefault);
         c.icon("link", {r.x + 12, r.cy() - 7, 14, 14}, col.fgTertiary);
         if (text_.empty()) {
             c.text(tr(L"Sunucuya bağlanınca hazır olur…"), type::caption, {r.x + 34, r.y, r.w - 46, r.h}, col.fgTertiary,

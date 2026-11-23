@@ -58,7 +58,7 @@ ShadeTube/
 │   i18n/         <code>.json translations (en de es fr pt ru uk id ja ko); _keys.json is a local dump
 │   remote/       the phone remote's web page (index.html, app.js, app.css; served by the app, see 3.23)
 │   icons/16|20|24 (*-thin: the player bar's outline set, 3.29), logo/, placeholders/, animations/ (SVG frames),
-│   textures/, tokens/ (dark/light), app.ico
+│   textures/, tokens/ (dark/light), themes/ (preset color themes, 3.x Theme studio), app.ico
 ├─ docs/                         DEVELOPMENT.md, screenshots/
 ├─ packaging/winget/             winget-pkgs manifest of the current release (tools/update_manifests.py)
 ├─ bucket/shadetube.json         Scoop manifest: the repository doubles as a Scoop bucket
@@ -101,6 +101,9 @@ ShadeTube/
                                  jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, pagetx, playback,
                                  podcasts, radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify,
                                  stats, sync, tags, updater, winshell
+                                 jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts,
+                                 radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync,
+                                 tags, theme, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -178,7 +181,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   used. `frame::begunAt()` is the real start (profiling).
 - Scrolling: every scrolling surface shares one smooth-scroll engine (3.28).
 - `gfx::Theme` loads `assets/tokens/tokens.dark.json` / `tokens.light.json`. The accent is dynamic (extracted from
-  the album art, cross-faded) or fixed (`Settings.accentMode`).
+  the album art, cross-faded) or fixed (`Settings.accentMode`). Preset and custom themes per mode, the theme's own
+  accent, corner radii and the UI font: 3.x Theme studio.
 - Theme mode Dark / Light / System (`Settings.theme`; System follows `AppsUseLightTheme` and is re-read on
   `WM_SETTINGCHANGE` "ImmersiveColorSet"). Switching is live: `Theme::load()` swaps the palette, re-derives the
   accent (the light theme darkens it to ≥ 3:1 against `bg.base`) and bumps `Theme::generation()` for caches that bake
@@ -585,7 +589,8 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
 `radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`, `jam.json`
 (listen together: the device id, a guest's saved playback settings), `jam-own-session.json` (a guest's own queue),
 `spotify-hashes.json`, `library-recents.json`,
-`update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
+`update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `themes\` (custom color themes, 3.x Theme
+studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
 go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
@@ -1288,6 +1293,79 @@ under three rows. `app/Shell` (`Sidebar::layout`) now budgets the height, top to
   `addNewReleasesShelf(c, makeRow)` take the row factory so those sections become shelves.
 - **Dev**: `SHADETUBE_SPOTIFY_DEMO` with a `home.json` (Spotify's raw home answer, `tests/spotify/fixtures`) also gives
   the logged-out Home the personalized shelves; `SHADETUBE_HOME_DEMO` (5.4) scrolls the page / a shelf for screenshots.
+### 3.x Theme studio (presets, custom themes, accent, corners, UI font)
+
+`gfx/ThemeSpec` (themes as data, standalone), `app/ThemeStore` (built-in + the user's themes, standalone),
+`app/ThemeStudio` (selection, live switching, files), `app/ThemeStudioUi` (Ayarlar › Görünüm rows and dialogs).
+
+- **Theme files** (`"$schema": "shadetube-theme/1"`, `gfx/ThemeSpec.h`): `name`, `base` (`dark` / `light`), `keys`
+  (the five key colors: `background`, `surface`, `text`, `outline`, `accent`) and `color` / `effects` in the tokens'
+  paths (`color.bg.raised`, `color.hairline.default`, `effects.menuShadow`...). What a file leaves out comes from the
+  default theme of its base; `keys` derive a whole palette (`derivePalette`: surfaces stepped towards the text color,
+  secondary / tertiary text mixed towards the background but kept ≥ 4.5:1 / ≥ 3:1, hairlines and overlays as the tokens'
+  alphas of outline / text, scrims of the background; status colors and shadows from the base), `color` entries override
+  single values. A tokens file reads the same way. `serializeTheme` writes everything (keys, every palette color,
+  shadows) in a stable order.
+- **Presets**: `tokens/tokens.dark.json` (`dark`, "Koyu") and `tokens/tokens.light.json` (`light`, "Açık") plus
+  `assets/themes/<id>.json`, each a full hand-tuned palette: `amoled` (true black), `nord` ("Kuzey", Nord's arctic
+  blue-greys, frost accent), `sepia` ("Sepya", warm brown, parchment text, amber), `graphite` ("Grafit", dim grey with
+  high-contrast text and stronger hairlines), `pastel` (light lavender paper, plum ink, violet), `snow` ("Kar", Nord's
+  Snow Storm). The list and order are `builtinThemes()` (`ThemeStore.cpp`); display names are translated in
+  `themes::displayName`. Every preset passes `contrastReport()` (`theme_test` prints the table): fg.primary ≥ 7:1 on
+  bg.base / raised and ≥ 4.5:1 on overlay / elevated, secondary ≥ 4.5:1, tertiary ≥ 3:1, fg.inverse on fg.primary ≥
+  4.5:1, the adapted accent ≥ 3:1 on base / raised with onAccent ≥ 4.5:1, error / warning / success ≥ 3:1.
+- **Which theme**: `Settings.themeDark` / `themeLight` (ids; default `dark` / `light`) are used by the mode (Koyu / Açık /
+  Sistem, `Settings.theme`, unchanged). The gallery (two groups of preview tiles: a mini mock of sidebar, card, accent
+  play button and player bar in the theme's colors with the current accent setting) picks the slot of the tile's kind;
+  in Koyu / Açık a tile of the other kind also switches the mode, in Sistem only the slot changes (a toast says when
+  Windows is in the other mode). Right click / Shift+F10 / the menu key: Kullan, Düzenle (custom), Kopyala ve düzenle,
+  Dışa aktar…, Sil (custom); arrows move between tiles, a double click edits a custom theme. The command palette lists
+  every theme ("Tema: Kuzey").
+- **Live switching**: every change goes through `ctx().applyTheme` → `App::applyTheme()`: `themes::applyFor(light)` puts
+  the mode's theme into `gfx::Theme` when it is not there yet (`Theme::apply(spec)`: palette, light / dark, its default
+  accent; the requested accent is re-derived), and whenever `Theme::generation()` moved (palette, corners, font) every
+  window gets `applyWindowTheme` (DWM dark mode, border / caption color from bg.base), a `relayoutAll()` and a repaint,
+  the mini player too, and the tray menus follow light / dark. Mica's tint is `bg.base` of the theme at 55 % / 50 %
+  (`Palette::bgBackdrop`). Album / artist / playlist placeholders are drawn from the palette in every theme except the
+  default dark one, whose SVGs bake its colors.
+- **Accent source** (`Settings.accentMode`): Kapaktan (`Dynamic`, the cover as before), Temadan (`Theme`, new: the
+  theme's own accent, whatever plays; `App::syncAccent` resets to it) and Sabit (`Fixed`, `Settings.fixedAccent`). The
+  fixed row offers five suggestions and a hue-ring swatch that opens the picker (saturation / value area, hue strip, hex
+  field, eight suggestions; arrows move the area / strip, Shift for 10 steps); picking previews live on the whole app
+  (`Theme::setAccent` without fade) and *Vazgeç* / Esc / a click outside restores it. Contrast (`Theme::adaptAccent`): a
+  light theme darkens an accent below 3:1 against its bg.base (as before), a dark theme now lightens one that is too
+  dark the same way; `onAccent` is ink or paper, whichever contrasts more (it was paper below luminance 0.35, which put
+  light text on coral or on the darkened light-theme volt at under 3:1).
+- **Custom themes**: "Kopyala ve düzenle" (or the + tile, or editing a preset) opens the editor on a copy named
+  "<name> (kopya)": name field, the five keys (one selected, edited with the picker on the right) and the text contrast.
+  Each change is `setKey()` (only the palette entries the key drives are re-derived; status colors, shadows and the rest
+  stay) and `themes::preview()`: the theme replaces its mode's theme on screen (a light theme edited in dark mode flips the
+  screen through the run's theme override) until *Kaydet* or *Vazgeç*. Saving needs `readable()` (fg.primary ≥ 4.5:1
+  on bg.base and bg.raised, fg.secondary ≥ 3:1 on bg.base). Saved themes are `themes\<slug>.json` in the user data folder
+  (id `user:<slug>`, numbered when taken; write-then-rename) and become their mode's theme.
+- **Import / export** (*Tema dosyası* row; dialogs posted): import reads at most 256 KB and parses strictly (not JSON,
+  another `$schema`, no colors, a malformed color anywhere, a bad base, unreadable text → refused with a one-line toast,
+  nothing written; details in the log), saves it as a new custom theme (" (2)" on a taken name) and selects it. Export
+  writes the theme on screen with its display name. **A broken file never bricks the UI**: files in `themes\` that fail
+  the strict parse are left out (logged); a chosen theme that is gone or broken falls back to the mode's default (saved)
+  with a toast once the window is up; built-in presets parse leniently.
+- **Corners** (`Settings.cornerStyle`: `sharp` / `default` / `round`): `gfx::radii()` (`Theme::setCornerStyle`, bumps the
+  generation). Default = the tokens' `radius.*` (`surface`, `art`, `badge`, `tooltip`, `menu`, `dialog`, `toast`, `field`,
+  `scrollbarThumb`; `art` and `field` are new tokens), Sharp = 0, Round = 8 / 6 / 4 / 6 / 8 / 12 / 8 / 6 / 3. Pills and
+  circles never change. `metrics::radiusSurface` is now a reference to the live `radii().surface`. The shared widgets and
+  pages (cards, rows, covers, skeletons, badges, menus, dialogs, toasts, tooltips, fields, the scrollbar, the focus ring of
+  a Rect) read `gfx::radii()`; Now Playing, the full-screen lyrics, the mini player and Home keep their own literals.
+- **UI font** (`Settings.uiFont`: "" = the bundled Bricolage Grotesque): the font dialog lists the bundled font, Segoe UI
+  Variable (Segoe UI on Windows 10) and every installed family usable for text (`Fonts::installedFamilies()`: no symbol
+  fonts, Latin letters present; enumerated once when the dialog first opens: 74 of 80 families in 16 ms on the development
+machine, logged), each name in its own font (only visible rows are shaped), with a search box; a click applies
+  live, *Vazgeç* goes back. `Fonts::setUiFamily()` swaps the non-mono family, clears the format cache and bumps
+  `Fonts::generation()`, which every `gfx::Text` compares before using its cached layout; `Theme::touch()` makes the
+  baked bitmaps (Now Playing, lyrics) rebuild. A family that is not installed keeps the bundled font (a toast at
+  startup); JetBrains Mono is never replaced.
+- **Dev**: `SHADETUBE_THEME_PRESET=<id>` (this run's theme, not saved), `SHADETUBE_THEME_DEMO` (live changes on a timer),
+  `SHADETUBE_THEME_DIALOG` (opens the accent / font picker or the editor), `SHADETUBE_THEME_IMPORT` (imports a file),
+  see 5.4. `theme_test` (5.2) covers parsing, the presets' contrast, import validation and the theme folder.
 
 ## 4. Coding conventions
 
@@ -1302,7 +1380,9 @@ under three rows. `app/Shell` (`Sidebar::layout`) now budgets the height, top to
   to every `assets/i18n/*.json`.
 - Design values come from the tokens (`assets/tokens`) and the existing components. **Don't invent new radii or
   colors**: surfaces 2 px, controls pill/circle, hairlines instead of shadows (menus, toasts and dialogs use the
-  `shadow*` / `scrim` tokens). Both themes must work.
+  `shadow*` / `scrim` tokens). Both themes must work. Corner radii are read at paint time from `gfx::radii()` (the
+  corner style changes them live, 3.x Theme studio), never written as literals; colors only from the palette (every
+  preset and custom theme must work, not just the default dark / light).
 - Keyboard: interactive widgets set `focusable = true`, return `activatable() = true` and implement `onActivate()`
   (Enter/Space); give `focusShape()` / `focusRect()` when the default (rect, radius 2) is wrong. Never paint focus
   yourself: the Window draws the ring. Text fields and lists that need every key stay non-activatable. Callbacks
@@ -1365,6 +1445,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json` (and its newest entries, Home's hero), history recency, timing with 10 000 items | offline |
+| `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
+| `theme_test` | theme studio core (`gfx/ThemeSpec`, `app/ThemeStore`): strict color syntax, the tokens files as themes, every bundled preset (no warnings, strict parse, keys match the palette, write / read round trip, the full contrast table), key-color derivation and `setKey`, accent adaptation and ink / paper, import validation (every refusal kind, too large, keys-only files, base guessing, names), the theme folder (save / reload / numbered names / remove / import / export / broken files left out), slugs | offline (own temp folder; reads the source tree's `assets/`) |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
 | `pagetx_test` | page transitions (`ui/PageMotion`) stepped with explicit times: durations 180..240 ms, Push (outgoing fades / shifts out, incoming slides in, both monotonic and exact at the end), Back mirrored, shared / Replace without offsets, the cover's flight (lands exactly, even on a moving target, no overshoot, radius morph), the hand-over, holding for an image (no frames; image / scroll / timeout end it), fading when the target goes, 60 / 144 Hz give the same positions | offline |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
@@ -1448,6 +1530,10 @@ apps*).
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 | `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.x), instead of `SPI_GETCLIENTAREAANIMATION` |
 | `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
+| `SHADETUBE_THEME_PRESET` | `<theme id>` (`nord`, `pastel`, `user:<file>`...): that theme for this run, whatever the mode; nothing is saved (3.x Theme studio) |
+| `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
+| `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
+| `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
 
 ## 6. Release process
 
