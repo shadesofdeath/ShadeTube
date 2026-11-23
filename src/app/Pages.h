@@ -9,15 +9,27 @@
 
 namespace st::app {
 
+class CollapseBar;
+class HeroHeader;
+
 // Base: vertical scroll page with a Column, loading skeleton, error state and deferred scroll restore.
 class ScrollPage : public Page {
 public:
     ScrollPage();
     void layout() override;
+    void paint(Canvas& c) override;
     float scrollOffset() const override;
     void restoreScroll(float y) override;
 
 protected:
+    // A page whose header collapses into a compact bar as it scrolls (app/CollapsingHeader): call once in the
+    // constructor, then attachHeader() whenever the content is built (resetContent() detaches it).
+    void enableCollapse();
+    // `dock`: what docks under the bar (nullptr: the content after the header); `columns`: a track list whose column
+    // header docks with it.
+    void attachHeader(HeroHeader* header, ui::Widget* dock, TrackTable* columns = nullptr);
+    CollapseBar* collapse_ = nullptr;
+
     // Replace content with an error panel ("Tekrar dene" calls retry).
     void showError(const std::wstring& message, std::function<void()> retry);
     void showSkeleton(int rows = 8);
@@ -32,6 +44,7 @@ protected:
 
 private:
     void applyPendingScroll();
+    bool devScrolled_ = false;   // SHADETUBE_HEADER_SCROLL applied (dev)
 };
 
 std::unique_ptr<Page> createPage(const Route& route);

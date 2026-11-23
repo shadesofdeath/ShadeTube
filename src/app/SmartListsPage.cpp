@@ -3,6 +3,7 @@
 #include "app/SmartListsPage.h"
 
 #include "app/Blacklist.h"
+#include "app/CollapsingHeader.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Source.h"
@@ -751,7 +752,7 @@ private:
 
 // ---- The list page --------------------------------------------------------------------------------------------------
 
-class SmartHeader : public ui::Widget {
+class SmartHeader : public HeroHeader {
 public:
     SmartHeader() {
         play_ = add<ui::PlayButton>(ui::PlayButton::Look::Accent);
@@ -763,16 +764,18 @@ public:
         gfx::TextOptions wrap;
         wrap.wrap = true;
         wrap.maxLines = 2;
-        title_ = gfx::Text({}, type::displayXL, wrap);
         why_ = gfx::Text({}, type::secondary, wrap);
     }
     void setList(const List& l) {
         list_ = l;
-        title_.setText(title(l));
+        setTitle(title(l));
         why_.setText(why(l));
         int64_t ms = 0;
         for (const auto& t : l.tracks) ms += t.durationMs;
         totalMs_ = ms;
+        // The tint: the list's tile tone, lifted from its deep cover shade to a color that reads as a wash.
+        const gfx::Hsl h = gfx::toHsl(tileColor(l.id));
+        setTintColor(gfx::fromHsl({h.h, std::max(h.s, 0.35f), 0.5f}));
         requestLayout();
         invalidate();
     }
@@ -787,56 +790,50 @@ public:
             b->setRect({x, y + 8, 40, 40});
             x += 40 + 14;
         }
+        // Texts (header-local), as on the playlist page.
+        const float tx = kCoverSize + 32, tw = std::max(0.f, rect().w - tx);
+        const float th = fitTitle(tw, {88.f, 72.f, 56.f, 44.f, 36.f}, 56.f, type::displayXL);
+        whyW_ = std::min(tw, 640.f);
+        whyH_ = why_.empty() ? 0.f : std::ceil(why_.measure(whyW_).h);
+        float ty = kCoverSize - th - 30 - (why_.empty() ? 0.f : whyH_ + 6);
+        labelY_ = ty - 26;
+        contentTop_ = labelY_;
+        titleBox_ = {tx - titleSize_ * 0.04f, ty, tw, th};
+        ty += th + 10;
+        whyY_ = ty;
+        if (!why_.empty()) ty += whyH_ + 6;
+        metaY_ = ty;
     }
-    void paint(Canvas& c) override {
+    void drawCover(Canvas& c, const Rect& r, float radius) override { smart::drawCover(c, list_, r, radius); }
+
+    Button *add_, *more_;
+
+protected:
+    void paintContent(Canvas& c) override {
         const Rect r = rect();
         const auto& col = colors();
-        const Color tone = tileColor(list_.id);
-        const Color wash = gfx::isLightTheme() ? gfx::Theme::adaptAccent(tone, true).withAlpha(0.12f) : tone.withAlpha(0.35f);
-        c.fillLinearGradient({r.x - 48, r.y - 36, r.w + 96, 420}, {0, r.y - 36}, {0, r.y + 384}, wash, wash.withAlpha(0));
-        const Rect cover{r.x, r.y, 232, 232};
-        c.shadow(cover, 2, 40, 18, col.shadowCard.mulAlpha(0.35f / 0.45f));
-        drawCover(c, list_, cover, 2);
-        const float tx = cover.right() + 32, tw = r.right() - tx;
-        float size = 88;
-        for (float s : {88.f, 72.f, 56.f, 44.f, 36.f}) {
-            size = s;
-            title_.setStyle(type::displayXL.withSize(s));
-            const float h = title_.measure(tw).h;
-            if (s > 56 ? h <= s * 1.05f : h <= s * 2.1f) break;
-        }
-        const float th = title_.measure(tw).h;
-        const float dw = std::min(tw, 640.f);
-        const float dh = why_.empty() ? 0.f : std::ceil(why_.measure(dw).h);
-        float y = cover.bottom() - th - 30 - (why_.empty() ? 0.f : dh + 6);
+        const float tx = r.x + kCoverSize + 32, tw = std::max(0.f, r.right() - tx);
         const std::wstring label = list_.kind == Kind::Year
                                        ? toUpperTr(tr(L"Yıl özeti")) + L" · " + std::to_wstring(list_.number)
                                        : toUpperTr(tr(L"Senin için")) + L" · " + toUpperTr(tr(L"Otomatik liste"));
-        c.text(label, type::monoLabel, {tx, y - 26, tw, 14}, col.fgSecondary);
-        c.text(title_, {tx - size * 0.04f, y, tw, th}, col.fgPrimary);
-        y += th + 10;
-        if (!why_.empty()) {
-            c.text(why_, {tx, y, dw, dh}, col.fgSecondary);
-            y += dh + 6;
-        }
+        c.text(label, type::monoLabel, {tx, r.y + labelY_, tw, 14}, col.fgSecondary);
+        if (!why_.empty()) c.text(why_, {tx, r.y + whyY_, whyW_, whyH_}, col.fgSecondary);
         std::wstring meta = L"ShadeTube · " + i18n::plural(L"{} şarkı", static_cast<int64_t>(list_.tracks.size()));
         if (totalMs_ > 0) meta += L" · " + totalDuration(totalMs_);
-        c.text(meta, type::secondary, {tx, y + 2, tw, 20}, col.fgSecondary);
-        paintChildren(c);
+        c.text(meta, type::secondary, {tx, r.y + metaY_ + 2, tw, 20}, col.fgSecondary);
     }
-
-    ui::PlayButton* play_;
-    Button *shuffle_, *add_, *more_;
 
 private:
     List list_;
-    gfx::Text title_, why_;
+    gfx::Text why_;
+    float labelY_ = 0, whyY_ = 0, whyW_ = 0, whyH_ = 0, metaY_ = 0;
     int64_t totalMs_ = 0;
 };
 
 class SmartListPage : public ScrollPage {
 public:
     SmartListPage(std::string id, bool autoplay) : id_(std::move(id)), autoplay_(autoplay) {
+        enableCollapse();   // the header collapses into a compact bar (app/CollapsingHeader)
         subscribe(life_.ref(), [this] { refresh(); });
         ensure();
         refresh();
@@ -892,6 +889,8 @@ private:
         opts.showAdded = false;
         table_ = c->add<TrackTable>(opts);
         tracks_ = l.tracks;
+        attachHeader(header_, table_, table_);
+        header_->isPlaying = [this] { return isPlayingThis(); };
         table_->onPlay = [this](int i) { playFrom(i, false); };
         header_->play_->onClick = [this] { playFrom(-1, false); };
         header_->shuffle_->onClick = [this] { playFrom(-1, true); };
