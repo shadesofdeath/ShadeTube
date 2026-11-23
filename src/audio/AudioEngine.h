@@ -155,6 +155,22 @@ public:
     int64_t durationMs() const;
     float bufferedFraction() const;   // 0..1 of the current track downloaded
 
+    // Audio clock for a picture that follows the sound (video mode): the track position heard at `atMs` (a QPC time
+    // in ms, the same clock as ui::frame::realNow), with the output latency (the audio engine's stream latency and the
+    // limiter's look-ahead) already taken off, and how fast it advances: the speed while sound plays, 0 while it stands
+    // still (paused, loading, stalled, idle). Cheap (a short lock); any thread.
+    struct Clock {
+        uint64_t tag = 0;       // the track it belongs to
+        double posMs = 0;
+        double atMs = 0;
+        double rate = 0;
+        // The position heard at QPC time `qpcMs` (e.g. when the next frame is shown); extrapolated at most 120 ms past
+        // the engine's last update, so a stall that has not been reported yet does not run away.
+        double at(double qpcMs) const;
+    };
+    Clock clock() const;
+    static double qpcNowMs();   // the clock's time base
+
     // 32 log-spaced magnitude bands (0..1) of the most recent output, for visualisers.
     // Returns false if not playing.
     bool spectrum(float* bands, int count) const;

@@ -377,6 +377,77 @@ StreamInfo MatchService::pickYoutubeStream(const std::string& videoId, bool allo
     return info;
 }
 
+VideoStreamInfo MatchService::videoStream(const std::string& videoId, int maxRows, const VideoDecoders& decoders,
+                                          double durationSec, bool bypassCache, const CT& ct) {
+    const std::string key = std::format("{}|{}|{}{}", videoId, maxRows, decoders.vp9 ? "v" : "", decoders.av1 ? "a" : "");
+    std::chrono::system_clock::time_point failedFetched{};
+    bool failedFresh = false;
+    {
+        std::lock_guard lock(mutex_);
+        if (auto it = videoStreams_.find(key); it != videoStreams_.end()) {
+            if (!bypassCache && it->second.expires > std::chrono::system_clock::now()) return it->second;
+            failedFresh = bypassCache && std::chrono::system_clock::now() - it->second.fetched < kFreshStream;
+            failedFetched = it->second.fetched;
+        }
+    }
+    // A fresh URL that failed in the decoder: this session's URLs are likely refused (as for the audio).
+    if (failedFresh) renewYoutubeSession(failedFetched, "a fresh video stream of " + videoId + " failed");
+    for (int attempt = 0;; ++attempt) {
+        const auto started = std::chrono::system_clock::now();
+        const auto manifest = client_.videos().streams().getManifest(videoId, ct);
+        std::vector<VideoCandidate> candidates;
+        std::vector<std::shared_ptr<const yte::Videos::Streams::IVideoStreamInfo>> sources;
+        for (const auto& s : manifest.getVideoStreams()) {
+            VideoCandidate c;
+            c.itag = s->itag();
+            c.container = s->container().name();
+            c.codec = s->videoCodec();
+            c.width = s->videoResolution().width();
+            c.height = s->videoResolution().height();
+            c.fps = s->videoQuality().framerate();
+            c.bitrate = s->bitrate().bitsPerSecond();
+            c.contentLength = s->size().bytes();
+            c.muxed = std::dynamic_pointer_cast<const yte::Videos::Streams::MuxedStreamInfo>(s) != nullptr;
+            c.upscaled = s->isVideoUpscaled();
+            candidates.push_back(std::move(c));
+            sources.push_back(s);
+        }
+        const auto pick = pickVideoStream(candidates, maxRows, decoders);
+        if (!pick) throw NoMatchError("No playable video stream for " + videoId);
+        const auto& src = *sources[static_cast<size_t>(std::find_if(candidates.begin(), candidates.end(), [&](const auto& c) {
+                                                            return c.itag == pick->itag;
+                                                        }) - candidates.begin())];
+        VideoStreamInfo info;
+        info.url = src.url();
+        info.contentLength = pick->contentLength;
+        info.mimeType = pick->container == "webm" ? "video/webm" : "video/mp4";
+        info.codec = pick->codec;
+        info.width = pick->width;
+        info.height = pick->height;
+        info.fps = pick->fps;
+        info.itag = pick->itag;
+        info.bitrateKbps = static_cast<int>(pick->bitrate / 1000);
+        info.muxed = pick->muxed;
+        info.staticImage = looksStatic(*pick, durationSec);
+        info.expires = urlExpiry(info.url);
+        info.fetched = started;
+        const int status = urlCheck_ ? urlCheck_(info.url, info.contentLength) : probeYoutubeUrl(info.url, info.contentLength, ct);
+        if (!refused(status)) {
+            ST_LOG_INFO("youtube", "video stream {}: itag {} {} {}x{}@{} {} kbps (average {} kbps){}", videoId, info.itag,
+                        info.codec, info.width, info.height, info.fps, info.bitrateKbps, averageKbps(*pick, durationSec),
+                        info.staticImage ? ", a still picture" : "");
+            std::lock_guard lock(mutex_);
+            if (videoStreams_.size() > 64) videoStreams_.clear();
+            videoStreams_[key] = info;
+            return info;
+        }
+        const std::string why = std::format("YouTube refused the video stream URL of {} (HTTP {}, itag {})", videoId, status, info.itag);
+        if (attempt == 0 && renewYoutubeSession(info.fetched, why)) continue;
+        ST_LOG_WARN("youtube", "{}, also in a new session", why);
+        throw StreamRefusedError(why);
+    }
+}
+
 Resolved MatchService::resolveForPlayback(const catalog::Track& track, bool allowWebm, bool lowQuality, bool refresh, const CT& ct) {
     Resolved r;
     try {

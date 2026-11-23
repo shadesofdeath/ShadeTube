@@ -302,6 +302,7 @@ private:
             buildSmartShuffleRows(c, rebuilder());
             buildAltSourceRows(c, rebuilder());
             buildPreviewRows(c, rebuilder());
+            buildVideoRows(c, rebuilder());
         }
 
         // Equalizer, crossfade, output device.

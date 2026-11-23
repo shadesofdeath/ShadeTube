@@ -1081,7 +1081,8 @@ void Window::onMouseMessage(UINT msg, WPARAM wp, LPARAM lp) {
             capture_->onMouseMove(makeEvent(capture_, p, MouseButton::Left, wp));
             // Keep hover consistent with what's under the cursor for visual feedback.
             Widget* hit = hitTest(p);
-            capture_->hovered_ = (hit == capture_);
+            // The handler may have ended the capture (ReleaseCapture -> WM_CAPTURECHANGED, a modal loop).
+            if (capture_) capture_->hovered_ = (hit == capture_);
         } else {
             Widget* hit = hitTest(p);
             updateHover(hit);

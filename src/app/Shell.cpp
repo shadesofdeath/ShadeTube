@@ -14,6 +14,7 @@
 #include "app/Social.h"
 #include "app/Source.h"
 #include "app/Together.h"
+#include "app/VideoMode.h"
 #include "app/WinShell.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
@@ -1058,6 +1059,9 @@ PlayerBar::PlayerBar()
     expand_->onClick = [this] { ctx().toggleNowPlaying(!nowPlaying_); };
     knob_->setValue(Settings::get().volume);
     knob_->onChange = [](float v) { ctx().player->setVolume(v); };
+    // "Video modu" (app/VideoMode): the song's music video where the cover is in Now Playing, or in its own window.
+    video_ = add<Button>(ButtonKind::Icon, L"", "video-thin");
+    video_->onClick = [] { videomode::toggle(); };
     sync();
 }
 
@@ -1122,6 +1126,12 @@ void PlayerBar::sync() {
     sleep_->setActive(sleepTimerActive());
     sleep_->setTooltip(sleepTimerActive() ? i18n::format(tr(L"Uyku zamanlayıcı · {}"), {sleepTimerLabel()})
                                           : std::wstring(tr(L"Uyku zamanlayıcı")));
+    video_->setVisible(videomode::offered());   // not for podcasts and radio
+    video_->setEnabled(videomode::enabled());   // a file / stand-in source has no video to follow
+    video_->setActive(videomode::on());
+    video_->setTooltip(!videomode::enabled() ? std::wstring(tr(L"Bu şarkı için video yok"))
+                       : videomode::on()     ? std::wstring(tr(L"Video modunu kapat"))
+                                             : std::wstring(tr(L"Video modu")));
     for (auto* b : {prev_, next_}) b->setEnabled(t != nullptr);
     // Listen together: a guest's transport follows the host (requests when the host allows it, else off), shuffle and
     // repeat are the host's.
@@ -1166,6 +1176,7 @@ void PlayerBar::layout() {
     place(knob_, 36, 12);
     place(queue_, 32, 6);
     place(lyrics_, 32, 6);
+    if (video_->visible()) place(video_, 32, 6);
     place(sleep_, 32, 10);
     // Center column: the transport row over the seek row (elapsed · wave · total), centered on the bar; 40 % of the
     // width (380..640 DIP) as far as the left info (at least ~140 DIP of text) and the right group (with the jam icon

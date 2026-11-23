@@ -175,6 +175,8 @@ struct AudioEngine::Impl {
     std::atomic<uint64_t> tag{0};
     std::atomic<int64_t> posMs{0};
     std::atomic<int64_t> durMs{0};
+    mutable std::mutex clockMutex;     // clockState (AudioEngine::clock)
+    AudioEngine::Clock clockState;
     std::atomic<int64_t> memBytes{0};
     std::mutex eqMutex;
     EqSettings eqPending;                // guarded by eqMutex; eqVersion bumps on every change
@@ -430,6 +432,19 @@ struct AudioEngine::Impl {
         endPending = false;
         beginRebuffer(Rebuffer::Seek);
         posMs.store(ms);
+        setClock(tag.load(), static_cast<double>(ms), 0);
+    }
+
+    // The heard position for clock(): `pos` (ms) left our buffer now and advances at `rate` (0 = stands still).
+    void setClock(uint64_t t, double pos, double rate) {
+        double latencyMs = 0;
+        if (rate > 0 && out && out->sampleRate() > 0)
+            latencyMs = static_cast<double>(out->latencyFrames() + limiter.latencyFrames()) * 1000.0 / out->sampleRate();
+        std::lock_guard lock(clockMutex);
+        clockState.tag = t;
+        clockState.posMs = std::max(0.0, pos - latencyMs * rate);
+        clockState.atMs = AudioEngine::qpcNowMs();
+        clockState.rate = rate;
     }
 
     void cmdSetDevice(const std::wstring& id) {
@@ -450,6 +465,7 @@ struct AudioEngine::Impl {
         tag.store(t);
         posMs.store(pos);
         durMs.store(dur);
+        setClock(t, static_cast<double>(pos), 0);
         std::lock_guard lock(bufferMutex);
         audibleBuffer = track ? track->buffer() : nullptr;
         audibleLive = track ? track->liveStream() : nullptr;
@@ -1108,6 +1124,9 @@ struct AudioEngine::Impl {
 
     // `played` = device frames already heard. Updates the position, fires audible transitions.
     void updateAudible(uint64_t played) {
+        bool clocked = false;   // the run heard at `played` is a track's (else silence: the clock stands still)
+        uint64_t clockTag = 0;
+        double clockPos = 0, clockRate = 0;
         while (!runs.empty()) {
             Run& r = runs.front();
             if (played <= r.start) break;
@@ -1121,9 +1140,25 @@ struct AudioEngine::Impl {
             if (r.pos >= 0 && r.serial == serial) {
                 const uint64_t into = std::min<uint64_t>(played - r.start, r.frames);
                 posMs.store((r.pos + static_cast<int64_t>(static_cast<double>(into) * r.speed)) * 1000 / r.rate);
+                clockTag = r.tag;
+                clockPos = (static_cast<double>(r.pos) + static_cast<double>(into) * r.speed) * 1000.0 / r.rate;
+                clockRate = r.speed;
+                clocked = true;
+            } else if (r.pos < 0) {
+                clocked = false;   // silence is what is heard now
             }
             if (played >= r.start + r.frames) runs.pop_front();
             else break;
+        }
+        if (clocked) {
+            setClock(clockTag, clockPos, clockRate);
+        } else {   // silence (a stall, the end) or nothing written: the position stands still
+            std::lock_guard lock(clockMutex);
+            if (clockState.rate != 0) {
+                clockState.posMs = clockState.at(AudioEngine::qpcNowMs());
+                clockState.atMs = AudioEngine::qpcNowMs();
+                clockState.rate = 0;
+            }
         }
         if (endPending && played >= lastRealEnd) {
             endPending = false;
@@ -1215,6 +1250,36 @@ std::vector<OutputDevice> AudioEngine::outputDevices() {
 State AudioEngine::state() const { return impl_->state.load(std::memory_order_relaxed); }
 uint64_t AudioEngine::currentTag() const { return impl_->tag.load(std::memory_order_relaxed); }
 int64_t AudioEngine::positionMs() const { return impl_->posMs.load(std::memory_order_relaxed); }
+
+double AudioEngine::qpcNowMs() {
+    static const double perMs = [] {
+        LARGE_INTEGER f;
+        QueryPerformanceFrequency(&f);
+        return static_cast<double>(f.QuadPart) / 1000.0;
+    }();
+    LARGE_INTEGER c;
+    QueryPerformanceCounter(&c);
+    return static_cast<double>(c.QuadPart) / perMs;
+}
+
+double AudioEngine::Clock::at(double qpcMs) const {
+    return posMs + std::clamp(qpcMs - atMs, -1000.0, 120.0) * rate;
+}
+
+AudioEngine::Clock AudioEngine::clock() const {
+    Clock c;
+    {
+        std::lock_guard lock(impl_->clockMutex);
+        c = impl_->clockState;
+    }
+    // Paused / loading: whatever the last block said, the sound stands still now.
+    if (impl_->state.load(std::memory_order_relaxed) != State::Playing && c.rate != 0) {
+        c.posMs = c.at(qpcNowMs());
+        c.atMs = qpcNowMs();
+        c.rate = 0;
+    }
+    return c;
+}
 int64_t AudioEngine::durationMs() const { return impl_->durMs.load(std::memory_order_relaxed); }
 
 float AudioEngine::bufferedFraction() const {

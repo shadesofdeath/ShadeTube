@@ -30,6 +30,7 @@ namespace st::app {
 
 class QueuePanel;
 class NowPlayingTabs;   // the tab row (NowPlaying.cpp)
+class VideoView;        // video mode (app/VideoView)
 
 class NowPlayingView : public ui::Widget {
 public:
@@ -106,6 +107,8 @@ private:
     ui::Button *shuffle_, *prev_, *next_, *repeat_, *heart_;
     ui::PlayButton* play_;
     ui::Button *sleep_, *speed_, *jam_, *jamLabel_, *mini_;
+    ui::Button* videoBtn_;               // video mode's toggle (songs only), beside the sleep timer
+    VideoView* video_;                   // video mode's picture over the cover (app/VideoView)
     ui::Knob* knob_;
     NowPlayingTabs* tabs_;
     QueuePanel* queue_;

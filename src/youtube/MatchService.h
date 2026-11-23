@@ -24,6 +24,7 @@
 #include "catalog/Models.h"
 #include "youtube/AltSource.h"
 #include "youtube/SoundCloud.h"
+#include "youtube/VideoStreams.h"
 
 #include <YoutubeExplode/Common/Cancellation.hpp>
 #include <YoutubeExplode/Music/TrackMatcher.hpp>
@@ -71,6 +72,19 @@ struct Resolved {
     StreamInfo stream;
 };
 
+// Video mode (app/VideoMode): the picture stream of a video, picked by youtube/VideoStreams.
+struct VideoStreamInfo {
+    std::string url;
+    int64_t contentLength = 0;
+    std::string mimeType;      // "video/mp4" | "video/webm"
+    std::string codec;         // "avc1.4d401f", "vp9", ...
+    int width = 0, height = 0, fps = 0, itag = 0, bitrateKbps = 0;
+    bool muxed = false;        // itag 18: audio + video (only the video is decoded)
+    bool staticImage = false;  // looksStatic(): one still picture (an Art Track, a lyric / audio upload)
+    std::chrono::system_clock::time_point expires{};
+    std::chrono::system_clock::time_point fetched{};
+};
+
 struct NoMatchError : std::runtime_error {
     using std::runtime_error::runtime_error;
 };
@@ -96,6 +110,13 @@ public:
 
     // Stream for an explicit video (manual pick / re-resolve after URL expiry).
     StreamInfo stream(const std::string& videoId, bool allowWebm, bool lowQuality, bool bypassCache, const CT& ct = {});
+
+    // Video mode: the picture stream of `videoId` up to `maxRows` (480 / 720 / 1080), tried like an audio URL (a
+    // refused one starts a new YouTube session once). `durationSec` (the video's length) tells a still picture apart.
+    // Cached until the URL expires; bypassCache after the URL failed. YouTube only (the backup servers are not asked).
+    // Throws NoMatchError when the video has no picture stream this machine decodes.
+    VideoStreamInfo videoStream(const std::string& videoId, int maxRows, const VideoDecoders& decoders, double durationSec,
+                                bool bypassCache, const CT& ct = {});
 
     // Candidates for the "wrong match?" picker (best first; includes the current match).
     std::vector<Match> candidates(const catalog::Track& track, const CT& ct = {});
@@ -158,6 +179,7 @@ private:
     std::unordered_map<std::string, Match> matches_;
     std::unordered_map<std::string, Match> sessionPins_;   // pinForSession(): asked first, never persisted
     std::unordered_map<std::string, StreamInfo> streams_;
+    std::unordered_map<std::string, VideoStreamInfo> videoStreams_;   // "<id>|<rows>"
     bool dirty_ = false;
 };
 

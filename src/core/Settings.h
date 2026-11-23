@@ -133,6 +133,13 @@ struct Settings {
     // Song preview (app/Preview): "hold" (press and hold a row / cover, the menu item, the key), "menu" (menu + key
     // only), "off".
     std::string previewMode = "hold";
+    // Video mode (app/VideoMode): the song's music video, silent, following the audio.
+    int videoQuality = 720;              // height cap of the picture stream: 480 / 720 / 1080
+    bool rememberVideoMode = false;      // video mode stays on across restarts
+    bool videoMode = false;              // it was on (read at startup only with rememberVideoMode)
+    bool videoOnTop = false;             // the video window stays above other windows
+    int videoX = -1, videoY = -1;        // the video window's position (screen px; -1 = next to the main window)
+    int videoW = 640, videoH = 360;      // ... and size (DIPs)
 
     static Settings& get();
     void load();

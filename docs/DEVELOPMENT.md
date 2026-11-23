@@ -81,6 +81,7 @@ ShadeTube/
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
+│   video/       st_video        video mode's picture: VideoDecoder (MF + DXVA), SyncScheduler, VideoPlayer, Fmp4Index
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
 │                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO),
 │                                PageMotion (page transitions' timeline + cover flight, 3.x),
@@ -108,7 +109,8 @@ ShadeTube/
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
                                  jam, library, links, liveaudio, localfiles, lyrics, micro, musicbrainz, nowplaying,
                                  pagetx, playback, podcasts, popups, radio, remote, review, scrobble, shortcuts,
-                                 smartlists, smtc, sponsorblock, spotify, stats, sync, tags, theme, updater, winshell
+                                 smartlists, smtc, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
+                                 winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -116,7 +118,8 @@ The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **n
 metadata that `ID2D1SvgDocument` rejects), tokens, textures and `app.ico`. Without it, edit `assets/` directly.
 
 **Module dependencies** (never reverse them): `core ← catalog ← musicbrainz, spotify, youtube`;
-`core ← audio, lyrics, gfx`; `gfx ← ui`; `audio + youtube + catalog ← player`; everything `← app`. A new module
+`core ← audio, lyrics, gfx`; `gfx ← ui`; `audio + gfx ← video` (it reuses the audio module's ProgressiveBuffer and
+MfByteStream); `audio + youtube + catalog ← player`; everything `← app`. A new module
 gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this guide.
 
 ## 3. Architecture
@@ -130,6 +133,7 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 | audio engine thread | MF source reader, WASAPI | events marshalled to the UI with `Dispatcher::post` |
 | download, Discord RPC, crash-dump threads | range downloads, pipe I/O, minidump writer | private to their modules |
 | `st-remote` (only while the phone remote is on) | the LAN server's sockets, HTTP, event streams | requests go to the UI thread with `Dispatcher::post` (3.23) |
+| `st-video-decode` (only while video mode's picture is on screen) | the picture's MF Source Reader, its download, NV12 slot copies | frames handed over through a locked queue (3.x) |
 
 - **Never block the UI thread**: no network, no disk beyond a few KB, no `future.get()`.
 - Anything that touches widgets or Direct2D runs on the UI thread; other threads use `st::Dispatcher::post`.
@@ -165,6 +169,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   device object must get a hook too.
 - Low memory (`CreateMemoryResourceNotification`): off screen the graphics are released at once; on screen the image
   cache drops what is not painted and D2D / driver caches are trimmed.
+- Video mode (3.x): its decoder, GPU surfaces and download exist only while its picture is on screen; they go with the
+  last view, on the idle release and on device loss.
 - `SHADETUBE_MEMLOG=1` logs a breakdown every 2 s (`core/MemoryStats`: commit, private working set, heap, mapped,
   image, GPU segments, image cache, icons, audio buffers).
 
@@ -1085,14 +1091,15 @@ time of the event.
 `app/Shell.cpp` (`PlayerBar`, 88 DIP), the controls in `ui/Controls`, the shared pieces in `app/Components`.
 
 - **Layout**: track info on the left (art 56, title, artist, heart after the title), on the right the session pill /
-  jam, sleep timer, lyrics, queue, volume knob, mini player and full screen (vertically centered). The center column
+  jam, sleep timer, video (songs only, 3.x), lyrics, queue, volume knob, mini player and full screen (vertically
+  centered). The center column
   holds the transport row (shuffle · prev · play 40 · next · repeat, center y 33) over the seek row (center y 69:
   elapsed · wave · total, mono 11, elapsed `fg.secondary`, total `fg.tertiary`). The column is 40 % of the bar
   (380..640 DIP) but narrows to keep ~140 DIP of title and the right group free (about 316 DIP at the 960 DIP minimum
   window). A `hairline.subtle` marks the bar's top edge. Now Playing covers the bar with its own controls (3.x).
 - **Thin outline icons**: the player bar and the mini player use `assets/icons/{16,20,24}/<name>-thin.svg` (next, prev,
   shuffle, shuffle-smart, repeat, repeat-one, heart, heart-liked, lyrics, queue, mini-player, expand, collapse, users,
-  clock, close): the regular icons' geometry stroked 1.5 / 1.65 / 1.85 units in the 24 / 20 / 16 grids instead of
+  clock, close; video, pin and pop-out for video mode, 3.x): the regular icons' geometry stroked 1.5 / 1.65 / 1.85 units in the 24 / 20 / 16 grids instead of
   1.75 / 1.9 / 2.15, filled parts redrawn as outlines (next / prev: outlined triangle + bar; the liked heart: outline
   over a 32 % fill, tinted with the accent). Everything else keeps the regular set, so the filled `play` / `pause` /
   `next` / `prev` stay where they were (page headers, track rows, menus, the phone remote, the taskbar buttons).
@@ -1821,6 +1828,123 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
 
 Dev: `SHADETUBE_NP_TAB` (the first tab), `SHADETUBE_NP_LOG=1` (every 5 s: frames/s, field size, renders/s and their
 cost). Screenshots: open the view after the playing file started with `SHADETUBE_KEYS_DEMO=2500:action:now-playing`.
+### 3.x Video mode
+
+"Video modu" shows the music video of the playing song, silent, slaved to the app's own audio. The audio pipeline is
+untouched and stays the master (equalizer, normalisation, crossfade, speed, listen together, SponsorBlock); the picture
+follows whatever the audio does. `app/VideoMode` (controller, painting, commands, settings rows, dev hooks),
+`app/VideoView` (the surface), `app/VideoWindow` (its own window) on `src/video` (`st_video`) and
+`youtube/VideoStreams`. Turned on with the player bar's video button (between the lyrics and the sleep timer; songs only,
+disabled for songs that play from a file or a stand-in source), the same button in Now Playing's utility row (the bar
+is hidden while Now Playing is open), the `video-mode` action (Ctrl+Shift+V, palette) or `video-window`; turning it on
+while nothing shows a video opens Now Playing.
+
+- **Which video**: the YouTube video the song resolved to (`Player::currentMatch`), never another upload (an official
+  video's timing differs from the audio's). Its picture-only stream (`MatchService::videoStream`, picked by
+  `youtube::pickVideoStream`): video-only streams up to `Settings::videoQuality` rows (480 / 720 / 1080, default 720; the
+  smaller side of a portrait video), H.264 / MP4 first (stock Media Foundation decodes it on the GPU everywhere); at the
+  same size up to 30 fps before 60, YouTube's original before a "Super Resolution" upscale, then the bit rate. VP9 /
+  WebM or AV1 / MP4 only when H.264 doesn't reach 480 rows (or the cap) and `video::optionalDecoders()` found the
+  decoder (`MFTEnumEx`; VP9 also needs the WebM byte-stream handler); the muxed itag 18 as the last resort. The URL is
+  probed like the audio's and a refused one starts a new YouTube session (3.9); a URL refused later while playing is
+  fetched anew (twice). The backup servers are not asked for video.
+- **Still pictures**: Art Tracks (" - Topic" channels) and "(Official) Audio" uploads are one image over the audio.
+  `youtube::looksStatic` tells them by the stream's average bit rate (content length × 8 / duration), before a byte of
+  picture is downloaded: under 200 kbps for 1280 × 720, scaled by the picture's area, floor 45 kbps. Measured
+  2026-11-23 (720p averages): Art Tracks 26-32 kbps, audio uploads 71-140, a lyric video 334, music videos 438-1058.
+  Those songs, songs without a picture stream this machine decodes and songs that don't stream from YouTube show the
+  cover with "Bu şarkı için video yok" (or why); podcasts and radio have no button.
+- **Decoding** (`video/VideoDecoder`, thread `st-video-decode`): `audio::ProgressiveBuffer` with a read-ahead window
+  (`setReadAhead`: the download stays 8 s of the stream's peak bit rate, at least 1 MB, ahead of the last read; a
+  paused picture holds the network, a seek moves the window) → `audio::MfByteStream` → MF Source Reader (video stream
+  only) with an `IMFDXGIDeviceManager` on `gfx::Device`'s D3D11 device (made multithread protected) → the decoder
+  decodes with DXVA → each frame is copied on the GPU (`CopySubresourceRegion` inside `ID2D1Multithread`'s lock, so it
+  never lands in the middle of a Direct2D batch) into one of 6 NV12 slot textures and the sample goes back to the
+  decoder at once (holding decoder surfaces could starve its pool). Slots must be render-target capable: Intel refuses a
+  video processor input view on a shader-resource-only NV12 texture. Without DXVA (no video API, buffers in system
+  memory, no input view) the Source Reader's converter delivers RGB32 rows instead.
+- **Rendering** (`video/VideoPlayer`, UI thread): the frame on screen is converted once with the GPU's video processor
+  (`ID3D11VideoContext::VideoProcessorBlt`: the stream's BT.601 / BT.709 matrix and range → full-range RGB) into one
+  BGRA texture wrapped as an `ID2D1Bitmap1`, which the views draw like any image (multi-sample linear when smaller
+  than the picture, cubic when larger). Chosen over a dedicated swap chain or composition visual: every window already
+  shares the one device, so the picture stays on the GPU end to end, appears in Now Playing and the video window at
+  once, is clipped / letterboxed / overlaid by fading controls with no airspace problems, and the device release and
+  loss rules (3.2) cover it. Conversions happen only when the frame on screen changes, at the start of a view's paint
+  (the other window's frame was flushed by its EndDraw; a slot goes back to the decoder only after its Blt).
+- **YouTube's fragmented MP4s** (ftyp, moov, sidx, then moof + mdat per ~5 s segment) hit two Media Foundation problems:
+  its MPEG-4 source presents no sample at all of a fragmented track with an edit list (YouTube's moov/trak/edts/elst:
+  40 ms, the B-frame delay): it read the whole file and reported the end of the stream; and it ignores sidx, so a seek
+  scans every fragment's header, a ranged request each (a seek to 3:00 took over 10 s). `video/Fmp4Index` parses the
+  file's first 64 KB: the init boxes with the edts box renamed `free` (same size, nothing moves), the edit's media time
+  (the decoder subtracts it from frame times) and the segments from sidx. The source opens on a view
+  (`audio::ByteStreamView`: the init boxes from memory, then the file from a segment on); a seek opens a new view on the
+  target's segment (segments start with a key frame) unless the target is in the current segment or less than 2 s
+  ahead, where decoding on is cheaper. Frame times come from the fragments' tfdt (else the segment's start from the
+  index is added). Files without a sidx (local files, WebM) seek through MF.
+- **A/V sync** (`video/SyncScheduler`, pure, tested with a fake clock): `AudioEngine::clock()` (`Player::clock()`) is
+  the heard position: the track position of the device frame the engine just took (written − padding) minus the audio
+  engine's stream latency (`GetStreamLatency`, one device period when a driver says 0) and the limiter's 5 ms, with its
+  QPC time stamp and rate (the speed; 0 while paused, loading or stalled), extrapolated at most 120 ms. A view's paint
+  takes the clock at its frame's vblank (`ui::frame::now()`) and shows the newest decoded frame with pts ≤ clock + 8 ms;
+  older ones are dropped, one that is not due yet leaves the picture as it is. A clock more than 400 ms off its
+  expected advance (a seek, a SponsorBlock skip, a listen-together correction) seeks the decoder there, aimed ahead by
+  the measured seek latency (150 ms .. 3 s, times the rate); the first frame from there shows at once. A decoder more
+  than 250 ms (× rate) behind skips frames up to the clock (`VideoDecoder::skipUntil`: decoded, not copied); more than
+  5 s behind with frames on hand, or 3 s ahead, it is seeked; at most every 2 s, never while a seek is on its way.
+  Speed 0.5-3× is just the clock's rate (at 2-3× frames are dropped on a 60 Hz screen); a new item (gapless, crossfade)
+  starts its picture when its audio is heard (`Clock::tag` == `Player::clockTag()`). Views repaint at the next frame's
+  time and at least every 100 ms while the song plays (a stalled clock's restart is no event they hear about).
+- **Resources**: VideoViews register with video mode. The player (decoder thread, DXVA surface pool, slots, display
+  texture, download) exists only while the mode is on, the song has a video, a view is on screen (it and its parents
+  visible, its window shown and not minimized) and the song's audio already plays (the picture's download never
+  competes with the song's start). Otherwise it is dropped within ~2 s (housekeeping, a view going away), and so it is
+  on the idle graphics release and device loss (its `DeviceHook` / the device generation): the next paint of a view
+  makes a new one at the clock's position. The stream URL stays cached, so showing it again costs one segment.
+- **Now Playing** (3.x Now Playing): one `VideoView` child laid over the track block's cover (`artRect_`, wide and
+  compact layouts) and a `video-thin` button after the sleep timer in the utility row. While a picture is on screen
+  (`VideoView::hidesHostArt()`) `paintCover` leaves the cover, its baked shadow and outline out, for the incoming and
+  the outgoing `TrackSwap` layer alike, so nothing slides under the video; the view draws the picture fitted into the
+  cover's square with `radii().art`, the outline around it, on the square's bottom edge next to the title (wide) or
+  centered (compact). Without a picture (loading, none for this song) the cover shows as usual (shadow, outline,
+  track-change slide) with the note as a pill on it. A pop-out button on hover (double click pops out too); a right
+  click goes on to Now Playing's track menu. Closing the view (Küçült, Esc, any page: `deactivate()` posts a sync)
+  drops the picture ~0.5 s later unless the video window shows it; reopening brings it back at the audio's position.
+- **Overlays over the video** (3.x overlay family): the views repaint through `Window::invalidateAfter`, which is not a
+  widget `invalidate()`, so a playing picture never makes an open menu / toast / tooltip recapture its acrylic backdrop:
+  the material keeps the blurred frame of its last capture. Measured with a track menu over the playing video in Now
+  Playing (`SHADETUBE_ACRYLIC=force`, 6 s): 6 captures, exactly as many as without video (Now Playing's own drifting
+  backdrop invalidates the area: one capture a second at most); the video adds none.
+- **Song preview** (3.x Song preview): the preview voice adds no runs to the engine's position, and a held main track
+  writes silence runs, so `AudioEngine::clock()` stands still at the held position (rate 0): the picture holds its frame
+  (identical screenshots 2 s apart during a 5.6 s hold), then goes on from there when the song fades back in, with no
+  seek. `keepMainRunning` previews keep the main track's runs, so the picture follows the muted song.
+- **Video window** (`app/VideoWindow`): resizable (at least 320 × 180), letterboxed on black, rendered by App's loop
+  through `AppContext::extraWindows` (also counted as "on screen" for the idle release), its rect and "always on top"
+  remembered (`Settings::videoX / videoY / videoW / videoH / videoOnTop`). Controls fade 2.5 s after the pointer rests
+  while the song plays (the pointer hides with them in full screen): the song, previous / play-pause / next, always on
+  top, full screen, close; light ink over gradients in both themes. The picture is the window's caption (the root is
+  a drag region; only the visible buttons are client area), so Windows moves the window and no widget holds a capture
+  through the move loop; a caption double click (`WM_NCLBUTTONDBLCLK`) or F toggles full screen on its monitor (no
+  caption / frame, the monitor's rect, all client area), Esc leaves it, Space and the mini player's shortcuts work,
+  Ctrl+W closes. Turning video mode off closes it.
+- **Settings** (Ayarlar › Oynatma): Video kalitesi (480p / 720p / 1080p) and Video modunu hatırla
+  (`rememberVideoMode`; `videoMode` is the state at exit). Listen together: local only, a guest's picture follows its
+  synced audio.
+- **Measured** (2026-11-23, Intel UHD + DXVA, 720p25 H.264 from YouTube, 2355 × 1247 px window): frame vs. heard audio
+  5-9 ms on average and 8-25 ms at worst in steady playback at 0.5×, 1×, 1.5× and 2× (a frame is 33-40 ms); only the
+  first frame after a slow start or a seek can be up to ~0.2 s late for a moment (the audio resumed before the picture
+  arrived; the next frames catch up); a paused seek shows the target frame.
+  First picture 0.7-3 s after the video starts on the network (opening the source and the first segment; local
+  files ~30 ms), network seeks 0.4-1.9 s. Release: the video window alone (main window minimized) costs about 4-6 % of
+  one core, GPU video decode ~2 %, video processing ~2 %, 3D ~3-5 %; in Now Playing the window repaints at the video's
+  frame times on top of its own 30 fps ticks: 21-36 % of one core against 6 % without video. Memory: the decoder's
+  surface pool and the slots take ~70 MB of GPU memory at 720p (shared system memory on an integrated GPU; slots +
+  display texture 11.4 MB of it), Media Foundation ~25 MB of heap: commit 74 → 209-218 MB in Now Playing, and back
+  when the picture goes.
+- **Dev**: `SHADETUBE_VIDEO_FILE` plays a local video as every song's picture (a burned-in timecode against the
+  audio), `SHADETUBE_VIDEO_DEMO` scripts the feature (5.4); `video` lines in the log report the sync every 10 s and
+  when a picture is dropped (frames shown / dropped, resyncs, frame vs. audio average / worst, frames more than a frame
+  off, slot memory, DXVA or software). `video_test` (5.2) covers the pure parts and the decoder.
 
 ## 4. Coding conventions
 
@@ -1910,6 +2034,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `pagetx_test` | page transitions (`ui/PageMotion`) stepped with explicit times: durations 180..240 ms, Push (outgoing fades / shifts out, incoming slides in, both monotonic and exact at the end), Back mirrored, shared / Replace without offsets, the cover's flight (lands exactly, even on a moving target, no overshoot, radius morph), the hand-over, holding for an image (no frames; image / scroll / timeout end it), fading when the target goes, 60 / 144 Hz give the same positions | offline |
 | `popups_test` | the overlay family (3.x) on a hidden window over a red / blue page: menu keys (wrap over disabled items and separators, Home / End, Tab, Enter, Escape), separator tidying, submenus by key (Right / Enter / Left / Escape, parent item lit) and by pointer (200 ms open, 300 ms close, click), type-ahead (accents, cycling), one acrylic capture per opening and one per settled change behind (never per frame), the material showing the page while `fg.secondary` keeps ≥ 4.5:1 (dark and light), close animations (painted without input, then deleted, backdrop freed; none with reduce motion), toast stacking, dialogs (Enter, Escape); `SHADETUBE_ACRYLIC=off` in a child process (no capture, even surface) | offline; `opaque` (the child's mode) |
 | `review_test` | year in review (`app/YearReview`) on fixed synthetic histories: periods (a year, the last 12 months, a running year), time / streams / tops and their order, months, weekdays, hours (a play across midnight split), dayparts, 7-day blocks, streak, busiest day, discoveries, first stream, local days on another time zone, genre shares / coverage / minimum, which periods qualify, timing with 300 000 plays | offline |
+| `video_test` | video mode: picture stream choice on manifest fixtures (cap, H.264 first, VP9 / AV1 only with a decoder, fps, upscales, portrait, muxed fallback), the still-picture check, the sidx / edit-list index on made-up boxes, the A/V scheduler on a fake clock with a fake decoder (1× / 0.5× / 2× / 3× in sync to a frame, pause, seeks both ways, a decoder that can't keep up, the video ending first), a generated H.264 MP4 decoded in software and with DXVA + the video processor (every frame's colors, seeks, 2×, the idle release) | offline; `live [<id>…]` (the picture streams and still-picture verdicts of songs as MatchService matches them, one stream played on the GPU against a real-time clock, a seek); `play <id>`; `fetch <id> <file>`; `file <path> [<start s>]`; `mfurl <path>` (MF's own source on a file) |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.x): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
 
@@ -1991,6 +2116,8 @@ apps*).
 | `SHADETUBE_PREVIEW_DEMO` | `<action>@<ms>[=<x>,<y>];…` after startup, at window DIPs: `hold` (left press, kept down), `up`, `move` (with the button down), `click`, `rclick` (the context menu), `key` (the `preview` action), `esc`. E.g. with `--route local:songs`, `SHADETUBE_PLAY_FILES` and `--screenshot`: `hold@3500=900,450;up@7000` (3.x Song preview) |
 | `SHADETUBE_NAV_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after the shell opened: `click=<x>,<y>` (a real left click posted at window DIPs), `back`, `forward`. With `--screenshot`, e.g. `click@2500=559,378` and a capture at 3300 ms for a cover in flight (3.x) |
 | `SHADETUBE_MOTION_SCALE` | `<factor>` (1-50): page transitions and the cover's flight run that many times slower (screenshots of their middle) |
+| `SHADETUBE_VIDEO_FILE` | `<path>`: video mode plays this local video (MP4 / WebM) as the picture of every song that has a YouTube video (no stream is fetched): e.g. a burned-in timecode to check the sync against the audio |
+| `SHADETUBE_VIDEO_DEMO` | `<action>@<ms>[=<arg>];…` run that long after startup: `on`, `off`, `toggle` (as the buttons), `window`, `close`, `fullscreen`, `ontop`, `nowplaying`, `npclose`, `seek=<s>`, `speed=<x>`, `pause`, `play`, `quality=<rows>`, `minimize` / `restore` (the main window), `devicelost` (the device recreated as after a loss), `idlerelease` (the idle graphics release), `nchit` (logs the video window's hit test at its center and its close button), `captiondblclick` (a caption double click), `log` (the sync line now), `shot=<png>` (the video window), `mainshot=<png>` (the main window), `quit` |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 | `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.x), instead of `SPI_GETCLIENTAREAANIMATION` |
 | `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
@@ -2070,6 +2197,16 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   the window just reads a shade lighter. Turning it on applies at the next start unless the window started with
   it. The 55 % / 50 % tint was chosen on simulated composites (the development machine has transparency effects
   off) and may need tuning against real wallpapers.
+- **Video mode** shows the video the song resolved to, never another upload: when the match is an Art Track or an
+  audio upload there is no video, even if the artist has an official one (its timing differs from the audio). The
+  still-picture check is a bit-rate heuristic: a very calm real video under ~200 kbps at 720p shows as "no video", a
+  still with grain or a slow zoom shows as a video. YouTube only (no backup servers); VP9 / AV1 only when H.264 is
+  missing, and WebM seeks through Media Foundation's own (slow, scanning) path; no HDR (8-bit NV12). The picture appears
+  0.7-3 s after the audio on the network and seeks take 0.4-2 s (one segment download). The DXVA surface pool costs
+  ~70 MB of GPU memory at 720p (more at 1080p) while the picture is on screen. Now Playing with video repaints at the
+  video's frame times besides its own ticks (more CPU than either). The app's D3D11 device is multithread protected
+  from the first picture on (for that device generation). Not measured: 1080p60, discrete GPUs (the app takes the
+  default adapter), software decoding on a machine without DXVA, the mid-play URL refresh (no 403 happened in testing).
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
   of the rest the GPU driver; about 13 MB once nothing has been on screen for 30 s (0.6.0 stayed at 63 MB). WARP
   software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now

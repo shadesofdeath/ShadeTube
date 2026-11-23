@@ -11,6 +11,8 @@
 #include "app/SmartShuffle.h"
 #include "app/Source.h"
 #include "app/Together.h"
+#include "app/VideoMode.h"
+#include "app/VideoView.h"
 #include "catalog/TrackKind.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -234,6 +236,10 @@ NowPlayingView::NowPlayingView()
         const Rect br = sleep_->toWindow(sleep_->rect());
         showSleepTimerMenu({br.x, br.y - 6});
     };
+    // Video mode (app/VideoMode): the song's music video takes the cover's place (video_); the player bar's button is
+    // hidden while the view is open, so the view has its own.
+    videoBtn_ = add<Button>(ButtonKind::Icon, L"", "video-thin");
+    videoBtn_->onClick = [] { videomode::toggle(); };
     // Playback speed: always offered for podcast episodes, for songs once it isn't 1x (keys / palette set it).
     speed_ = add<Button>(ButtonKind::Ghost, speedLabel(1.f));
     speed_->setTooltip(tr(L"Çalma hızı"));
@@ -268,6 +274,8 @@ NowPlayingView::NowPlayingView()
     mini_->onClick = [] {
         if (ctx().openMiniPlayer) ctx().openMiniPlayer();
     };
+
+    video_ = add<VideoView>(VideoView::Style::Inline);   // laid over the cover (layout); paints after the track block
 
     // ---- tabs, their toolbar and the queue ----
     tabs_ = add<NowPlayingTabs>();
@@ -396,6 +404,8 @@ void NowPlayingView::deactivate() {
     state_ = LyricsState::None;
     syncLyricsControls();
     life_.renew();
+    // Video mode: its picture goes with the view (a pop-out window keeps it); posted: the view is hidden after this.
+    Dispatcher::post([] { videomode::sync(); });
 }
 
 void NowPlayingView::syncTrackText() {
@@ -507,6 +517,12 @@ void NowPlayingView::syncControls() {
     sleep_->setActive(sleepTimerActive());
     sleep_->setTooltip(sleepTimerActive() ? i18n::format(tr(L"Uyku zamanlayıcı · {}"), {sleepTimerLabel()})
                                           : std::wstring(tr(L"Uyku zamanlayıcı")));
+    videoBtn_->setVisible(videomode::offered());   // songs only, as in the player bar
+    videoBtn_->setEnabled(videomode::enabled());
+    videoBtn_->setActive(videomode::on());
+    videoBtn_->setTooltip(!videomode::enabled() ? std::wstring(tr(L"Bu şarkı için video yok"))
+                          : videomode::on()     ? std::wstring(tr(L"Video modunu kapat"))
+                                                : std::wstring(tr(L"Video modu")));
     for (auto* b : {prev_, next_}) b->setEnabled(t != nullptr);
     // Listen together: a guest's transport follows the host (requests when the host allows it, else off), shuffle and
     // repeat are the host's.
@@ -694,7 +710,7 @@ void NowPlayingView::layout() {
         seekRow = {ix, y, iw, kSeekH};
         y += kSeekH + kTransGap;
         const float transportW = 4 * transport + playSize + 4 * gapT;
-        const float utilW = 32 + 6 + 64 + 6 + 32 + 16 + 36 + 6 + 32;
+        const float utilW = 32 + 6 + 32 + 6 + 64 + 6 + 32 + 16 + 36 + 6 + 32;   // sleep, video, speed, jam | knob, mini
         if (iw >= transportW + 24 + utilW) {   // one row: transport on the left, the utilities on the right
             transRow = {ix, y, transportW, playSize};
             utilRow = {ix + transportW + 24, y + (playSize - kUtilH) * 0.5f, iw - transportW - 24, kUtilH};
@@ -709,6 +725,10 @@ void NowPlayingView::layout() {
         const float headerB = std::max(artRect_.bottom(), y) + 20;
         columnRect_ = {padX, headerB, w - 2 * padX, std::max(120.f, h - headerB - padBottom)};
     }
+    // Video mode's picture over the cover: on the cover's bottom edge next to the title (wide), centered beside the
+    // text (compact).
+    video_->setRect(artRect_);
+    video_->setVerticalAlign(wide_ ? 1.f : 0.5f);
     // Seek row: elapsed · wave · total.
     elapsedRect_ = {seekRow.x, seekRow.y, 46, seekRow.h};
     totalRect_ = {seekRow.right() - 46, seekRow.y, 46, seekRow.h};
@@ -735,6 +755,10 @@ void NowPlayingView::layout() {
         float lx = wide_ ? utilRow.x - 4 : utilRow.x;
         sleep_->setRect({lx, cy - 16, 32, 32});
         lx += 32 + 6;
+        if (videoBtn_->visible()) {
+            videoBtn_->setRect({lx, cy - 16, 32, 32});
+            lx += 32 + 6;
+        }
         if (speed_->visible()) {
             const float sw = std::max(44.f, std::ceil(speed_->naturalWidth()));
             speed_->setRect({lx, cy - 16, sw, 32});
@@ -1395,6 +1419,9 @@ void NowPlayingView::paintArtShadow(Canvas& c, const Rect& art) {
 void NowPlayingView::paintCover(Canvas& c, const Rect& r, bool outgoing) {
     const auto& col = colors();
     const Shown& s = outgoing ? old_ : shown_;
+    // Video mode's picture is on screen in the cover's place (video_ paints it with the children): no cover, shadow or
+    // outline under it, and none sliding with a track change either.
+    if (video_->hidesHostArt()) return;
     paintArtShadow(c, r);
     if (s.kind == Kind::Station) {
         // A station logo is a small favicon: shown at under half the size on the surface with the tiles' ring

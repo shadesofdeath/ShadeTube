@@ -162,6 +162,9 @@ struct AppContext {
     std::vector<std::function<void()>> persistHooks;                           // save everything (exit)
     // Offline playback: asked after the downloads, first non-empty path wins (e.g. the local music library).
     std::vector<std::function<std::wstring(const std::string& trackId)>> localFileResolvers;
+    // Windows of features (the video window, app/VideoMode), rendered by App's loop like the main window and the mini
+    // player and counted as "on screen" for the idle graphics release; each returns nullptr while it has none.
+    std::vector<std::function<ui::Window*()>> extraWindows;
 };
 
 AppContext& ctx();
@@ -185,6 +188,7 @@ void initRemote();             // app/RemoteControl.cpp  (Telefondan kumanda: th
 void initTogether();           // app/Together.cpp       (Birlikte dinle: listen together sessions)
 void initPreview();            // app/Preview.cpp        (song preview: press and hold, the key, the menu item)
 void initShareFeatures();      // app/YearReviewView.cpp (lyrics cards, the year in review: dev hooks)
+void initVideoMode();          // app/VideoMode.cpp      (Video modu: the song's music video, silent, slaved to the audio)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -203,6 +207,7 @@ inline void initFeatures() {
     initTogether();
     initPreview();
     initShareFeatures();
+    initVideoMode();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the

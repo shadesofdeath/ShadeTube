@@ -143,6 +143,7 @@ private:
     ui::PlayButton* play_;
     ui::Button *lyrics_, *queue_, *mini_, *expand_, *sleep_, *speed_;
     ui::Button *jam_, *jamLabel_;   // "Birlikte dinle": the icon, or the session pill ("Birlikte dinleniyor · Ayşe")
+    ui::Button* video_ = nullptr;   // "Video modu" (app/VideoMode): songs only
     bool lockedHover_ = false;      // the pointer is on a transport control a guest may not use (its tooltip says why)
     ui::Knob* knob_;
     gfx::Text title_, artist_, elapsed_, total_;

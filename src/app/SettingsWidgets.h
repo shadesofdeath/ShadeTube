@@ -232,5 +232,6 @@ void buildJamRows(ui::Column* c, const std::function<void()>& rebuild);         
 void buildDisplayRows(ui::Column* c, const std::function<void()>& rebuild);           // Görünüm   (app/Display.cpp)
 void buildPreviewRows(ui::Column* c, const std::function<void()>& rebuild);           // OYNATMA   (app/Preview.cpp)
 void buildThemeStudioRows(ui::Column* c, const std::function<void()>& rebuild);       // Görünüm   (app/ThemeStudioUi.cpp)
+void buildVideoRows(ui::Column* c, const std::function<void()>& rebuild);             // OYNATMA   (app/VideoMode.cpp)
 
 } // namespace st::app

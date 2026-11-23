@@ -199,7 +199,16 @@ HRESULT WasapiOutput::open(uint32_t sampleRate, uint32_t channels) {
     sampleRate_ = sampleRate;
     channels_ = channels;
     bufferFrames_ = frames;
-    ST_LOG_INFO("audio", "WASAPI open: {} Hz, {} ch, buffer {} frames", sampleRate, channels, frames);
+    // The audio engine's own delay after it took a frame from our buffer. Some drivers report 0: one device period
+    // (the engine's processing quantum, ~10 ms) is the floor then.
+    REFERENCE_TIME latency = 0, period = 0;
+    if (FAILED(client_->GetStreamLatency(&latency)) || latency <= 0) {
+        REFERENCE_TIME minimum = 0;
+        if (SUCCEEDED(client_->GetDevicePeriod(&period, &minimum))) latency = period;
+    }
+    latencyFrames_ = latency > 0 ? static_cast<uint32_t>(latency * sampleRate / 10'000'000) : 0;
+    ST_LOG_INFO("audio", "WASAPI open: {} Hz, {} ch, buffer {} frames, stream latency {} frames", sampleRate, channels, frames,
+                latencyFrames_);
     return S_OK;
 }
 
@@ -208,7 +217,7 @@ void WasapiOutput::close() {
     running_ = false;
     render_.Reset();
     client_.Reset();
-    sampleRate_ = channels_ = bufferFrames_ = 0;
+    sampleRate_ = channels_ = bufferFrames_ = latencyFrames_ = 0;
     if (notifier_) notifier_->setDevice({}, preferred_, true);
 }
 

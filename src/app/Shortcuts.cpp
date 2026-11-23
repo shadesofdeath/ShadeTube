@@ -80,6 +80,9 @@ constexpr Action kActions[] = {
     {"mini-square", [] { return tr(L"Mini oynatıcı: kare"); }, Category::View, "Ctrl+2", kGlobal | kMini, "mini-square-thin"},
     {"mini-wide", [] { return tr(L"Mini oynatıcı: geniş"); }, Category::View, "Ctrl+3", kGlobal | kMini, "mini-wide-thin"},
     {"mini-on-top", [] { return tr(L"Mini oynatıcı: her zaman üstte"); }, Category::View, "Ctrl+T", kMini, "pin"},
+    // Video modu (app/VideoMode): the song's music video, and its own window.
+    {"video-mode", [] { return tr(L"Video modunu aç / kapat"); }, Category::View, "Ctrl+Shift+V", kMini, "video-thin"},
+    {"video-window", [] { return tr(L"Video penceresi"); }, Category::View, "", kMini, "pop-out-thin"},
 };
 
 // English key names of the text form. Letters and digits are their own name.

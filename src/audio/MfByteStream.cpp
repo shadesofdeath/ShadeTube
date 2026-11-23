@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 #include <mutex>
 #include <new>
 
@@ -51,8 +52,10 @@ private:
 
 class MfByteStream final : public IMFByteStream, public IMFAttributes, public IMFAsyncCallback {
 public:
-    MfByteStream(std::shared_ptr<ProgressiveBuffer> buffer, ComPtr<IMFAttributes> attrs)
-        : buffer_(std::move(buffer)), attrs_(std::move(attrs)), length_(buffer_->length()) {}
+    MfByteStream(std::shared_ptr<ProgressiveBuffer> buffer, ComPtr<IMFAttributes> attrs, std::shared_ptr<const ByteStreamView> view)
+        : buffer_(std::move(buffer)), attrs_(std::move(attrs)), view_(std::move(view)),
+          length_(view_ ? static_cast<int64_t>(view_->head.size()) + std::max<int64_t>(0, buffer_->length() - view_->bodyOffset)
+                        : buffer_->length()) {}
 
     // ---- IUnknown
     STDMETHODIMP QueryInterface(REFIID riid, void** ppv) override {
@@ -236,6 +239,18 @@ private:
 
     HRESULT readAt(int64_t offset, BYTE* dst, ULONG size) {
         if (size == 0) return S_OK;
+        if (view_) {   // the view's head from memory, the rest from the buffer past bodyOffset
+            const int64_t headLen = static_cast<int64_t>(view_->head.size());
+            if (offset < headLen) {
+                const ULONG n = static_cast<ULONG>(std::min<int64_t>(size, headLen - offset));
+                std::memcpy(dst, view_->head.data() + offset, n);
+                dst += n;
+                size -= n;
+                offset += n;
+                if (size == 0) return S_OK;
+            }
+            offset = offset - headLen + view_->bodyOffset;
+        }
         switch (buffer_->read(offset, dst, size)) {
         case ProgressiveBuffer::ReadStatus::Ok: return S_OK;
         case ProgressiveBuffer::ReadStatus::Interrupted:
@@ -248,6 +263,7 @@ private:
     std::atomic<ULONG> refs_{1};
     const std::shared_ptr<ProgressiveBuffer> buffer_;
     const ComPtr<IMFAttributes> attrs_;
+    const std::shared_ptr<const ByteStreamView> view_;
     const int64_t length_;
     std::mutex mutex_;
     int64_t position_ = 0;
@@ -257,7 +273,7 @@ private:
 } // namespace
 
 HRESULT createMfByteStream(std::shared_ptr<ProgressiveBuffer> buffer, const std::string& mimeType,
-                           IMFByteStream** out) {
+                           IMFByteStream** out, std::shared_ptr<const ByteStreamView> view) {
     if (!buffer || !out) return E_POINTER;
     *out = nullptr;
     if (buffer->length() <= 0) return E_UNEXPECTED;
@@ -265,7 +281,7 @@ HRESULT createMfByteStream(std::shared_ptr<ProgressiveBuffer> buffer, const std:
     HRESULT hr = MFCreateAttributes(&attrs, 2);
     if (FAILED(hr)) return hr;
     if (!mimeType.empty()) attrs->SetString(MF_BYTESTREAM_CONTENT_TYPE, toWide(mimeType).c_str());
-    auto* stream = new (std::nothrow) MfByteStream(std::move(buffer), std::move(attrs));
+    auto* stream = new (std::nothrow) MfByteStream(std::move(buffer), std::move(attrs), std::move(view));
     if (!stream) return E_OUTOFMEMORY;
     *out = static_cast<IMFByteStream*>(stream);  // refcount 1 transferred to the caller
     return S_OK;
