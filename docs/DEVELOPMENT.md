@@ -1076,7 +1076,8 @@ time of the event.
 `app/Shell.cpp` (`PlayerBar`, 88 DIP), the controls in `ui/Controls`, the shared pieces in `app/Components`.
 
 - **Layout**: track info on the left (art 56, title, artist, heart after the title), on the right the session pill /
-  jam, sleep timer, lyrics, queue, volume knob, mini player and full screen (vertically centered). The center column
+  jam, sleep timer, video (songs only, 3.x), lyrics, queue, volume knob, mini player and full screen (vertically
+  centered). The center column
   holds the transport row (shuffle · prev · play 40 · next · repeat, center y 33) over the seek row (center y 69:
   elapsed · wave · total, mono 11, elapsed `fg.secondary`, total `fg.tertiary`). The column is 40 % of the bar
   (380..640 DIP) but narrows to keep ~140 DIP of title and the right group free (about 316 DIP at the 960 DIP minimum
@@ -1084,7 +1085,7 @@ time of the event.
   track info).
 - **Thin outline icons**: the player bar and the mini player use `assets/icons/{16,20,24}/<name>-thin.svg` (next, prev,
   shuffle, shuffle-smart, repeat, repeat-one, heart, heart-liked, lyrics, queue, mini-player, expand, collapse, users,
-  clock, close): the regular icons' geometry stroked 1.5 / 1.65 / 1.85 units in the 24 / 20 / 16 grids instead of
+  clock, close; video, pin and pop-out for video mode, 3.x): the regular icons' geometry stroked 1.5 / 1.65 / 1.85 units in the 24 / 20 / 16 grids instead of
   1.75 / 1.9 / 2.15, filled parts redrawn as outlines (next / prev: outlined triangle + bar; the liked heart: outline
   over a 32 % fill, tinted with the accent). Everything else keeps the regular set, so the filled `play` / `pause` /
   `next` / `prev` stay where they were (page headers, track rows, menus, the phone remote, the taskbar buttons).
