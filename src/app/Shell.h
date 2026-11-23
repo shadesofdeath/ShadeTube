@@ -50,7 +50,14 @@ private:
 };
 
 class SidebarRow;   // a playlist or folder row (Shell.cpp)
+class NavBox;       // the page entries in the sidebar's nav scroller (Shell.cpp)
+class NavGroup;     // the "Daha fazla" header that folds the less used pages (Shell.cpp)
 
+// Height budget (top to bottom): the main pages (Ana Sayfa, Ara, Kitaplık), the "Daha fazla" group (İndirilenler,
+// Yerel dosyalar, Radyo, Podcastler, Yeni çıkanlar, İstatistikler; folded, the current page among them stays), the
+// playlists, Ayarlar. The playlists always keep room for kMinListRows rows: on a short sidebar the nav first gets
+// tighter (also with the compact list density), then scrolls on its own. The group's state is Settings::sidebarMore
+// (-1 = automatic: open while that leaves the list kAutoListRows rows).
 class Sidebar : public ui::Widget, public DropTarget {
 public:
     Sidebar();
@@ -70,11 +77,23 @@ public:
     void dragLeave() override;
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
 
+    // "Daha fazla": open / fold the less used pages (remembered in Settings::sidebarMore). Animated unless reduce motion.
+    bool moreOpen() const { return moreOpen_; }
+    void setMoreOpen(bool open);
+
+    static constexpr int kMinListRows = 5, kAutoListRows = 8;
+
 private:
+    friend class NavBox;
+    friend class NavGroup;
     void setFolderOpen(const std::string& folderId, bool open);   // Settings::expandedFolders, then refresh()
     SidebarRow* rowAt(gfx::Point windowPos) const;
     std::vector<ui::Button*> navButtons() const;   // the page entries, top to bottom (Ayarlar last)
+    std::vector<ui::Button*> groupButtons() const; // the pages "Daha fazla" folds (those available now)
+    ui::Button* pinnedButton() const;              // the current page when it is in the folded group, else nullptr
     float labelOpacity() const;                     // names fade out as the rail takes the room
+    void layoutNav(float rowH, float gap, float groupH);   // positions the entries in navBox_ (content space)
+    float navContentHeight(float rowH, float gap, float groupH, float open) const;
 
     ui::Button *home_, *search_, *library_, *downloads_, *local_, *radio_, *podcasts_, *releases_, *stats_, *settings_,
         *newPlaylist_;   // releases_: "Yeni çıkanlar", only with a Spotify session
@@ -90,6 +109,13 @@ private:
     bool collapsed_ = false;   // setCollapsed
     bool compact_ = false;     // the rows are tiles (rail_ past half way)
     Lifetime life_;
+    ui::ScrollView* nav_ = nullptr;   // the page entries; scrolls only when even the tight nav would squeeze the list
+    NavBox* navBox_ = nullptr;
+    NavGroup* group_ = nullptr;
+    bool moreOpen_ = true;            // as shown (the setting, or the automatic choice)
+    ui::Anim moreAnim_{1.f};          // 0 = folded .. 1 = open
+    bool tight_ = false;              // the tighter nav metrics are in use (layout)
+    bool moreSettling_ = false;       // one more layout after the group's animation ends
 };
 
 // The sidebar's right edge (6 DIPs over its hairline, IDC_SIZEWE): drag to resize, double click for the default width.

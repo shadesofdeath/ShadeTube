@@ -1538,5 +1538,8 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "대비 테마가 켜져 있는 동안에는 사용할 수 없어요. 창은 불투명하게 유지돼요.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "다시 시작하면 적용돼요. 창 배경에 Windows 11의 반투명 Mica 소재를 사용해 바탕 화면 색이 은은하게 비쳐요.",
   "Yeniden başlatma gerekiyor": "다시 시작해야 합니다",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다.",
+  "Daha fazla": "더 보기",
+  "Daha fazla göster": "더 보기",
+  "Daha az göster": "간단히 보기"
 }

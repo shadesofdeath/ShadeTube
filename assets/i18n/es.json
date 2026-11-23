@@ -1705,5 +1705,8 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "No está disponible mientras haya un tema de contraste activo; la ventana sigue opaca.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Se aplica al reiniciar: el fondo de la ventana usa el material Mica translúcido de Windows 11 y el color de tu escritorio se deja ver ligeramente.",
   "Yeniden başlatma gerekiyor": "Hay que reiniciar",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "El fondo Mica se aplica al reiniciar ShadeTube."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "El fondo Mica se aplica al reiniciar ShadeTube.",
+  "Daha fazla": "Más",
+  "Daha fazla göster": "Mostrar más",
+  "Daha az göster": "Mostrar menos"
 }
