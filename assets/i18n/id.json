@@ -1538,5 +1538,21 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Tidak tersedia selama tema kontras aktif; jendela tetap pekat.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Diterapkan setelah dimulai ulang: latar jendela memakai material Mica tembus pandang dari Windows 11 dan warna desktopmu sedikit terlihat.",
   "Yeniden başlatma gerekiyor": "Perlu dimulai ulang",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Latar Mica diterapkan setelah ShadeTube dimulai ulang."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Latar Mica diterapkan setelah ShadeTube dimulai ulang.",
+  "Şerit": "Bilah",
+  "Kare": "Persegi",
+  "Geniş": "Lebar",
+  "Görünüm: {}": "Tampilan: {}",
+  "Senkron söz yok": "Tidak ada lirik tersinkron",
+  "Bu şarkının sözü yok": "Tidak ada lirik untuk lagu ini",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Lirik dimatikan",
+  "Her zaman üstte": "Selalu di atas",
+  "Ana pencereye dön": "Kembali ke jendela utama",
+  "Mini oynatıcı: şerit": "Pemutar mini: bilah",
+  "Mini oynatıcı: kare": "Pemutar mini: persegi",
+  "Mini oynatıcı: geniş": "Pemutar mini: lebar",
+  "Mini oynatıcı: her zaman üstte": "Pemutar mini: selalu di atas",
+  "Mini oynatıcı her zaman üstte": "Pemutar mini selalu di atas",
+  "Mini oynatıcı artık üstte kalmıyor": "Pemutar mini tidak lagi selalu di atas"
 }

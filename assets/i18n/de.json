@@ -1705,5 +1705,21 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Nicht verfügbar, solange ein Kontrastdesign aktiv ist; das Fenster bleibt deckend.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Wird nach einem Neustart wirksam: Der Fensterhintergrund nutzt das durchscheinende Mica-Material von Windows 11, und die Farbe deines Desktops schimmert leicht durch.",
   "Yeniden başlatma gerekiyor": "Neustart erforderlich",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Der Mica-Hintergrund wird nach einem Neustart von ShadeTube angewendet."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Der Mica-Hintergrund wird nach einem Neustart von ShadeTube angewendet.",
+  "Şerit": "Leiste",
+  "Kare": "Quadrat",
+  "Geniş": "Breit",
+  "Görünüm: {}": "Ansicht: {}",
+  "Senkron söz yok": "Keine synchronisierten Songtexte",
+  "Bu şarkının sözü yok": "Kein Songtext für diesen Song",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Songtexte sind aus",
+  "Her zaman üstte": "Immer im Vordergrund",
+  "Ana pencereye dön": "Zurück zum Hauptfenster",
+  "Mini oynatıcı: şerit": "Miniplayer: Leiste",
+  "Mini oynatıcı: kare": "Miniplayer: Quadrat",
+  "Mini oynatıcı: geniş": "Miniplayer: breit",
+  "Mini oynatıcı: her zaman üstte": "Miniplayer: immer im Vordergrund",
+  "Mini oynatıcı her zaman üstte": "Der Miniplayer bleibt im Vordergrund",
+  "Mini oynatıcı artık üstte kalmıyor": "Der Miniplayer bleibt nicht mehr im Vordergrund"
 }

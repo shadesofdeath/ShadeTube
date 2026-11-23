@@ -1705,5 +1705,21 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Not available while a contrast theme is on; the window stays opaque.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Applies after a restart: the window background uses Windows 11's translucent Mica material and your desktop's color shows through slightly.",
   "Yeniden başlatma gerekiyor": "Restart required",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "The Mica background applies once ShadeTube restarts."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "The Mica background applies once ShadeTube restarts.",
+  "Şerit": "Strip",
+  "Kare": "Square",
+  "Geniş": "Wide",
+  "Görünüm: {}": "View: {}",
+  "Senkron söz yok": "No synced lyrics",
+  "Bu şarkının sözü yok": "No lyrics for this song",
+  "Sadece müzik": "Instrumental",
+  "Sözler kapalı": "Lyrics are off",
+  "Her zaman üstte": "Always on top",
+  "Ana pencereye dön": "Back to the main window",
+  "Mini oynatıcı: şerit": "Mini player: strip",
+  "Mini oynatıcı: kare": "Mini player: square",
+  "Mini oynatıcı: geniş": "Mini player: wide",
+  "Mini oynatıcı: her zaman üstte": "Mini player: always on top",
+  "Mini oynatıcı her zaman üstte": "The mini player stays on top",
+  "Mini oynatıcı artık üstte kalmıyor": "The mini player no longer stays on top"
 }

@@ -1538,5 +1538,21 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "コントラストテーマがオンの間は使えません。ウィンドウは不透明のままです。",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "再起動後に適用されます。ウィンドウの背景にWindows 11の半透明素材Micaを使い、デスクトップの色がほのかに透けて見えます。",
   "Yeniden başlatma gerekiyor": "再起動が必要です",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 背景は ShadeTube の再起動後に適用されます。"
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 背景は ShadeTube の再起動後に適用されます。",
+  "Şerit": "バー",
+  "Kare": "スクエア",
+  "Geniş": "ワイド",
+  "Görünüm: {}": "表示: {}",
+  "Senkron söz yok": "同期歌詞なし",
+  "Bu şarkının sözü yok": "この曲の歌詞はありません",
+  "Sadece müzik": "インストゥルメンタル",
+  "Sözler kapalı": "歌詞はオフです",
+  "Her zaman üstte": "常に手前に表示",
+  "Ana pencereye dön": "メインウィンドウに戻る",
+  "Mini oynatıcı: şerit": "ミニプレーヤー: バー",
+  "Mini oynatıcı: kare": "ミニプレーヤー: スクエア",
+  "Mini oynatıcı: geniş": "ミニプレーヤー: ワイド",
+  "Mini oynatıcı: her zaman üstte": "ミニプレーヤー: 常に手前に表示",
+  "Mini oynatıcı her zaman üstte": "ミニプレーヤーを常に手前に表示します",
+  "Mini oynatıcı artık üstte kalmıyor": "ミニプレーヤーを常に手前に表示しません"
 }

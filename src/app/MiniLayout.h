@@ -26,7 +26,7 @@ Mode nextMode(Mode m);                             // the mode button: Strip -> 
 struct SizeDip {
     float w = 0, h = 0;
 };
-inline constexpr SizeDip kStripSize{380, 56}, kWideSize{520, 160};
+inline constexpr SizeDip kStripSize{380, 56}, kWideSize{520, 168};
 inline constexpr float kSquareDefault = 240, kSquareMin = 168, kSquareMax = 480;
 SizeDip sizeFor(Mode m, float squareSide = kSquareDefault);
 float clampSquare(float side);

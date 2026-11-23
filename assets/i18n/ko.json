@@ -1538,5 +1538,21 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "대비 테마가 켜져 있는 동안에는 사용할 수 없어요. 창은 불투명하게 유지돼요.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "다시 시작하면 적용돼요. 창 배경에 Windows 11의 반투명 Mica 소재를 사용해 바탕 화면 색이 은은하게 비쳐요.",
   "Yeniden başlatma gerekiyor": "다시 시작해야 합니다",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다.",
+  "Şerit": "막대",
+  "Kare": "정사각형",
+  "Geniş": "와이드",
+  "Görünüm: {}": "보기: {}",
+  "Senkron söz yok": "동기화된 가사 없음",
+  "Bu şarkının sözü yok": "이 곡의 가사가 없습니다",
+  "Sadece müzik": "연주곡",
+  "Sözler kapalı": "가사 꺼짐",
+  "Her zaman üstte": "항상 위에 표시",
+  "Ana pencereye dön": "기본 창으로 돌아가기",
+  "Mini oynatıcı: şerit": "미니 플레이어: 막대",
+  "Mini oynatıcı: kare": "미니 플레이어: 정사각형",
+  "Mini oynatıcı: geniş": "미니 플레이어: 와이드",
+  "Mini oynatıcı: her zaman üstte": "미니 플레이어: 항상 위에 표시",
+  "Mini oynatıcı her zaman üstte": "미니 플레이어가 항상 위에 표시됩니다",
+  "Mini oynatıcı artık üstte kalmıyor": "미니 플레이어가 더 이상 항상 위에 표시되지 않습니다"
 }

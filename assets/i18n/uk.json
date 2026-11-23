@@ -1856,5 +1856,21 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, поки ввімкнено контрастну тему; вікно лишається непрозорим.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Застосується після перезапуску: тло вікна використовує напівпрозорий матеріал Mica з Windows 11, і колір робочого столу трохи просвічує.",
   "Yeniden başlatma gerekiyor": "Потрібен перезапуск",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica застосується після перезапуску ShadeTube."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica застосується після перезапуску ShadeTube.",
+  "Şerit": "Смуга",
+  "Kare": "Квадрат",
+  "Geniş": "Широкий",
+  "Görünüm: {}": "Вигляд: {}",
+  "Senkron söz yok": "Немає синхронізованого тексту",
+  "Bu şarkının sözü yok": "Для цієї пісні немає тексту",
+  "Sadece müzik": "Інструментал",
+  "Sözler kapalı": "Тексти пісень вимкнено",
+  "Her zaman üstte": "Поверх усіх вікон",
+  "Ana pencereye dön": "Повернутися до головного вікна",
+  "Mini oynatıcı: şerit": "Мініплеєр: смуга",
+  "Mini oynatıcı: kare": "Мініплеєр: квадрат",
+  "Mini oynatıcı: geniş": "Мініплеєр: широкий",
+  "Mini oynatıcı: her zaman üstte": "Мініплеєр: поверх усіх вікон",
+  "Mini oynatıcı her zaman üstte": "Мініплеєр тепер поверх усіх вікон",
+  "Mini oynatıcı artık üstte kalmıyor": "Мініплеєр більше не поверх усіх вікон"
 }

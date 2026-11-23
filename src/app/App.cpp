@@ -224,6 +224,33 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         else openMini();
         return true;
     });
+    // Mini player modes (Ctrl+1 / 2 / 3): the open mini player switches, otherwise it opens in that mode.
+    auto miniMode = [this](mini::Mode m) {
+        return [this, m] {
+            if (mini_) {
+                mini_->setMode(m);
+                return true;
+            }
+            Settings::get().miniMode = mini::modeId(m);
+            Settings::get().markDirty();
+            openMini();
+            return true;
+        };
+    };
+    commands::setHandler("mini-strip", miniMode(mini::Mode::Strip));
+    commands::setHandler("mini-square", miniMode(mini::Mode::Square));
+    commands::setHandler("mini-wide", miniMode(mini::Mode::Wide));
+    commands::setHandler("mini-on-top", [this] {   // Ctrl+T
+        const bool on = !(mini_ ? mini_->onTop() : Settings::get().miniOnTop);
+        if (mini_) {
+            mini_->setOnTop(on);
+        } else {
+            Settings::get().miniOnTop = on;
+            Settings::get().markDirty();
+        }
+        toast(on ? tr(L"Mini oynatıcı her zaman üstte") : tr(L"Mini oynatıcı artık üstte kalmıyor"));
+        return true;
+    });
     commands::setHandler("show-window", [this] {
         // Global hotkey: the main window in front -> away (tray when it works, else minimized); otherwise bring the
         // app back (the mini player while it is open).
