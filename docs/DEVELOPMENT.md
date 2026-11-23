@@ -81,7 +81,8 @@ ShadeTube/
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
-│   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
+│   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Acrylic (the
+│                                overlay surface and material, 3.x), Anim,
 │                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO)
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
 │                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
@@ -97,8 +98,8 @@ ShadeTube/
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, downloads,
                                  jam, library, links, liveaudio, localfiles, lyrics, musicbrainz, playback, podcasts,
-                                 radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify, stats, sync,
-                                 tags, updater, winshell
+                                 popups, radio, remote, scrobble, shortcuts, smartlists, smtc, sponsorblock, spotify,
+                                 stats, sync, tags, updater, winshell
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -1111,6 +1112,81 @@ time of the event.
   and cross-fades in when it arrives. The first track, a cleared player and metadata changes of the same track (tags,
   a station's song title) change in place; reduce motion makes it instant. The mini player does the same.
 
+### 3.x Menus, dialogs, toasts and tooltips (the overlay family)
+
+Everything that floats above the page shares one surface and one motion: `ui/Popups` (context and dropdown menus,
+toasts, dialogs), the command palette (`app/CommandPalette`) and the Window's tooltips; the mini player's toast and the
+zoom badge use the same surface without the backdrop.
+
+- **Where they live**: every app menu, dialog, toast and tooltip is an in-window overlay (`Window::pushOverlay`,
+  painted above the tree; modal ones trap input and focus, 3.3). No app menu has a popup HWND of its own. Two native
+  Win32 menus stay native: the tray icon's menu (`Tray::showMenu`, `TrackPopupMenuEx`) and the window's system menu
+  (title-bar right click, Alt+Space). Windows draws those (dark or light through `SetPreferredAppMode`,
+  `Tray::setDarkMenus`, its own animation setting), so they keep the OS look, accessibility and keyboard behavior. The
+  mini player is a separate `ui::Window`: its tooltips are the family's, and `MiniView` paints its toast on the opaque
+  surface (no backdrop capture in that small window).
+- **Surface** (`ui/Acrylic`, `paintOverlaySurface()`): the tokens' radius (`overlay::radius()` = `metrics::radiusSurface`),
+  a 1 px `hairline.strong` outline and a two-layer shadow: a tight contact shadow (blur 3-6, y 1-2) under the tokens'
+  elevation shadow (`menuShadow` / `toastShadow` / `dialogShadow` at 75-80 % and a little closer). Surface colors:
+  menus `bg.overlay`, dialogs and the palette `bg.raised`, toasts and tooltips `bg.elevated`.
+- **Acrylic material**: right before an open overlay paints, the Window calls `OverlayLayer::prepareBackdrop()` with
+  nothing pushed on the canvas. `Acrylic::capture()` copies what is painted so far under the surfaces plus a 40 DIP
+  margin (`CopyFromRenderTarget`: the back buffer, or the PNG target of `--screenshot`), blurs it (Gaussian, tokens
+  `backdropBlur` radius 40 DIP, hard borders) through a color matrix into a half-resolution bitmap of the same DIP size.
+  The matrix is the contrast guard: it compresses the backdrop's luma towards the surface color's (kept 15 % dark /
+  20 % light) and keeps part of its chroma around it (60 % / 85 %, hue unchanged). It is linear, so nothing clips (a
+  luminosity blend turned saturated colors into cyan / magenta blotches on paper). Painting: `bg.base` (opaque, so a
+  Mica window never shows through), the bitmap, the surface color at 52 % (dark) / 55 % (light), then the noise
+  (`textures/noise-tile.png` made signed: pixels above mid-grey lighten, below darken, at most 5 %, 80 % / 50 %
+  opacity, one tile pixel per device pixel). Worst cases (a white area behind a dark menu, a black one behind a light
+  one) keep `fg.secondary` at about 5:1 or more; over ordinary content the surface stays within a level or two of its
+  opaque color, with the colors behind showing as soft glows.
+- **Never per frame**: a capture is reused while the overlay is open. It is redone only when the surfaces leave the
+  captured area (a submenu opening beside its menu, a taller toast stack), the theme (`Theme::generation()`), the
+  DPI / zoom or the device changed, or something behind asked for a repaint: `Window::contentGeneration()` advances when
+  a widget of the tree calls `invalidate()` or requests a layout and on resize / zoom / theme (not for overlays, not for
+  animation frames); the material then waits until it has been quiet for 150 ms (a hover fading, a list settling), at
+  the latest 1 s after the last capture. The effects are created per capture and dropped.
+- **Opaque fallback**: with Windows' transparency effects off (`Personalize\EnableTransparency`), in high contrast (both
+  re-read at most once a second) or when a capture fails (logged once), the surface is the plain surface color, the
+  look before acrylic. `SHADETUBE_ACRYLIC=force|off` overrides the system check (5.4).
+- **Memory** (3.2): a material holds one bitmap covering its surfaces plus the 40 DIP margin at half the window's pixel
+  resolution (a track menu at 175 %: about 0.3-0.5 MB), plus the shared 256 KB noise tile. It goes when its overlay is deleted after the
+  exit animation, the toast layer's when its last toast has left, the tooltip's when it has faded out, the noise tile
+  with the last material, and everything on a device release (release hooks). `Acrylic::liveBytes()` counts them.
+- **Motion** (`overlay::duration()`: 0 with *Hareketi azalt* or when Windows' animation effects are off,
+  `SPI_GETCLIENTAREAANIMATION`, read whenever an animation starts): menus open in 150 ms (fade + scale 0.96 → 1 from the
+  corner at the anchor, decelerate) and close in 100 ms (fade + 0.98, accelerate); a submenu slides 8 DIP out of its
+  parent (140 ms) and fades out (90 ms); the hover highlight glides between items (120 ms). Dialogs and the palette:
+  the scrim fades while the panel fades in, rises 8 DIP and grows from 0.98 (240 ms); closing fades both and drops the
+  panel 6 DIP (140 ms). Toasts slide in (24 DIP up + fade, 240 ms), slide out (fade + 12 DIP down, 180 ms) and the
+  others glide to their new places (220 ms). Tooltips: 400 ms delay (60 ms when moving along a row of buttons within
+  300 ms of the last tooltip), fade + 4 DIP rise in 120 ms, fade out in 90 ms. The zoom badge and the mini player's
+  toast follow the same switch.
+- **Exit animations** (`OverlayLayer::exiting()`): `removeOverlay()` takes an overlay out of input, focus and modality
+  at once (keyboard focus is back on the opener, the next click reaches the page, `hasModal()` is false) and keeps
+  painting it, with no `window()`, above the open overlays (so no capture ever contains it) until its animation ends;
+  the next frame deletes it.
+- **Menus** (`Menu`; the public API is unchanged, `open()` now returns the menu): spec geometry (items 34, padY 6,
+  padX 12), width from the content (240-360 DIP), an icon column whenever any item has an icon, `MenuItem::shortcut`
+  hints right-aligned (mono 11, `fg.tertiary`), a trailing column for the check mark (accent) and the submenu chevron,
+  separators tidied (none first, last or doubled), disabled items `fg.disabled` and never highlighted. Submenus:
+  `MenuItem::submenu` builds the items when it opens (a trailing "…" of the label is dropped for the chevron); the
+  pointer opens it after resting 200 ms on the item and closes it after resting 300 ms on another item of the parent;
+  the parent item stays lit. Keys as before (Up / Down / Tab wrap over enabled items, Home / End / PageUp / PageDown,
+  Enter / Space, Escape; Tab never leaves the menu), plus Right / Enter / Space open a submenu with its first item lit,
+  Left / Escape close only the submenu, and type-ahead: letters jump to the next item starting with them (invariant
+  locale, case and accents ignored, so "s" and "ş" both find "Şarkı radyosu"; 800 ms between letters starts a new
+  word; the same letter again cycles). In the app: the track menu's *Çalma listesine ekle*, *Klasöre indir* and
+  *Sanatçıyı engelle* (several artists) and the Yerel dosyalar folder menu's *Çalma listesine ekle* are submenus
+  (they used to replace the menu with a second one at the same spot); the track menu shows the `like` key
+  (`commands::shortcutHint()`) on the playing song's like item.
+- **Toasts**: up to three, the newest at the bottom; a fourth sends the oldest out (animated). The text wraps to three
+  lines and the toast grows (min 56 DIP).
+- **Tooltips** are painted in `--screenshot` captures too (`SHADETUBE_HOVER_AT`).
+- **Checks**: `popups_test` (5.2); `SHADETUBE_OVERLAY_DEMO` (5.4) opens menus, submenus (by key), dialogs, toasts and
+  the palette for `--screenshot`, and its `stats` step logs the captures made and the bytes held.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1188,6 +1264,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
 | `scroll_test` | smooth scrolling (`ui/ScrollPhysics`) stepped with explicit times: a notch glides monotonically without overshoot (95 % in 120-250 ms), retargeting keeps position and velocity, slow notches add up exactly and fast ones accelerate gently (capped), reversing starts from the current position, spinning into the end never passes it, overshoot after a change of feel stops hard at the bound, shrinking bounds clamp, touchpad deltas move 1:1 with ~1 frame of lag, the same input at 60 / 144 Hz / uneven frames gives the same positions, key repeat, feel order, reduce motion, `SmoothScroll` requests frames only while moving, `wheel::step` follows the system setting | offline |
+| `popups_test` | the overlay family (3.x) on a hidden window over a red / blue page: menu keys (wrap over disabled items and separators, Home / End, Tab, Enter, Escape), separator tidying, submenus by key (Right / Enter / Left / Escape, parent item lit) and by pointer (200 ms open, 300 ms close, click), type-ahead (accents, cycling), one acrylic capture per opening and one per settled change behind (never per frame), the material showing the page while `fg.secondary` keeps ≥ 4.5:1 (dark and light), close animations (painted without input, then deleted, backdrop freed; none with reduce motion), toast stacking, dialogs (Enter, Escape); `SHADETUBE_ACRYLIC=off` in a child process (no capture, even surface) | offline; `opaque` (the child's mode) |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -1264,6 +1341,8 @@ apps*).
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.x): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
+| `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.x) |
 
 ## 6. Release process
 
