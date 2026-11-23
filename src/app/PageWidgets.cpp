@@ -71,22 +71,25 @@ Tile::Tile(std::wstring label, std::wstring title, Color color, std::vector<cata
 
 bool Tile::onMouseDown(const ui::MouseEvent& e) {
     if (e.button != ui::MouseButton::Left) return false;
-    press_.to(1, 80);
+    press_.to(1, ui::motion::microMs(80));
     return true;
 }
 
 void Tile::onMouseUp(const ui::MouseEvent& e) {
-    press_.to(0, 160);
+    press_.to(0, ui::motion::microMs(160));
     if (rect().contains(e.pos) && onClick) onClick();
 }
 
 void Tile::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
-    const float h = hover_;
-    c.pushScale(1 - 0.01f * press_, {r.cx(), r.cy()});
+    const float h = hover_, p = press_;
+    c.pushTransform(D2D1::Matrix3x2F::Translation(0, ui::card::lift(h, p)));
+    c.pushScale(ui::card::pressScale(p), {r.cx(), r.cy()});
+    ui::card::paintBack(c, r, h);
     const Color fill = tileFill(color_);   // theme-aware (light: pale tint of the tone's hue)
     c.fillRounded(r, 2, Color::lerp(fill, Color::lerp(fill, col.fgPrimary, 0.06f), h));
+    ui::card::paintEdge(c, r, h);
     c.pushClip(r);
     // Signature motif: a thin ring (hi-fi / vinyl cue) drifting on hover.
     const float ringR = hero_ ? r.h * 0.62f : r.h * 0.7f;
@@ -106,6 +109,7 @@ void Tile::paint(Canvas& c) {
     const float tw = r.w - 36 - (hero_ ? 0 : 0);
     const float th = title_.measure(tw).h;
     c.text(title_, {r.x + 18, r.bottom() - 18 - th, tw, th}, col.fgPrimary);
+    c.popTransform();
     c.popTransform();
 }
 

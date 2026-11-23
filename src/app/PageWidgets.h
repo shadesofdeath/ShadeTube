@@ -19,8 +19,8 @@ public:
     void paint(Canvas& c) override;
     bool onMouseDown(const ui::MouseEvent& e) override;
     void onMouseUp(const ui::MouseEvent& e) override;
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     // Keyboard (focusable): Enter / Space = click, menu key / Shift+F10 = context menu.
     bool activatable() const override { return true; }
@@ -45,7 +45,7 @@ private:
     ui::Anim hover_;
 };
 
-// Colored editorial tile (mixes / categories / top artists).
+// Colored editorial tile (mixes / categories / top artists). Hover: the card look of ui::card (rise, shadow, hairline).
 class Tile : public ui::Widget {
 public:
     Tile(std::wstring label, std::wstring title, Color color, std::vector<catalog::Image> images = {}, bool hero = false);
@@ -53,15 +53,15 @@ public:
     void paint(Canvas& c) override;
     bool onMouseDown(const ui::MouseEvent& e) override;
     void onMouseUp(const ui::MouseEvent& e) override;
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     // Keyboard (focusable): Enter / Space = click, with the click's press feedback.
     bool activatable() const override { return true; }
     bool onActivate() override {
         if (!onClick) return false;
-        press_.snap(1);
-        press_.to(0, 160);
+        press_.snap(ui::motion::micro() ? 1.f : 0.f);
+        press_.to(0, ui::motion::microMs(160));
         const auto click = onClick;
         click();
         return true;
