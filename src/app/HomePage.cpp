@@ -307,16 +307,16 @@ std::vector<Item> quickItems(const std::string& skip) {
     }
     if (out.size() < 4) {
         struct Dest {
-            const wchar_t* name;
+            std::wstring name;
             const char* icon;
             RouteKind kind;
         };
-        for (const Dest& pg : {Dest{L"Radyo", "radio", RouteKind::Radio}, Dest{L"Podcastler", "podcast", RouteKind::Podcasts},
-                               Dest{L"Yerel dosyalar", "music-note", RouteKind::LocalFiles},
-                               Dest{L"İndirilenler", "download", RouteKind::Downloads}}) {
+        for (const Dest& pg : {Dest{tr(L"Radyo"), "radio", RouteKind::Radio}, Dest{tr(L"Podcastler"), "podcast", RouteKind::Podcasts},
+                               Dest{tr(L"Yerel dosyalar"), "music-note", RouteKind::LocalFiles},
+                               Dest{tr(L"İndirilenler"), "download", RouteKind::Downloads}}) {
             if (out.size() >= 6) break;
             Item it;
-            it.title = tr(pg.name);
+            it.title = pg.name;
             it.icon = pg.icon;
             it.open = go({pg.kind});
             push(std::move(it));
