@@ -10,7 +10,8 @@ namespace st {
 
 enum class RepeatMode { Off, All, One };
 enum class AudioQuality { High, Normal };   // High = best bitrate (opus/aac), Normal = <=128 kbps AAC
-enum class AccentMode { Dynamic, Fixed };
+// Kapaktan (the playing cover) / Sabit (fixedAccent) / Temadan (the theme's own accent; app/ThemeStudio).
+enum class AccentMode { Dynamic, Fixed, Theme };
 // Koyu / Açık / Sistem (Sistem follows Windows' app mode: Personalize\AppsUseLightTheme).
 enum class ThemeMode { Dark, Light, System };
 
@@ -49,6 +50,11 @@ struct Settings {
     int uiZoom = 100;                    // "Arayüz ölçeği" in percent: 80, 90, 100, 110, 125, 150 (app/Display)
     bool compactLists = false;           // "Liste yoğunluğu": Sıkı = lower track rows (app/Display)
     bool micaBackdrop = false;           // Windows 11 Mica behind the main window (ui::Window::setBackdrop)
+    // Theme studio (app/ThemeStudio): the theme each mode uses (a preset id or "user:<file>"), corners, the UI font.
+    std::string themeDark = "dark";
+    std::string themeLight = "light";
+    std::string cornerStyle = "default"; // "sharp" | "default" | "round"
+    std::string uiFont;                  // "" = the bundled Bricolage Grotesque, else an installed family name
 
     // Misc
     std::string downloadsDir;            // empty = default (Music\ShadeTube)
