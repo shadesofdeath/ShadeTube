@@ -76,6 +76,19 @@ void Canvas::clear(const Color& c) { dc_->Clear(c.d2d()); }
 Color Canvas::surface() const { return translucent_ ? colors().bgBackdrop : colors().bgBase; }
 
 void Canvas::fillSurface(const Rect& r, float opacity) {
+    if (!surfaceGroups_.empty()) {   // the surface is below the group: make these pixels transparent (by `opacity`)
+        if (r.empty() || opacity <= 0.001f) return;
+        pushClip(r);
+        if (opacity >= 0.999f) {
+            dc_->Clear(D2D1::ColorF(0, 0, 0, 0));
+        } else if (auto* flood = g_shared.flood.Get()) {
+            const D2D1_RECT_F area = r.inset(-2).d2d();
+            flood->SetValue(D2D1_FLOOD_PROP_COLOR, D2D1::Vector4F(0, 0, 0, opacity));
+            dc_->DrawImage(flood, nullptr, &area, D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, D2D1_COMPOSITE_MODE_DESTINATION_OUT);
+        }
+        popClip();
+        return;
+    }
     if (!translucent_) return fillRect(r, colors().bgBase.mulAlpha(opacity));
     if (r.empty() || opacity <= 0.001f) return;
     const Color s = colors().bgBackdrop;
@@ -381,8 +394,14 @@ void Canvas::pushRoundedClip(const Rect& r, float radius) {
 
 void Canvas::popLayer() {
     if (layerDepth_ <= 0) return;
+    if (!surfaceGroups_.empty() && surfaceGroups_.back() == layerDepth_) surfaceGroups_.pop_back();
     dc_->PopLayer();
     --layerDepth_;
+}
+
+void Canvas::pushSurfaceGroup(float opacity) {
+    pushOpacity(opacity);
+    surfaceGroups_.push_back(layerDepth_);
 }
 
 void Canvas::pushOpacity(float opacity) {

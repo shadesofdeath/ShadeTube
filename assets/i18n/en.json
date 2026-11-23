@@ -1705,5 +1705,7 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Not available while a contrast theme is on; the window stays opaque.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Applies after a restart: the window background uses Windows 11's translucent Mica material and your desktop's color shows through slightly.",
   "Yeniden başlatma gerekiyor": "Restart required",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "The Mica background applies once ShadeTube restarts."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "The Mica background applies once ShadeTube restarts.",
+  "Sayfa geçişleri": "Page transitions",
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "Pages change with a short slide and fade; the cover of the album or playlist you open flies to its place on the new page. With Reduce motion on, or animation effects turned off in Windows, pages change instantly."
 }

@@ -1856,5 +1856,7 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, поки ввімкнено контрастну тему; вікно лишається непрозорим.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Застосується після перезапуску: тло вікна використовує напівпрозорий матеріал Mica з Windows 11, і колір робочого столу трохи просвічує.",
   "Yeniden başlatma gerekiyor": "Потрібен перезапуск",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica застосується після перезапуску ShadeTube."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica застосується після перезапуску ShadeTube.",
+  "Sayfa geçişleri": "Переходи між сторінками",
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "Сторінки змінюються коротким зсувом із затуханням; обкладинка відкритого альбому чи плейлиста перелітає на своє місце на новій сторінці. Якщо ввімкнено «Зменшити анімацію» або у Windows вимкнено ефекти анімації, сторінки змінюються миттєво."
 }

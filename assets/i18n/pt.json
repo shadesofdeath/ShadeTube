@@ -1705,5 +1705,7 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Indisponível enquanto um tema de contraste estiver ativo; a janela continua opaca.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Aplicado ao reiniciar: o fundo da janela usa o material Mica translúcido do Windows 11 e a cor da sua área de trabalho aparece levemente.",
   "Yeniden başlatma gerekiyor": "É preciso reiniciar",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "O fundo Mica é aplicado quando o ShadeTube reiniciar."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "O fundo Mica é aplicado quando o ShadeTube reiniciar.",
+  "Sayfa geçişleri": "Transições de página",
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "As páginas mudam com um breve deslize e esmaecimento; a capa do álbum ou da playlist que você abre voa até o seu lugar na nova página. Com Reduzir movimento ativado, ou com os efeitos de animação do Windows desligados, as páginas mudam na hora."
 }

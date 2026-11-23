@@ -2,6 +2,7 @@
 // App-specific building blocks: artwork, media cards, section headers and the virtualized track table.
 #include "app/AppContext.h"
 #include "app/DragDrop.h"
+#include "app/PageTransition.h"
 #include "gfx/Text.h"
 #include "ui/Anim.h"
 #include "ui/Controls.h"
@@ -72,7 +73,8 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
-class MediaCard : public ui::Widget {
+// Opening it (click, Enter, the play button) arms its cover for the page transition (app/PageTransition).
+class MediaCard : public ui::Widget, public CoverSource {
 public:
     enum class Shape { Square, Circle };
     MediaCard(std::wstring title, std::wstring subtitle, std::vector<catalog::Image> images, Shape shape = Shape::Square,
@@ -98,10 +100,12 @@ public:
     bool onKeyDown(const ui::KeyEvent& e) override;
     Rect focusRect() const override;
     ui::FocusShape focusShape() const override { return shape_ == Shape::Circle ? ui::FocusShape::Circle : ui::FocusShape::Rect; }
+    bool coverFor(const std::string& key, SharedCover& out) override;
 
 private:
     Rect artRect() const;
     Rect playRect() const;
+    SharedCover cover() const;
     gfx::Text title_, subtitle_, badge_;
     std::vector<catalog::Image> images_;
     Shape shape_;

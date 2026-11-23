@@ -218,8 +218,24 @@ bool MediaCard::onMouseDown(const ui::MouseEvent& e) {
 void MediaCard::onMouseUp(const ui::MouseEvent& e) {
     press_.to(0, 160);
     if (!rect().contains(e.pos)) return;
-    if (onPlay && playRect().contains(e.pos)) onPlay();
-    else if (onOpen) onOpen();
+    if (onPlay && playRect().contains(e.pos)) {
+        pagetx::arm(cover());   // "#play" opens the page too
+        onPlay();
+    } else if (onOpen) {
+        pagetx::arm(cover());
+        onOpen();
+    }
+}
+
+SharedCover MediaCard::cover() const {
+    const Rect art = artRect();
+    return pagetx::imageCover(*this, art, shape_ == Shape::Circle ? art.w * 0.5f : 2.f, images_);
+}
+
+bool MediaCard::coverFor(const std::string& key, SharedCover& out) {
+    if (images_.empty()) return false;
+    out = cover();
+    return out.key == key;
 }
 
 void MediaCard::onMouseMove(const ui::MouseEvent& e) {
@@ -234,6 +250,7 @@ bool MediaCard::onActivate() {
     if (!onOpen) return false;
     press_.snap(1);
     press_.to(0, 160);
+    pagetx::arm(cover());
     const auto open = onOpen;   // navigating destroys this card (deferred), call a copy
     open();
     return true;
@@ -258,14 +275,18 @@ void MediaCard::paint(Canvas& c) {
     const float h = std::max(hover_.value(), shape_ == Shape::Square && keyboardFocused() ? 1.f : 0.f);
     const Rect art = artRect();
     const float s = 1 - 0.01f * press_;
+    // Page transition: while this cover flies, the flight draws it (presence 0), then it lands here (0 -> 1).
+    const float shown = pagetx::presence(this);
     c.pushScale(s, {art.cx(), art.cy()});
-    if (shape_ == Shape::Circle) {
+    if (shown <= 0.f) {
+        // nothing: the flight draws this cover
+    } else if (shape_ == Shape::Circle) {
         const float d = std::min(art.w, 160.f + (art.w - 160.f));
         const Rect circle = art.center(d, d);
         drawArtwork(c, images_, circle, 0, Placeholder::Artist, true);
         if (h > 0.01f) c.strokeCircle({circle.cx(), circle.cy()}, d * 0.5f, accent().base.mulAlpha(h * 0.8f), 1.5f);
     } else {
-        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h));   // cardHoverShadow
+        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h * shown));   // cardHoverShadow
         drawArtwork(c, images_, art, 2, ph_);
         if (!badge_.empty()) {
             const float bw = std::ceil(badge_.measure().w) + 12;

@@ -1538,5 +1538,7 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "대비 테마가 켜져 있는 동안에는 사용할 수 없어요. 창은 불투명하게 유지돼요.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "다시 시작하면 적용돼요. 창 배경에 Windows 11의 반투명 Mica 소재를 사용해 바탕 화면 색이 은은하게 비쳐요.",
   "Yeniden başlatma gerekiyor": "다시 시작해야 합니다",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 배경은 ShadeTube를 다시 시작하면 적용됩니다.",
+  "Sayfa geçişleri": "페이지 전환 효과",
+  "Sayfalar kısa bir kayma ve solmayla değişir; açtığın albümün ya da listenin kapağı yeni sayfadaki yerine uçar. Hareketi azalt açıkken ya da Windows'ta animasyon efektleri kapalıyken sayfalar anında değişir.": "페이지가 짧게 밀리며 페이드되어 바뀌고, 연 앨범이나 플레이리스트의 커버가 새 페이지의 제자리로 날아가요. 동작 줄이기가 켜져 있거나 Windows 애니메이션 효과가 꺼져 있으면 페이지가 바로 바뀌어요."
 }

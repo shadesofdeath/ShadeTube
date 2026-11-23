@@ -226,7 +226,9 @@ public:
             c.fillRounded(bg, metrics::radiusSurface, col.overlaySelected.mulAlpha(a));
             c.fillRounded(bg, metrics::radiusSurface, col.overlayHover.mulAlpha(h * (1 - a)));
         }
-        if (liked_ && images_.empty()) {
+        if (pagetx::presence(this) <= 0.f) {
+            // the page transition draws this cover (it flies into the page the tile opened)
+        } else if (liked_ && images_.empty()) {
             c.fillRounded(tile, metrics::radiusSurface, acc.base);
             c.icon("heart-filled", tile.center(16, 16), acc.onAccent);
         } else {
@@ -256,6 +258,7 @@ public:
     }
     void onMouseUp(const ui::MouseEvent& e) override {
         if (hovered() && rect().contains(e.pos) && onClick) {
+            armCover();
             const auto click = onClick;   // may rebuild the list: the row is deleted after the event
             click();
         }
@@ -275,9 +278,18 @@ public:
     bool activatable() const override { return true; }
     bool onActivate() override {
         if (!onClick) return false;
+        armCover();
         const auto click = onClick;
         click();
         return true;
+    }
+    // A tile of the rail flies its cover into the page it opens (app/PageTransition).
+    void armCover() const {
+        if (!compact_ || folder_) return;
+        const Rect r = rect();
+        const Rect tile = Rect{r.cx() - kTileH * 0.5f, r.y, kTileH, kTileH}.center(kTile, kTile);
+        pagetx::arm(liked_ && images_.empty() ? pagetx::likedCover(*this, tile, metrics::radiusSurface)
+                                              : pagetx::imageCover(*this, tile, metrics::radiusSurface, images_));
     }
     bool onKeyDown(const ui::KeyEvent& e) override {
         if ((e.vk == VK_APPS || (e.vk == VK_F10 && e.shift)) && onContext) {
@@ -1385,10 +1397,10 @@ void QueuePanel::paint(Canvas& c) {
 // PageHost
 
 void PageHost::show(std::unique_ptr<Page> page) {
-    clearChildren();
+    Page* old = page_;
     page_ = static_cast<Page*>(adopt(std::move(page)));
-    enter_.snap(0);
-    enter_.to(1, ui::motion::page, ui::Ease::Decelerate);
+    // Takes the old page out of the tree (and keeps it while it fades out), or drops it at once without transitions.
+    transition_.begin(*this, old, page_, ctx().router ? ctx().router->lastChange() : Router::Change{});
     requestLayout();
     invalidate();
 }
@@ -1398,19 +1410,7 @@ void PageHost::layout() {
 }
 
 void PageHost::paint(Canvas& c) {
-    if (!page_) return;
-    const float t = enter_;
-    if (t >= 0.999f) {
-        paintChildren(c);
-        return;
-    }
-    c.pushClip(rect());
-    c.pushOpacity(t);
-    c.pushTransform(D2D1::Matrix3x2F::Translation(0, 16 * (1 - t)));
-    paintChildren(c);
-    c.popTransform();
-    c.popLayer();
-    c.popClip();
+    if (page_) transition_.paint(c, *this, page_);
 }
 
 // ===================================================================================================

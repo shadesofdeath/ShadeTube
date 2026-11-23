@@ -36,6 +36,11 @@ public:
     // content that has to dissolve into a translucent surface instead of being covered by an opaque gradient.
     // Paired with popLayer().
     void pushFade(const Rect& bounds, Point from, Point to, float opacityFrom, float opacityTo);
+    // Group opacity for content that is composited over the base surface as a whole (a page during a page transition).
+    // The surface is already below the group, so inside it fillSurface() clears the pixels it covers to transparent
+    // (and its partial opacity moves them that far towards transparent) instead of painting the surface a second time:
+    // a sticky header keeps exactly the translucency around it. Paired with popLayer().
+    void pushSurfaceGroup(float opacity);
 
     // --- shapes ---------------------------------------------------------------------------------
     void clear(const Color& c);
@@ -107,6 +112,7 @@ private:
     std::vector<ClipEntry> clips_;
     std::vector<D2D1_MATRIX_3X2_F> transforms_;
     int layerDepth_ = 0;
+    std::vector<int> surfaceGroups_;   // layerDepth_ of each open pushSurfaceGroup()
     bool translucent_ = false;
 };
 

@@ -182,6 +182,7 @@ bool LibraryView::isCurrent(const LibraryCell& c) const {
 }
 
 void LibraryView::paintArt(Canvas& c, const LibraryCell& cell, const Rect& art, float radius) {
+    if (pagetx::presence(&cell) <= 0.f) return;   // the page transition draws this cover
     if (cell.circle) {
         drawArtwork(c, cell.images, art, 0, Placeholder::Artist, true);
     } else if (cell.likedTile && cell.images.empty()) {   // Liked Songs as on its page: the accent tile and the heart
@@ -224,7 +225,8 @@ void LibraryView::paintCard(Canvas& c, int d, const Rect& r) {
     const auto& col = colors();
     const auto& acc = accent();
     const LibraryCell& cl = cell(d);
-    const float h = hoverOf(d);
+    const float shown = pagetx::presence(&cl);   // 0 while the page transition draws this cover
+    const float h = hoverOf(d) * (shown > 0.f ? 1.f : 0.f);
     const Rect art{r.x, r.y, r.w, r.w};
     const float s = 1 - 0.01f * (d == pressed_ ? pressA_.value() : 0.f);
     c.pushScale(s, {art.cx(), art.cy()});
@@ -233,7 +235,7 @@ void LibraryView::paintCard(Canvas& c, int d, const Rect& r) {
         if (h > 0.01f) c.strokeCircle({art.cx(), art.cy()}, art.w * 0.5f, acc.base.mulAlpha(h * 0.8f), 1.5f);
         if (d == dropHot_) c.strokeCircle({art.cx(), art.cy()}, art.w * 0.5f, acc.base, 2.f);
     } else {
-        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h));   // cardHoverShadow
+        if (h > 0.01f) c.shadow(art, 2, 24, 12, col.shadowCard.mulAlpha(h * shown));   // cardHoverShadow
         paintArt(c, cl, art, 2);
         if (d == dropHot_) {   // dragged songs would go here: the sidebar row's drop look
             c.fillRounded(art, 2, acc.tint12);
@@ -263,7 +265,7 @@ void LibraryView::paintRow(Canvas& c, int d, const Rect& r) {
     }
     const Rect art = artRect(d);
     paintArt(c, cl, art, 2);
-    if (cl.playable && h > 0.01f) paintPlay(c, cl, playRect(d), h, 14);
+    if (cl.playable && h > 0.01f && pagetx::presence(&cl) > 0.f) paintPlay(c, cl, playRect(d), h, 14);
     auto& tx = text(d);
     if (!tx.metaDone) {
         tx.metaDone = true;
@@ -365,14 +367,38 @@ void LibraryView::onMouseUp(const ui::MouseEvent& e) {
 
 void LibraryView::open(int d) {
     if (!onOpen) return;
+    pagetx::arm(coverOf(d));
     const auto fn = onOpen;   // may navigate (this view is deleted after the event)
     fn(order_[static_cast<size_t>(d)]);
 }
 
 void LibraryView::play(int d) {
     if (!cell(d).playable || !onPlay) return open(d);
+    pagetx::arm(coverOf(d));   // "#play" opens the page too
     const auto fn = onPlay;
     fn(order_[static_cast<size_t>(d)]);
+}
+
+SharedCover LibraryView::coverOf(int d) const {
+    const LibraryCell& cl = cell(d);
+    const Rect art = artRect(d);
+    const bool round = cl.circle;
+    SharedCover s = cl.likedTile && cl.images.empty() ? pagetx::likedCover(*this, art, 2)
+                                                      : pagetx::imageCover(*this, art, round ? art.w * 0.5f : 2.f, cl.images);
+    s.owner = &cl;   // one view, many covers: the cell is the owner
+    return s;
+}
+
+bool LibraryView::coverFor(const std::string& key, SharedCover& out) {
+    if (key.empty() || !cells_) return false;
+    for (int d = 0; d < static_cast<int>(order_.size()); ++d) {
+        const LibraryCell& cl = cell(d);
+        const bool match = cl.likedTile && cl.images.empty() ? key == "liked" : !cl.images.empty() && cl.images.front().url == key;
+        if (!match) continue;
+        out = coverOf(d);
+        return true;
+    }
+    return false;
 }
 
 void LibraryView::context(int d, gfx::Point windowPos) {
