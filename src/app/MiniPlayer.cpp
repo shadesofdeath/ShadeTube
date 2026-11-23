@@ -16,6 +16,7 @@
 #include "core/Log.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
+#include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
 #include "lyrics/Lyrics.h"
 #include "player/Player.h"
@@ -205,7 +206,7 @@ public:
         : owner_(owner), title_({}, type::body), artist_({}, type::caption), time_({}, type::monoMeta),
           toastText_({}, type::secondary.withWeight(500)), oldTitle_({}, type::body), oldArtist_({}, type::caption),
           lyrCur_({}, type::bodyL.withWeight(600)), lyrOld_({}, type::bodyL.withWeight(600)), lyrNext_({}, type::secondary),
-          album_({}, type::secondary), status_({}, type::monoLabel), volLabel_({}, type::monoLabel),
+          album_({}, type::secondary), status_({}, type::monoLabel),
           volValue_({}, type::monoMeta) {
         isDragRegion = true;
         gfx::TextOptions wrap;
@@ -216,7 +217,6 @@ public:
         right.align = gfx::TextAlign::Trailing;
         time_.setOptions(right);
         volValue_.setOptions(right);
-        volLabel_.setText(toUpperTr(tr(L"Ses düzeyi")));
         // The player bar's thin outline set.
         shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle-thin");
         prev_ = add<Button>(ButtonKind::Icon, L"", "prev-thin");
@@ -442,6 +442,13 @@ public:
         }
         paintVolume(c);
         paintToast(c);
+        // Frames drawn, logged (debug) at most every 2 s and only while it draws: a mini player at rest logs nothing.
+        ++frames_;
+        if (const double now = ui::frame::realNow(); now - framesSince_ >= 2000) {
+            if (framesSince_ > 0) ST_LOG_DEBUG("mini", "{} frames in {:.1f} s", frames_, (now - framesSince_) / 1000.0);
+            frames_ = 0;
+            framesSince_ = now;
+        }
         // Keep moving while playing, and only what can be seen: the wave flows at ~30 fps (Wide; Square while its
         // controls show), else ticks 4 times a second; the strip's line moves a pixel at a time; the square's bare
         // cover needs nothing. Paused: no wake-ups at all.
@@ -598,8 +605,8 @@ private:
         const auto* t = p ? p->current() : nullptr;
         if (m != Mode::Square)   // a faint accent wash from the artwork (no blur: this window stays cheap)
             c.fillRadialGradient(r, {g.art.cx(), g.art.cy()}, 240, acc.tint12, acc.tint12.withAlpha(0));
-        if (swap_.running()) paintArt(c, g, true, m == Mode::Square);
-        paintArt(c, g, false, m == Mode::Square);
+        if (swap_.running()) paintArt(c, g, true, m);
+        paintArt(c, g, false, m);
         switch (m) {
         case Mode::Strip: {
             paintText(c, g, true, 1.f);
@@ -644,19 +651,44 @@ private:
 
     // Cover of the current track, or of the outgoing one during a track change (the square mode cross-fades it in
     // place; the others slide it like the player bar).
-    void paintArt(Canvas& c, const Geo& g, bool outgoing, bool fullBleed) {
+    void paintArt(Canvas& c, const Geo& g, bool outgoing, Mode m) {
         const auto layer = outgoing ? swap_.outgoing() : swap_.incoming();
         if (layer.alpha <= 0.001f) return;
         const Shown& s = outgoing ? old_ : shown_;
+        const bool fullBleed = m == Mode::Square;
         const bool group = layer.alpha < 0.999f;
         if (group) c.pushOpacity(layer.alpha);
         const float dy = fullBleed ? 0.f : layer.dy;
         if (dy != 0) c.pushTransform(D2D1::Matrix3x2F::Translation(0, dy));
-        if (s.live) drawStationArt(c, s.images, g.art, g.radius);
-        else if (outgoing) drawArtwork(c, s.images, g.art, g.radius);
-        else (fullBleed ? artFadeSquare_ : artFade_).draw(c, s.images, g.art, g.radius);   // a cover still loading fades in
+        if (s.live) {
+            drawStationArt(c, s.images, g.art, g.radius);
+        } else if (outgoing) {
+            drawArtwork(c, s.images, g.art, g.radius);
+        } else if (morph_.running()) {
+            // Mid-switch the rect passes through every size: decode for the size the mode settles at (else the one the
+            // other mode already has) instead of asking the image cache for each size bucket on the way.
+            const Mode other = m == mode_ ? prevMode_ : mode_;
+            if (!drawCoverAt(c, s.images, g.art, g.radius, settledArtPx(m, c.scale())) &&
+                !drawCoverAt(c, s.images, g.art, g.radius, settledArtPx(other, c.scale())))
+                drawArtwork(c, s.images, g.art, g.radius);
+        } else {
+            (fullBleed ? artFadeSquare_ : artFade_).draw(c, s.images, g.art, g.radius);   // a cover still loading fades in
+        }
         if (dy != 0) c.popTransform();
         if (group) c.popLayer();
+    }
+
+    int settledArtPx(Mode m, float scale) const {
+        const float dip = m == Mode::Strip ? 40.f : m == Mode::Wide ? 136.f : owner_.squareSide_;
+        return static_cast<int>(std::ceil(dip * scale));
+    }
+
+    static bool drawCoverAt(Canvas& c, const std::vector<catalog::Image>& images, const Rect& r, float radius, int px) {
+        const auto* img = catalog::pickImage(images, px);
+        ID2D1Bitmap1* bmp = img ? gfx::ImageCache::get().request(img->url, px, Priority::High) : nullptr;
+        if (!bmp) return false;
+        c.image(bmp, r, radius);
+        return true;
     }
 
     void paintText(Canvas& c, const Geo& g, bool outgoing, float alpha) {
@@ -830,16 +862,21 @@ private:
             if (age < kVolumeIn) alpha = static_cast<float>(age / kVolumeIn);
             else if (age > kVolumeHold) alpha = 1 - static_cast<float>((age - kVolumeHold) / kVolumeOut);
         }
+        // Speaker · level line · percentage (a narrow square gets a shorter line).
         const Rect r = rect();
-        const Rect box{std::round(r.cx() - 74), std::round(r.cy() - 14), 148, 28};
+        constexpr float iconW = 16, valueW = 26;
+        const float lineW = std::clamp(r.w - 16 - (12 + iconW + 10 + 10 + valueW + 12), 24.f, 72.f);
+        const float boxW = 12 + iconW + 10 + lineW + 10 + valueW + 12;
+        const Rect box{std::round(r.cx() - boxW * 0.5f), std::round(r.cy() - 14), boxW, 28};
         c.pushOpacity(std::clamp(alpha, 0.f, 1.f));
         c.fillRounded(box, 2, col.bgElevated);
         c.strokeRounded(box, 2, col.hairStrong);
-        c.text(volLabel_, {box.x + 12, box.y, 40, box.h}, col.fgTertiary, gfx::VAlign::Center);
-        const float x0 = box.x + 48, x1 = box.right() - 44;
+        const char* icon = volLevel_ <= 0.001f ? "volume-0" : volLevel_ < 0.34f ? "volume-1" : volLevel_ < 0.67f ? "volume-2" : "volume-3";
+        c.icon(icon, {box.x + 12, box.cy() - iconW * 0.5f, iconW, iconW}, col.fgSecondary);
+        const float x0 = box.x + 12 + iconW + 10, x1 = x0 + lineW;
         c.fillRect({x0, box.cy() - 1, x1 - x0, 2}, col.hairStrong);
         c.fillRect({x0, box.cy() - 1, (x1 - x0) * volLevel_, 2}, acc.base);
-        c.text(volValue_, {box.right() - 40, box.y, 28, box.h}, col.fgPrimary, gfx::VAlign::Center);
+        c.text(volValue_, {x1 + 10, box.y, valueW, box.h}, col.fgPrimary, gfx::VAlign::Center);
         c.popLayer();
         // Fades at vsync; while it is held, one wake-up when the fade starts.
         if (age < kVolumeIn || age > kVolumeHold) ui::frame::requestNext();
@@ -881,7 +918,7 @@ private:
     SquareGrips* grips_;
     std::vector<ui::Widget*> hoverOnly_;
     gfx::Text title_, artist_, time_, toastText_, oldTitle_, oldArtist_;
-    gfx::Text lyrCur_, lyrOld_, lyrNext_, album_, status_, volLabel_, volValue_;
+    gfx::Text lyrCur_, lyrOld_, lyrNext_, album_, status_, volValue_;
     ui::Anim appear_;
     ui::Anim morph_{1.f};    // mode switch: 0 = the old mode .. 1 = the new one
     ui::Anim reveal_;        // hover / keyboard: the controls shown on hover
@@ -899,6 +936,8 @@ private:
     bool toastError_ = false;
     double volAt_ = -1;
     float volLevel_ = 0;
+    int frames_ = 0;
+    double framesSince_ = 0;
     // Lyrics (wide mode).
     Lyr lyrState_ = Lyr::None;
     std::string lyrTrack_;
