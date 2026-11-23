@@ -33,6 +33,7 @@ namespace videomode {
 
 bool on();
 void setOn(bool on, bool announce = false);   // announce: a toast says so (keys, palette)
+// The button / shortcut: turned on while no view is on screen, it opens Now Playing (where the cover becomes the video).
 void toggle(bool announce = false);
 // The player bar's button: shown for songs (not podcasts / radio); enabled unless the song plays from a file or a
 // stand-in source (no YouTube video to follow).

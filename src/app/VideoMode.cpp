@@ -232,7 +232,12 @@ void setOn(bool v, bool announce) {
     if (ctx().window) ctx().window->invalidate();
 }
 
-void toggle(bool announce) { setOn(!S().on, announce); }
+void toggle(bool announce) {
+    const bool turnOn = !S().on;
+    setOn(turnOn, announce);
+    // Turned on where nothing shows it yet: Now Playing, where the cover becomes the video.
+    if (turnOn && !anyViewOnScreen() && offered() && ctx().toggleNowPlaying) ctx().toggleNowPlaying(true);
+}
 
 bool offered() { return songItem(currentTrack()); }
 
@@ -419,7 +424,10 @@ void paint(gfx::Canvas& c, const Rect& r, const VideoView& view) {
         const D2D1_RECT_F src = s.player->sourceRect();
         const Rect dst = fit(r, src.right - src.left, src.bottom - src.top);
         if (inline_) c.pushRoundedClip(dst, 2);
-        c.dc()->DrawBitmap(bmp, dst.d2d(), 1.f, D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC, &src);
+        // Smaller than the picture (Now Playing): multi-sample linear, which needs no pre-scaled copy (high-quality cubic
+        // keeps a downscaled intermediate per frame in Direct2D's cache); larger (the window, full screen): cubic.
+        const bool down = dst.w * c.scale() < src.right - src.left;
+        c.dc()->DrawBitmap(bmp, dst.d2d(), 1.f, down ? D2D1_INTERPOLATION_MODE_MULTI_SAMPLE_LINEAR : D2D1_INTERPOLATION_MODE_CUBIC, &src);
         if (inline_) {
             c.popLayer();
             paintPopOut(c, view, dst);

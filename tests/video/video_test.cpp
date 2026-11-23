@@ -897,8 +897,14 @@ int main(int argc, char** argv) {
             src.localPath = fs::path(ids[0]).wstring();
             src.mimeType = "video/mp4";
             const int64_t startUs = ids.size() > 1 ? std::atoll(ids[1].c_str()) * 1'000'000 : 0;
+            auto& dev = st::gfx::Device::get();
+            const auto before = dev.gpuMemory();
             st::video::VideoPlayer p(src, startUs);
             const PlayRun r = play(p, startUs, 1.0, 5.0, false);
+            const auto during = dev.gpuMemory();
+            std::printf("  GPU memory: %.1f MB before, %.1f MB while playing (+%.1f MB; slots + display %.1f MB)\n",
+                        before.local / 1048576.0, during.local / 1048576.0, (during.local - before.local) / 1048576.0,
+                        p.gpuBytes() / 1048576.0);
             std::printf("  %s from %lld s: %d paints, %llu shown, %llu dropped, %llu resyncs, %s, state %d, %s\n", ids[0].c_str(),
                         static_cast<long long>(startUs / 1'000'000), r.paints, static_cast<unsigned long long>(r.shown),
                         static_cast<unsigned long long>(r.dropped), static_cast<unsigned long long>(r.resyncs),
