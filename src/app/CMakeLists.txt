@@ -66,6 +66,7 @@ add_executable(ShadeTube WIN32
     LoginWindow.cpp LoginWindow.h
     LyricsFullscreen.cpp LyricsFullscreen.h
     LyricsService.cpp LyricsService.h
+    LyricsShare.cpp LyricsShare.h
     MiniPlayer.cpp MiniPlayer.h
     NowPlaying.cpp NowPlaying.h
     PageWidgets.cpp PageWidgets.h
@@ -100,6 +101,7 @@ add_executable(ShadeTube WIN32
     SettingsWidgets.h
     Shortcuts.cpp Shortcuts.h
     Shell.cpp Shell.h
+    ShareCard.cpp ShareCard.h
     SmartMix.cpp SmartMix.h
     SmartShuffle.cpp SmartShuffle.h
     SmartLists.cpp SmartLists.h
@@ -114,6 +116,8 @@ add_executable(ShadeTube WIN32
     TagEditor.cpp TagEditor.h
     Updater.cpp Updater.h
     WinShell.cpp WinShell.h
+    YearReview.cpp YearReview.h
+    YearReviewView.cpp YearReviewView.h
     FriendActivity.cpp Social.h
     NewReleases.cpp NewReleases.h
     NewReleasesPage.cpp
