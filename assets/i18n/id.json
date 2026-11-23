@@ -1538,5 +1538,7 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Tidak tersedia selama tema kontras aktif; jendela tetap pekat.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Diterapkan setelah dimulai ulang: latar jendela memakai material Mica tembus pandang dari Windows 11 dan warna desktopmu sedikit terlihat.",
   "Yeniden başlatma gerekiyor": "Perlu dimulai ulang",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Latar Mica diterapkan setelah ShadeTube dimulai ulang."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Latar Mica diterapkan setelah ShadeTube dimulai ulang.",
+  "Bu şarkı için ek bilgi yok.": "Tidak ada detail lain untuk lagu ini.",
+  "Bilgiler yüklenemedi.": "Gagal memuat detail."
 }

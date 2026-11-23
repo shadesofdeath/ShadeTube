@@ -18,6 +18,14 @@ constexpr float kDipPerTexel = 10;
 constexpr double kFadeMs = 1200;      // a new cover's colors cross-fade in
 constexpr double kFadeStepMs = 30;    // field updates during the cross-fade (~33 fps)
 
+// The last cover's palette, shared by the views (the full-screen lyrics over Now Playing, Now Playing opened again):
+// the same cover shows its colours at once instead of decoding and fading in again.
+struct LastPalette {
+    std::string url;
+    cover::Palette palette;
+};
+LastPalette g_last;
+
 cover::Fitted groundOf(Color bgBase) {
     const cover::Palette flat{{bgBase, bgBase, bgBase, bgBase, bgBase}, 1};
     // The ground is already the theme's own: fitting changes nothing it doesn't have to.
@@ -107,7 +115,14 @@ double CoverBackdrop::paint(Canvas& c, const Rect& r, const catalog::Track* t, b
         url_ = url;
         requested_ = false;
         life_.renew();
-        if (url_.empty()) setPalette(cover::paletteFrom(gfx::Theme::get().accentTarget()));
+        if (url_.empty()) {
+            setPalette(cover::paletteFrom(gfx::Theme::get().accentTarget()));
+        } else if (url_ == g_last.url) {   // known colours: shown at once
+            setPalette(g_last.palette);
+            from_ = to_;
+            mix_.snap(1);
+            requested_ = true;
+        }
     }
     if (!url_.empty() && !requested_) {
         auto& images = gfx::ImageCache::get();
@@ -119,7 +134,8 @@ double CoverBackdrop::paint(Canvas& c, const Rect& r, const catalog::Track* t, b
                     const auto px = gfx::ImageCache::decodePixels(u, 48);
                     return cover::extractPalette(px.bgra.data(), px.width, px.height, px.stride);
                 },
-                [this](Result<cover::Palette> p) {
+                [this, u = url_](Result<cover::Palette> p) {
+                    if (p) g_last = {u, *p};
                     setPalette(p ? *p : cover::paletteFrom(gfx::Theme::get().accentTarget()));
                     if (auto* w = ctx().window) w->invalidate();
                 });

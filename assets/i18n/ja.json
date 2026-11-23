@@ -1538,5 +1538,7 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "コントラストテーマがオンの間は使えません。ウィンドウは不透明のままです。",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "再起動後に適用されます。ウィンドウの背景にWindows 11の半透明素材Micaを使い、デスクトップの色がほのかに透けて見えます。",
   "Yeniden başlatma gerekiyor": "再起動が必要です",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 背景は ShadeTube の再起動後に適用されます。"
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Mica 背景は ShadeTube の再起動後に適用されます。",
+  "Bu şarkı için ek bilgi yok.": "この曲の詳しい情報はありません。",
+  "Bilgiler yüklenemedi.": "詳細を読み込めませんでした。"
 }

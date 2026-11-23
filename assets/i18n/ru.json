@@ -1856,5 +1856,7 @@
   "Yüksek karşıtlık teması açıkken kullanılamaz; pencere opak kalır.": "Недоступно, пока включена контрастная тема; окно остаётся непрозрачным.",
   "Yeniden başlatınca uygulanır: pencerenin arka planında Windows 11'in yarı saydam Mica malzemesi kullanılır ve masaüstünün rengi hafifçe görünür.": "Применится после перезапуска: фон окна использует полупрозрачный материал Mica из Windows 11, и цвет рабочего стола слегка просвечивает.",
   "Yeniden başlatma gerekiyor": "Нужен перезапуск",
-  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica применится после перезапуска ShadeTube."
+  "Mica arka plan ShadeTube yeniden başlatılınca uygulanır.": "Фон Mica применится после перезапуска ShadeTube.",
+  "Bu şarkı için ek bilgi yok.": "Других сведений об этом треке нет.",
+  "Bilgiler yüklenemedi.": "Не удалось загрузить сведения."
 }
