@@ -498,6 +498,11 @@ Sidebar::Sidebar() {
     // "Daha fazla": the saved choice, else open until the first layout decides by the height.
     moreOpen_ = Settings::get().sidebarMore != 0;
     moreAnim_.snap(moreOpen_ ? 1.f : 0.f);
+    // The command palette / a key of the user's choosing toggles the group too (the sidebar lives as long as the app).
+    commands::setHandler("sidebar-more", [this] {
+        setMoreOpen(!moreOpen_);
+        return true;
+    });
     home_->onClick = [] { ctx().router->navigate({RouteKind::Home}); };
     search_->onClick = [] { ctx().router->navigate({RouteKind::Search}); };
     library_->onClick = [] { ctx().router->navigate({RouteKind::Library}); };
