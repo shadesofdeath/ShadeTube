@@ -1939,5 +1939,7 @@
   "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Não foi possível conectar ao Spotify. Tente de novo daqui a pouco.",
   "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Lista de outra conta do Spotify: sincroniza quando você mudar para essa conta",
   "Hesaba geç: {}": "Trocar de conta: {}",
-  "Spotify hesabı ekle": "Adicionar uma conta do Spotify"
+  "Spotify hesabı ekle": "Adicionar uma conta do Spotify",
+  "Şarkı değişince bildirim göster": "Notificar quando a música mudar",
+  "ShadeTube penceresi görünmüyorken yeni bir şarkı başlayınca kapağı, adı ve sanatçısıyla bir Windows bildirimi çıkar; Sonraki ve Beğen düğmeleriyle. Mini oynatıcı ekrandayken, medya tuşlarıyla geçişlerde (Windows şarkıyı kendisi gösterir) ve tam ekran uygulamalarda çıkmaz.": "Quando uma música nova começa e nenhuma janela do ShadeTube está à vista, uma notificação do Windows mostra a capa, o título e o artista, com os botões Próxima e Curtir. Não aparece com o miniplayer na tela, ao trocar com as teclas de mídia (o Windows já mostra a música) nem em apps em tela cheia."
 }

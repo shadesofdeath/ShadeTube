@@ -114,6 +114,8 @@ add_executable(ShadeTube WIN32
     Shell.cpp Shell.h
     ShareCard.cpp ShareCard.h
     SmartMix.cpp SmartMix.h
+    SongNotification.cpp SongNotification.h
+    SongNotifier.cpp
     SmartShuffle.cpp SmartShuffle.h
     SmartLists.cpp SmartLists.h
     SmartListsPage.cpp SmartListsPage.h

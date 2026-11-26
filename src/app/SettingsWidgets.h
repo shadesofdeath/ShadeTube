@@ -233,5 +233,6 @@ void buildDisplayRows(ui::Column* c, const std::function<void()>& rebuild);     
 void buildPreviewRows(ui::Column* c, const std::function<void()>& rebuild);           // OYNATMA   (app/Preview.cpp)
 void buildThemeStudioRows(ui::Column* c, const std::function<void()>& rebuild);       // Görünüm   (app/ThemeStudioUi.cpp)
 void buildVideoRows(ui::Column* c, const std::function<void()>& rebuild);             // OYNATMA   (app/VideoMode.cpp)
+void buildSongNotificationRow(ui::Column* c, const std::function<void()>& rebuild);   // PENCERE   (app/SongNotifier.cpp)
 
 } // namespace st::app

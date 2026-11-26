@@ -19,6 +19,7 @@
 #include "app/Shell.h"
 #include "app/Smtc.h"
 #include "app/Social.h"
+#include "app/SongNotification.h"
 #include "app/ThemeStudio.h"
 #include "app/Together.h"
 #include "catalog/TrackKind.h"
@@ -196,7 +197,10 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     // A shadetube: link a second launch hands over (main.cpp, jam::forwardOpenLink).
     ChangeWindowMessageFilterEx(window_->hwnd(), WM_COPYDATA, MSGFLT_ALLOW, nullptr);
     thumbBar_ = std::make_unique<winshell::ThumbBar>(window_->hwnd());
-    thumbBar_->onCommand = [this](winshell::Command cmd) { runCommand(cmd); };
+    thumbBar_->onCommand = [this](winshell::Command cmd) {
+        songnotify::noteMediaControl();   // the thumbnail above the button shows the song
+        runCommand(cmd);
+    };
     windowIcon_ = std::make_unique<winshell::WindowIcon>(window_->hwnd());
     // Keyboard shortcut actions only App can carry out (its windows); the rest are app/Commands' own.
     commands::setHandler("now-playing", [this] {
@@ -347,6 +351,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     smtc_ = std::make_unique<Smtc>();
     smtc_->onButton = [this](Smtc::Button b) {
         if (!player_) return;
+        songnotify::noteMediaControl();   // Windows' media overlay shows the song: no notification of ours
         switch (b) {
         case Smtc::Button::Play: player_->play(); break;
         case Smtc::Button::Pause:

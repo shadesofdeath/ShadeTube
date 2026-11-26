@@ -193,6 +193,7 @@ void initTogether();           // app/Together.cpp       (Birlikte dinle: listen
 void initPreview();            // app/Preview.cpp        (song preview: press and hold, the key, the menu item)
 void initShareFeatures();      // app/YearReviewView.cpp (lyrics cards, the year in review: dev hooks)
 void initVideoMode();          // app/VideoMode.cpp      (Video modu: the song's music video, silent, slaved to the audio)
+void initSongNotifications();  // app/SongNotifier.cpp   (a Windows notification when a song starts out of sight)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -212,6 +213,7 @@ inline void initFeatures() {
     initPreview();
     initShareFeatures();
     initVideoMode();
+    initSongNotifications();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the

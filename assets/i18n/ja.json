@@ -1760,5 +1760,7 @@
   "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Spotify に接続できませんでした。しばらくしてからもう一度お試しください。",
   "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "別の Spotify アカウントのリストです。そのアカウントに切り替えると同期されます",
   "Hesaba geç: {}": "アカウントを切り替え: {}",
-  "Spotify hesabı ekle": "Spotify アカウントを追加"
+  "Spotify hesabı ekle": "Spotify アカウントを追加",
+  "Şarkı değişince bildirim göster": "曲が変わったら通知する",
+  "ShadeTube penceresi görünmüyorken yeni bir şarkı başlayınca kapağı, adı ve sanatçısıyla bir Windows bildirimi çıkar; Sonraki ve Beğen düğmeleriyle. Mini oynatıcı ekrandayken, medya tuşlarıyla geçişlerde (Windows şarkıyı kendisi gösterir) ve tam ekran uygulamalarda çıkmaz.": "ShadeTube のウィンドウが見えていないときに新しい曲が始まると、ジャケット、曲名、アーティストを Windows の通知で表示します（「次へ」「お気に入りに追加」ボタン付き）。ミニプレーヤーが画面にあるとき、メディアキーで曲を切り替えたとき（Windows が自分で曲を表示します）、全画面アプリの使用中は表示されません。"
 }

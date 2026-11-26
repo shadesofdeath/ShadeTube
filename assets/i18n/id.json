@@ -1760,5 +1760,7 @@
   "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Tidak bisa terhubung ke Spotify. Coba lagi sebentar lagi.",
   "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Daftar milik akun Spotify lain: disinkronkan saat kamu beralih ke akun itu",
   "Hesaba geç: {}": "Ganti akun: {}",
-  "Spotify hesabı ekle": "Tambah akun Spotify"
+  "Spotify hesabı ekle": "Tambah akun Spotify",
+  "Şarkı değişince bildirim göster": "Beri notifikasi saat lagu berganti",
+  "ShadeTube penceresi görünmüyorken yeni bir şarkı başlayınca kapağı, adı ve sanatçısıyla bir Windows bildirimi çıkar; Sonraki ve Beğen düğmeleriyle. Mini oynatıcı ekrandayken, medya tuşlarıyla geçişlerde (Windows şarkıyı kendisi gösterir) ve tam ekran uygulamalarda çıkmaz.": "Saat lagu baru dimulai dan tidak ada jendela ShadeTube yang terlihat, notifikasi Windows menampilkan sampul, judul, dan artisnya dengan tombol Berikutnya dan Suka. Tidak muncul saat pemutar mini ada di layar, saat berganti lagu dengan tombol media (Windows sudah menampilkan lagunya), atau di aplikasi layar penuh."
 }

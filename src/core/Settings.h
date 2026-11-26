@@ -130,6 +130,9 @@ struct Settings {
     bool miniOnTop = true;
     std::map<std::string, std::vector<int>> miniPlaces;
     bool taskbarProgress = true;         // the playing song's position on the taskbar button
+    // A Windows notification (cover, title, artist, Sonraki / Beğen) when a song starts while no ShadeTube window is in
+    // view (app/SongNotification). Off by default.
+    bool songNotifications = false;
     // Song preview (app/Preview): "hold" (press and hold a row / cover, the menu item, the key), "menu" (menu + key
     // only), "off".
     std::string previewMode = "hold";

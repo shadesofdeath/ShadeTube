@@ -388,6 +388,7 @@ private:
             toggle(c, tr(L"Görev çubuğunda ilerlemeyi göster"),
                    tr(L"Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı."),
                    s.taskbarProgress, [](bool v) { Settings::get().taskbarProgress = v; });
+            buildSongNotificationRow(c, rebuilder());   // app/SongNotifier.cpp
             buildStartupRows(c, rebuilder());
         }
 

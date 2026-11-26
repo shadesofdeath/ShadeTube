@@ -2098,5 +2098,7 @@
   "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Не вдалося підключитися до Spotify. Спробуй ще раз трохи згодом.",
   "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Список іншого акаунта Spotify: синхронізується, коли перемкнешся на цей акаунт",
   "Hesaba geç: {}": "Змінити акаунт: {}",
-  "Spotify hesabı ekle": "Додати акаунт Spotify"
+  "Spotify hesabı ekle": "Додати акаунт Spotify",
+  "Şarkı değişince bildirim göster": "Сповіщати про зміну треку",
+  "ShadeTube penceresi görünmüyorken yeni bir şarkı başlayınca kapağı, adı ve sanatçısıyla bir Windows bildirimi çıkar; Sonraki ve Beğen düğmeleriyle. Mini oynatıcı ekrandayken, medya tuşlarıyla geçişlerde (Windows şarkıyı kendisi gösterir) ve tam ekran uygulamalarda çıkmaz.": "Коли починається новий трек, а вікна ShadeTube не видно, Windows покаже сповіщення з обкладинкою, назвою й виконавцем і кнопками «Наступний» і «Вподобати». Не з'являється, поки на екрані мініплеєр, під час перемикання медіаклавішами (Windows сама показує трек) і в повноекранних застосунках."
 }
