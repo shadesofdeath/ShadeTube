@@ -1922,5 +1922,25 @@
   "Video penceresi açılamadı.": "Não foi possível abrir a janela de vídeo.",
   "Video penceresinde aç": "Abrir na janela de vídeo",
   "Video yükleniyor…": "Carregando vídeo…",
-  "Şu an bir şarkı çalmıyor": "Nada está tocando agora"
+  "Şu an bir şarkı çalmıyor": "Nada está tocando agora",
+  "YouTube Music ile keşfet": "Explorar com o YouTube Music",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Não precisa de conta do Google: busca, álbuns, artistas, playlists e rádio vêm do YouTube Music",
+  "MusicBrainz ile keşfet": "Explorar com o MusicBrainz",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "Banco de dados musical aberto: MusicBrainz e ListenBrainz",
+  "Spotify olmadan katalog": "Catálogo sem o Spotify",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Enquanto o Spotify não estiver conectado, a busca, os álbuns, os artistas e o Início vêm daqui. YouTube Music: as músicas tocam exatamente daquela gravação, com playlists e rádio. MusicBrainz: o banco de dados musical aberto.",
+  "YouTube Music bunun için radyo sunmuyor": "O YouTube Music não oferece rádio para isto",
+  "Bunun için radyo yok": "Não há rádio para isto",
+  "YouTube Music bağlantısını kopyala": "Copiar link do YouTube Music",
+  "Ruh hâli ve türler": "Climas e gêneros",
+  "Bağlantını kontrol edip tekrar dene.": "Verifique sua conexão e tente de novo.",
+  "YouTube Music albümü": "Álbum do YouTube Music",
+  "YouTube Music sanatçısı": "Artista do YouTube Music",
+  "YouTube Music bu tür için liste göstermedi.": "O YouTube Music não mostrou playlists para este gênero.",
+  "YouTube Music çalma listesi": "Playlist do YouTube Music",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "PLAYLIST · YOUTUBE MUSIC",
+  "{} AYLIK DİNLEYİCİ · YOUTUBE MUSIC": {
+    "one": "{} OUVINTE MENSAL · YOUTUBE MUSIC",
+    "other": "{} OUVINTES MENSAIS · YOUTUBE MUSIC"
+  }
 }

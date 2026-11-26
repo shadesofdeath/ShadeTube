@@ -1743,5 +1743,22 @@
   "Video penceresi açılamadı.": "동영상 창을 열 수 없습니다.",
   "Video penceresinde aç": "동영상 창에서 열기",
   "Video yükleniyor…": "동영상 불러오는 중…",
-  "Şu an bir şarkı çalmıyor": "지금 재생 중인 곡이 없습니다"
+  "Şu an bir şarkı çalmıyor": "지금 재생 중인 곡이 없습니다",
+  "YouTube Music ile keşfet": "YouTube Music으로 둘러보기",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Google 계정이 필요 없어요. 검색, 앨범, 아티스트, 플레이리스트, 라디오를 YouTube Music에서 가져와요",
+  "MusicBrainz ile keşfet": "MusicBrainz로 둘러보기",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "공개 음악 데이터베이스: MusicBrainz와 ListenBrainz",
+  "Spotify olmadan katalog": "Spotify 없이 쓸 카탈로그",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Spotify에 연결되어 있지 않을 때 검색, 앨범, 아티스트, 홈을 여기서 가져와요. YouTube Music: 노래가 정확히 그 음원으로 재생되고 플레이리스트와 라디오도 있어요. MusicBrainz: 공개 음악 데이터베이스예요.",
+  "YouTube Music bunun için radyo sunmuyor": "YouTube Music에서 이 항목의 라디오를 제공하지 않아요",
+  "Bunun için radyo yok": "이 항목의 라디오가 없어요",
+  "YouTube Music bağlantısını kopyala": "YouTube Music 링크 복사",
+  "Ruh hâli ve türler": "분위기 및 장르",
+  "Bağlantını kontrol edip tekrar dene.": "연결 상태를 확인하고 다시 시도해 주세요.",
+  "YouTube Music albümü": "YouTube Music 앨범",
+  "YouTube Music sanatçısı": "YouTube Music 아티스트",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music에서 이 장르의 플레이리스트를 보여 주지 않았어요.",
+  "YouTube Music çalma listesi": "YouTube Music 재생목록",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "플레이리스트 · YOUTUBE MUSIC",
+  "{} AYLIK DİNLEYİCİ · YOUTUBE MUSIC": "월간 청취자 {}명 · YOUTUBE MUSIC"
 }

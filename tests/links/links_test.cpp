@@ -114,6 +114,14 @@ static void testYouTube() {
     expect("https://music.youtube.com/playlist?list=OLAK5uy_kIhNTSEGnAyPZqWKFy0Li1Jrk0tyk0yAo&si=x",
            Kind::YouTubePlaylist, "OLAK5uy_kIhNTSEGnAyPZqWKFy0Li1Jrk0tyk0yAo");
     CHECK(links::isPlaylistId("PL1234567890") && !links::isPlaylistId("PL12") && !links::isPlaylistId("PL12345678!0"));
+    // YouTube Music albums and artists (music.youtube.com only).
+    expect("https://music.youtube.com/browse/MPREb_K8qWMWVqXGi", Kind::YtmAlbum, "MPREb_K8qWMWVqXGi");
+    expect("music.youtube.com/browse/MPREb_K8qWMWVqXGi?si=abc", Kind::YtmAlbum, "MPREb_K8qWMWVqXGi");
+    expect("https://music.youtube.com/channel/UCRr1xG_2WIDs18a6cIiCxeA", Kind::YtmArtist, "UCRr1xG_2WIDs18a6cIiCxeA");
+    expect("https://music.youtube.com/channel/UCRr1xG_2WIDs18a6cIiCxe", Kind::Unsupported);   // too short
+    expect("https://music.youtube.com/browse/FEmusic_home", Kind::Unsupported);
+    expect("https://www.youtube.com/browse/MPREb_K8qWMWVqXGi", Kind::Unsupported);
+    expect("https://www.youtube.com/channel/UCRr1xG_2WIDs18a6cIiCxeA", Kind::Unsupported);
     // Known service, nothing to open.
     expect("https://www.youtube.com/playlist?list=PL1", Kind::Unsupported);
     expect("https://www.youtube.com/@someone", Kind::Unsupported);

@@ -13,6 +13,7 @@
 #include "spotify/SpotifyApi.h"
 #include "ui/Window.h"
 #include "youtube/MatchService.h"
+#include "ytmusic/Parse.h"
 
 #include <windows.h>
 
@@ -200,6 +201,8 @@ std::wstring linkLabel(const Link& link) {
     case Kind::SpotifyArtist: return tr(L"Spotify sanatçısı");
     case Kind::YouTubeVideo: return tr(L"YouTube videosu");
     case Kind::YouTubePlaylist: return tr(L"YouTube oynatma listesi");
+    case Kind::YtmAlbum: return tr(L"YouTube Music albümü");
+    case Kind::YtmArtist: return tr(L"YouTube Music sanatçısı");
     case Kind::MbReleaseGroup:
     case Kind::MbRelease: return tr(L"MusicBrainz albümü");
     case Kind::MbArtist: return tr(L"MusicBrainz sanatçısı");
@@ -215,12 +218,14 @@ std::wstring linkAction(const Link& link) {
     case Kind::SpotifyTrack:
     case Kind::MbRecording: return tr(L"Şarkıyı çal");
     case Kind::YouTubeVideo: return tr(L"Videoyu şarkı olarak çal");
-    case Kind::YouTubePlaylist: return tr(L"Yerel listeye aktar");
+    case Kind::YouTubePlaylist: return source::ytmMode() ? tr(L"Çalma listesini aç") : tr(L"Yerel listeye aktar");
     case Kind::SpotifyAlbum:
     case Kind::MbReleaseGroup:
+    case Kind::YtmAlbum:
     case Kind::MbRelease: return tr(L"Albümü aç");
     case Kind::SpotifyPlaylist: return tr(L"Çalma listesini aç");
     case Kind::SpotifyArtist:
+    case Kind::YtmArtist:
     case Kind::MbArtist: return tr(L"Sanatçıyı aç");
     case Kind::JamInvite: return tr(L"Oturuma katıl");
     case Kind::None:
@@ -276,7 +281,17 @@ bool openLink(const Link& link) {
         break;
     case Kind::SpotifyTrack: openSpotifyTrack(link.spotifyUri()); break;
     case Kind::YouTubeVideo: openYouTubeVideo(link.id); break;
-    case Kind::YouTubePlaylist: transfer::importYouTubePlaylist(link.id); break;
+    case Kind::YouTubePlaylist:
+        // With YouTube Music as the catalog the list opens as its page (which can still copy it into a local list).
+        if (source::ytmMode() && router) router->navigate({RouteKind::Playlist, ytm::playlistId(link.id)});
+        else transfer::importYouTubePlaylist(link.id);
+        break;
+    case Kind::YtmAlbum:
+        if (router) router->navigate({RouteKind::Album, ytm::albumId(link.id)});
+        break;
+    case Kind::YtmArtist:
+        if (router) router->navigate({RouteKind::Artist, ytm::artistId(link.id)});
+        break;
     case Kind::MbReleaseGroup:
         if (router) router->navigate({RouteKind::Album, link.id});
         break;

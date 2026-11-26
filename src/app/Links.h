@@ -7,7 +7,8 @@
 //   /user/<name>/playlist/<id>, and spotify:{track,album,playlist,artist}:<id> (also spotify:user:<name>:playlist:<id>);
 //   youtube.com / m. / music. / youtube-nocookie.com: /watch?v=<id>, /shorts/<id>, /embed/<id>, /live/<id>, /v/<id>,
 //   and youtu.be/<id> (11-char video ids); youtube.com / music.youtube.com /playlist?list=<id> (imported as a local
-//   playlist: app/PlaylistTransfer);
+//   playlist: app/PlaylistTransfer; with YouTube Music as the catalog, opened as its playlist page);
+//   music.youtube.com/browse/MPREb_<id> (an album) and music.youtube.com/channel/UC<22> (an artist): YouTube Music's;
 //   musicbrainz.org/{release-group,release,artist,recording}/<mbid>[/...];
 //   shadetube://jam/<base64url token>[/] (a listen-together invite; app/JamInvite decodes the token). Any other
 //   shadetube: link is Unsupported.
@@ -29,7 +30,9 @@ enum class Kind {
     SpotifyPlaylist,
     SpotifyArtist,
     YouTubeVideo,
-    YouTubePlaylist,    // imported as a local playlist
+    YouTubePlaylist,    // imported as a local playlist (YouTube Music catalog: its playlist page)
+    YtmAlbum,           // music.youtube.com/browse/MPREb_...: YouTube Music's album page (id = the browse id)
+    YtmArtist,          // music.youtube.com/channel/UC...: YouTube Music's artist page (id = the channel id)
     MbReleaseGroup,     // what ShadeTube calls an album in MusicBrainz mode
     MbRelease,          // one edition: opened as its release group
     MbArtist,

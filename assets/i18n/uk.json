@@ -2081,5 +2081,27 @@
   "Video penceresi açılamadı.": "Не вдалося відкрити вікно відео.",
   "Video penceresinde aç": "Відкрити у вікні відео",
   "Video yükleniyor…": "Завантаження відео…",
-  "Şu an bir şarkı çalmıyor": "Зараз нічого не грає"
+  "Şu an bir şarkı çalmıyor": "Зараз нічого не грає",
+  "YouTube Music ile keşfet": "Слухати через YouTube Music",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Обліковий запис Google не потрібен: пошук, альбоми, виконавці, плейлисти й радіо беруться з YouTube Music",
+  "MusicBrainz ile keşfet": "Слухати через MusicBrainz",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "Відкрита музична база даних: MusicBrainz і ListenBrainz",
+  "Spotify olmadan katalog": "Каталог без Spotify",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Поки Spotify не підключено, пошук, альбоми, виконавці й головна беруться звідси. YouTube Music: пісні грають саме з цього запису, є плейлисти й радіо. MusicBrainz: відкрита музична база даних.",
+  "YouTube Music bunun için radyo sunmuyor": "YouTube Music не пропонує радіо для цього",
+  "Bunun için radyo yok": "Для цього немає радіо",
+  "YouTube Music bağlantısını kopyala": "Копіювати посилання YouTube Music",
+  "Ruh hâli ve türler": "Настрої та жанри",
+  "Bağlantını kontrol edip tekrar dene.": "Перевір з’єднання й спробуй ще раз.",
+  "YouTube Music albümü": "Альбом YouTube Music",
+  "YouTube Music sanatçısı": "Виконавець YouTube Music",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music не показав плейлистів для цього жанру.",
+  "YouTube Music çalma listesi": "Плейлист YouTube Music",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "ПЛЕЙЛИСТ · YOUTUBE MUSIC",
+  "{} AYLIK DİNLEYİCİ · YOUTUBE MUSIC": {
+    "one": "{} СЛУХАЧ НА МІСЯЦЬ · YOUTUBE MUSIC",
+    "few": "{} СЛУХАЧІ НА МІСЯЦЬ · YOUTUBE MUSIC",
+    "many": "{} СЛУХАЧІВ НА МІСЯЦЬ · YOUTUBE MUSIC",
+    "other": "{} СЛУХАЧІВ НА МІСЯЦЬ · YOUTUBE MUSIC"
+  }
 }

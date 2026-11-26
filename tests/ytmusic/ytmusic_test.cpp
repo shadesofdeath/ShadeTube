@@ -438,6 +438,8 @@ static void live(const std::string& query) {
             std::printf("    \"%s\": %zu top songs, %zu albums, %zu singles, %zu related, %lld monthly\n", p.artist.name.c_str(),
                         p.topTracks.size(), p.albums.size(), p.singles.size(), p.similar.size(), static_cast<long long>(p.artist.listenCount));
             CHECK(!p.topTracks.empty() && !p.albums.empty() && !p.similar.empty());
+            // The top songs come from the artist's songs list: more than the page's five, with their lengths.
+            CHECK(p.topTracks.size() > 5 && p.topTracks[0].durationMs > 0);
             CHECK(squareImages(p.artist.images));
             const auto radio = timed("artist radio", [&] { return ytm::radio(p.artist.id, 60); });
             CHECK(radio.size() >= 20);

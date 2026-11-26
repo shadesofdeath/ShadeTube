@@ -1,7 +1,9 @@
 #pragma once
 // Source-independent catalog models shared by every module (MusicBrainz client, local library, player, UI).
-// Catalog ids are MusicBrainz MBIDs (UUID strings). Audio always comes from YouTube: a Track may carry a
-// cached videoId; otherwise youtube::MatchService finds one from title/artist/duration.
+// Catalog ids are MusicBrainz MBIDs (UUID strings), Spotify URIs ("spotify:<kind>:<id>") or YouTube Music ids
+// ("yt:<videoId>" songs, "ytm:album:" / "ytm:artist:" / "ytm:playlist:" collections; src/ytmusic). Audio always comes
+// from YouTube: a Track may carry its videoId (YouTube Music songs always do: that video plays, nothing is matched);
+// otherwise youtube::MatchService finds one from title/artist/duration.
 // Strings are UTF-8.
 #include <cstdint>
 #include <string>

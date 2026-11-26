@@ -2,6 +2,17 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.11.0 — unreleased
+
+- **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or
+  Settings › Spotify account) and search, albums, artists, playlists and Home come from YouTube Music, no Google
+  account needed. Search finds songs, albums, artists and playlists; artist pages have top songs, albums, singles and
+  related artists; Home brings YouTube Music's mixes, new releases, trending songs, charts and top artists, and the
+  Search page its moods & genres. Every song plays exactly the recording YouTube Music lists, never a guessed match.
+  Radio and endless playback use YouTube Music's own mixes, so the music keeps going. Likes, local playlists,
+  downloads, offline sync and stats work as before; a YouTube Music playlist can be copied into a local one, and pasted
+  music.youtube.com album and artist links open their pages.
+
 ## 0.10.0 — 2026-11-23
 
 - **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays

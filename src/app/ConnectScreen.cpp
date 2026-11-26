@@ -55,7 +55,9 @@ ConnectScreen::ConnectScreen()
       subtitle_(tr(L"Spotify kitaplığın, çalma listelerin ve aramaların burada. Sesler YouTube'dan akar — "
                    L"reklamsız, hesap kısıtlaması olmadan."),
                 type::bodyL, wrapOpts(3)),
-      stepsHead_(toUpperTr(tr(L"NASIL ÇALIŞIR")), type::monoLabel) {
+      stepsHead_(toUpperTr(tr(L"NASIL ÇALIŞIR")), type::monoLabel),
+      // Not upper-cased: Turkish casing would spell the brand "SPOTİFY".
+      without_(tr(L"Spotify olmadan keşfet"), type::caption) {
     steps_[0] = gfx::Text(tr(L"Spotify hesabınla giriş yap — şifren ShadeTube'a değil, doğrudan Spotify'a gider."),
                           type::body, wrapOpts(2));
     steps_[1] = gfx::Text(tr(L"Profilin, çalma listelerin, kaydettiğin albümler ve takip ettiğin sanatçılar gelsin."),
@@ -89,12 +91,14 @@ void ConnectScreen::layout() {
     // Right-hand action column.
     const float colW = std::min(440.f, r.w * 0.42f);
     const float colX = r.w - 96 - colW;
-    const float btnY = r.h * 0.5f + 104;   // under the three steps (they end at +52)
+    const float btnY = r.h * 0.5f + 96;   // under the three steps (they end at +52)
     const float w = std::max({connect_->naturalWidth(), ytm_->naturalWidth(), 220.f});
     connect_->setRect({colX, btnY, w, gfx::metrics::pillH + 8});
-    const float ytmY = btnY + gfx::metrics::pillH + 8 + 12;
+    // "Spotify olmadan keşfet" (painted), then the two open catalogs.
+    withoutY_ = btnY + gfx::metrics::pillH + 8 + 20;
+    const float ytmY = withoutY_ + 16 + 10;
     ytm_->setRect({colX, ytmY, w, gfx::metrics::pillH});
-    skip_->setRect({colX, ytmY + gfx::metrics::pillH + 10, skip_->naturalWidth(), gfx::metrics::ghostH});
+    skip_->setRect({colX, ytmY + gfx::metrics::pillH + 8, skip_->naturalWidth(), gfx::metrics::ghostH});
 }
 
 void ConnectScreen::paint(ui::Canvas& c) {
@@ -132,6 +136,7 @@ void ConnectScreen::paint(ui::Canvas& c) {
         c.text(steps_[i], {colX + 40, sy, colW - 40, 44}, col.fgPrimary);
         sy += 56;
     }
+    c.text(without_, {colX, r.y + withoutY_, colW, 16}, col.fgTertiary);
     paintChildren(c);
 }
 

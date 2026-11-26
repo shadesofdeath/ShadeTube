@@ -23,8 +23,9 @@ private:
     ui::Button* connect_;
     ui::Button* ytm_;
     ui::Button* skip_;
-    gfx::Text brand_, tag_, title1_, title2_, subtitle_, stepsHead_;
+    gfx::Text brand_, tag_, title1_, title2_, subtitle_, stepsHead_, without_;
     gfx::Text steps_[3];
+    float withoutY_ = 0;   // the "Spotify olmadan keşfet" caption over the open catalogs' buttons
     Lifetime life_;
 };
 

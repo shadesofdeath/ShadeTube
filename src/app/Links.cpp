@@ -101,7 +101,12 @@ Link video(std::string_view id) {
     return make(Kind::YouTubeVideo, Service::YouTube, std::string(id));
 }
 
-Link parseYouTube(const std::vector<std::string_view>& seg, std::string_view query) {
+bool idChars(std::string_view s) {
+    return std::all_of(s.begin(), s.end(), [](char c) { return isAlnum(c) || c == '-' || c == '_'; });
+}
+
+// `music`: music.youtube.com, whose album (/browse/MPREb_...) and artist (/channel/UC...) pages open as YouTube Music's.
+Link parseYouTube(const std::vector<std::string_view>& seg, std::string_view query, bool music) {
     if (seg.empty()) return unsupported(Service::YouTube);
     const std::string first = toLower(seg[0]);
     if (first == "watch") return video(queryValue(query, "v"));
@@ -111,6 +116,11 @@ Link parseYouTube(const std::vector<std::string_view>& seg, std::string_view que
         const auto list = queryValue(query, "list");
         if (isPlaylistId(list)) return make(Kind::YouTubePlaylist, Service::YouTube, std::string(list));
     }
+    if (music && first == "browse" && seg.size() >= 2 && seg[1].size() >= 10 && seg[1].size() <= 48 &&
+        seg[1].substr(0, 6) == "MPREb_" && idChars(seg[1]))
+        return make(Kind::YtmAlbum, Service::YouTube, std::string(seg[1]));
+    if (music && first == "channel" && seg.size() >= 2 && seg[1].size() == 24 && seg[1].substr(0, 2) == "UC" && idChars(seg[1]))
+        return make(Kind::YtmArtist, Service::YouTube, std::string(seg[1]));
     return unsupported(Service::YouTube);   // channels, @handles, search results...
 }
 
@@ -201,7 +211,7 @@ Link parse(std::string_view text) {
     if (host == "youtu.be") return seg.empty() ? unsupported(Service::YouTube) : video(seg[0]);
     if (host == "youtube.com" || host == "m.youtube.com" || host == "music.youtube.com" ||
         host == "youtube-nocookie.com")
-        return parseYouTube(seg, query);
+        return parseYouTube(seg, query, host == "music.youtube.com");
     if (host == "musicbrainz.org" || host == "beta.musicbrainz.org") return parseMusicBrainz(seg);
     return {};
 }

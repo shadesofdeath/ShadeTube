@@ -1743,5 +1743,22 @@
   "Video penceresi açılamadı.": "動画ウィンドウを開けませんでした。",
   "Video penceresinde aç": "動画ウィンドウで開く",
   "Video yükleniyor…": "動画を読み込み中…",
-  "Şu an bir şarkı çalmıyor": "現在再生中の曲はありません"
+  "Şu an bir şarkı çalmıyor": "現在再生中の曲はありません",
+  "YouTube Music ile keşfet": "YouTube Musicで始める",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Googleアカウントは不要です。検索、アルバム、アーティスト、プレイリスト、ラジオはYouTube Musicから取得します",
+  "MusicBrainz ile keşfet": "MusicBrainzで始める",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "オープンな音楽データベース：MusicBrainzとListenBrainz",
+  "Spotify olmadan katalog": "Spotifyなしのカタログ",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Spotifyに接続していない間、検索・アルバム・アーティスト・ホームはここから取得します。YouTube Music：曲はその音源どおりに再生され、プレイリストとラジオもあります。MusicBrainz：オープンな音楽データベースです。",
+  "YouTube Music bunun için radyo sunmuyor": "この項目にはYouTube Musicのラジオがありません",
+  "Bunun için radyo yok": "これに対応するラジオはありません",
+  "YouTube Music bağlantısını kopyala": "YouTube Musicのリンクをコピー",
+  "Ruh hâli ve türler": "ムードとジャンル",
+  "Bağlantını kontrol edip tekrar dene.": "接続を確認して、もう一度お試しください。",
+  "YouTube Music albümü": "YouTube Music のアルバム",
+  "YouTube Music sanatçısı": "YouTube Music のアーティスト",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music はこのジャンルのプレイリストを表示しませんでした。",
+  "YouTube Music çalma listesi": "YouTube Music の再生リスト",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "プレイリスト · YOUTUBE MUSIC",
+  "{} AYLIK DİNLEYİCİ · YOUTUBE MUSIC": "月間リスナー{}人 · YOUTUBE MUSIC"
 }
