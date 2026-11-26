@@ -196,6 +196,7 @@ std::optional<CacheEntry> readCache(const fs::path& p) {
     l.synced = j.value("synced", false);
     l.instrumental = j.value("instrumental", false);
     l.source = j.value("src", std::string(kSourceLrclib));
+    if (auto it = j.find("lid"); it != j.end() && it->is_number_integer()) l.lrclibId = it->get<int64_t>();
     if (auto it = j.find("lines"); it != j.end() && it->is_array()) {
         for (const auto& x : *it) {
             if (!x.is_array() || x.size() != 2 || !x[0].is_number_integer() || !x[1].is_string()) continue;
@@ -231,6 +232,7 @@ void writeCache(const fs::path& p, const CacheEntry& e) {
         j["synced"] = l.synced;
         j["instrumental"] = l.instrumental;
         j["src"] = l.source.empty() ? std::string(kSourceLrclib) : l.source;
+        if (l.lrclibId > 0) j["lid"] = l.lrclibId;
         json lines = json::array();
         json words = json::object();
         for (size_t i = 0; i < l.lines.size(); ++i) {
@@ -280,23 +282,35 @@ bool plausible(const Lyrics& l) {
     return lines >= 2 || chars >= 24;
 }
 
+int64_t recordId(const json& r) {
+    auto it = r.find("id");
+    if (it == r.end()) return 0;
+    if (it->is_number_integer()) return it->get<int64_t>();
+    if (it->is_number()) return static_cast<int64_t>(it->get<double>());
+    return 0;
+}
+
 // Converts an LRCLIB record to Lyrics; nullopt if it carries nothing usable.
 std::optional<Lyrics> fromRecord(const json& r) {
     if (!r.is_object()) return std::nullopt;
+    const int64_t id = recordId(r);
     if (auto it = r.find("instrumental"); it != r.end() && it->is_boolean() && it->get<bool>()) {
         Lyrics l;
         l.instrumental = true;
         l.source = kSourceLrclib;
+        l.lrclibId = id;
         return l;
     }
     if (auto synced = jstr(r, "syncedLyrics"); !trim(synced).empty()) {
         auto l = parseLrc(synced);
         l.source = kSourceLrclib;
+        l.lrclibId = id;
         if (!l.lines.empty() && plausible(l)) return l;
     }
     if (auto plain = jstr(r, "plainLyrics"); !trim(plain).empty()) {
         auto l = plainToLyrics(plain);
         l.source = kSourceLrclib;
+        l.lrclibId = id;
         if (!l.lines.empty() && plausible(l)) return l;
     }
     return std::nullopt;
@@ -417,6 +431,55 @@ std::optional<Lyrics> fetchOnline(const Query& q, const YoutubeExplode::Cancella
         writeCache(cache, entry);
     }
     return best;
+}
+
+// ---- The user's pick ("Yanlış sözler mi?") -------------------------------------------------------------------------
+
+fs::path recordCachePath(int64_t id) { return id > 0 ? cachePath("lrclib-" + std::to_string(id)) : fs::path(); }
+
+// A picked LRCLIB record: cached once picked (rememberRecord), else asked by id. nullopt = can't be had now (offline,
+// the record gone): the chain answers instead.
+std::optional<Lyrics> chosenRecord(int64_t id, const YoutubeExplode::CancellationToken& ct) {
+    const fs::path cache = recordCachePath(id);
+    if (cache.empty()) return std::nullopt;
+    if (auto e = readCache(cache); e && e->found) return e->lyrics;
+    try {
+        const auto resp = lrclibGet("https://lrclib.net/api/get/" + std::to_string(id), ct);
+        if (resp.statusCode != 200) {
+            ST_LOG_WARN("lyrics", "lrclib record {}: HTTP {}", id, resp.statusCode);
+            return std::nullopt;
+        }
+        auto l = fromRecord(json::parse(resp.body, nullptr, false));
+        if (!l) return std::nullopt;
+        writeCache(cache, CacheEntry{true, *l, {kSourceLrclib}});
+        return l;
+    } catch (const YoutubeExplode::Exceptions::HttpRequestException& e) {
+        ST_LOG_WARN("lyrics", "lrclib record {} failed: {}", id, e.what());
+        return std::nullopt;
+    }
+}
+
+// The fallback provider's lyrics as the pick (Spotify's for a Spotify track), cached apart from the chain's answer.
+// `none`: the provider said it has none (cached for kNegativeTtlSec like the chain's "none").
+std::optional<Lyrics> chosenFallback(const Query& q, const YoutubeExplode::CancellationToken& ct, bool& none) {
+    none = false;
+    if (!q.fallback || q.fallbackName.empty()) return std::nullopt;
+    const fs::path cache = cachePath(q.cacheKey + "~" + q.fallbackName);
+    if (auto e = readCache(cache)) {
+        if (e->found) return e->lyrics;
+        none = true;
+        return std::nullopt;
+    }
+    auto r = q.fallback(ct);
+    if (r.kind == ProviderResult::Kind::Failed) return std::nullopt;
+    if (r.kind == ProviderResult::Kind::Found && !r.lyrics.lines.empty()) {
+        if (r.lyrics.source.empty()) r.lyrics.source = q.fallbackName;
+        writeCache(cache, CacheEntry{true, r.lyrics, {q.fallbackName}});
+        return std::move(r.lyrics);
+    }
+    writeCache(cache, CacheEntry{false, {}, {q.fallbackName}});
+    none = true;
+    return std::nullopt;
 }
 
 } // namespace
@@ -617,6 +680,24 @@ int64_t mediaTime(int64_t songMs, const Ranges& extra) {
 }
 
 std::optional<Lyrics> fetch(const Query& q, const YoutubeExplode::CancellationToken& ct) {
+    // The user's pick wins; one that can't be had right now leaves it to the chain below.
+    switch (q.choice.kind) {
+    case Choice::Kind::None: return std::nullopt;
+    case Choice::Kind::Lrclib:
+        if (auto l = chosenRecord(q.choice.lrclibId, ct)) return l;
+        break;
+    case Choice::Kind::File:
+        if (auto l = readLyricsFile(q.choiceFile)) return l;
+        ST_LOG_WARN("lyrics", "the picked lyrics file of '{}' is gone", q.title);
+        break;
+    case Choice::Kind::Spotify: {
+        bool none = false;
+        if (auto l = chosenFallback(q, ct, none)) return l;
+        if (none) return std::nullopt;
+        break;
+    }
+    case Choice::Kind::Auto: break;
+    }
     std::optional<Lyrics> local;
     if (!q.audioPath.empty()) {
         local = readLocal(q.audioPath);
@@ -627,6 +708,97 @@ std::optional<Lyrics> fetch(const Query& q, const YoutubeExplode::CancellationTo
     if (online && (online->synced || online->instrumental)) return online;
     if (local) return local;   // the user's own unsynced text beats an unsynced online one
     return online;
+}
+
+// ---- "Yanlış sözler mi?" ---------------------------------------------------------------------------------------
+
+std::vector<SearchHit> parseSearch(const std::string& body) {
+    std::vector<SearchHit> out;
+    const json j = json::parse(body, nullptr, false);
+    if (!j.is_array()) return out;
+    for (const auto& r : j) {
+        auto l = fromRecord(r);
+        if (!l) continue;   // junk or empty
+        SearchHit h;
+        h.id = recordId(r);
+        if (h.id <= 0) continue;
+        h.title = jstr(r, "trackName");
+        if (h.title.empty()) h.title = jstr(r, "name");
+        h.artist = jstr(r, "artistName");
+        h.album = jstr(r, "albumName");
+        const double d = recordDuration(r);
+        h.durationSec = d > 0 ? static_cast<int>(std::lround(d)) : 0;
+        h.instrumental = l->instrumental;
+        h.synced = l->synced;
+        h.lyrics = std::move(*l);
+        out.push_back(std::move(h));
+    }
+    return out;
+}
+
+std::optional<std::vector<SearchHit>> search(const std::string& text, const YoutubeExplode::CancellationToken& ct) {
+    if (trim(text).empty()) return std::vector<SearchHit>{};
+    try {
+        const auto resp = lrclibGet("https://lrclib.net/api/search?q=" + http::urlEncode(std::string(trim(text))), ct);
+        if (resp.statusCode == 404) return std::vector<SearchHit>{};
+        if (resp.statusCode != 200) {
+            ST_LOG_WARN("lyrics", "lrclib search HTTP {}", resp.statusCode);
+            return std::nullopt;
+        }
+        return parseSearch(resp.body);
+    } catch (const YoutubeExplode::Exceptions::HttpRequestException& e) {
+        ST_LOG_WARN("lyrics", "lrclib search failed: {}", e.what());
+        return std::nullopt;
+    }
+}
+
+void rankHits(std::vector<SearchHit>& hits, int durationSec) {
+    if (durationSec <= 0) return;
+    auto diff = [durationSec](const SearchHit& h) { return h.durationSec > 0 ? std::abs(h.durationSec - durationSec) : 1 << 20; };
+    std::stable_sort(hits.begin(), hits.end(), [&](const SearchHit& a, const SearchHit& b) {
+        const int da = diff(a), db = diff(b);
+        const bool ia = da <= kDurationToleranceSec, ib = db <= kDurationToleranceSec;
+        if (ia != ib) return ia;
+        if (ia && a.synced != b.synced) return a.synced;
+        return da < db;
+    });
+}
+
+void rememberRecord(const SearchHit& hit) {
+    if (hit.id <= 0) return;
+    Lyrics l = hit.lyrics;
+    l.lrclibId = hit.id;
+    if (l.source.empty()) l.source = kSourceLrclib;
+    writeCache(recordCachePath(hit.id), CacheEntry{true, std::move(l), {kSourceLrclib}});
+}
+
+std::string previewText(const Lyrics& l, size_t lines) {
+    std::string out;
+    size_t n = 0;
+    for (const auto& line : l.lines) {
+        if (n >= lines) break;
+        const auto t = trim(line.text);
+        if (t.empty()) continue;
+        if (!out.empty()) out += " / ";
+        out += t;
+        ++n;
+    }
+    return out;
+}
+
+std::optional<Lyrics> readLyricsFile(const fs::path& path) {
+    constexpr uintmax_t kMaxBytes = 1u << 20;
+    if (path.empty()) return std::nullopt;
+    std::error_code ec;
+    const auto size = fs::file_size(path, ec);
+    if (ec || size == 0 || size > kMaxBytes) return std::nullopt;
+    std::ifstream f(path, std::ios::binary);
+    if (!f) return std::nullopt;
+    const std::string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    Lyrics l = parseLrc(decodeText(bytes));
+    if (l.lines.empty() || !plausible(l)) return std::nullopt;
+    l.source = kSourceUserFile;
+    return l;
 }
 
 // ---- Offsets ---------------------------------------------------------------------------------
@@ -646,19 +818,66 @@ void Offsets::loadLocked() {
     const std::string data((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
     const json j = json::parse(data, nullptr, false);
     if (!j.is_object()) return;
-    const auto it = j.find("offsets");
-    if (it == j.end() || !it->is_object()) return;
-    for (const auto& [id, v] : it->items()) {
-        if (!v.is_array() || v.size() != 2 || !v[0].is_number_integer() || !v[1].is_number_integer()) continue;
-        const int ms = std::clamp(v[0].get<int>(), -kMaxMs, kMaxMs);
-        if (ms != 0) entries_[id] = {ms, v[1].get<int64_t>()};
+    if (const auto it = j.find("offsets"); it != j.end() && it->is_object()) {
+        for (const auto& [id, v] : it->items()) {
+            if (!v.is_array() || v.size() != 2 || !v[0].is_number_integer() || !v[1].is_number_integer()) continue;
+            const int ms = std::clamp(v[0].get<int>(), -kMaxMs, kMaxMs);
+            if (ms != 0) entries_[id] = {ms, v[1].get<int64_t>()};
+        }
+    }
+    if (const auto it = j.find("choices"); it != j.end() && it->is_object()) {
+        for (const auto& [id, v] : it->items()) {
+            if (!v.is_object()) continue;
+            const std::string k = v.value("k", std::string());
+            ChoiceEntry e;
+            e.at = v.contains("at") && v["at"].is_number_integer() ? v["at"].get<int64_t>() : 0;
+            if (k == "lrclib") {
+                e.choice.kind = Choice::Kind::Lrclib;
+                e.choice.lrclibId = v.contains("id") && v["id"].is_number_integer() ? v["id"].get<int64_t>() : 0;
+                if (e.choice.lrclibId <= 0) continue;
+            } else if (k == "spotify") {
+                e.choice.kind = Choice::Kind::Spotify;
+            } else if (k == "file") {
+                e.choice.kind = Choice::Kind::File;
+                e.choice.file = v.value("f", std::string());
+                // Only a plain name inside fileDir(): never a path out of it.
+                if (e.choice.file.empty() || e.choice.file.find_first_of("/\\:") != std::string::npos ||
+                    e.choice.file.find("..") != std::string::npos)
+                    continue;
+            } else if (k == "none") {
+                e.choice.kind = Choice::Kind::None;
+            } else {
+                continue;
+            }
+            choices_[id] = std::move(e);
+        }
     }
 }
 
 void Offsets::saveLocked() {
     json offsets = json::object();
     for (const auto& [id, e] : entries_) offsets[id] = json::array({e.ms, e.at});
-    const std::string s = json{{"v", 1}, {"offsets", std::move(offsets)}}.dump();
+    json choices = json::object();
+    for (const auto& [id, e] : choices_) {
+        json v{{"at", e.at}};
+        switch (e.choice.kind) {
+        case Choice::Kind::Lrclib:
+            v["k"] = "lrclib";
+            v["id"] = e.choice.lrclibId;
+            break;
+        case Choice::Kind::Spotify: v["k"] = "spotify"; break;
+        case Choice::Kind::File:
+            v["k"] = "file";
+            v["f"] = e.choice.file;
+            break;
+        case Choice::Kind::None: v["k"] = "none"; break;
+        case Choice::Kind::Auto: continue;
+        }
+        choices[id] = std::move(v);
+    }
+    json root{{"v", 1}, {"offsets", std::move(offsets)}};
+    if (!choices.empty()) root["choices"] = std::move(choices);
+    const std::string s = root.dump();
     std::error_code ec;
     fs::create_directories(file_.parent_path(), ec);
     auto tmp = file_;
@@ -697,6 +916,70 @@ int Offsets::set(const std::string& trackId, int ms) {
     }
     saveLocked();
     return ms;
+}
+
+fs::path Offsets::fileDir() const { return file_.parent_path() / L"lyrics"; }
+
+Choice Offsets::choice(const std::string& trackId) {
+    std::lock_guard lock(mutex_);
+    loadLocked();
+    const auto it = choices_.find(trackId);
+    return it == choices_.end() ? Choice{} : it->second.choice;
+}
+
+void Offsets::setChoice(const std::string& trackId, const Choice& c) {
+    if (trackId.empty()) return;
+    std::lock_guard lock(mutex_);
+    loadLocked();
+    std::string dropFile;   // a picked file nothing uses any more
+    if (const auto it = choices_.find(trackId); it != choices_.end() && it->second.choice.kind == Choice::Kind::File &&
+                                                 !(c.kind == Choice::Kind::File && c.file == it->second.choice.file))
+        dropFile = it->second.choice.file;
+    if (c.kind == Choice::Kind::Auto) choices_.erase(trackId);
+    else choices_[trackId] = {c, nowUnix()};
+    while (choices_.size() > kMaxEntries) {
+        auto oldest = std::min_element(choices_.begin(), choices_.end(),
+                                       [](const auto& a, const auto& b) { return a.second.at < b.second.at; });
+        if (oldest->second.choice.kind == Choice::Kind::File) {
+            std::error_code ec;
+            fs::remove(fileDir() / oldest->second.choice.file, ec);
+        }
+        choices_.erase(oldest);
+    }
+    saveLocked();
+    if (!dropFile.empty()) {
+        std::error_code ec;
+        fs::remove(fileDir() / dropFile, ec);
+    }
+}
+
+std::string Offsets::importFile(const std::string& trackId, const fs::path& source) {
+    if (trackId.empty() || !readLyricsFile(source)) return {};
+    std::ifstream in(source, std::ios::binary);
+    if (!in) return {};
+    const std::string text = decodeText(std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>()));
+    std::string name;
+    for (char c : trackId)
+        name.push_back((isDigit(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '-' || c == '_') ? c : '_');
+    name += ".lrc";
+    const fs::path dir = fileDir();
+    std::error_code ec;
+    fs::create_directories(dir, ec);
+    const fs::path target = dir / name;
+    auto tmp = target;
+    tmp += L".tmp";
+    {
+        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+        if (!f) return {};
+        f.write(text.data(), static_cast<std::streamsize>(text.size()));
+        if (!f) return {};
+    }
+    fs::rename(tmp, target, ec);
+    if (ec) {
+        fs::remove(tmp, ec);
+        return {};
+    }
+    return name;
 }
 
 } // namespace st::lyrics

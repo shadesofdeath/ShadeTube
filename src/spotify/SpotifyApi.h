@@ -3,6 +3,7 @@
 // Uses a Bearer access token minted by Auth (from the sp_dc cookie). Returns source-independent
 // st::catalog models so the rest of the app doesn't care that the data came from Spotify.
 // Blocking + thread-safe: call from worker threads (st::async). Throws st::spotify::ApiError on failure.
+#include "catalog/Credits.h"
 #include "catalog/Models.h"
 #include "spotify/PlaylistTree.h"
 
@@ -176,6 +177,17 @@ public:
     // `language` ("en", optional) goes out as Accept-Language, like the web player's: the translations Spotify sends
     // along ("alternatives") follow it.
     std::string trackLyrics(const std::string& trackId, const CT& ct = {}, const std::string& language = {});
+    // A track's credits (the web player's "Credits" dialog: Pathfinder queryTrackCreditsGroupedModal, up to 100
+    // contributors; when that query fails for another reason than auth / rate limiting, the older spclient
+    // track-credits-view is asked). Contributors with a spotify:artist: URI carry it as their artist id. Empty
+    // Credits when Spotify lists none. Throws ApiError.
+    Credits trackCredits(const std::string& trackUri, const CT& ct = {});
+    // The query's `data` -> Credits (provider "spotify"): trackUnion.creditsTrait.contributors.items[{name, role,
+    // roleGroup:{name}, uri | reference.uri}] and creditsTrait.sources.items[{name}]. Split out for tests.
+    static Credits parseTrackCredits(const nlohmann::json& data);
+    // The legacy track-credits-view JSON {roleCredits:[{roleTitle, artists:[{uri, name, subroles:[...]}]}],
+    // sourceNames:[...]} -> Credits.
+    static Credits parseLegacyCredits(const nlohmann::json& j);
 
     // ---- Social (spotify/Social.cpp) ------------------------------------------------------------------------
     // Friend activity: the people the user follows and what they play now / played last (spclient presence-view

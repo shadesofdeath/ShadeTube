@@ -42,8 +42,19 @@ double lyricsOffsetChangedAt();                        // ui::frame::realNow() o
 std::wstring formatLyricsOffset(int ms);               // "+0,5 sn" / "−1,25 sn" / "0 sn"
 inline constexpr int kLyricsOffsetStepMs = 250;        // the −/+ buttons and keys
 
-// "LRCLIB" / "SPOTIFY" / ".LRC DOSYASI" / "DOSYA ETİKETİ" for a lyrics::Lyrics::source (mono label, uppercased).
+// "LRCLIB" / "SPOTIFY" / ".LRC DOSYASI" / "DOSYA ETİKETİ" / "SEÇİLEN DOSYA" for a lyrics::Lyrics::source (mono label,
+// uppercased).
 std::wstring lyricsSourceLabel(const std::string& source);
+
+// ---- "Yanlış sözler mi?" (app/LyricsPicker) ----------------------------------------------------------------------
+
+// The user's pick of lyrics for a track (lyrics::Offsets, next to its timing offset). Auto = the provider chain.
+lyrics::Choice lyricsChoice(const std::string& trackId);
+// Stores the pick (Auto = back to the chain), resets the track's timing offset (it was set for the old lyrics) and
+// tells the lyrics views (onLyricsChoiceChanged), which load the lyrics again.
+void setLyricsChoice(const std::string& trackId, const lyrics::Choice& c);
+// `fn(trackId)` after every setLyricsChoice while `owner` lives. UI thread.
+void onLyricsChoiceChanged(Lifetime::Ref owner, std::function<void(const std::string& trackId)> fn);
 
 // ---- Translation -------------------------------------------------------------------------------------------------
 

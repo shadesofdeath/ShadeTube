@@ -1,0 +1,30 @@
+{
+  "trackUnion": {
+    "__typename": "Track",
+    "uri": "spotify:track:4u7EnebtmKWzUH433cf5Qv",
+    "name": "Bohemian Rhapsody - Remastered 2011",
+    "artists": { "items": [ { "uri": "spotify:artist:1dfeR4HaWDbWqFHLkxsg1d" } ] },
+    "creditsTrait": {
+      "contributors": {
+        "items": [
+          { "name": "Queen", "role": "Main Artist", "roleGroup": { "name": "Performers" },
+            "uri": "spotify:artist:1dfeR4HaWDbWqFHLkxsg1d", "aiAttribution": null },
+          { "name": "Freddie Mercury", "role": "Composer", "roleGroup": { "name": "Writers" },
+            "reference": { "uri": "spotify:artist:2qCdWVPhRbA4G9cvhI7mHn", "url": null } },
+          { "name": "Freddie Mercury", "role": "Lyricist", "roleGroup": { "name": "Writers" } },
+          { "name": "Roy Thomas Baker", "role": "Producer", "roleGroup": { "name": "Producers" }, "uri": null },
+          { "name": "queen", "role": "Producer", "roleGroup": { "name": "Producers" },
+            "uri": "spotify:artist:1dfeR4HaWDbWqFHLkxsg1d" },
+          { "name": "Mike Stone", "role": "Mixing Engineer", "roleGroup": { "name": "Production & Engineering" } },
+          { "name": "Kosh", "role": "Art Direction", "roleGroup": { "name": "Other" } },
+          { "name": "", "role": "Producer", "roleGroup": { "name": "Producers" } },
+          { "name": "Some Arranger", "role": "Arrangement", "roleGroup": { "name": "Composition & Lyrics" },
+            "uri": "spotify:creator:5Abc" },
+          { "name": "Brian May", "role": "Guitar", "roleGroup": { "name": "Performers" } },
+          { "name": "Unknown Helper", "role": "Thanks", "roleGroup": { "name": "Composition & Lyrics" } }
+        ]
+      },
+      "sources": { "items": [ { "name": "EMI" }, { "name": "Hollywood Records" }, { "name": "emi" } ] }
+    }
+  }
+}

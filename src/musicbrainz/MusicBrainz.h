@@ -9,6 +9,7 @@
 //    ListenBrainz stats 12 hours) so the app feels instant and stays far below the limits.
 //
 // Blocking and thread-safe: call from worker threads (st::async).
+#include "catalog/Credits.h"
 #include "catalog/Models.h"
 
 #include <YoutubeExplode/Common/Cancellation.hpp>
@@ -45,6 +46,17 @@ std::string releaseGroupOfRelease(const std::string& releaseId, const CT& ct = {
 // One recording as a Track: title, artist credit, length and its best (official, album first) release group as the
 // album. Throws ApiError (404 for an unknown MBID).
 Track recording(const std::string& recordingId, const CT& ct = {});
+// Who made a recording: its artist credit, its artist relationships (performers, producers, engineers), the writers of
+// its works and its label relationships as sources (one lookup, cached like the others). Throws ApiError.
+Credits recordingCredits(const std::string& recordingId, const CT& ct = {});
+// The recordings MusicBrainz has for a song known only by name (a Spotify track, a local file), best first, at most
+// `max`: a search for the title and the artist, then detail::rankRecordings (same title and artist, length within
+// 10 s, most releases). Empty when none matches.
+std::vector<std::string> findRecordings(const std::string& title, const std::string& artist, int durationMs, size_t max = 3,
+                                        const CT& ct = {});
+// Credits of a song by name: the first of findRecordings' recordings with relationships beyond its artist credit
+// (else the first one's credit alone). Empty Credits (provider "musicbrainz") when MusicBrainz doesn't know the song.
+Credits songCredits(const std::string& title, const std::string& artist, int durationMs, const CT& ct = {});
 
 // --- ListenBrainz ----------------------------------------------------------------------------------------
 std::vector<Track> topTracksForArtist(const std::string& artistId, int limit = 10, const CT& ct = {});

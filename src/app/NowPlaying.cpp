@@ -1,8 +1,11 @@
 #include "app/NowPlaying.h"
 
 #include "app/Commands.h"
+#include "app/Credits.h"
+#include "app/CreditsUi.h"
 #include "app/InternetRadio.h"
 #include "app/LyricsFullscreen.h"
+#include "app/LyricsPicker.h"
 #include "app/LyricsService.h"
 #include "app/LyricsShare.h"
 #include "app/PodcastUi.h"
@@ -300,6 +303,12 @@ NowPlayingView::NowPlayingView()
     together::subscribe(subs_.ref(), [this] {
         if (open_) syncControls();
     });
+    // Another lyrics pick for the track on screen ("Yanlış sözler mi?"): load them again.
+    onLyricsChoiceChanged(subs_.ref(), [this](const std::string& id) {
+        if (!open_ || id != trackId_) return;
+        lyricsIn_.snap(0);
+        fetchLyrics();
+    });
 
     // Dev: SHADETUBE_NP_TAB=lyrics|queue|about opens on that tab (screenshots).
     wchar_t dev[16] = {};
@@ -404,6 +413,9 @@ void NowPlayingView::deactivate() {
     state_ = LyricsState::None;
     syncLyricsControls();
     life_.renew();
+    lyricsLife_.renew();
+    creditTexts_.clear();
+    creditTexts_.shrink_to_fit();
     // Video mode: its picture goes with the view (a pop-out window keeps it); posted: the view is hidden after this.
     Dispatcher::post([] { videomode::sync(); });
 }
@@ -466,6 +478,7 @@ void NowPlayingView::onTrackChanged() {
     syncTrackText();
     if (t->id != trackId_ && visible()) {
         trackId_ = t->id;
+        life_.renew();       // the last track's details / credits requests
         lyricsIn_.snap(0);   // the new lyrics fade in once they are there
         fetchLyrics();
         about_ = {};
@@ -783,7 +796,9 @@ void NowPlayingView::layout() {
 // ---- lyrics ----------------------------------------------------------------------------------------------------------
 
 void NowPlayingView::fetchLyrics() {
-    life_.renew();
+    lyricsLife_.renew();
+    pick_ = {};
+    lyrics_ = {};
     lines_.clear();
     lineH_.clear();
     lineRects_.clear();
@@ -810,10 +825,12 @@ void NowPlayingView::fetchLyrics() {
     state_ = LyricsState::Loading;
     loadingSince_ = ui::frame::realNow();
     syncLyricsControls();
-    // The track's own file first (a .lrc next to it, its tags), then LRCLIB, then Spotify when logged in.
+    // The user's pick, else the track's own file first (a .lrc next to it, its tags), then LRCLIB, then Spotify when
+    // logged in.
     const lyrics::Query q = lyricsQueryFor(*t);
+    pick_ = q.choice;
     askedSpotify_ = static_cast<bool>(q.fallback);
-    async(Priority::High, life_.ref(), [q] { return lyrics::fetch(q); },
+    async(Priority::High, lyricsLife_.ref(), [q] { return lyrics::fetch(q); },
           [this](Result<std::optional<lyrics::Lyrics>> r) {
               // Fade in from where the content stands now (a placeholder that already showed fades over).
               lyricsIn_.snap(0);
@@ -912,11 +929,36 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
     std::wstring text = state_ == LyricsState::Synced ? tr(L"ŞARKI SÖZLERİ · SENKRONİZE") : toUpperTr(tr(L"Şarkı sözleri"));
     if ((state_ == LyricsState::Synced || state_ == LyricsState::Plain) && !lyrics_.source.empty())
         text += L" · " + lyricsSourceLabel(lyrics_.source);
+    if (pick_.kind != lyrics::Choice::Kind::Auto && pick_.kind != lyrics::Choice::Kind::None &&
+        (state_ == LyricsState::Synced || state_ == LyricsState::Plain || state_ == LyricsState::Instrumental))
+        text += L" · " + toUpperTr(tr(L"Senin seçimin"));
     // The translation follows the setting / target language changed in the full-screen view or Ayarlar.
     if (state_ == LyricsState::Synced || state_ == LyricsState::Plain) translation_.sync();
     const float labelY = r.y + 16;
     const float labelRight = toolbarBelow_ ? toolbarLeft_ - 12 : r.right();
-    c.text(text, type::monoLabel, {r.x, labelY, std::max(40.f, labelRight - r.x), 16}, label);
+    const float avail = std::max(40.f, labelRight - r.x);
+    // "Yanlış sözler mi?" right after the label (app/LyricsPicker), like "Yanlış eşleşme?" under the title; the label
+    // gives way when the row is short.
+    pickerRect_ = {};
+    const bool lyricsShown = state_ == LyricsState::Synced || state_ == LyricsState::Plain || state_ == LyricsState::Instrumental;
+    float labelW = avail;
+    if (lyricsShown) {
+        const std::wstring link = tr(L"Yanlış sözler mi?");
+        auto ll = gfx::makeLayout(link, type::caption, 400);
+        auto tl = gfx::makeLayout(text, type::monoLabel, 4000);
+        DWRITE_TEXT_METRICS lm{}, tm{};
+        ll->GetMetrics(&lm);
+        tl->GetMetrics(&tm);
+        const float lw = std::ceil(lm.widthIncludingTrailingWhitespace) + 4;
+        const float fit = std::min(std::ceil(tm.widthIncludingTrailingWhitespace) + 1, avail - lw - 14);
+        if (fit >= 60) {
+            labelW = fit;
+            pickerRect_ = {r.x + fit + 14, labelY - 3, lw, 22};
+            c.text(link, type::caption, pickerRect_, (hoverPicker_ ? accent().base : col.fgSecondary).mulAlpha(tabIn_.value()),
+                   gfx::TextAlign::Leading, gfx::VAlign::Center);
+        }
+    }
+    c.text(text, type::monoLabel, {r.x, labelY, labelW, 16}, label);
     // The translation's state on the line below: "ÇEVRİLİYOR…", "ÇEVİRİ ALINAMADI", what is shown.
     if (const std::wstring note = translation_.note(); !note.empty())
         c.text(note, type::monoLabel, {r.x, labelY + 20, r.w, 16}, label);
@@ -950,9 +992,24 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
         ui::frame::requestNext();
         return;
     }
-    case LyricsState::Missing:
-        centered(tr(L"Bu şarkı için söz bulunamadı."), askedSpotify_ ? tr(L"KAYNAK · LRCLIB · SPOTIFY") : tr(L"KAYNAK · LRCLIB"));
+    case LyricsState::Missing: {
+        if (pick_.kind == lyrics::Choice::Kind::None)
+            centered(tr(L"Bu şarkıda sözleri kapattın."), toUpperTr(tr(L"Senin seçimin")).c_str());
+        else
+            centered(tr(L"Bu şarkı için söz bulunamadı."), askedSpotify_ ? tr(L"KAYNAK · LRCLIB · SPOTIFY") : tr(L"KAYNAK · LRCLIB"));
+        // Find them by hand (app/LyricsPicker); not when lyrics are off in Ayarlar.
+        if (Settings::get().lyricsEnabled) {
+            const std::wstring link = tr(L"Sözleri ara");
+            auto ll = gfx::makeLayout(link, type::body, 400);
+            DWRITE_TEXT_METRICS lm{};
+            ll->GetMetrics(&lm);
+            const float lw = std::ceil(lm.widthIncludingTrailingWhitespace) + 4;
+            pickerRect_ = {area.x, area.cy() + 32, lw, 24};
+            c.text(link, type::body, pickerRect_, (hoverPicker_ ? accent().base : col.fgPrimary).mulAlpha(fade), gfx::TextAlign::Leading,
+                   gfx::VAlign::Center);
+        }
         return;
+    }
     case LyricsState::Instrumental: centered(tr(L"♪  Enstrümantal"), tr(L"SÖZ YOK · SADECE MÜZİK")); return;
     case LyricsState::None: return;
     default: break;
@@ -1091,6 +1148,7 @@ void NowPlayingView::fetchAbout() {
     if (about_.trackId == t->id && about_.state != About::State::None) return;
     about_ = {};
     about_.trackId = t->id;
+    fetchCredits();   // any song: MusicBrainz also finds local files and previews by name
     const std::string albumId = catalogId(t->album.id) ? t->album.id : std::string();
     const std::string artistId = !t->artists.empty() && catalogId(t->artists[0].id) ? t->artists[0].id : std::string();
     if (albumId.empty() && artistId.empty()) {   // a local file, a preview: only its own fields
@@ -1145,6 +1203,85 @@ void NowPlayingView::fetchAbout() {
             aboutIn_.to(1, ui::motion::slow, ui::Ease::Decelerate);
             invalidate();
         });
+}
+
+// Song credits (app/Credits): asked once per track while Hakkında is open, like the details; the cache answers at once.
+void NowPlayingView::fetchCredits() {
+    const auto* t = ctx().player ? ctx().player->current() : nullptr;
+    if (!t || kind() != Kind::Song) return;
+    about_.creditsState = About::State::Loading;
+    creditTexts_.clear();
+    const std::string id = t->id;
+    async(Priority::Normal, life_.ref(),
+          [req = credits::requestFor(source::activeApi(), *t)] { return credits::fetch(req); },
+          [this, id](Result<std::optional<catalog::Credits>> r) {
+              if (about_.trackId != id) return;
+              about_.credits = r ? *r : std::optional<catalog::Credits>{};
+              about_.creditsState = about_.credits ? About::State::Ready : About::State::Failed;
+              about_.summary = about_.credits ? credits::summary(*about_.credits) : std::vector<catalog::Credit>{};
+              creditTexts_.clear();
+              for (const auto& p : about_.summary)
+                  creditTexts_.emplace_back(gfx::Text(toWide(p.name), type::body), gfx::Text(creditRolesText(p.roles), type::caption));
+              invalidate();
+          });
+}
+
+// Hakkında's credits: the first people (performers, writers, producers; each artist a link), "Tüm krediler" (the
+// dialog) and the sources.
+float NowPlayingView::paintAboutCredits(Canvas& c, float x, float y, float w) {
+    const auto state = about_.creditsState;
+    if (state == About::State::None) return 0;
+    const auto& col = colors();
+    const Color label = backdrop_.labelColor();
+    const float fade = aboutIn_.value() * tabIn_.value();
+    const float y0 = y;
+    c.text(toUpperTr(tr(L"Krediler")), type::monoLabel, {x, y, w, 14}, label.mulAlpha(fade));
+    y += 24;
+    if (state == About::State::Loading) {
+        for (int i = 0; i < 3; ++i) {
+            c.skeleton({x, y + 4, w * (0.42f - 0.07f * static_cast<float>(i)), 12}, gfx::radii().badge, ui::frame::now());
+            c.skeleton({x, y + 24, w * 0.26f, 9}, gfx::radii().badge, ui::frame::now());
+            y += 46;
+        }
+        ui::frame::requestNext();
+        return y - y0 + 22;
+    }
+    const catalog::Credits* cr = about_.credits ? &*about_.credits : nullptr;
+    if (!cr || cr->empty()) {
+        c.text(!cr ? tr(L"Krediler yüklenemedi. Bağlantını kontrol et.") : tr(L"Bu şarkı için kredi bilgisi yok."), type::caption,
+               {x, y, w, 18}, col.fgSecondary.mulAlpha(fade), gfx::TextAlign::Leading, gfx::VAlign::Center);
+        y += 26;
+    } else {
+        for (size_t i = 0; i < about_.summary.size() && i < creditTexts_.size(); ++i) {
+            const auto& p = about_.summary[i];
+            auto& [name, roles] = creditTexts_[i];
+            const bool linked = !p.artistId.empty();
+            const bool hot = linked && static_cast<int>(links_.size()) == hoverLink_;
+            const float nw = std::min(w, std::ceil(name.measure().w) + 1);
+            c.text(name, {x, y, nw, 20}, (hot ? accent().base : col.fgPrimary).mulAlpha(fade), gfx::VAlign::Center);
+            if (linked) links_.push_back({{x, y, nw, 20}, [id = p.artistId] { ctx().router->navigate({RouteKind::Artist, id}); }});
+            if (!roles.empty()) c.text(roles, {x, y + 20, w, 18}, col.fgSecondary.mulAlpha(fade), gfx::VAlign::Center);
+            y += 46;
+        }
+        const catalog::Track track = *ctx().player->current();
+        paintLink(c, tr(L"Tüm krediler"), x, y, [track] { showCredits(track); });
+        y += 28;
+    }
+    if (cr && !cr->sources.empty()) {
+        std::wstring names;
+        for (const auto& s : cr->sources) names += (names.empty() ? L"" : L" · ") + toWide(s);
+        // "KAYNAK" in the labels' mono, the names as they are written (no upper-casing of brand names).
+        const std::wstring head = toUpperTr(tr(L"Kaynak"));
+        auto hl = gfx::makeLayout(head, type::monoLabel, 400);
+        DWRITE_TEXT_METRICS hm{};
+        hl->GetMetrics(&hm);
+        const float hw = std::ceil(hm.widthIncludingTrailingWhitespace) + 10;
+        c.text(head, type::monoLabel, {x, y, hw, 18}, label.mulAlpha(fade), gfx::TextAlign::Leading, gfx::VAlign::Center);
+        c.text(names, type::caption, {x + hw, y, std::max(40.f, w - hw), 18}, col.fgSecondary.mulAlpha(fade),
+               gfx::TextAlign::Leading, gfx::VAlign::Center);
+        y += 24;
+    }
+    return y - y0 + 8;
 }
 
 float NowPlayingView::paintLink(Canvas& c, const std::wstring& text, float x, float y, std::function<void()> go) {
@@ -1245,6 +1382,8 @@ float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
         }
         y = std::max(art.bottom(), ty) + 32;
     }
+    // Who made it.
+    if (const float h = paintAboutCredits(c, x, y, w); h > 0) y += h + 24;
     // Similar artists: outlined pills, each to its page.
     if (!about_.similar.empty()) {
         c.text(toUpperTr(tr(L"Benzer sanatçılar")), type::monoLabel, {x, y, w, 14}, label.mulAlpha(fade));
@@ -1710,6 +1849,10 @@ bool NowPlayingView::onMouseDown(const ui::MouseEvent& e) {
             }
         }
     }
+    if (shownTab_ == Tab::Lyrics && kind() == Kind::Song && pickerRect_.contains(lp)) {
+        showLyricsPicker(*t, lyrics_.lrclibId);   // "Yanlış sözler mi?" / "Sözleri ara"
+        return true;
+    }
     if (shownTab_ == Tab::Lyrics && state_ == LyricsState::Synced) {
         const int i = lineAt(lp);
         if (i >= 0 && contentRect_.contains(lp) && lyrics_.lines[i].timeMs >= 0) {
@@ -1731,28 +1874,32 @@ void NowPlayingView::onMouseMove(const ui::MouseEvent& e) {
     const bool titleLink = t && (radio::isStationId(t->id) || catalog::isPodcastId(t->id) || !t->album.id.empty());
     const bool title = titleLink && titleRect_.contains(lp) && sub < 0;
     const bool match = matchRect_.contains(lp);
+    const bool picker = shownTab_ == Tab::Lyrics && kind() == Kind::Song && pickerRect_.contains(lp);
     int link = -1;
     if (shownTab_ == Tab::About)
         for (size_t i = 0; i < links_.size(); ++i)
             if (links_[i].r.contains(lp)) link = static_cast<int>(i);
-    if (line != hoverLine_ || sub != hoverSub_ || title != hoverTitle_ || match != hoverMatch_ || link != hoverLink_) {
+    if (line != hoverLine_ || sub != hoverSub_ || title != hoverTitle_ || match != hoverMatch_ || link != hoverLink_ ||
+        picker != hoverPicker_) {
         hoverLine_ = line;
         hoverSub_ = sub;
         hoverTitle_ = title;
         hoverMatch_ = match;
         hoverLink_ = link;
+        hoverPicker_ = picker;
         invalidate();
     }
 }
 
 void NowPlayingView::onMouseLeave() {
     hoverLine_ = hoverSub_ = hoverLink_ = -1;
-    hoverTitle_ = hoverMatch_ = false;
+    hoverTitle_ = hoverMatch_ = hoverPicker_ = false;
     invalidate();
 }
 
 LPCWSTR NowPlayingView::cursor() const {
-    return (hoverLine_ >= 0 || hoverSub_ >= 0 || hoverTitle_ || hoverMatch_ || hoverLink_ >= 0) ? IDC_HAND : IDC_ARROW;
+    return (hoverLine_ >= 0 || hoverSub_ >= 0 || hoverTitle_ || hoverMatch_ || hoverLink_ >= 0 || hoverPicker_) ? IDC_HAND
+                                                                                                                 : IDC_ARROW;
 }
 
 } // namespace st::app

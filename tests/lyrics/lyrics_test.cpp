@@ -10,9 +10,13 @@
 //   chain     : the order of the providers and what the cache remembers (offline: cache entries are planted, the
 //               fallback provider is a stub; LRCLIB is never reached)
 //   offsets   : per-track offsets persisted, clamped, removed at 0
+//   picker    : "Yanlış sözler mi?": LRCLIB search JSON, the picker's order, previews, picked .lrc / .txt files, the
+//               stored choices (persisted, files deleted when unused, unsafe names refused) and fetch() with each pick
 //
 // Offline. Everything runs in a temp folder (SHADETUBE_DATA_DIR points there too): the user's profile is never touched.
 //
+//   lyrics_test search ["text" [seconds]] : LRCLIB's free-text search as the picker sends it (read-only), ranked for a
+//                                           song of that length, and the first record fetched back by its id.
 //   lyrics_test live [spotify track id...] : also asks Spotify's lyrics service (read-only) for a few tracks, with the
 //                                            app's saved sp_dc (copied into the temp profile) or SHADETUBE_SPDC.
 #include "audio/Downloader.h"
@@ -26,6 +30,7 @@
 #include <windows.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -472,6 +477,185 @@ static void testOffsets() {
     CHECK(bad.offsetMs("y") == 0);
 }
 
+// "Yanlış sözler mi?": LRCLIB search results, their order, previews, picked files and the stored choices.
+static void testPicker() {
+    std::printf("picker\n");
+    // A search answer as LRCLIB sends it (trimmed): a synced record, a plain one, an instrumental one, junk and a
+    // record without lyrics (both dropped), a float id / duration.
+    const std::string body = R"json([
+      {"id": 3204719, "trackName": "Bohemian Rhapsody", "artistName": "Queen", "albumName": "A Night at the Opera",
+       "duration": 355.0, "instrumental": false, "plainLyrics": "Is this the real life?\nIs this just fantasy?",
+       "syncedLyrics": "[00:01.34] Is this the real life?\n[00:07.46] Is this just fantasy?\n[00:12.00] Caught in a landslide"},
+      {"id": 4798263, "trackName": "Bohemian Rhapsody", "artistName": "Queen", "albumName": "Live", "duration": 300.0,
+       "instrumental": false, "plainLyrics": "Is this the real life?\nIs this just fantasy?", "syncedLyrics": null},
+      {"id": 55, "trackName": "Bohemian Rhapsody (Instrumental)", "artistName": "Karaoke", "duration": 356,
+       "instrumental": true, "plainLyrics": null, "syncedLyrics": null},
+      {"id": 1009665, "trackName": "Junk", "artistName": "X", "duration": 355, "syncedLyrics": "[00:00.00]probe"},
+      {"id": 77, "trackName": "Empty", "artistName": "X", "duration": 355, "plainLyrics": "", "syncedLyrics": ""},
+      {"id": 827107.0, "name": "Bohemian Rhapsody", "artistName": "Queen", "albumName": "Greatest Hits", "duration": 358.4,
+       "instrumental": false, "plainLyrics": "Mama, just killed a man\nPut a gun against his head"}
+    ])json";
+    auto hits = lyrics::parseSearch(body);
+    CHECK(hits.size() == 4);
+    if (hits.size() == 4) {
+        CHECK(hits[0].id == 3204719 && hits[0].synced && hits[0].lyrics.synced && hits[0].lyrics.lrclibId == 3204719);
+        CHECK(hits[0].title == "Bohemian Rhapsody" && hits[0].artist == "Queen" && hits[0].album == "A Night at the Opera");
+        CHECK(hits[0].durationSec == 355 && hits[0].lyrics.source == lyrics::kSourceLrclib);
+        CHECK(hits[1].id == 4798263 && !hits[1].synced && hits[1].lyrics.lines.size() == 2);
+        CHECK(hits[2].id == 55 && hits[2].instrumental);
+        CHECK(hits[3].id == 827107 && hits[3].title == "Bohemian Rhapsody" && hits[3].durationSec == 358);   // "name", float id
+    }
+    CHECK(lyrics::parseSearch("{\"not\":\"an array\"}").empty() && lyrics::parseSearch("garbage").empty());
+
+    // Order for a 357 s song: within 5 s first (synced before plain, then the closest), then by distance.
+    {
+        auto ranked = hits;
+        lyrics::rankHits(ranked, 357);
+        CHECK(ranked.size() == 4 && ranked[0].id == 3204719);   // synced, 2 s off
+        CHECK(ranked.size() == 4 && ranked[1].id == 55);        // 1 s off (instrumental, not synced)
+        CHECK(ranked.size() == 4 && ranked[2].id == 827107);    // 1 s off, plain: after the 1 s instrumental (stable)
+        CHECK(ranked.size() == 4 && ranked[3].id == 4798263);   // 57 s off
+        auto same = hits;
+        lyrics::rankHits(same, 0);   // unknown length: LRCLIB's order
+        CHECK(same[0].id == hits[0].id && same[3].id == hits[3].id);
+    }
+
+    // Previews: the first lines with words.
+    CHECK(lyrics::previewText(hits[0].lyrics) == "Is this the real life? / Is this just fantasy?");
+    CHECK(lyrics::previewText(lyrics::parseLrc("[00:01.00]\n[00:02.00]One\n[00:03.00]\n[00:04.00]Two\n[00:05.00]Three"), 2) == "One / Two");
+    CHECK(lyrics::previewText(Lyrics{}).empty());
+
+    // Picked files: .lrc (synced), .txt (plain, UTF-16), missing, junk, too large.
+    const fs::path dir = g_dir / L"picked";
+    fs::create_directories(dir);
+    writeBytes(dir / L"song.lrc", "[ti:Song]\n[00:01.00]First line\n[00:03.50]Second line\n");
+    writeBytes(dir / L"song.txt", std::string("\xFF\xFE", 2) + std::string("F\0i\0r\0s\0t\0\n\0S\0e\0c\0o\0n\0d\0", 24));
+    writeBytes(dir / L"junk.lrc", "[00:00.00]x");
+    writeBytes(dir / L"huge.lrc", std::string(1100000, 'a'));
+    auto lrc = lyrics::readLyricsFile(dir / L"song.lrc");
+    CHECK(lrc && lrc->synced && lrc->lines.size() == 2 && lrc->source == lyrics::kSourceUserFile && lrc->lines[1].timeMs == 3500);
+    auto txt = lyrics::readLyricsFile(dir / L"song.txt");
+    CHECK(txt && !txt->synced && txt->lines.size() == 2 && txt->lines[1].text == "Second");
+    CHECK(!lyrics::readLyricsFile(dir / L"missing.lrc") && !lyrics::readLyricsFile(dir / L"junk.lrc"));
+    CHECK(!lyrics::readLyricsFile(dir / L"huge.lrc") && !lyrics::readLyricsFile({}));
+
+    // The choices, next to the offsets in the same file.
+    using CK = lyrics::Choice::Kind;
+    const fs::path file = g_dir / L"choices" / L"lyrics-offsets.json";
+    fs::create_directories(file.parent_path());
+    std::string stored;
+    {
+        lyrics::Offsets o(file);
+        CHECK(o.choice("t1").kind == CK::Auto);
+        CHECK(o.fileDir() == file.parent_path() / L"lyrics");
+        o.set("t1", 500);
+        o.setChoice("t1", {CK::Lrclib, 3204719, {}});
+        o.setChoice("t2", {CK::Spotify, 0, {}});
+        o.setChoice("t3", {CK::None, 0, {}});
+        stored = o.importFile("spotify:track:t4", dir / L"song.lrc");
+        CHECK(stored == "spotify_track_t4.lrc" && fs::exists(o.fileDir() / stored));
+        CHECK(o.importFile("t5", dir / L"junk.lrc").empty() && o.importFile("", dir / L"song.lrc").empty());
+        o.setChoice("spotify:track:t4", {CK::File, 0, stored});
+        o.setChoice("", {CK::None, 0, {}});   // ignored
+    }
+    {
+        lyrics::Offsets o(file);   // reloaded
+        CHECK(o.offsetMs("t1") == 500);
+        CHECK((o.choice("t1") == lyrics::Choice{CK::Lrclib, 3204719, {}}));
+        CHECK(o.choice("t2").kind == CK::Spotify && o.choice("t3").kind == CK::None);
+        CHECK((o.choice("spotify:track:t4") == lyrics::Choice{CK::File, 0, stored}));
+        // The stored copy reads like the original.
+        auto copy = lyrics::readLyricsFile(o.fileDir() / stored);
+        CHECK(copy && copy->synced && copy->lines.size() == 2);
+        o.setChoice("t1", {});   // back to automatic: removed
+        o.setChoice("spotify:track:t4", {CK::None, 0, {}});   // the picked file is no longer used: deleted
+        CHECK(!fs::exists(o.fileDir() / stored));
+    }
+    {
+        lyrics::Offsets o(file);
+        CHECK(o.choice("t1").kind == CK::Auto && o.offsetMs("t1") == 500);   // the offset is the app's to reset
+        CHECK(o.choice("spotify:track:t4").kind == CK::None);
+    }
+    // A hand-edited file name pointing out of the folder is never used.
+    writeBytes(file, R"({"v":1,"offsets":{},"choices":{"a":{"k":"file","f":"..\\..\\secret.lrc","at":1},
+                        "b":{"k":"file","f":"C:\\x.lrc","at":1},"c":{"k":"lrclib","id":0,"at":1},"d":{"k":"bogus"},
+                        "e":{"k":"lrclib","id":12,"at":1}}})");
+    {
+        lyrics::Offsets o(file);
+        CHECK(o.choice("a").kind == CK::Auto && o.choice("b").kind == CK::Auto && o.choice("c").kind == CK::Auto);
+        CHECK(o.choice("d").kind == CK::Auto && o.choice("e").lrclibId == 12);
+    }
+
+    // fetch() with a pick. The chain below has no title, so it never goes online here.
+    int calls = 0;
+    auto picked = [&](lyrics::Choice c, K fallbackKind) {
+        lyrics::Query q = query("pick:" + std::to_string(static_cast<int>(c.kind)) + std::to_string(c.lrclibId), &calls, fallbackKind);
+        q.title.clear();
+        q.choice = c;
+        return q;
+    };
+    // None: no lyrics, whatever the file next to the song says.
+    {
+        lyrics::Query q = picked({CK::None, 0, {}}, K::Found);
+        writeBytes(dir / L"track.mp3", std::string("\xFF\xFB\x90\x00", 4));
+        writeBytes(dir / L"track.lrc", "[00:00.50]Sidecar line\n[00:01.50]Another\n");
+        q.audioPath = dir / L"track.mp3";
+        CHECK(!lyrics::fetch(q) && calls == 0);
+        q.choice = {};   // automatic: the sidecar
+        auto side = lyrics::fetch(q);
+        CHECK(side && side->source == lyrics::kSourceFile);
+        // A picked file wins over the sidecar.
+        q.choice = {CK::File, 0, "song.lrc"};
+        q.choiceFile = dir / L"song.lrc";
+        auto own = lyrics::fetch(q);
+        CHECK(own && own->source == lyrics::kSourceUserFile && own->lines[0].text == "First line");
+        // ... and a picked file that is gone leaves it to the chain.
+        q.choiceFile = dir / L"gone.lrc";
+        own = lyrics::fetch(q);
+        CHECK(own && own->source == lyrics::kSourceFile);
+    }
+    // An LRCLIB record picked from the search: remembered first, then fetched without a request.
+    {
+        lyrics::rememberRecord(hits[1]);
+        CHECK(fs::exists(cacheFile("lrclib-4798263")));
+        auto rec = lyrics::fetch(picked({CK::Lrclib, 4798263, {}}, K::Found));
+        CHECK(rec && !rec->synced && rec->lrclibId == 4798263 && rec->lines[0].text == "Is this the real life?" && calls == 0);
+    }
+    // Spotify's lyrics as the pick: asked once and cached apart from the chain's answer; "none" is none.
+    {
+        calls = 0;
+        auto sp = lyrics::fetch(picked({CK::Spotify, 0, {}}, K::Found));
+        CHECK(sp && sp->source == lyrics::kSourceSpotify && calls == 1);
+        CHECK(fs::exists(cacheFile("pick:20~spotify")));
+        sp = lyrics::fetch(picked({CK::Spotify, 0, {}}, K::Failed));
+        CHECK(sp && calls == 1);   // from the cache
+        calls = 0;
+        lyrics::Query none = picked({CK::Spotify, 0, {}}, K::NotFound);
+        none.cacheKey = "pick:spotify-none";
+        CHECK(!lyrics::fetch(none) && calls == 1);
+        CHECK(!lyrics::fetch(none) && calls == 1);   // the "none" is cached too
+        // Failed (offline, 429): the chain answers, nothing cached for the pick.
+        calls = 0;
+        lyrics::Query failed = picked({CK::Spotify, 0, {}}, K::Failed);
+        failed.cacheKey = "pick:spotify-failed";
+        CHECK(!lyrics::fetch(failed) && calls == 1 && !fs::exists(cacheFile("pick:spotify-failed~spotify")));
+        // No fallback provider (logged out): the chain.
+        lyrics::Query noProvider = picked({CK::Spotify, 0, {}}, K::Found);
+        noProvider.fallback = {};
+        calls = 0;
+        CHECK(!lyrics::fetch(noProvider) && calls == 0);
+    }
+    // The LRCLIB id is kept in the chain's cache entries too (the picker marks the record on screen).
+    {
+        Lyrics l = hits[0].lyrics;
+        plant("lid:1", {{"v", 2}, {"found", true}, {"at", static_cast<int64_t>(time(nullptr))}, {"synced", true}, {"lid", 3204719},
+                        {"lines", {{1340, "Is this the real life?"}, {7460, "Is this just fantasy?"}}}});
+        lyrics::Query q = query("lid:1", &calls, K::Failed);
+        auto cached = lyrics::fetch(q);
+        CHECK(cached && cached->lrclibId == 3204719);
+    }
+}
+
 static void testLive(const std::vector<std::string>& ids) {
     std::printf("live\n");
     // The app's cookie, copied into the temp profile (read-only use of the user's profile).
@@ -526,6 +710,28 @@ int main(int argc, char** argv) {
     testTimeline();
     testChain();
     testOffsets();
+    testPicker();
+    if (argc > 1 && std::string(argv[1]) == "search") {   // LRCLIB's free-text search for the picker (read-only)
+        const std::string text = argc > 2 ? argv[2] : "queen bohemian rhapsody";
+        auto hits = lyrics::search(text);
+        CHECK(hits && !hits->empty());
+        if (hits) {
+            lyrics::rankHits(*hits, argc > 3 ? std::atoi(argv[3]) : 355);
+            for (const auto& h : *hits)
+                std::printf("  %lld  %s - %s  [%s] %ds %s  \"%s\"\n", static_cast<long long>(h.id), h.artist.c_str(), h.title.c_str(),
+                            h.album.c_str(), h.durationSec, h.instrumental ? "instrumental" : h.synced ? "synced" : "plain",
+                            lyrics::previewText(h.lyrics).c_str());
+            // A picked record comes back by id when it isn't cached.
+            if (!hits->empty()) {
+                lyrics::Query q;
+                q.cacheKey = "live:pick";
+                q.choice = {lyrics::Choice::Kind::Lrclib, hits->front().id, {}};
+                auto got = lyrics::fetch(q);
+                CHECK(got && got->lrclibId == hits->front().id);
+                std::printf("  record %lld by id: %s\n", static_cast<long long>(hits->front().id), got ? "ok" : "FAILED");
+            }
+        }
+    }
     if (argc > 1 && std::string(argv[1]) == "live") {
         std::vector<std::string> ids(argv + 2, argv + argc);
         if (ids.empty()) ids = {"spotify:track:0VjIjW4GlUZAMYd2vXMi3b", "spotify:track:7qiZfU4dY1lWllzX7mPBI3"};

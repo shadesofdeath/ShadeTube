@@ -73,7 +73,7 @@ ShadeTube/
 ├─ src/
 │   core/        st_core         ThreadPool, Dispatcher, Async (Lifetime, Result), Http, Settings, Paths, Log,
 │                                Resources, Utf, I18n, CrashHandler
-│   catalog/     st_catalog      source-independent models (Track, Album, Artist, Playlist, Page<T>, ...)
+│   catalog/     st_catalog      source-independent models (Track, Album, Artist, Playlist, Page<T>, ...), Credits
 │   musicbrainz/ st_musicbrainz  MusicBrainz, Cover Art Archive, ListenBrainz, Wikidata client (rate limit, disk cache)
 │   spotify/     st_spotify      Totp, Auth, SpotifyApi (Pathfinder + spclient), HashRegistry, Session
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious)
@@ -102,6 +102,7 @@ ShadeTube/
 │                                CollapsingHeader + HeaderCollapse (collapsing page headers, 3.38),
 │                                Radio, Blacklist,
 │                                CoverGradient + CoverBackdrop (Now Playing's backdrop, 3.40),
+│                                Credits + CreditsUi (song credits), LyricsPicker ("Yanlış sözler mi?"; both 3.42),
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
 │                                Preview + PreviewSession (song preview, 3.30),
@@ -113,6 +114,7 @@ ShadeTube/
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, browse, collections,
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiocache, audiodsp, collections,
                                  downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
+                                 credits, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, sponsorblock,
                                  spotify, stats, sync, tags, theme, updater, video, winshell, ytstreams
@@ -607,13 +609,16 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
 `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
 `listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
-`radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json`, `smart-lists.json`, `jam.json`
+`radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json` (timing offsets and lyrics picks;
+`lyrics\` holds picked .lrc / .txt copies, 3.42), `smart-lists.json`, `jam.json`
 (listen together: the device id, a guest's saved playback settings), `jam-own-session.json` (a guest's own queue),
 `spotify-hashes.json`, `library-recents.json`,
 `update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `themes\` (custom color themes, 3.35 Theme
 studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`, `audio` = the song cache, 3.42), `logs\shadetube.log`
 and `crashes\`. Downloads
+studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, credits, `mb`,
+`local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
 go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
 ### 3.15 Drag and drop
@@ -650,7 +655,7 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
   parser; other formats: `System.Music.Lyrics`). Then LRCLIB, then — for a `spotify:track:` while logged in — Spotify's
   lyrics service (`spclient /color-lyrics/v2/track/<id>`, `Api::trackLyrics`) when LRCLIB has nothing or only unsynced
   lyrics. An unsynced local text beats an unsynced online one. Spotify answering 429 / 403 pauses that provider for
-  10 / 30 minutes.
+  10 / 30 minutes. The user's own pick ("Yanlış sözler mi?", `Query::choice`) comes before all of this (3.42).
 - **Cache** (`cache\lyrics\<id>.json`): the online answer plus the providers already asked (`tried`); a definitive
   "none" is kept 7 days, a transient failure is never cached, and a provider that wasn't asked yet (the user logged in
   later) still is. Enhanced-LRC word times are kept (`words`).
@@ -1790,14 +1795,16 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   from one list in `buildToolbar()`: `{widget, tab (or every tab), shown predicate, gap after}`. Lyrics: Çeviri,
   timing −, the offset (reset), +, full-screen lyrics, "Sözleri paylaş" (`openLyricsShare`, 3.37). **A
   feature adds its button with one entry there.**
-- **Lyrics**: providers, translation, offset, click-to-seek and the 3 s wheel override as in 3.16. A placeholder only
+- **Lyrics**: providers, translation, offset, click-to-seek and the 3 s wheel override as in 3.16; "Yanlış sözler mi?"
+  after the header label and "Sözleri ara" under "no lyrics" open the lyrics picker (3.42). A placeholder only
   after 350 ms of loading (a cached / local file answers before it would flash); arriving lyrics fade in (420 ms),
   already scrolled to the active line; lines fade out towards the area's edges by their own alpha (no layer).
 - **Hakkında**: a song shows the track's own album and artist at once; with catalog ids (Spotify URIs, MBIDs)
   `source::album` and `source::artistPage` run on a worker (Normal priority, once per track, only while the tab is
   open) and add the album's kind · year, track count · label and the artist's kind · country · start year · genre,
   ListenBrainz listens (or the disambiguation), up to 8 similar artists as outlined pills; links "Albüme git" /
-  "Sanatçıya git". A failure leaves the track's fields and a note; local files have only those. An episode: the show,
+  "Sanatçıya git", then the song's credits (3.42). A failure leaves the track's fields and a note; local files have
+  only those (and their credits when MusicBrainz knows the song). An episode: the show,
   date · length, "Podcast'e git" and the show notes (`paintEpisodeNotes`). A station: logo, country / genres, codec,
   its website, Radyo. Long content scrolls with the wheel.
 - **Track change**: `TrackSwap` as in the player bar (the slide 1.6× longer for the bigger block), opacity layers only
@@ -2159,6 +2166,78 @@ with the track.
   under 16 ms (the tick's resolution; 234 ms once). The stream was stored about 1 s after it started playing.
 - **Dev**: `SHADETUBE_OFFLINE=1` (5.4) cuts the shared transport off; `songcache` log lines; `player` lines "playing
   after N ms (network | song cache | preloaded | file | station | feed)"; `audiocache_test` (5.2).
+### 3.42 Song credits and the lyrics picker
+
+Two features around Now Playing: who made the song, and a way out when the automatic lyrics are wrong. Tested by
+`credits_test` and `lyrics_test` (5.2).
+
+**Song credits** (`catalog/Credits`, `spotify/SpotifyApi`, `musicbrainz/{MusicBrainz,Parse}`, `app/Credits`,
+`app/CreditsUi`):
+
+- **Model** (`catalog::Credits`): five groups (performers, writers, producers, engineers, others), each a list of
+  people with their roles and an artist id when they have a page (a `spotify:artist:` URI or an MBID), plus the
+  sources (labels / distributors) and the provider. `Credits::add` folds a role (`canonicalRole`: "Songwriter" →
+  "writer", "Mix" → "mixing engineer", ...), puts it in its group (`roleGroup`; unknown roles go by the source's own
+  group title, else Other) and merges one person's roles per group (same name, ASCII case ignored).
+- **Spotify** (`Api::trackCredits`): what the web player's "Credits" dialog asks, the persisted Pathfinder query
+  `queryTrackCreditsGroupedModal` `{trackUri, contributorsLimit: 100, contributorsOffset: 0}` →
+  `trackUnion.creditsTrait.contributors.items[{name, role, roleGroup{name}, uri | reference.uri}]` and
+  `creditsTrait.sources.items[{name}]` (`parseTrackCredits`). The op lives in a lazily loaded chunk
+  (`xpui-root-dialogs`): its built-in hash is in `HashRegistry`, and healing ranks dialog chunks first for "...Modal"
+  ops. When the query fails for another reason than 401 / 429, the older spclient
+  `track-credits-view/v0/experimental/<id>/credits` is asked (`parseLegacyCredits`: `roleCredits[{roleTitle,
+  artists[{uri, name, subroles}]}]`, `sourceNames`). Only `spotify:artist:` URIs become links (`spotify:creator:` and
+  external URLs do not).
+- **MusicBrainz** (`mb::recordingCredits`): one lookup with `inc=artist-credits+artist-rels+work-rels+work-level-rels+
+  label-rels`. The artist credit gives the main artists; recording relationships give instrument / vocal / performer
+  (the instrument names as roles, modifiers such as "guest" dropped), producer (co / executive / additional),
+  engineer / mix / mastering / recording / programming / remixer, others by their type ("misc" is left out); the works'
+  composer / lyricist / writer / arranger relationships give the writers; label relationships (℗) are the sources, a
+  work's publisher is not. A song known only by name (`mb::songCredits`): a recording search for the cleaned title
+  (`searchableTitle`: "(feat. X)", " - 2011 Remaster" dropped) and the artist, `rankRecordings` keeps the same title
+  and artist within 10 s of the song's length (2 s / 5 s / 10 s tiers, then the recording on most releases, the
+  closest, the score), and the first of up to three candidates whose relationships add anybody beyond the artist
+  credit wins (MusicBrainz has many duplicate recordings without relationships).
+- **Chain and cache** (`app/Credits`, standalone): Spotify for a `spotify:track:` while logged in, then MusicBrainz (an
+  MBID directly, else by title and artist; a song without an artist is not searched: a title alone finds someone
+  else's song). The first answer naming somebody wins. Answers are cached per track in memory (48 entries) and in
+  `cache\credits\<id>.json` (30 days; "nobody known" 3 days, and only when every provider answered: a failed one is
+  asked again). MusicBrainz' answer takes the label of the track's own album (a release group MBID, the cached album
+  lookup) as its source when the recording names none.
+- **UI**: Hakkında (3.40) asks once per track while the tab is open (`fetchCredits`, the view's per-track lifetime):
+  a skeleton, then up to five people (`credits::summary`: the first two of each group, a person once with the roles of
+  every group), each artist a link, "Tüm krediler" and "KAYNAK · <labels>". Nothing is fetched while Now Playing is
+  closed. The "Krediler" item of a song's menu (`creditsMenuItem`, not for stations / episodes) and "Tüm krediler" open
+  the dialog (`showCredits`, the overlay family's `ui::Dialog`): the groups with their people (an artist row is a Tab
+  stop: Enter or a click closes the dialog and opens the artist page), the sources and "BİLGİLER: SPOTIFY |
+  MUSICBRAINZ"; it fetches while open. Known roles are translated (`creditRoleLabel`), instruments are shown as the
+  source names them.
+
+**Lyrics picker** (`lyrics/Lyrics`, `app/LyricsService`, `app/LyricsPicker`):
+
+- **Choice** (`lyrics::Choice`: Auto, an LRCLIB record id, Spotify, a file, None) is stored per track next to the
+  timing offset in `lyrics-offsets.json` (`Offsets::choice` / `setChoice`, a `"choices"` object beside `"offsets"`;
+  older builds ignore it). A picked file is copied as UTF-8 into `lyrics\<track id>.lrc` next to it (`importFile`;
+  at most 1 MB, it must hold plausible lyrics), deleted when the choice changes; a stored name with a path separator,
+  ":" or ".." is ignored. `setLyricsChoice` stores it, resets the track's offset (it was tuned for the old lyrics) and
+  tells the views (`onLyricsChoiceChanged`), which load the lyrics again.
+- **fetch()** honours `Query::choice` (set by `lyricsQueryFor`) before the chain: None = no lyrics; an LRCLIB record
+  from `cache\lyrics\lrclib-<id>.json` (written when it was picked, `rememberRecord`) or `GET /api/get/<id>`; Spotify's
+  lyrics through the query's fallback provider, cached as `<id>~spotify` ("none" is none); the file. A pick that can't
+  be had now (offline, the record or file gone, logged out) leaves it to the chain. Downloads' lyrics follow the pick
+  too. The chain's cache entries now keep the LRCLIB record id (`"lid"`), so the picker can mark the record on screen.
+- **Dialog** (`showLyricsPicker`): a query field ("artist title", Enter searches again), LRCLIB's free-text search
+  (`GET /api/search?q=`, junk records dropped) ranked by `rankHits` (within 5 s of the song first, synced before
+  plain, then the closest), each row: "title — artist", album · length · the difference to the song ("Süre aynı",
+  "+12 sn fark", in the warning color beyond 5 s), a SENKRONİZE / DÜZ METİN / ENSTRÜMANTAL tag (ŞU AN for the record
+  in use) and a two-line preview; rows are Tab stops (Enter picks). Below: "Spotify'ın sözleri" (a Spotify track
+  while logged in), "Dosyadan yükle…" (closes the dialog, then a posted `IFileOpenDialog` for .lrc / .txt and the copy
+  on a worker) and "Söz yok"; in the footer "Otomatik seçime dön" while a pick is stored.
+- **Entry points**: Now Playing's lyrics header ("Yanlış sözler mi?" after the label, which gives way on a short row;
+  "Sözleri ara" under "no lyrics"), the full-screen lyrics' search button (a picker over the view). A stored pick adds
+  "SENİN SEÇİMİN" to both headers; None shows "Bu şarkıda sözleri kapattın.".
+
+Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two dialogs for the playing song (5.4).
 
 ## 4. Coding conventions
 
@@ -2228,7 +2307,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files) | offline |
 | `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
-| `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
+| `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
+| `credits_test` | song credits: role folding and groups, merging, the Spotify credits query and legacy JSON, MusicBrainz recording / work / label relationships, title cleaning and the recording ranking, `app/Credits` (JSON round trip and expiry, the provider chain, memory + disk cache, the summary) | offline (fixtures); `live ["Artist" "Title" [seconds]]` (MusicBrainz search + credits, read-only; Spotify too with `SHADETUBE_SPDC`, track `SHADETUBE_CREDITS_TRACK`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
 | `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
@@ -2344,7 +2424,7 @@ apps*).
 | `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
 | `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
-| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.36) |
 | `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.37) |
 | `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
@@ -2384,6 +2464,14 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   needs a code change. The TOTP secret comes from a public gist with a fallback. Spotify rate-limits hard; iterate
   with `spotify_test home` rather than the full live run.
 - **WebView2 Runtime** is required for the Spotify login (present on Windows 11; installable on Windows 10).
+- **Song credits** (3.42): Spotify's credits query was taken from the web player's bundle (2026-11-26) and is
+  covered by fixtures, but was not run against a logged-in account during development (no sandbox `sp_dc`); its
+  response shape is the one the web player's code reads. MusicBrainz credits are only as complete as its community
+  data (often just the writers), and instrument names stay in English. Credits are searched by title and artist, so
+  a song without an artist gets none from MusicBrainz.
+- **Lyrics picker** (3.42): LRCLIB's free-text search returns at most 20 records; the Spotify choice needs a Spotify
+  track and a session. A picked record is cached in `cache\lyrics` (pruned with the cache), so it is fetched again by
+  id when the cache was cleared.
 - **YouTube** matching can pick the wrong video (*Wrong match?* fixes it per track), and stream access depends on
   YoutubeExplode keeping up with YouTube changes.
 - **Public Piped / Invidious instances are volatile**: the built-in list goes stale, and many instances serve search

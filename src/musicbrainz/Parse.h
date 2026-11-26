@@ -1,6 +1,7 @@
 #pragma once
 // Internal: pure JSON -> catalog model mapping and query building (no I/O). Exposed for offline tests.
 // Every accessor tolerates missing keys / wrong types / nulls.
+#include "catalog/Credits.h"
 #include "catalog/Models.h"
 
 #include <nlohmann/json.hpp>
@@ -71,6 +72,22 @@ std::vector<Track> rankRecordingSearch(std::vector<RecordingHit> hits, const std
 std::vector<Track> rankTopTracks(std::vector<RecordingHit> hits, const std::unordered_map<std::string, int64_t>& listens,
                                  int limit);
 std::unordered_map<std::string, int64_t> parsePopularity(const json& root);
+
+// ---- Credits -------------------------------------------------------------------------------------------------
+// A recording lookup with inc=artist-credits+artist-rels+work-rels+work-level-rels+label-rels -> Credits (provider
+// "musicbrainz"): the artist credit as main artists, the recording's artist relationships (instrument / vocal /
+// performer, producer, engineer / mix / mastering / recording...), its works' writers (composer, lyricist, writer,
+// arranger...) and its label relationships as sources.
+Credits parseRecordingCredits(const json& recording);
+// A song's title as MusicBrainz names the recording: "(feat. X)" / "[with X]" parts and a " - 2011 Remaster" /
+// " - Radio Edit" style suffix dropped.
+std::string searchableTitle(std::string_view title);
+// The recordings of a search answer that can be the song, best first: the same title (case / punctuation ignored,
+// searchableTitle), the artist among its credit, and a length within 10 s when both are known (no length counts as
+// 5 s off). Within 2 s / 5 s / 10 s of the song, the recording on the most releases comes first (MusicBrainz has
+// duplicates of a song with few releases and no relationships), then the closest, then the higher score.
+std::vector<std::string> rankRecordings(const json& searchRoot, std::string_view title, std::string_view artist, int durationMs);
+std::string pickRecording(const json& searchRoot, std::string_view title, std::string_view artist, int durationMs);   // the first, or ""
 
 // Representative release of a release group lookup (inc=releases+media). "" if none.
 std::string pickRepresentativeRelease(const json& rgLookup);

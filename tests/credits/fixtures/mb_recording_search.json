@@ -1,0 +1,24 @@
+{
+  "created": "2026-11-26T20:00:00.000Z",
+  "count": 6,
+  "offset": 0,
+  "recordings": [
+    { "id": "aaaaaaaa-0000-4000-8000-000000000001", "score": 100, "title": "Bohemian Rhapsody", "length": 300000,
+      "artist-credit": [ { "name": "Queen", "artist": { "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "name": "Queen" } } ] },
+    { "id": "aaaaaaaa-0000-4000-8000-000000000002", "score": 100, "title": "Bohemian Rhapsody (live)", "length": 355000,
+      "artist-credit": [ { "name": "Queen", "artist": { "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "name": "Queen" } } ] },
+    { "id": "aaaaaaaa-0000-4000-8000-000000000003", "score": 98, "title": "Bohemian Rhapsody", "length": 358000,
+      "artist-credit": [ { "name": "Queen", "artist": { "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "name": "Queen" } } ] },
+    { "id": "aaaaaaaa-0000-4000-8000-000000000004", "score": 100, "title": "Bohemian Rhapsody", "length": 355500,
+      "artist-credit": [ { "name": "The Royal Philharmonic Orchestra", "artist": { "id": "x", "name": "The Royal Philharmonic Orchestra" } } ] },
+    { "id": "aaaaaaaa-0000-4000-8000-000000000005", "score": 90, "title": "BOHEMIAN RHAPSODY", "length": 356000,
+      "artist-credit": [ { "name": "Queen", "joinphrase": " & ", "artist": { "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "name": "Queen" } },
+                        { "name": "Wayne's World Cast", "artist": { "id": "y", "name": "Wayne's World Cast" } } ] },
+    { "id": "aaaaaaaa-0000-4000-8000-000000000006", "score": 100, "title": "Bohemian Rhapsody",
+      "artist-credit": [ { "name": "Queen", "artist": { "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "name": "Queen" } } ] },
+    { "id": "aaaaaaaa-0000-4000-8000-000000000007", "score": 85, "title": "Bohemian Rhapsody", "length": 354800,
+      "artist-credit": [ { "name": "Queen", "artist": { "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "name": "Queen" } } ],
+      "releases": [ { "id": "r1", "title": "A Night at the Opera" }, { "id": "r2", "title": "Greatest Hits" },
+                    { "id": "r3", "title": "Bohemian Rhapsody (soundtrack)" } ] }
+  ]
+}

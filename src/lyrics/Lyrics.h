@@ -37,12 +37,14 @@ inline constexpr const char* kSourceLrclib = "lrclib";
 inline constexpr const char* kSourceSpotify = "spotify";
 inline constexpr const char* kSourceFile = "file";   // sidecar .lrc next to the audio file
 inline constexpr const char* kSourceTag = "tag";     // embedded in the audio file (ID3 SYLT / USLT, System.Music.Lyrics)
+inline constexpr const char* kSourceUserFile = "userfile";   // a .lrc / .txt the user picked for the track (Choice)
 
 struct Lyrics {
     bool synced = false;
     bool instrumental = false;
     std::vector<Line> lines;
     std::string source;   // kSource*; "" = unknown (old cache entries: LRCLIB)
+    int64_t lrclibId = 0; // the LRCLIB record they came from (0 = another source, or cached before it was kept)
     std::string language; // the lyrics' language when the source names it (Spotify: "tr", "en"...), "" = unknown
     // Translations the source carries (Spotify's "alternatives"), by language code; each list is aligned with
     // `lines` ("" = no translation for that line).
@@ -57,6 +59,16 @@ struct ProviderResult {
 };
 using Provider = std::function<ProviderResult(const YoutubeExplode::CancellationToken&)>;
 
+// The user's pick for a track ("Yanlış sözler mi?"), stored with its timing offset (Offsets). Auto = the provider
+// chain decides.
+struct Choice {
+    enum class Kind { Auto, Lrclib, Spotify, File, None };
+    Kind kind = Kind::Auto;
+    int64_t lrclibId = 0;   // Kind::Lrclib: the record
+    std::string file;       // Kind::File: the stored copy's name in Offsets::fileDir()
+    bool operator==(const Choice&) const = default;
+};
+
 struct Query {
     std::string cacheKey;          // catalog track id (MBID / spotify: URI / local: id)
     std::string title;
@@ -69,10 +81,40 @@ struct Query {
     // Asked after LRCLIB when it has nothing, or only unsynced lyrics (once per track and provider name).
     std::string fallbackName;      // e.g. kSourceSpotify
     Provider fallback;
+    // The user's pick, which wins over the chain: an LRCLIB record (cache\lyrics\lrclib-<id>.json, else
+    // /api/get/<id>), the fallback provider's lyrics (cached as "<cacheKey>~<fallbackName>"), the file `choiceFile`
+    // (the stored copy, resolved by the app), or no lyrics at all. A pick that can't be had right now (offline, the
+    // file gone, no fallback provider) falls back to the chain; Spotify answering "none" for a Spotify pick is none.
+    Choice choice;
+    std::filesystem::path choiceFile;
 };
 
-// nullopt = not found (or network error; errors are not negatively cached).
+// nullopt = not found (or network error; errors are not negatively cached), or the choice is Choice::Kind::None.
 std::optional<Lyrics> fetch(const Query& q, const YoutubeExplode::CancellationToken& ct = {});
+
+// ---- "Yanlış sözler mi?": LRCLIB's search for the picker --------------------------------------------------------
+struct SearchHit {
+    int64_t id = 0;
+    std::string title, artist, album;
+    int durationSec = 0;           // 0 = unknown
+    bool synced = false;
+    bool instrumental = false;
+    Lyrics lyrics;                 // the record's lyrics (synced ones when it has both); source kSourceLrclib
+};
+// GET /api/search?q=<text>: the usable records (junk and empty ones dropped, at most 20 as LRCLIB sends them).
+// nullopt = the request failed (offline, HTTP error).
+std::optional<std::vector<SearchHit>> search(const std::string& text, const YoutubeExplode::CancellationToken& ct = {});
+std::vector<SearchHit> parseSearch(const std::string& body);   // the search's JSON array (tests)
+// The picker's order for a song of `durationSec` (0 = unknown: unchanged): records within 5 s first (synced before
+// plain, then the closest), then the rest by distance. Stable.
+void rankHits(std::vector<SearchHit>& hits, int durationSec);
+// Puts a picked record's lyrics into the cache, so fetch() with Choice{Lrclib, id} needs no request. Worker thread.
+void rememberRecord(const SearchHit& hit);
+// The picker's text preview of lyrics: their first `lines` lines with words, joined with " / ".
+std::string previewText(const Lyrics& l, size_t lines = 2);
+// Reads a .lrc / .txt (any encoding decodeText knows) as lyrics: synced when it has timestamps. nullopt when it is
+// missing, larger than 1 MB or holds nothing usable.
+std::optional<Lyrics> readLyricsFile(const std::filesystem::path& path);
 
 // Parses "[mm:ss.xx] text" LRC content (multiple timestamps per line, [offset:], enhanced-LRC word timestamps).
 Lyrics parseLrc(const std::string& lrc);
@@ -110,7 +152,10 @@ using Ranges = std::vector<std::pair<int64_t, int64_t>>;
 int64_t songTime(int64_t mediaMs, const Ranges& extra);
 int64_t mediaTime(int64_t songMs, const Ranges& extra);
 
-// Per-track timing corrections (+ = lyrics later), %LOCALAPPDATA%\ShadeTube\lyrics-offsets.json. Thread-safe.
+// Per-track lyrics settings, %LOCALAPPDATA%\ShadeTube\lyrics-offsets.json: the timing correction (+ = lyrics later)
+// and the user's choice of lyrics ("Yanlış sözler mi?"), whose picked files are kept in fileDir() (lyrics\ next to
+// it). {"v":1, "offsets":{"<id>":[ms, at]}, "choices":{"<id>":{"k":"lrclib"|"spotify"|"file"|"none", "id":n, "f":
+// "<name>", "at":n}}}. Thread-safe.
 class Offsets {
 public:
     static Offsets& get();                         // the app's store (paths::appData())
@@ -118,8 +163,15 @@ public:
     int offsetMs(const std::string& trackId);      // 0 when none
     // Stores (0 removes) and writes the file. The value is clamped to +-kMaxMs. Returns the stored value.
     int set(const std::string& trackId, int ms);
+    Choice choice(const std::string& trackId);     // Auto when none
+    // Stores (Auto removes) and writes the file. A picked file the new choice no longer uses is deleted.
+    void setChoice(const std::string& trackId, const Choice& c);
+    std::filesystem::path fileDir() const;         // where picked files are kept
+    // Copies a user's .lrc / .txt for `trackId` into fileDir() (as UTF-8 with the original bytes' text). Returns the
+    // stored name, "" when the file holds no usable lyrics (readLyricsFile) or can't be written.
+    std::string importFile(const std::string& trackId, const std::filesystem::path& source);
     static constexpr int kMaxMs = 30000;
-    static constexpr size_t kMaxEntries = 5000;    // oldest changes dropped beyond this
+    static constexpr size_t kMaxEntries = 5000;    // oldest changes dropped beyond this (per kind)
 
 private:
     void loadLocked();
@@ -132,6 +184,11 @@ private:
         int64_t at = 0;   // unix seconds of the last change
     };
     std::map<std::string, Entry> entries_;
+    struct ChoiceEntry {
+        Choice choice;
+        int64_t at = 0;
+    };
+    std::map<std::string, ChoiceEntry> choices_;
 };
 
 } // namespace st::lyrics
