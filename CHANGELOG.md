@@ -2,6 +2,22 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.11.0 — unreleased
+
+- **Blend**: one shared playlist made from your taste and a friend's (or several friends'), like Spotify's Blend but
+  with no accounts and no server. Create a Blend from "Made for you", send the invite link, and when your friend opens
+  it in ShadeTube you both get the same list: the songs you both love first, then one pick from each of you in turn,
+  every song marked with whose taste it is, plus a taste match percentage. You see exactly which songs and artists
+  will be shared before anything is sent (your top 50 songs and 30 artists of the last six months, nothing else), and
+  it is end-to-end encrypted. You don't need to be online at the same time. Refresh it, save it as a playlist or leave
+  it whenever you like.
+- **Listen together with podcasts and radio**: podcast episodes (at the host's speed) and internet radio stations are
+  now shared with your guests, not just songs. Guests on ShadeTube 0.10.0 keep working; they just sit out podcasts
+  and radio.
+- **Listen together survives a restart**: if the host closes or restarts ShadeTube (an update, a crash), the session
+  continues when the app is back within 10 minutes; guests wait and follow again by themselves. A guest whose app
+  restarts rejoins on its own too.
+
 ## 0.10.0 — 2026-11-23
 
 - **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays

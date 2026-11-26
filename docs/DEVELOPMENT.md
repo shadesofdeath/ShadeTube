@@ -105,8 +105,8 @@ ShadeTube/
 │                                Preview + PreviewSession (song preview, 3.30),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
-│                                JamCrypto, JamInvite, JamProtocol, JamSync)
-└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, collections,
+│                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.42)
+└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, blend, collections,
                                  downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, sponsorblock,
@@ -914,14 +914,16 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
   album, length, cover, the exact YouTube video it plays, who added it, kind), position + the host's steady clock,
   playing / status, guest permission, members, bans, a revision. Items it plays from disk are `File` (guests use the
   host's video when the match cache knows one, else look them up by title / artist / length); podcast episodes and
-  radio stations are `Unsupported`: not shared (the host gets a toast, guests pause and the panel says why). Guests'
+  radio stations are shared with 0.11.0+ guests (3.43) and `Unsupported` for older ones (they pause and the panel says
+  why). Guests'
   `req`s: `add` always (the song goes after the songs guests added before, marked "+ NAME" in the queue panel); play,
   pause, next, previous, seek and jump only with "Misafirler çalmayı kontrol edebilir". Presence: hello (name + the
   guest's ECDH public key), heartbeats every 10 s, the last will; 35 s of silence = offline, offline members leave the
   list after 3 min; at most 10 people. "Çıkar" bans the device (ignored by the host, listed in the state, the guest
   leaves). "Yeni bağlantı" moves the session to a new room + key: each online guest gets the new link sealed with
   SHA-256(ECDH(host ephemeral, guest key) || label), the old room's retained state is cleared; a removed device reads
-  the old room but can't open the hand-offs. Both ends play at 1x during a session.
+  the old room but can't open the hand-offs. Both ends play songs at 1x during a session (episodes: the host's speed,
+  3.43). Closing the host's app keeps the session for a restart (3.43).
 - **Guest**: on joining, `session.json` is copied to `jam-own-session.json` and shuffle / repeat / speed go to
   `jam.json`; leaving, being removed, the host ending the session or the next start after a crash put them back
   (`Player::restoreSession` stops what plays first). Following runs four times a second (`jam::decide`): the host's
@@ -1946,6 +1948,113 @@ while nothing shows a video opens Now Playing.
   when a picture is dropped (frames shown / dropped, resyncs, frame vs. audio average / worst, frames more than a frame
   off, slot memory, DXVA or software). `video_test` (5.2) covers the pure parts and the decoder.
 
+### 3.42 Blend
+
+A shared playlist made from the taste of two or more people, without a server or accounts, on the listen-together
+transport (3.24). `app/Blend` (standalone, pure: the taste profile, its JSON, the mix, the match, the store record;
+`blend_test`), `app/Blends` (the blends of this PC, the exchange, the consent dialog, the actions, the palette) and
+`app/BlendPage.cpp` (cover, cards, the page).
+
+- **Taste profile** (`blend::makeProfile`, on a worker from a copy of `ListenStats`' tracks + plays, imported history
+  included): streams only, podcast / radio ids out; each stream weighs `0.5^(age / 60 days)` within the last 180 days
+  (fewer than 15 songs there: the whole history with a one-year half-life, `win: 0`). The 50 heaviest songs (id, title,
+  up to 4 artists, album, http(s) cover, length) and the 30 heaviest artists (every credited artist of a song counts),
+  each with a weight 1..100 relative to the member's top one, the display name (`Settings::jamName` or its default) and
+  the time rounded down to the hour. No play counts, no times, nothing else. Fewer than 5 songs: refused ("listen a bit
+  more"). 300 000 plays: 26 ms (MinSizeRel).
+- **Keys** are computed by the sender (`k`: 16 hex digits of FNV-1a-64 over `ListenStats::keysFor`'s folded "title +
+  first artist" / artist name) and the mix only compares those, so two app versions that fold names differently still
+  build the same list.
+- **The mix** (`blend::build`, the same on every PC from the same profiles): members sorted by member id, one profile
+  each (the newest), at most 10; songs two or more members have first (by how many, then their summed weight, then
+  key), then one song per member in turn in each member's own order, skipping songs already in; 50 songs at most. Each
+  row knows whose taste it is (`from`). **Taste match**: the mean over pairs of `0.7 × artists + 0.3 × songs`, each a
+  weighted overlap (Σ min of the two members' shares, integer cross products), shown as `100 × (1 − (1 − c)³)`, so half
+  the taste in common reads ~88 %.
+- **Invite and topics**: `shadetube://blend/<base64url(1 | flags | blend id (16) | key (32) | broker)>` (the session
+  invite's payload under its own prefix: neither opens as the other, and 0.10.0 answers "can't open this ShadeTube
+  link"); topics `shadetube/blend/v1/<hex SHA-256(blend id)>/…`. Each member has a random member id per blend (not the
+  Jam device id, so blends and sessions can't be linked).
+- **Exchange**: `p/<member>` holds that member's profile as a **retained** JamProtocol envelope (type `taste`, sealed
+  with the blend key, the topic as associated data; the envelope's device must be the topic's member), so a member who
+  opens the link hours later still finds it: nobody has to be online at the same time as anybody else (`blend_test
+  live` checks it on all three public brokers with the members never connected together). Leaving replaces it with a
+  sealed retained `left` record. `x` carries `ask` (not retained): a member refreshed and asks those connected right
+  now to share their current taste too — they get a toast, never an automatic send. When the app talks to the broker:
+  after creating (held up to 30 minutes, closed 3 s after someone shared), joining or refreshing; while the page is open
+  (renewed every minute while it is painted); 20 s after startup and every 6 hours, 10 s per blend, one after the
+  other. Every visit re-publishes this PC's profile *as it was shared* (a broker that lost it gets it back) and reads
+  the others'; a newer profile (by `at`) replaces the older one.
+- **Consent**: creating, joining and refreshing open a dialog with the exact artists and songs (all of them, in a
+  scrolled list), the name and what is not shared; only "Paylaş ve …" sends. "Paylaştıklarını gör" shows what is
+  shared now. Joining reads the others' profiles at once (so the page shows the inviter), but sends nothing before the
+  consent.
+- **Store**: `blends.dat` = DPAPI-sealed JSON (`v`, `blends`: link, member id, my profile, the others', who left,
+  creator, times), written on a worker (a newer save wins); read on a worker at startup. At most 20 blends.
+- **UI**: blend cards and a "Blend oluştur" card (outlined, "+") at the end of "Senin için listeler" (Home, Library;
+  the section shows while there is a smart list or a blend). The cover is the smart lists' (mosaic of the first rows'
+  covers, filled from the Stats artwork cache like theirs, band "BLEND · %87 UYUM" + the names). The page
+  (`Route{RouteKind::SmartList, "blend:<id>"}`, `--route smart:blend:<id>`) has the smart list header, a why line
+  ("first the 5 songs you both love…", who left), the track table with a chip per row (`TrackTable::chipFor`: "ORTAK",
+  "SEN", "AYŞE", "AYŞE + CAN"), play / shuffle / add, and a menu: Yenile, copy the invite, Paylaştıklarını gör, queue,
+  "Çalma listesi olarak kaydet" (`promptNewPlaylist`), Blend'den ayrıl. Waiting for a friend / consent pending: the
+  page says so with a button (copy the link / see what would be shared). Invite links open from paste, the search box,
+  "Blend davetiyle katıl…" (palette), `--open-link` and the URL protocol (`links::Kind::BlendInvite`).
+- **Dev**: `SHADETUBE_BLEND=create | <invite> | refresh:<id> | leave:<id>`, a trailing `!` agrees without the dialogs;
+  `SHADETUBE_BLEND_INVITE_FILE` receives a new blend's link; `blend` lines log every mix change with an order
+  fingerprint (two members' logs show the same one when they built the same list).
+- **Measured** (two sandbox profiles, EMQX): A created and quit; B opened the link after A had quit, got A's profile
+  in ~1 s and built the list; A started again 30 s later, its startup visit got B's profile: both logs show the
+  same 29-song mix (5 shared, 75 %, the same order fingerprint). A refresh on A reached B's open page as a toast in
+  ~1 s; B leaving showed up on A's next visit.
+
+### 3.43 Listen together: podcasts, radio and restarts
+
+Additions to 3.24 in 0.11.0, in the same files (`app/JamProtocol`, `app/JamSync`, `app/Together`).
+
+- **Versions**: the envelope's `v` stays 1 — 0.10.0 drops any other value (`OpenError::Version`), so a bump there
+  would turn old peers away with "session not found". New abilities are announced by a **feature level** instead:
+  `pv` in the host's state and in a guest's hello and heartbeats (absent = 1 = 0.10.0; `jam::kFeatureLevel` = 2), and
+  travel in fields older parsers ignore (they read only the keys they know).
+- **Podcast episodes and stations** keep `"k":"x"` on the wire, so a level-1 guest still holds on them as unsupported
+  (it would read an unknown kind as a song and look the episode's title up on YouTube); `pe` (feed URL, guid, audio
+  URL, type, show, date) or `rs` (stationuuid, stream URL, codec, country, tags, bitrate, HLS) say what they are, and a
+  level-2 parser turns them into `ItemKind::Episode` / `Station` (http(s) URLs only, `podcast:` / `radio:<uuid>` ids
+  only, else they stay unsupported). The host fills them from its podcast / radio stores; episodes of feeds the user
+  added by RSS address (often private, a token in the URL, or on the LAN) stay unsupported. The guest puts the host's
+  copy into its own registry unless it knows the episode / station already (its own copy wins; never for a feed it
+  added by address itself), so the player resolves them as usual — public internet only.
+- **Speed**: the state's `sp` is the current episode's speed (songs stay at 1 for everyone; the host may now change an
+  episode's speed). `expectedPosition` advances by `elapsed × speed`; the guest sets `Settings::podcastSpeed` / the
+  player's speed to the host's (its own comes back when it leaves, `jam.json`'s `guestSaved`).
+- **Stations are live**: `decide()` loads the station (no seek, autoplay = the host plays), jumps to it when it is next,
+  follows play / pause, never seeks or measures drift; the panel shows "Aynı istasyon · canlı". The host no longer
+  treats a station's listening time as drift (it re-published its state four times a second, also in 0.10.0).
+- **Host restart**: closing the app (any exit, including Windows ending the session) no longer ends the session. The
+  host publishes a last retained state (paused where it was, `away` = unix time), says `bye` with reason `away`, and
+  keeps the room in `jam-host.dat` (DPAPI: room id, key, broker, revision, permission, bans, members with their ECDH
+  keys, who added what, saved time), which is also written when the session starts or changes and every minute (a
+  crash). The next start within `jam::kResumeWindowSec` (10 min) resumes it: same room, key and broker first; revisions
+  continue from `unix seconds << 20` (above anything published before, also when the last save is a minute old);
+  sequence numbers start a new epoch as on every connection; members come back offline and turn online with their
+  heartbeats; a toast offers "Oturumu bitir". An older file is cleared from its broker on a worker (an `end` and an
+  empty retained state). Ending the session ("Oturumu bitir", joining another one) deletes the file.
+- **Guests while the host is away**: on `bye`/`away` (or a state with `away`) they pause where the host was, show "Oturum
+  sahibi uygulamayı kapattı…", stay on that broker (no failover while away) and follow again when a state without
+  `away` arrives ("{} geri döndü"); after the window + 1 minute they leave ("geri dönmedi"). A state found with an
+  `away` older than that counts as an ended session. 0.10.0 guests see the paused state and "host lost its connection",
+  keep waiting, and follow the resumed host by themselves (checked).
+- **Guest restart**: a guest's app that closes says `bye`/`away` (the host marks it offline, not gone) and keeps the
+  invite in `jam-guest.dat` (DPAPI; rewritten every minute while in a session); the next start within the window joins
+  the room again by itself (its own queue was restored on exit as before and is saved again on the join). Leaving,
+  being removed, the session ending or not being found deletes it.
+- **Dev**: `SHADETUBE_JAM_DEV=quit@<s>` quits the app (either role) that long into a session; `SHADETUBE_PLAY_STATION`
+  plays a station by name at startup; `--play-episode` and `SHADETUBE_VIDEO_DEMO=speed@<ms>=1.5` drive episodes.
+- **Measured** (two / three sandbox instances, EMQX): an NPR episode at 120 s followed within +2 … +16 ms, the host's
+  switch to 1.5x reached the guest with one seek; Radio Paradise followed across a "next station" and a station error;
+  host quit + restart 17-30 s later resumed the room with both a 0.11 and a 0.10.0 guest following again; a guest
+  restart rejoined by itself; a 0.11 guest followed a 0.10.0 host's songs.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -2017,7 +2126,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
-| `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
+| `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), level 2 (episodes / stations on the wire, what a 0.10.0 parser keeps of them, hostile data, feature level / speed / away, the envelope still at version 1, episodes at the host's speed, stations followed live), the host's saved room (round trip, resume window) + DPAPI, blend invite links, the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
+| `blend_test` | Blend (`app/Blend`): song / artist keys, taste profiles (streams only, podcast / radio out, recency, the six-month window and its fallback, caps, weights, features), profile JSON (hostile input), the mix (shared first, then one per member in turn, whose taste, cap, three members, newest profile per member, the same mix in any order), the taste match, the store record, timing with 300 000 plays | offline; `live [wss://broker…]` (two members never online together exchange retained sealed profiles through a real broker and build the same mix; leaving); `retain put <file> [broker]` / `retain get <file>` (how long a broker keeps a retained record) |
 | `radio_test` | radio-browser.info parsing (fixtures), codec filter, station -> track mapping, genre labels, `radio.json` store | offline; `live` (discovery, lists, failover; never counts a click) |
 | `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, the accent-tinted app icon (sizes, colors, the logo's color against `app.ico`, `WindowIcon` on a test window: sizes, no re-render, no leaked handles, class icon back), AUMID / Start menu identity under a test id | default; `--start-menu`; `--icons <dir> [RRGGBB…]` (writes the tinted icon as `.ico` files to look at) |
@@ -2048,7 +2158,19 @@ Listen together end to end (3.24): two sandbox profiles, each with its own `SHAD
 (or a running guest gets `ShadeTube.exe --open-link <link>`). Then `--command play-pause` / `next` to the host (or the
 guest with `SHADETUBE_JAM_DEV=control` on the host), `--open-link <YouTube URL>` to the guest (a song it adds) and
 `SHADETUBE_JAM_DEV=rotate@45,kick@80`; both logs (`jam` lines) say what each side did: `host: state rev …`,
-`guest: load / jump / seek / play / pause`, `guest: following "…": drift +31 ms`.
+`guest: load / jump / seek / play / pause`, `guest: following "…": drift +31 ms`. Episodes and stations (3.43):
+`--play-episode "<feed>#0@120"` (+ `SHADETUBE_VIDEO_DEMO=speed@25000=1.5`) or `SHADETUBE_PLAY_STATION=<name>` on the
+host. Restarts: `SHADETUBE_JAM_DEV=quit@<s>` on the host (or a guest), then start it again without the session
+variables: `host: resumed room …` / `guest: the host is back` / `guest: joining the session again`. A host launched
+with `--preview` doesn't hold the single-instance mutex, so a later `--command` launch for that profile starts a second
+instance (which then resumes the same room): give the host no `--preview` when it should take `--command`s. Old peers:
+the released 0.10.0 exe (`dist\ShadeTube-0.10.0-win64\ShadeTube.exe`) on a third profile.
+
+Blend end to end (3.42): two profiles with listening history (`SHADETUBE_IMPORT_HISTORY` with a synthetic Spotify
+history, then close the app), `jamName` set in each `settings.json`. A: `SHADETUBE_BLEND=create!`,
+`SHADETUBE_BLEND_INVITE_FILE=<file>`, close it; B: `SHADETUBE_BLEND=<link>!`; A again (its visit 20 s after startup
+reads B): both `blend` logs name the same mix and order fingerprint. `--route smart:blend:<id>` (the id is in the
+log) opens the page.
 
 ### 5.3 Dev flags (ShadeTube.exe)
 
@@ -2103,7 +2225,10 @@ apps*).
 | `SHADETUBE_JAM_HOST=1` | starts a listen-together session at startup (3.24) |
 | `SHADETUBE_JAM_INVITE_FILE` | `<path>`: the host writes its invite link there (and again when it changes) |
 | `SHADETUBE_JAM_JOIN` | `<invite link>`: joins that session at startup (a guest in a second sandbox profile) |
-| `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest) |
+| `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest); either role: `quit@<s>` (the app quits `<s>` s into the session: restart tests, 3.43) |
+| `SHADETUBE_PLAY_STATION` | `<name>`: plays the most clicked playable radio-browser.info station of that name at startup (3.43) |
+| `SHADETUBE_BLEND` | `create`, `<blend invite>`, `refresh:<id>` or `leave:<id>`, 6 s after the blends are loaded; a trailing `!` agrees without the consent / confirm dialogs (3.42) |
+| `SHADETUBE_BLEND_INVITE_FILE` | `<path>`: a blend created with `SHADETUBE_BLEND` writes its invite link there |
 | `SHADETUBE_KEYS_DEMO` | `<ms>:<combo>[,<combo>…]`: presses these key combos (text form: `Ctrl+NumAdd`, `Ctrl+Shift+4`) through the main window's shortcut dispatch, the first after `<ms>`, then every 300 ms; `action:<id>` runs that action (e.g. `action:compact-lists`). For `--screenshot` checks of the zoom badge / live relayout |
 | `SHADETUBE_SCROLL_DEMO` | `<steps>[@x,y]`: 2.5 s after startup posts wheel / key input to the window at window DIPs x,y (default: 60 % across, middle) from a timer thread, at real device rhythm, and logs every frame of each moving `ScrollView` once done (`scroll` lines: frame gap, offset, step, velocity, target, feel, frame CPU so far) plus a summary per view (frames, gaps over 1.5× the median, longest gap, direction changes, largest speed change between frames). Steps, comma separated (default `notch,spin,touch,keys`): `notch` (6 notches 140 ms apart), `spin` (24 notches 20 ms apart, then 3 back), `touch` (a precision-touchpad swipe with inertia, then one back), `keys` (PageDown ×2, End, Home, Down ×8 repeated), `end` (80 fast notches into the end, 80 into the top). Use with `--route` and `--screenshot`; hover refresh is off meanwhile |
 | `SHADETUBE_PROTOCOL_KEY` | HKCU key used instead of `Software\Classes\shadetube` for the URL protocol (tests); without it a sandbox profile never registers it |
@@ -2185,8 +2310,19 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   download's catalog name in the app doesn't follow its edited file tags.
 - **Listen together** depends on public MQTT brokers (free services without guarantees; a custom broker can be set).
   Members share the room key, so a member could forge messages under another device id; removing someone keeps them
-  out only after "Yeni davet bağlantısı" (the old key still reads the old room). The session lives in the host's
-  running app (a host restart ends it); podcasts and radio are not shared; guests need the songs on YouTube.
+  out only after "Yeni davet bağlantısı" (the old key still reads the old room). A host's restart keeps the session
+  for 10 minutes (3.43); after that, or when the host's broker is down then, guests give up. 0.10.0 guests sit out
+  podcasts and radio; episodes of feeds added by RSS address are never shared; guests need the songs on YouTube.
+  Two instances on the same profile (only possible with `--preview`) both resume a kept room and fight over it.
+- **Blend** relies on the public broker named in the invite keeping retained messages: a member offline for a while
+  finds the others' profiles only if the broker still has them (on 2026-11-27 all three public brokers returned a
+  retained record to a subscriber that came later, checked over minutes, see `blend_test retain`; how long a free
+  broker keeps them is its own policy, and a broker restart may drop them — every visit publishes the profile again).
+  When the invite's broker is unreachable, members fall back to the next broker in the list, where the others' profiles
+  are only found once they have visited that broker too, i.e. both must then be online for it in turn. Members share
+  the blend key, so one could publish under another's member id. The playlist only holds songs from the members'
+  histories (no recommendations); imported history songs have no lengths and get covers only through the Stats
+  artwork lookups. Matching songs across members needs the same title and first artist.
   Two instances are best tested on two profiles of one PC (`SHADETUBE_INSTANCE_CLASS` / `_MUTEX` per profile let
   `--command` and `--open-link` reach each); sync across two machines depends on their audio output latency.
 - **Playback speed** uses time-domain stretching (WSOLA): transparent for speech and fine for music around 0.75-1.5x,

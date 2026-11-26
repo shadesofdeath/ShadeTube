@@ -325,11 +325,14 @@ void visit(const std::string& id, int64_t forMs, bool ask = false, bool stopWhen
         Run& r = it->second;
         r.until = std::max(r.until, until);
         r.stopWhenJoined = r.stopWhenJoined && stopWhenJoined;
+        // A new share / refresh on an open connection goes out now, then the "ask" (a page that stays open only extends
+        // the connection); not connected yet: onConnected sends both.
+        if (ask && r.connected && e->rec.mine)
+            publishRecord(*e, r, "taste", blend::toJson(*e->rec.mine), true, profileTopic(*e, e->rec.me));
         if (ask) {
             if (r.connected) publishRecord(*e, r, "ask", {{"n", e->rec.mine ? e->rec.mine->name : myName()}}, false, e->base + "/x");
             else r.ask = true;
         }
-        if (r.connected && e->rec.mine) publishRecord(*e, r, "taste", blend::toJson(*e->rec.mine), true, profileTopic(*e, e->rec.me));
         return;
     }
     Run& r = runs[id];
