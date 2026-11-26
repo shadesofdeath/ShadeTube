@@ -261,6 +261,13 @@ static void testDamaged() {
     t.load();
     CHECK(t.activeId() == a);
     CHECK(!has(t.dir(loginOnly)));
+    // The list deleted altogether: rebuilt from the folders and written again.
+    std::error_code ec;
+    fs::remove(root / L"accounts.json", ec);
+    AccountStore u(root);
+    u.load();
+    CHECK(u.activeId() == a && u.loadCookie(a) == "c-a");
+    CHECK(has(root / L"accounts.json"));
 }
 
 static void testIdsAndNames() {

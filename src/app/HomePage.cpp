@@ -362,7 +362,16 @@ public:
         using namespace std::chrono;
         const auto now = steady_clock::now();
         if (userId != userId_) {
+            // Another account (app/Accounts): the one switched away from is kept, so switching back shows its shelves
+            // at once (refreshed when stale like any other).
+            Parked leaving{userId_, std::move(shelves_), fetchedAt_, hasData_};
             reset();
+            if (parked_.hasData && parked_.userId == userId && !userId.empty()) {
+                shelves_ = std::move(parked_.shelves);
+                fetchedAt_ = parked_.fetchedAt;
+                hasData_ = true;
+            }
+            parked_ = std::move(leaving);
             userId_ = userId;
         }
         if (inFlight_ || (hasData_ && now - fetchedAt_ < kFreshFor) || now < retryAt_) return;
@@ -434,6 +443,13 @@ private:
             if (!owner.expired() && fn) fn();
     }
 
+    struct Parked {
+        std::string userId;
+        std::vector<Shelf> shelves;
+        std::chrono::steady_clock::time_point fetchedAt{};
+        bool hasData = false;
+    };
+    Parked parked_;   // the shelves of the account switched away from last
     std::string userId_;
     std::vector<Shelf> shelves_;
     bool hasData_ = false;

@@ -211,8 +211,13 @@ void AccountStore::load() {
     listTrusted_ = true;
     const fs::path index = root_ / kIndex;
     if (!present(index)) {
-        if (present(root_ / kCookie)) migrateLegacy(unixNow());
-        else if (present(root_ / kAccountsDir)) recoverFromFolders();   // the list went missing: keep the accounts
+        if (present(root_ / kCookie)) {
+            migrateLegacy(unixNow());
+        } else if (present(root_ / kAccountsDir)) {   // the list went missing: keep the accounts
+            recoverFromFolders();
+            if (!accounts_.empty()) save();
+            else listTrusted_ = true;   // nothing but interrupted logins: they can go
+        }
         cleanup();
         return;
     }
