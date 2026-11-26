@@ -39,6 +39,7 @@ add_library(YoutubeExplode STATIC
     src/Http/HttpClient.cpp
     src/Http/WinHttpClient.cpp
     src/Playlists/PlaylistClient.cpp
+    src/Music/MusicClient.cpp
     src/Music/TrackMatcher.cpp
     src/Search/SearchClient.cpp
     src/Utils/Crypto.cpp

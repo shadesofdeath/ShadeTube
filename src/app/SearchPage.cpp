@@ -1,6 +1,6 @@
 // Search (docs/DEVELOPMENT.md, "Artist and Search pages"): type-ahead over the active catalog (Spotify when logged in,
-// MusicBrainz otherwise, see Source.h) with the top result beside the songs and a shelf per result kind, a tab per
-// kind, and recent searches + genres while the box is empty. Result kinds are data (resultKinds()): a kind is a tab,
+// MusicBrainz or YouTube Music otherwise, see Source.h) with the top result beside the songs and a shelf per result
+// kind, a tab per kind, and recent searches + genres (YouTube Music: its moods & genres) while the box is empty. Result kinds are data (resultKinds()): a kind is a tab,
 // a section of "Tümü", its cards or rows and what its recent-search entries open.
 #include "app/BrowseModel.h"
 #include "app/BrowseWidgets.h"
@@ -23,6 +23,7 @@
 #include "ui/Popups.h"
 #include "ui/TextBox.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <YoutubeExplode/Common/Cancellation.hpp>
 
@@ -195,6 +196,21 @@ std::optional<spotify::SearchKind> pagedKind(const std::string& id) {
     if (id == "profile") return spotify::SearchKind::Profiles;
     return std::nullopt;
 }
+
+// The kinds YouTube Music pages (ytm::searchMore): songs, albums, artists, playlists.
+std::optional<ytm::SearchKind> ytmKind(const std::string& id) {
+    if (id == "track") return ytm::SearchKind::Songs;
+    if (id == "album") return ytm::SearchKind::Albums;
+    if (id == "artist") return ytm::SearchKind::Artists;
+    if (id == "playlist") return ytm::SearchKind::Playlists;
+    return std::nullopt;
+}
+
+// A page of more rows of one kind, from whichever catalog answered.
+struct MoreBatch {
+    SearchResults results;
+    bool hasMore = false;
+};
 
 bool roundKind(const std::string& id) { return id == "artist" || id == "profile"; }
 
@@ -673,7 +689,42 @@ std::deque<CachedSearch>& searchCache() {
 std::string cacheKey(const std::wstring& q) {
     std::wstring folded = browse::RecentSearches::normalizeQuery(q);
     std::transform(folded.begin(), folded.end(), folded.begin(), [](wchar_t ch) { return static_cast<wchar_t>(towlower(ch)); });
-    return (source::loggedIn() ? "spotify|" : "mb|") + toUtf8(folded);
+    return (source::loggedIn() ? "spotify|" : source::ytmMode() ? "ytm|" : "mb|") + toUtf8(folded);
+}
+
+// YouTube Music's "Moods & genres" tiles, fetched once per run (UI language) for the empty view; the pages that wait for
+// them are called back when they land.
+struct MoodCache {
+    std::vector<ytm::Mood> moods;
+    bool loading = false;
+    bool failed = false;
+    std::vector<std::pair<Lifetime::Ref, std::function<void()>>> listeners;
+    Lifetime life;
+};
+MoodCache& moodCache() {
+    static MoodCache c;
+    return c;
+}
+
+// A card of a mood's shelves: its playlists (albums / artists when YouTube Music puts some there), the subtitle as
+// YouTube Music shows it.
+ResultEntry shelfEntry(const CardItem& it) {
+    ResultEntry e;
+    e.title = toWide(it.title);
+    e.subtitle = toWide(it.subtitle);
+    e.images = it.images;
+    const RouteKind kind = it.kind == CardItem::Kind::Album    ? RouteKind::Album
+                           : it.kind == CardItem::Kind::Artist ? RouteKind::Artist
+                                                               : RouteKind::Playlist;
+    e.circle = kind == RouteKind::Artist;
+    e.placeholder = kind == RouteKind::Artist ? Placeholder::Artist : kind == RouteKind::Album ? Placeholder::Album : Placeholder::Playlist;
+    const Route open{kind, it.id};
+    e.open = [open] { ctx().router->navigate(open); };
+    if (!e.circle) e.play = [open] { ctx().router->navigate({open.kind, open.id + "#play"}); };
+    e.preview = preview::collectionTarget(open, e.title, it.images);
+    e.recent = {kind == RouteKind::Album ? "album" : kind == RouteKind::Artist ? "artist" : "playlist", it.id, e.title, e.subtitle,
+                it.images, std::nullopt};
+    return e;
 }
 const SearchResults* cachedSearch(const std::wstring& q) {
     const std::string key = cacheKey(q);
@@ -720,6 +771,8 @@ private:
     void addTopRow(ui::Column* c);
     void showEmpty(ui::Column* c);
     void runTagSearch(const std::wstring& title, const std::string& tag);
+    void addMoodTiles(ui::Column* c, bool afterCards);   // YouTube Music's moods & genres (the empty view)
+    void runMoodSearch(const std::wstring& title, const std::string& params);
     void setTabs(std::vector<int> kinds, int selected);
     void selectTab(int chip);
 
@@ -740,13 +793,17 @@ private:
     MediaCard* addCard(ui::Widget* parent, const ResultEntry& e);
     float headerBottom() const;
 
-    // ---- more of one kind (Spotify)
+    // ---- more of one kind (Spotify, YouTube Music)
     static constexpr size_t kOverview = 12;   // rows of each kind in the overview search
     static constexpr int kPage = 30;
     void setResults(SearchResults r) {
         results_ = std::move(r);
         spotifyResults_ = source::loggedIn();   // the catalog the answer (or the cached one) came from
+        ytmResults_ = !spotifyResults_ && source::ytmMode();
         exhausted_.clear();
+    }
+    bool pagedHere(const std::string& kindId) const {
+        return (spotifyResults_ && pagedKind(kindId)) || (ytmResults_ && ytmKind(kindId));
     }
     bool canLoadMore(size_t kind) const;
     void loadMore(size_t kind);
@@ -768,8 +825,9 @@ private:
     bool loading_ = false;
     double loadingSince_ = 0;
     bool linkShown_ = false;
-    // "Daha fazla yükle" of the kind tab shown (Spotify).
+    // "Daha fazla yükle" of the kind tab shown (Spotify, YouTube Music).
     bool spotifyResults_ = false;
+    bool ytmResults_ = false;
     std::set<std::string> exhausted_;   // kinds of this query with no more pages
     size_t kindShown_ = SIZE_MAX;       // the kind whose tab is shown
     ui::Widget* kindGrid_ = nullptr;    // its cards
@@ -1018,7 +1076,17 @@ void SearchPage::showBrowse(int focusIndex) {
             nav(card);
         }
     }
-    // Genres: Spotify's search for the genre, or MusicBrainz' tags.
+    // Genres: Spotify's search for the genre, MusicBrainz' tags, or YouTube Music's own moods & genres.
+    if (source::ytmMode()) {
+        addMoodTiles(c, !cards.empty());
+        scroll_->contentChanged();
+        if (focusIndex >= 0)
+            if (auto* w = window()) {
+                if (cards.empty()) w->focusByKeyboard(box_);
+                else w->focusByKeyboard(cards[std::min<size_t>(static_cast<size_t>(focusIndex), cards.size() - 1)]);
+            }
+        return;
+    }
     const bool spotify = source::loggedIn();
     auto* genres = c->add<SectionHeader>(tr(L"Türlere göz at"), spotify ? std::wstring() : std::wstring(tr(L"MUSICBRAINZ ETİKETLERİ")));
     if (!cards.empty()) c->setSpacingBefore(genres, metrics::sectionGap + 8);
@@ -1124,6 +1192,108 @@ void SearchPage::runTagSearch(const std::wstring& title, const std::string& tag)
           });
 }
 
+// YouTube Music's "Moods & genres" (UI language): a section of tiles per group ("Moods & moments", "Genres"),
+// placeholders until the first answer of this run lands; a tile opens that mood's playlists.
+void SearchPage::addMoodTiles(ui::Column* c, bool afterCards) {
+    auto& mc = moodCache();
+    if (mc.moods.empty()) {
+        auto* head = c->add<SectionHeader>(tr(L"Ruh hâli ve türler"), L"YOUTUBE MUSIC");
+        if (afterCards) c->setSpacingBefore(head, metrics::sectionGap + 8);
+        if (mc.failed) {
+            c->add<MessagePanel>("offline", tr(L"Türler yüklenemedi"), tr(L"Bağlantını kontrol edip tekrar dene."), tr(L"Tekrar dene"),
+                                 [this] {
+                                     moodCache().failed = false;
+                                     rebuildBrowse(-1, false);
+                                 });
+            return;
+        }
+        auto* placeholder = c->add<SkeletonBlock>(3);
+        c->setSpacingBefore(placeholder, 16);
+        // This view comes back with the tiles when they land (unless the page shows something else by then).
+        mc.listeners.emplace_back(searchLife_.ref(), [this] {
+            if (box_->text().empty() && !linkShown_) showBrowse();
+        });
+        if (!mc.loading) {
+            mc.loading = true;
+            async(Priority::High, mc.life.ref(), [] { return ytm::moods(); },
+                  [](Result<std::vector<ytm::Mood>> r) {
+                      auto& m = moodCache();
+                      m.loading = false;
+                      if (r && !r->empty()) {
+                          m.moods = std::move(*r);
+                      } else {
+                          m.failed = true;
+                          ST_LOG_WARN("search", "YouTube Music moods: {}", r ? std::string("none") : r.errorMessage());
+                      }
+                      auto listeners = std::move(m.listeners);
+                      m.listeners.clear();
+                      for (auto& [ref, fn] : listeners)
+                          if (!ref.expired()) fn();
+                  });
+        }
+        return;
+    }
+    std::string section;
+    bool first = true;
+    ui::Grid* grid = nullptr;
+    int i = 0;
+    for (const auto& m : mc.moods) {
+        if (!grid || m.section != section) {
+            section = m.section;
+            auto* head = c->add<SectionHeader>(section.empty() ? std::wstring(tr(L"Ruh hâli ve türler")) : toWide(section),
+                                               first ? std::wstring(L"YOUTUBE MUSIC") : std::wstring());
+            if (afterCards || !first) c->setSpacingBefore(head, metrics::sectionGap + (first ? 8.f : 0.f));
+            first = false;
+            grid = c->add<ui::Grid>(180.f, metrics::gridGap, [](float) { return 104.f; });
+            c->setSpacingBefore(grid, 16);
+            i = 0;
+        }
+        wchar_t idx[8];
+        swprintf(idx, 8, L"%02d", ++i);
+        auto* t = grid->add<Tile>(idx, toWide(m.title), tileColor(m.title));
+        const std::wstring title = toWide(m.title);
+        const std::string params = m.params;
+        t->onClick = [this, title, params] {
+            Dispatcher::post([this, title, params, ref = life_.ref()] {
+                if (!ref.expired()) runMoodSearch(title, params);
+            });
+        };
+        nav(t);
+    }
+}
+
+// One mood of YouTube Music: its shelves of playlists, a row each.
+void SearchPage::runMoodSearch(const std::wstring& title, const std::string& params) {
+    searchLife_.renew();
+    query_ = title;
+    hasResults_ = false;
+    setTabs({}, 0);
+    nav_.clear();
+    layer_ = nullptr;
+    auto* c = resetContent(20.f);
+    c->setPadding(metrics::pageX, 20, 48);
+    c->add<home::ShelfSkeleton>();
+    c->add<home::ShelfSkeleton>();
+    scroll_->contentChanged();
+    async(Priority::High, searchLife_.ref(), [params] { return ytm::moodShelves(params); },
+          [this, title, params](Result<std::vector<Shelf>> r) {
+              if (!r) return showError(toWide(r.errorMessage()), [this, title, params] { runMoodSearch(title, params); });
+              nav_.clear();
+              auto* c = resetContent(metrics::sectionGap);
+              c->setPadding(metrics::pageX, 20, 48);
+              auto* heading = c->add<ui::Label>(title, type::displayM);
+              heading->setVAlign(gfx::VAlign::Top);
+              for (const auto& shelf : *r) {
+                  auto* row = home::addShelf(c, toWide(shelf.title), {});
+                  for (const auto& it : shelf.items)
+                      if (it.kind != CardItem::Kind::Track) addCard(row, shelfEntry(it));
+              }
+              if (r->empty())
+                  c->add<MessagePanel>("search", tr(L"Sonuç bulunamadı"), tr(L"YouTube Music bu tür için liste göstermedi."));
+              contentReady();
+          });
+}
+
 MediaCard* SearchPage::addCard(ui::Widget* parent, const ResultEntry& e) {
     auto* card = parent->add<MediaCard>(e.title, e.subtitle, e.images,
                                         e.circle ? MediaCard::Shape::Circle : MediaCard::Shape::Square, e.placeholder);
@@ -1222,32 +1392,46 @@ void SearchPage::buildKind(ui::Column* c, size_t k) {
         const size_t n = kind.count(results_);
         for (size_t i = 0; i < n; ++i) addCard(kindGrid_, kind.entry(results_, i));
     }
-    if (spotifyResults_ && pagedKind(kind.id)) {
+    if (pagedHere(kind.id)) {
         moreButton_ = addLoadMore(c, [this, k] { loadMore(k); });
         setLoadMore(moreButton_, canLoadMore(k), false);
         nav(moreButton_);
     }
 }
 
-// Spotify gave a full overview row (12) of the kind, and its pages have not run out.
+// The catalog gave a full overview row (12) of the kind, and its pages have not run out.
 bool SearchPage::canLoadMore(size_t k) const {
     const auto& kind = resultKinds()[k];
-    return spotifyResults_ && pagedKind(kind.id) && !exhausted_.contains(kind.id) && kind.count(results_) >= kOverview;
+    return pagedHere(kind.id) && !exhausted_.contains(kind.id) && kind.count(results_) >= kOverview;
 }
 
-// The kind's next page (Api::searchMore from the rows already here): new rows go to results_ (and the cache) and,
-// while the tab is still on screen, to its grid / list. A page that adds nothing ends the kind.
+// The kind's next page (Api::searchMore / ytm::searchMore from the rows already here): new rows go to results_ (and the
+// cache) and, while the tab is still on screen, to its grid / list. A page that adds nothing ends the kind.
 void SearchPage::loadMore(size_t k) {
     const auto& kind = resultKinds()[k];
     const auto paged = pagedKind(kind.id);
-    spotify::Api* api = source::activeApi();
-    if (moreLoading_ || !paged || !api || !canLoadMore(k)) return;
+    const auto ytmPaged = ytmKind(kind.id);
+    spotify::Api* api = spotifyResults_ ? source::activeApi() : nullptr;
+    if (moreLoading_ || !canLoadMore(k) || (spotifyResults_ && (!paged || !api)) || (ytmResults_ && !ytmPaged)) return;
     moreLoading_ = true;
     setLoadMore(moreButton_, true, true);
     const int offset = static_cast<int>(kind.count(results_));
+    const bool ytmMore = ytmResults_;
     async(Priority::High, moreLife_.ref(),
-          [api, sk = *paged, q = toUtf8(query_), offset] { return api->searchMore(sk, q, offset, kPage); },
-          [this, k, search = searchLife_.ref()](Result<spotify::SearchBatch> r) {
+          [api, paged, ytmPaged, ytmMore, q = toUtf8(query_), offset] {
+              MoreBatch b;
+              if (ytmMore) {
+                  auto r = ytm::searchMore(q, *ytmPaged, offset, kPage);
+                  b.results = std::move(r.results);
+                  b.hasMore = r.hasMore;
+              } else {
+                  auto r = api->searchMore(*paged, q, offset, kPage);
+                  b.results = std::move(r.results);
+                  b.hasMore = r.hasMore();
+              }
+              return b;
+          },
+          [this, k, search = searchLife_.ref()](Result<MoreBatch> r) {
               if (search.expired()) return;   // another query / view meanwhile
               moreLoading_ = false;
               const auto& kind = resultKinds()[k];
@@ -1270,7 +1454,7 @@ void SearchPage::loadMore(size_t k) {
               merge(R.playlists, r->results.playlists);
               merge(R.shows, r->results.shows);
               merge(R.profiles, r->results.profiles);
-              if (kind.count(results_) == before || !r->hasMore()) exhausted_.insert(kind.id);
+              if (kind.count(results_) == before || !r->hasMore) exhausted_.insert(kind.id);
               cacheSearch(query_, results_);   // typing back shows them too
               if (kindShown_ == k) {
                   if (kind.custom) {

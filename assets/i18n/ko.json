@@ -2060,5 +2060,20 @@
   "İçe aktarılan Last.fm geçmişini kaldır": "가져온 Last.fm 기록 삭제",
   "İçe aktarılan ListenBrainz geçmişini kaldır": "가져온 ListenBrainz 기록 삭제",
   "İçe aktarılan Spotify geçmişini kaldır": "가져온 Spotify 기록 삭제",
-  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "계정이 바뀌어 가져오기를 멈췄어요. 가져온 기록은 그 계정의 기록에 남아요."
+  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "계정이 바뀌어 가져오기를 멈췄어요. 가져온 기록은 그 계정의 기록에 남아요.",
+  "YouTube Music ile keşfet": "YouTube Music으로 둘러보기",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Google 계정이 필요 없어요. 검색, 앨범, 아티스트, 플레이리스트, 라디오를 YouTube Music에서 가져와요",
+  "MusicBrainz ile keşfet": "MusicBrainz로 둘러보기",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "공개 음악 데이터베이스: MusicBrainz와 ListenBrainz",
+  "Spotify olmadan katalog": "Spotify 없이 쓸 카탈로그",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Spotify에 연결되어 있지 않을 때 검색, 앨범, 아티스트, 홈을 여기서 가져와요. YouTube Music: 노래가 정확히 그 음원으로 재생되고 플레이리스트와 라디오도 있어요. MusicBrainz: 공개 음악 데이터베이스예요.",
+  "YouTube Music bunun için radyo sunmuyor": "YouTube Music에서 이 항목의 라디오를 제공하지 않아요",
+  "Bunun için radyo yok": "이 항목의 라디오가 없어요",
+  "YouTube Music bağlantısını kopyala": "YouTube Music 링크 복사",
+  "Ruh hâli ve türler": "분위기 및 장르",
+  "YouTube Music albümü": "YouTube Music 앨범",
+  "YouTube Music sanatçısı": "YouTube Music 아티스트",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music에서 이 장르의 플레이리스트를 보여 주지 않았어요.",
+  "YouTube Music çalma listesi": "YouTube Music 재생목록",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "플레이리스트 · YOUTUBE MUSIC"
 }

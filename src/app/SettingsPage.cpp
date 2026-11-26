@@ -20,6 +20,7 @@
 #include "ui/Popups.h"
 #include "ui/TextBox.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <shellapi.h>
 
@@ -272,6 +273,18 @@ private:
             }
             // The other accounts on this PC (Geç / Çıkış yap) and "Hesap ekle" (app/Accounts).
             accounts::buildSettingsRows(c, rebuilder());
+            // The open catalog: what search, albums, artists and Home read while no Spotify account is connected.
+            auto* row = c->add<SettingRow>(
+                tr(L"Spotify olmadan katalog"),
+                tr(L"Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: "
+                   L"şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı."));
+            auto* seg = row->control<Segmented>(260.f, std::vector<std::wstring>{L"YouTube Music", L"MusicBrainz"},
+                                                s.openCatalog == "ytmusic" ? 0 : 1);
+            seg->onChange = [](int i) {
+                Settings::get().openCatalog = i == 0 ? "ytmusic" : "musicbrainz";
+                Settings::get().markDirty();
+                source::applyOpenCatalog();
+            };
         }
 
         c = card("connections", "link", tr(L"Bağlantılar"), tr(L"Last.fm ve ListenBrainz scrobble, Discord durumu"));
@@ -449,7 +462,7 @@ private:
             open->onClick = [] { openPath(paths::appData().wstring()); };
 
             const auto images = folderSize(paths::imageCacheDir());
-            const auto catalogCache = folderSize(paths::cacheDir() / L"mb");
+            const auto catalogCache = folderSize(paths::cacheDir() / L"mb") + ytm::diskCacheBytes();   // + YouTube Music's pages
             const auto memory = gfx::ImageCache::get().memoryBytes();
             // Three sizes: "Kapaklar 12,3 MB, katalog 1,5 MB. Bellekte 30,1 MB görsel." (disk: covers, catalog; RAM)
             auto* row2 = c->add<SettingRow>(tr(L"Önbellek"),
@@ -471,6 +484,8 @@ private:
                 std::error_code ec;
                 for (const auto& e : std::filesystem::directory_iterator(paths::imageCacheDir(), ec)) std::filesystem::remove(e.path(), ec);
                 gfx::ImageCache::get().clear();
+                ytm::clearDiskCache();   // YouTube Music's saved pages go with the covers
+                ytm::clearCache();
                 toast(tr(L"Görsel önbelleği temizlendi"));
                 Dispatcher::post([this, ref = life_.ref()] {
                     if (!ref.expired()) build();

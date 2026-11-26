@@ -145,6 +145,17 @@ auto async = matcher.resolveAsync({"Believer", {"Imagine Dragons"}, std::chrono:
 auto manifest = youtube.videos().streams().getManifest(cachedVideoId);
 ```
 
+## YouTube Music (raw InnerTube)
+
+```cpp
+// music.youtube.com as the anonymous web client (WEB_REMIX) in this client's session: cookies, retries and one
+// YouTube Music visitor per session. The answer is the raw JSON text (its layout changes often: parse it yourself).
+std::string json = youtube.music().send({"search", R"({"query":"daft punk"})"});
+std::string album = youtube.music().send({"browse", R"({"browseId":"MPREb_K8qWMWVqXGi"})"});
+// Old-style continuation, another language for this request:
+Music::MusicRequest more{"browse", "{}", "ctoken=" + token + "&continuation=" + token + "&type=next", "de"};
+```
+
 ## Async
 
 ```cpp

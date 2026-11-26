@@ -21,6 +21,7 @@
 #include "spotify/SpotifyApi.h"
 #include "ui/Popups.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <nlohmann/json.hpp>
 
@@ -335,9 +336,15 @@ std::vector<Track> spotifyLiked(spotify::Api* api) {
     return out;
 }
 
-// Fresh songs for one mix lead: Spotify's radio of its song (logged in), else ListenBrainz's similar artists' hits.
+// Fresh songs for one mix lead: YouTube Music's radio of a YouTube Music song, Spotify's radio of its song (logged in),
+// else ListenBrainz's similar artists' hits.
 std::vector<Track> freshFor(spotify::Api* api, const List& mix) {
     std::vector<Track> out;
+    if (ytm::isTrackId(mix.seedTrackId)) {
+        out = ytm::radio(mix.seedTrackId, 50);
+        if (!out.empty()) out.erase(out.begin());   // the seed itself
+        return out;
+    }
     if (api) {
         if (mix.seedTrackId.rfind("spotify:track:", 0) != 0) return out;
         const std::string uri = api->radioPlaylist(mix.seedTrackId);

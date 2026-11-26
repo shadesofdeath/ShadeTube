@@ -4,8 +4,9 @@ How ShadeTube is built, how it is put together and how to test and release it. F
 [README](../README.md); for what changed between versions, see the [changelog](../CHANGELOG.md).
 
 ShadeTube is a native Windows x64 app in C++20: Direct2D + DirectWrite UI with its own widget tree and window chrome,
-Media Foundation and built-in Opus / Vorbis decoders → WASAPI audio (shared or exclusive), catalog data from Spotify (the user's own account) or MusicBrainz, and audio
-streamed from YouTube through a C++ YoutubeExplode port.
+Media Foundation and built-in Opus / Vorbis decoders → WASAPI audio (shared or exclusive), catalog data from Spotify
+(the user's own account), YouTube Music or MusicBrainz, and audio streamed from YouTube through a C++ YoutubeExplode
+port.
 
 ## Contents
 
@@ -44,8 +45,8 @@ The result is a **single self-contained exe**: static CRT, static WebView2 loade
 embedded as an `RCDATA` resource named by its relative path (generated `resources.rc`; names starting with `_` are
 skipped). At run time the Spotify login needs the Evergreen **WebView2 Runtime** (included in Windows 11).
 
-**First run** shows the connect screen: *Connect Spotify* opens a WebView2 login window, *Explore without Spotify*
-browses MusicBrainz. User data lives in `%LOCALAPPDATA%\ShadeTube` ([3.14](#314-user-data)); during
+**First run** shows the connect screen: *Connect Spotify* opens a WebView2 login window; under *Explore without
+Spotify*, *YouTube Music* or *MusicBrainz* browses that open catalog (3.42). User data lives in `%LOCALAPPDATA%\ShadeTube` ([3.14](#314-user-data)); during
 development use a sandbox profile instead ([5.1](#51-sandbox-profiles)).
 
 ## 2. Repository layout
@@ -80,6 +81,7 @@ ShadeTube/
 │   musicbrainz/ st_musicbrainz  MusicBrainz, Cover Art Archive, ListenBrainz, Wikidata client (rate limit, disk cache)
 │   spotify/     st_spotify      Totp, Auth, SpotifyApi (Pathfinder + spclient), HashRegistry, Session, Accounts
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious)
+│   ytmusic/     st_ytmusic      YouTube Music catalog: Parse (tolerant InnerTube parsers), YtMusic (endpoints, cache)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
 │                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.42)
@@ -132,7 +134,7 @@ ShadeTube/
                                  downloads, headers, history, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, songnotify, sponsorblock,
-                                 spotify, stats, sync, tags, theme, updater, video, winshell, ytstreams
+                                 spotify, stats, sync, tags, theme, updater, video, winshell, ytmusic, ytstreams
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -141,7 +143,7 @@ metadata that `ID2D1SvgDocument` rejects), tokens, textures and `app.ico`. Witho
 The icons are the exception: `tools/icons.py` draws them and writes both `assets/icons` and, with
 `--design ShadeTube-Design`, the package's `icons/` (3.42), so an import brings back the same files.
 
-**Module dependencies** (never reverse them): `core ← catalog ← musicbrainz, spotify, youtube`;
+**Module dependencies** (never reverse them): `core ← catalog ← musicbrainz, spotify, youtube, ytmusic`;
 `core ← audio, lyrics, gfx`; `gfx ← ui`; `audio + gfx ← video` (it reuses the audio module's ProgressiveBuffer and
 MfByteStream); `audio + youtube + catalog ← player`; everything `← app`. A new module
 gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this guide.
@@ -338,8 +340,9 @@ web player uses. Audio never comes from Spotify. Flow (`src/spotify/`, `app/Logi
    `Settings.expandedFolders`); the Library page as folder cards opening `{Library, "folder:<id>"}`. Each libraryV3
    item's `addedAt` / `playedAt` / `pinned` (folders as `folder:<id>`) is kept in `LibrarySnapshot::entries` for the
    Library's sort orders (3.22); albums and artists are paged like the playlists (50 a page, at most 20 pages).
-5. **Source seam** (`app/Source`): pages read Spotify when logged in and MusicBrainz otherwise; detail lookups route
-   by id (`spotify:*` URI → Spotify, MBID → MusicBrainz), so mixed histories keep working.
+5. **Source seam** (`app/Source`): pages read Spotify when logged in and the open catalog otherwise (MusicBrainz or
+   YouTube Music, 3.42); detail lookups route by id (`spotify:*` URI → Spotify, `ytm:*` → YouTube Music, MBID →
+   MusicBrainz), so mixed histories keep working.
 
 **Hash self-healing** (`spotify/HashRegistry`). Each Pathfinder operation is sent with the SHA-256 of its query
 document. When Spotify retires a hash the call fails with HTTP 412 "Invalid query hash"; `HashRegistry::heal()`
@@ -354,7 +357,9 @@ request-shape change and needs a code fix in `SpotifyApi.cpp`. Keep the built-in
 
 - **Radio** (`app/Radio`): `Api::radioPlaylist(seed)` (the web player's "Go to song radio") → the first 100 tracks →
   blocklist-filtered → replaces the queue. Track, album and artist seeds are supported; a playlist is seeded with its
-  first playable tracks. Starting the radio of the playing song keeps it playing and replaces what follows.
+  first playable tracks. Starting the radio of the playing song keeps it playing and replaces what follows. YouTube
+  Music seeds (`yt:` songs, `ytm:` albums / artists / playlists) get YouTube Music's automix queue instead (3.42), with
+  or without a Spotify session; autoplay seeds from them the same way.
 - **Autoplay / endless playback** (`Settings.endlessPlayback`): when at most one playable item is left and repeat
   is off (`Player::onQueueLow`), the radio of the current Spotify track is appended (only new, unblocked tracks),
   one fetch at a time, each seed once per queue generation and a bounded number of seeds per queue.
@@ -2844,6 +2849,102 @@ dedupes, times and stores them; `app/StatsPage.cpp` has the dialog, the cards, t
 - **Dev**: `SHADETUBE_IMPORT_SCROBBLES` starts an import once the history is loaded, `SHADETUBE_IMPORT_DIALOG` opens
   the dialog (5.4); `history_test` (5.2) replays fake Last.fm / ListenBrainz servers, reads every export format from
   `tests/history/fixtures` (`make_fixtures.py` regenerates them) and runs live imports.
+### 3.42 YouTube Music catalog
+
+YouTube Music (music.youtube.com) is the third catalog, next to Spotify and MusicBrainz: an open catalog like
+MusicBrainz (no account; the anonymous web client), picked on the connect screen ("YouTube Music ile keşfet" /
+"MusicBrainz ile keşfet" under "Spotify olmadan keşfet") or in *Ayarlar › Spotify hesabı › Spotify olmadan katalog*
+(`Settings.openCatalog`: `"musicbrainz"` default | `"ytmusic"`). Logged in to Spotify, Spotify stays the catalog; logged
+out, the open catalog is the chosen one. `source::applyOpenCatalog()` mirrors the setting for worker threads (an
+atomic: `Settings` is UI-thread only) and reopens the current page on a switch from the connect screen.
+
+- **Transport** (`YoutubeExplode::Music::MusicClient`, `external/YoutubeExplode`): `YoutubeClient::music().send()`
+  POSTs to `music.youtube.com/youtubei/v1/<endpoint>` with a `WEB_REMIX` context (version `1.<date of 3 days
+  ago>.01.00`, `hl` / `gl`) through the client's `ClientContext`, so the consent cookie, YouTube's cookies, 5xx retries
+  and the 429 mapping are the ones playback uses (the app passes MatchService's client: `ytm::setClient`). YouTube
+  Music keeps a visitor of its own: the first answer's `responseContext.visitorData` is sent with every later request
+  of the session (context + `X-Goog-Visitor-Id`), and the request that obtains it goes alone (the others wait), so the
+  session never has two. The www.youtube.com visitor (`sw.js_data`) is not sent: with it the Home feed's continuations
+  come back empty (verified 2026-11-27). `resetSession()` drops it with the rest.
+- **Ids**: a song is `yt:<videoId>` with `Track::videoId` set: the id pasted YouTube links and imported YouTube
+  playlists already use (3.10, 3.21), so liked songs, local playlists, history, stats, downloads and the blocklist
+  treat it like any song, and `MatchService::resolve` plays exactly that video, never a search (it also derives the
+  video from a `yt:` id whose copy lost `videoId`). Collections: `ytm:album:<MPREb_…>`, `ytm:artist:<UC…>`,
+  `ytm:playlist:<id without VL>`. `source::album / artistPage` route `ytm:` ids to YouTube Music in every mode, like
+  `spotify:` URIs to Spotify, so a mixed history keeps opening.
+- **Parsers** (`ytmusic/Parse`, pure): InnerTube answers are renderer trees 10-20 levels deep that move between
+  experiments (the same unfiltered search came back as `musicShelfRenderer`s per type and as one
+  `itemSectionRenderer` per row). Nothing walks a fixed path: the parsers find the renderers that carry data wherever
+  they sit (`musicResponsiveListItemRenderer` rows, `musicTwoRowItemRenderer` cards, `playlistPanelVideoRenderer`
+  queue rows, `musicCardShelfRenderer` top results, the page header among `musicResponsiveHeaderRenderer` /
+  `musicDetailHeaderRenderer` / `musicImmersiveHeaderRenderer` / `musicVisualHeaderRenderer`) and classify each row by
+  what it links to: the browse page type (`MUSIC_PAGE_TYPE_ALBUM / ARTIST / PLAYLIST`; user channels, podcasts and
+  episodes are left out) or the watch endpoint's music video type (`ATV` = a song, `OMV` / `UGC` = a video,
+  `PODCAST_EPISODE` dropped). Subtitles are split at their " • " runs into credits (linked artists plus plain names
+  between ", " / " & "), album, length, year and counts. Requests are sent with `hl=en` so the few words read
+  ("Single", "EP", "songs", an artist page's shelf titles) are predictable; Home and the mood tiles are asked for in
+  the UI language and shown as they come. googleusercontent / ggpht pictures carry their size in the URL: larger
+  renditions are added (544 / 1080 px) and an artist's wide header banner becomes centered square crops (`-p`).
+  Missing fields keep defaults, a row without an id is skipped, no shape throws.
+- **Endpoints** (`ytmusic/YtMusic`, blocking, worker threads): search (`ytm::search`, the Search page) = the unfiltered
+  answer (its top result card names `SearchResults::topResult`) and the first page of each kind (`ytm::searchMore`:
+  songs, albums, artists, playlists = the featured lists, then the community's) in parallel; a kind whose own request
+  fails takes the overview's rows. `searchMore(query, kind, offset, count)` follows a kind's continuations
+  (`ctoken=` URL parameters) and keeps what it paged for 10 minutes, so "Daha fazla yükle" asks only for what is new.
+  `ytm::searchQuick` is the unfiltered answer alone: one request per keystroke for the command palette
+  (`source::quickSearch`). Album = `browse MPREb_…` (header, tracklist, `Album::releaseId` = its `OLAK5uy_…` audio
+  playlist). Artist = `browse UC…` (the header: square avatar crops of its 1080 × 450 picture plus that picture as the
+  page's banner, monthly audience, subscribers as followers, the description: Wikipedia's summary with its credit line
+  turned into `bioSource` / `bioUrl`, else the artist's own text; albums, singles & EPs, appears on, "Fans might also
+  like", "Featured on" / "Playlists by" as the playlists featuring the artist, the header's "Mix" radio) plus the first
+  page of its "Top songs" playlist: the page shows five songs without lengths, that list has them by popularity with
+  lengths and albums (top songs = its first 20). The albums and singles carousels show about ten each; their "More"
+  (`MPAD<channel>` + params, `MUSIC_PAGE_TYPE_ARTIST_DISCOGRAPHY`) is the whole group: `albumsTotal` / `singlesTotal`
+  are one more than shown when it exists (YouTube Music gives no count) and `ytm::artistReleases` (`source::
+  artistReleases`) reads it when the discography grid opens. Playlist = `browse VL<id>` (about 100 rows) and
+  continuations, new style (`continuationCommand`, in the body) or old (`nextContinuationData`, as `ctoken=` URL
+  parameters). Home = `FEmusic_home` with two continuation pages, `FEmusic_explore` (new albums & singles, trending,
+  new videos) and `FEmusic_charts` (chart playlists, top artists) in parallel. Moods = `FEmusic_moods_and_genres`, a
+  mood = `FEmusic_moods_and_genres_category` + its params. Radio = `next` with `RDAMVM<video>` (a song),
+  `RDAMPL<OLAK…>` (an album), the artist's `RDEM…` mix, `RDAMPL<id>` (a playlist), else the radio of the collection's
+  first song; 50 rows a page, continuations to 100.
+- **Caches**: parsed albums (30 min), artists / first playlist pages (15 min) and searches / paged kinds (10 min) in
+  memory; on disk (`cache\ytmusic`, one file per answer, pruned of tracking data, menus and accessibility labels:
+  about a quarter of the raw size) albums for 7 days, artists, their songs lists and discographies for a day, the first
+  page of playlists for 6 hours, the mood tiles for a day; at most 32 MB (the oldest files go first, checked every 32
+  writes). Searches, Home, radios and continuations are never written. *Ayarlar › Kitaplık ve depolama › Önbellek*
+  counts it with the catalog cache and "Temizle" clears it with the covers.
+- **App**: the Search page (3.42 Artist and Search pages) takes YouTube Music's answer through its kinds: songs,
+  artists, albums and playlists, the top result card, and "Daha fazla yükle" per kind tab through `ytm::searchMore`
+  (`SearchPage::loadMore`, like Spotify's `Api::searchMore`); its empty view shows YouTube Music's moods & genres as
+  tiles per group, a tile opening that mood's shelves of playlists. The Artist page shows everything above (the
+  discography grid complete through `artistReleases`; sections YouTube Music has no data for are left out), with the
+  radio button and "YouTube Music bağlantısını kopyala". Playlists open read-only in the collection page with
+  progressive paging, "Yerel listeye aktar" (`transfer::importYtmPlaylist`: a local copy, rows pinned to their videos),
+  export and download sync (`DownloadSync` lists them through `ytm::playlistTracks`). Home (logged out, YouTube
+  Music): the local sections, then "Sana özel" (artists YouTube Music relates to the one played most here) and YouTube
+  Music's shelves through `ShelfCache` (key `"ytm"`, fresh for 20 min, retried after 20 s); its song cards play the
+  shelf from that song. Radio (3.6): `radioSeed` accepts `yt:` songs and `ytm:` collections and `fetchRadio` asks
+  `ytm::radio` for them (context `ytmradio:<seed>`); endless playback seeds from `yt:` songs too, so a YouTube Music
+  queue never runs dry. Smart shuffle / "Geliştir" and the daily mixes' fresh songs use the same song radio for `yt:`
+  songs. Stats artwork lookups use one filtered search (`ytm::searchKind`). Pasted `music.youtube.com/browse/MPREb_…`
+  and `/channel/UC…` links open the album / artist; a YouTube playlist link opens as a YouTube Music playlist page
+  while it is the catalog (imported as before otherwise).
+- **With the other 0.11 parts**: song credits of a `yt:` song come from MusicBrainz by title and artist (the fallback
+  for every song without a Spotify / MusicBrainz id); the song cache (3.42 Song cache) is keyed by video id + itag, and
+  `Player::resolveSong` takes the video of a `yt:` song straight from its id, so a cached YouTube Music song plays
+  offline; Blend keys songs by folded title + artist and plays a `yt:` song from another member pinned to its video
+  (`MatchService` and the player derive it from the id); listen together pins the host's video. With several Spotify
+  accounts the open catalog applies only while no account is signed in (`source::loggedIn()` is the active account's
+  session).
+- **Local library**: liked songs, saved albums, followed artists and local playlists are this PC's (the active
+  profile's), exactly as in MusicBrainz mode; stats, smart lists, downloads, sync and the blocklist work on the `yt:` /
+  `ytm:` ids unchanged.
+- **Tests**: `ytmusic_test` (5.2) parses responses captured from music.youtube.com (`tests/ytmusic/fixtures`: real
+  answers cut down to a few rows per list, shelves kept whole, noise keys removed; `ytmusic_test dump <file>` prints
+  what the parsers make of a new capture) and, with `live`, exercises every endpoint (search, the one-request quick
+  search, paging songs and playlists, the full discography, the disk cache) and plays a search result through
+  `MatchService` to check the video is the one YouTube Music named.
 
 ## 4. Coding conventions
 
@@ -2895,6 +2996,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 |---|---|---|
 | `spotify_test` | TOTP / base32 vectors, home parser, artist page parser (`parseArtistOverview`), search kinds / followed shows / show details / profiles fixtures and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `search` (every search kind and its paging, a show, a public profile, shows resolved to public feeds; an anonymous token when there is no `sp_dc`, 3.42 Search kinds); `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
 | `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing (artist links from url-rels, Wikipedia titles and summaries), cold vs warm cache | `--offline`, `--keep-cache` |
+| `ytmusic_test` | YouTube Music parsers on captured answers (search filtered / unfiltered + top result, a filtered list's continuation, album, artist (banner, audience, subscribers, Wikipedia bio, featured playlists, the "More" pages), an artist's discography page, playlist + continuation, watch-next radio + continuation, home + continuation, explore, charts, moods, a mood), ids, durations / counts, picture URLs, shapes that must not throw | default offline; `live [query]` (every endpoint, timings, the one-request quick search, paging, the full discography, the disk cache, pinned playback through `MatchService`); `dump <file>` |
 | `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, seeks beyond the download, pause, gapless, crossfade, the other container, memory) | network; `[--webm] [--exclusive] [videoA] [videoB]` (`--webm`: everything on Opus / WebM, the built-in decoder; `--exclusive`: WASAPI exclusive mode) |
@@ -3132,6 +3234,16 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   a ShadeTube window hidden behind several smaller windows counts as in view. Verified live: the toast with the cover,
   the replacement per song, "Sonraki" from the toast, the mini player suppressing it, the balloon fallback; the "Beğen"
   button was not clicked live (on a Spotify track it writes to the real account).
+- **YouTube Music** is read through its web client's private InnerTube API (anonymous): its renderer layout changes
+  between experiments without notice. The parsers find rows wherever they are and skip what they don't understand, so
+  a change usually loses a section rather than breaking the page; new captures go through `ytmusic_test dump`. Only
+  English (`hl=en`) answers are parsed for words; Home's shelves come in the UI language, but their content follows the
+  region YouTube sees (the IP), not `Settings.region`. YouTube Music gives no discography counts (the artist page only
+  knows "there may be more" until the grid opens), no compilations group and no rank / top cities. YouTube Music
+  playlists are read-only (no account: no library, likes or playlist writes on YouTube Music's side; "Yerel listeye
+  aktar" makes a local copy). No search suggestions (the other catalogs have none either). A Search page answer costs
+  five parallel requests (the palette's one); a page 1-2 requests of 0.3-1.5 s (answers are 0.2-1 MB of JSON; a mood
+  category up to 3 MB) unless the disk cache has it.
 - **YouTube** matching can pick the wrong video (*Wrong match?* fixes it per track), and stream access depends on
   YoutubeExplode keeping up with YouTube changes.
 - **Public Piped / Invidious instances are volatile**: the built-in list goes stale, and many instances serve search

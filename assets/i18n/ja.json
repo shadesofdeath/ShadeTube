@@ -2060,5 +2060,20 @@
   "İçe aktarılan Last.fm geçmişini kaldır": "インポートしたLast.fmの履歴を削除",
   "İçe aktarılan ListenBrainz geçmişini kaldır": "インポートしたListenBrainzの履歴を削除",
   "İçe aktarılan Spotify geçmişini kaldır": "インポートしたSpotifyの履歴を削除",
-  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "アカウントが切り替わったため、インポートを停止しました。取得済みの分はそのアカウントの履歴に残ります。"
+  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "アカウントが切り替わったため、インポートを停止しました。取得済みの分はそのアカウントの履歴に残ります。",
+  "YouTube Music ile keşfet": "YouTube Musicで始める",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Googleアカウントは不要です。検索、アルバム、アーティスト、プレイリスト、ラジオはYouTube Musicから取得します",
+  "MusicBrainz ile keşfet": "MusicBrainzで始める",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "オープンな音楽データベース：MusicBrainzとListenBrainz",
+  "Spotify olmadan katalog": "Spotifyなしのカタログ",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Spotifyに接続していない間、検索・アルバム・アーティスト・ホームはここから取得します。YouTube Music：曲はその音源どおりに再生され、プレイリストとラジオもあります。MusicBrainz：オープンな音楽データベースです。",
+  "YouTube Music bunun için radyo sunmuyor": "この項目にはYouTube Musicのラジオがありません",
+  "Bunun için radyo yok": "これに対応するラジオはありません",
+  "YouTube Music bağlantısını kopyala": "YouTube Musicのリンクをコピー",
+  "Ruh hâli ve türler": "ムードとジャンル",
+  "YouTube Music albümü": "YouTube Music のアルバム",
+  "YouTube Music sanatçısı": "YouTube Music のアーティスト",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music はこのジャンルのプレイリストを表示しませんでした。",
+  "YouTube Music çalma listesi": "YouTube Music の再生リスト",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "プレイリスト · YOUTUBE MUSIC"
 }

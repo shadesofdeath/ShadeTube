@@ -2060,5 +2060,20 @@
   "İçe aktarılan Last.fm geçmişini kaldır": "Hapus riwayat Last.fm yang diimpor",
   "İçe aktarılan ListenBrainz geçmişini kaldır": "Hapus riwayat ListenBrainz yang diimpor",
   "İçe aktarılan Spotify geçmişini kaldır": "Hapus riwayat Spotify yang diimpor",
-  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "Impor berhenti karena akun berganti. Yang sudah diambil tetap ada di riwayat akun itu."
+  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "Impor berhenti karena akun berganti. Yang sudah diambil tetap ada di riwayat akun itu.",
+  "YouTube Music ile keşfet": "Jelajahi dengan YouTube Music",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Tidak perlu akun Google: pencarian, album, artis, playlist, dan radio berasal dari YouTube Music",
+  "MusicBrainz ile keşfet": "Jelajahi dengan MusicBrainz",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "Basis data musik terbuka: MusicBrainz dan ListenBrainz",
+  "Spotify olmadan katalog": "Katalog tanpa Spotify",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Selama Spotify tidak terhubung, pencarian, album, artis, dan Beranda berasal dari sini. YouTube Music: lagu diputar tepat dari rekaman itu, lengkap dengan playlist dan radio. MusicBrainz: basis data musik terbuka.",
+  "YouTube Music bunun için radyo sunmuyor": "YouTube Music tidak menyediakan radio untuk ini",
+  "Bunun için radyo yok": "Tidak ada radio untuk ini",
+  "YouTube Music bağlantısını kopyala": "Salin link YouTube Music",
+  "Ruh hâli ve türler": "Mood & genre",
+  "YouTube Music albümü": "Album YouTube Music",
+  "YouTube Music sanatçısı": "Artis YouTube Music",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music tidak menampilkan playlist untuk genre ini.",
+  "YouTube Music çalma listesi": "Playlist YouTube Music",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "PLAYLIST · YOUTUBE MUSIC"
 }

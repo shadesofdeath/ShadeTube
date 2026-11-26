@@ -12,6 +12,7 @@
 #include <YoutubeExplode/Exceptions.hpp>
 #include <YoutubeExplode/Http/HttpClient.hpp>
 #include <YoutubeExplode/JavaScript/IJsEngine.hpp>
+#include <YoutubeExplode/Music/MusicClient.hpp>
 #include <YoutubeExplode/Music/TrackMatcher.hpp>
 #include <YoutubeExplode/Version.hpp>
 #include <YoutubeExplode/YoutubeClient.hpp>

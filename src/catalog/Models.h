@@ -1,7 +1,9 @@
 #pragma once
 // Source-independent catalog models shared by every module (MusicBrainz client, local library, player, UI).
-// Catalog ids are MusicBrainz MBIDs (UUID strings). Audio always comes from YouTube: a Track may carry a
-// cached videoId; otherwise youtube::MatchService finds one from title/artist/duration.
+// Catalog ids are MusicBrainz MBIDs (UUID strings), Spotify URIs ("spotify:<kind>:<id>") or YouTube Music ids
+// ("yt:<videoId>" songs, "ytm:album:" / "ytm:artist:" / "ytm:playlist:" collections; src/ytmusic). Audio always comes
+// from YouTube: a Track may carry its videoId (YouTube Music songs always do: that video plays, nothing is matched);
+// otherwise youtube::MatchService finds one from title/artist/duration.
 // Strings are UTF-8.
 #include <cstdint>
 #include <string>
@@ -189,11 +191,11 @@ struct SearchResults {
     std::vector<Artist> artists;
     std::vector<Album> albums;
     std::vector<Track> tracks;
-    // Spotify only (MusicBrainz has none of these).
+    // Spotify (and YouTube Music: playlists, the top result); MusicBrainz has none of these.
     std::vector<Playlist> playlists;
     std::vector<PodcastShow> shows;
     std::vector<Profile> profiles;
-    std::string topResult;          // Spotify's own top hit (the id of an item in one of the lists), "" = none
+    std::string topResult;          // the catalog's own top hit (the id of an item in one of the lists), "" = none
 
     bool empty() const {
         return artists.empty() && albums.empty() && tracks.empty() && playlists.empty() && shows.empty() && profiles.empty();

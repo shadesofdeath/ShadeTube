@@ -4,6 +4,15 @@ All notable changes to ShadeTube, newest first.
 
 ## 0.11.0 — unreleased
 
+- **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or
+  Settings › Spotify account) and search, albums, artists, playlists and Home come from YouTube Music, no Google
+  account needed. Search finds songs, albums, artists and playlists with a top result and more of each kind on
+  request; artist pages have top songs, the complete discography, fans also like, featured playlists and an About
+  with the artist's story; Home brings YouTube Music's mixes, new releases, trending songs, charts and top artists, and
+  the Search page its moods & genres. Every song plays exactly the recording YouTube Music lists, never a guessed match
+  (and plays from the song cache offline). Radio and endless playback use YouTube Music's own mixes, so the music keeps
+  going. Likes, local playlists, downloads, offline sync, credits, Blend and stats work as before; a YouTube Music
+  playlist can be copied into a local one, and pasted music.youtube.com album and artist links open their pages.
 - **One thin icon style everywhere**: the player bar's light outline icons now run through the whole app — sidebar,
   title bar, page headers, menus, song rows, cards, settings, toasts, the queue, Now Playing, the mini player, the
   command palette, the taskbar buttons and the phone remote. Every icon has the same line weight and size and is drawn

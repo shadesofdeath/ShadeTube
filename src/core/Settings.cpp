@@ -88,6 +88,8 @@ void Settings::load() {
     read(j, "altSource", altSource);
     read(j, "altSourceInstance", altSourceInstance);
     read(j, "altSoundCloud", altSoundCloud);
+    read(j, "openCatalog", openCatalog);
+    if (openCatalog != "ytmusic") openCatalog = "musicbrainz";
     read(j, "localFolders", localFolders);
     read(j, "localView", localView);
     read(j, "localFolder", localFolder);
@@ -203,6 +205,7 @@ void Settings::save() const {
         {"altSource", altSource},
         {"altSourceInstance", altSourceInstance},
         {"altSoundCloud", altSoundCloud},
+        {"openCatalog", openCatalog},
         {"localFolders", localFolders},
         {"localView", localView},
         {"localFolder", localFolder},

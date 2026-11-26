@@ -779,9 +779,12 @@ Player::Resolution Player::resolveSong(youtube::MatchService& matcher, AudioCach
     res.profile = AudioCache::profile(webm, low);
     res.trackId = track.id;
     std::optional<youtube::Match> known = matcher.cachedMatch(track.id);   // listen together, manual or persisted
-    if (!known && !track.videoId.empty()) {
+    // A song that names its video (YouTube Music, a pasted link: "yt:<videoId>", also when a copy lost Track::videoId).
+    std::string pinned = track.videoId;
+    if (pinned.empty() && track.id.size() == 14 && track.id.rfind("yt:", 0) == 0) pinned = track.id.substr(3);
+    if (!known && !pinned.empty()) {
         youtube::Match m;
-        m.videoId = track.videoId;
+        m.videoId = pinned;
         m.title = track.name;
         m.score = 100;
         m.manual = true;

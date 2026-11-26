@@ -1,4 +1,4 @@
-// Spotify radio, endless playback and the kara liste's player wiring (see Radio.h).
+// Spotify / YouTube Music radio, endless playback and the kara liste's player wiring (see Radio.h).
 #include "app/Radio.h"
 
 #include "app/Accounts.h"
@@ -10,6 +10,7 @@
 #include "core/Log.h"
 #include "core/Utf.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <algorithm>
 #include <cstring>
@@ -33,6 +34,7 @@ struct RadioFetch {
     bool failed = false;
     bool cancelled = false;         // the guard expired between two requests (a newer request / app exit)
     int status = 0;                 // ApiError status (0 = network / other)
+    bool ytm = false;               // the failure came from YouTube Music
     std::string error;
 };
 
@@ -46,10 +48,14 @@ std::string radioOf(spotify::Api* api, const std::string& seed) {
     }
 }
 
+bool isYtmSeed(const std::string& seed) { return ytm::isTrackId(seed) || ytm::isYtmId(seed); }
+
 // Worker thread: the first of `seeds` that has a radio -> that radio's first page. Spotify serves no radio for
 // playlists (verified: user and generated playlists answer with nothing), so a lone playlist seed without one returns
 // its first tracks as `candidates` instead: the UI thread picks unblocked ones and asks again. `guard` is checked
 // before every request, so a superseded fetch or one outliving the app (and its Api) stops at the next call.
+// YouTube Music seeds ("yt:<video>", "ytm:*") get YouTube Music's own radio (its automix queue; ytm::radio falls back
+// to the radio of a collection's first song itself); `uri` is then "ytmradio:<seed>".
 RadioFetch fetchRadio(spotify::Api* api, const std::vector<std::string>& seeds, const Lifetime::Ref& guard) {
     RadioFetch f;
     try {
@@ -58,6 +64,15 @@ RadioFetch fetchRadio(spotify::Api* api, const std::vector<std::string>& seeds, 
                 f.cancelled = true;
                 return f;
             }
+            if (isYtmSeed(seed)) {
+                f.tracks = ytm::radio(seed, kRadioTracks);
+                if (!f.tracks.empty()) {
+                    f.uri = "ytmradio:" + seed;
+                    return f;
+                }
+                continue;
+            }
+            if (!api) continue;   // a Spotify seed while logged out
             f.uri = radioOf(api, seed);
             if (!f.uri.empty()) break;
             if (seeds.size() == 1 && seed.rfind("spotify:playlist:", 0) == 0) {
@@ -80,6 +95,11 @@ RadioFetch fetchRadio(spotify::Api* api, const std::vector<std::string>& seeds, 
         f.failed = true;
         f.status = e.status;
         f.error = e.what();
+    } catch (const ytm::ApiError& e) {
+        f.failed = true;
+        f.ytm = true;
+        f.status = e.status;
+        f.error = e.what();
     } catch (const std::exception& e) {
         f.failed = true;
         f.error = e.what();
@@ -88,6 +108,7 @@ RadioFetch fetchRadio(spotify::Api* api, const std::vector<std::string>& seeds, 
 }
 
 std::wstring failureText(const RadioFetch& f) {
+    if (f.ytm) return tr(L"Radyo yüklenemedi. Bağlantını kontrol edip tekrar dene.");
     if (f.status == 429) return tr(L"Spotify şu an çok fazla istek alıyor. Biraz sonra tekrar dene.");
     if (f.status == 401 || f.status == 403) return tr(L"Spotify oturumu doğrulanamadı. Biraz sonra tekrar dene.");
     return tr(L"Radyo yüklenemedi. Bağlantını kontrol edip tekrar dene.");
@@ -105,7 +126,7 @@ std::vector<Track> usableTracks(std::vector<Track> tracks, std::unordered_set<st
 }
 
 bool isTrackSeed(const Track& t) {
-    return t.playable && t.id.rfind("spotify:track:", 0) == 0 && !radioSeed(t.id).empty();
+    return t.playable && (t.id.rfind("spotify:track:", 0) == 0 || ytm::isTrackId(t.id)) && !radioSeed(t.id).empty();
 }
 
 Lifetime g_radioLife;   // startRadio: a newer request supersedes the one in flight
@@ -142,7 +163,7 @@ void onRadio(const RadioRequest& req, Result<RadioFetch> r, bool firstStep) {
             runRadio(req, std::move(seeds), false);
             return;
         }
-        toast(tr(L"Spotify bunun için radyo sunmuyor"), true);
+        toast(isYtmSeed(req.seed) ? tr(L"YouTube Music bunun için radyo sunmuyor") : tr(L"Spotify bunun için radyo sunmuyor"), true);
         return;
     }
     std::unordered_set<std::string> seen;
@@ -152,7 +173,9 @@ void onRadio(const RadioRequest& req, Result<RadioFetch> r, bool firstStep) {
         return;
     }
     ST_LOG_INFO("radio", "{} -> {} ({} tracks)", req.seed, r->uri, tracks.size());
-    const player::PlayContext context{"playlist:" + r->uri, i18n::format(tr(L"{} radyosu"), {req.name})};
+    // A Spotify radio is a playlist (its page can be opened); YouTube Music's is a queue of its own.
+    const std::string uri = r->uri.rfind("ytmradio:", 0) == 0 ? r->uri : "playlist:" + r->uri;
+    const player::PlayContext context{uri, i18n::format(tr(L"{} radyosu"), {req.name})};
     // The radio of the song that was playing: whatever plays now (that song, or the one after it if it ended
     // meanwhile) keeps playing and the radio becomes what comes next.
     if (req.seedPlaying && p->current() && p->status() != player::Status::Idle && p->status() != player::Status::Error) {
@@ -166,7 +189,7 @@ void onRadio(const RadioRequest& req, Result<RadioFetch> r, bool firstStep) {
 
 void runRadio(RadioRequest req, std::vector<std::string> seeds, bool firstStep) {
     spotify::Api* api = source::activeApi();
-    if (!api) return;
+    if (!api && !isYtmSeed(req.seed)) return;
     async(Priority::High, g_radioLife.ref(),
           [api, seeds = std::move(seeds), guard = g_radioLife.ref()] { return fetchRadio(api, seeds, guard); },
           [req = std::move(req), firstStep](Result<RadioFetch> r) { onRadio(req, std::move(r), firstStep); });
@@ -187,6 +210,8 @@ Endless& endless() {
 } // namespace
 
 std::string radioSeed(const std::string& id) {
+    if (ytm::isTrackId(id)) return id;   // any YouTube video: YouTube Music's song radio
+    if (!ytm::rawAlbum(id).empty() || !ytm::rawArtist(id).empty() || !ytm::rawPlaylist(id).empty()) return id;
     for (const char* kind : {"spotify:track:", "spotify:album:", "spotify:artist:", "spotify:playlist:"}) {
         const size_t n = std::strlen(kind);
         if (id.size() <= n || id.compare(0, n, kind) != 0) continue;
@@ -199,12 +224,12 @@ std::string radioSeed(const std::string& id) {
     return {};
 }
 
-bool radioAvailable() { return ctx().session && source::loggedIn(); }
+bool radioAvailable() { return (ctx().session && source::loggedIn()) || source::ytmMode(); }
 
 void startRadio(const std::string& seedUri, const std::wstring& seedName) {
     const std::string seed = radioSeed(seedUri);
     if (seed.empty()) {
-        toast(tr(L"Bunun için Spotify radyosu yok"), true);
+        toast(source::ytmMode() ? tr(L"Bunun için radyo yok") : tr(L"Bunun için Spotify radyosu yok"), true);
         return;
     }
     auto* p = ctx().player;
@@ -214,7 +239,7 @@ void startRadio(const std::string& seedUri, const std::wstring& seedName) {
     }
     RadioRequest req;
     req.seed = seed;
-    req.name = seedName.empty() ? std::wstring(L"Spotify") : seedName;
+    req.name = seedName.empty() ? std::wstring(isYtmSeed(seed) ? L"YouTube Music" : L"Spotify") : seedName;
     req.generation = p->queueGeneration();
     const Track* cur = p->current();
     req.seedPlaying = cur && cur->id == seed && p->status() != player::Status::Idle && p->status() != player::Status::Error;
@@ -241,10 +266,11 @@ void endlessCheck(bool fromPlayer) {
         e.tried.clear();
     }
     if (e.inFlight || p->remainingPlayable(2) > 1 || e.tried.size() >= kEndlessSeedsPerQueue) return;
-    // Seed: the current track, else the most recent Spotify track of the queue. Blocked tracks never seed.
+    // Seed: the current track, else the most recent Spotify / YouTube Music track of the queue. Blocked tracks never
+    // seed.
     std::string seed;
     auto consider = [&](const Track& t) {
-        const std::string s = t.id.rfind("spotify:track:", 0) == 0 ? radioSeed(t.id) : std::string{};
+        const std::string s = t.id.rfind("spotify:track:", 0) == 0 || ytm::isTrackId(t.id) ? radioSeed(t.id) : std::string{};
         if (s.empty() || e.tried.contains(s) || blacklist::isBlocked(t)) return false;
         seed = s;
         return true;
@@ -255,9 +281,9 @@ void endlessCheck(bool fromPlayer) {
         for (int i = static_cast<int>(order.size()) - 1; i >= 0; --i)
             if (consider(items[order[i]])) break;
     }
-    if (seed.empty()) return;   // not a Spotify queue, or every seed was tried
+    if (seed.empty()) return;   // not a Spotify / YouTube Music queue, or every seed was tried
     spotify::Api* api = source::activeApi();
-    if (!api) return;
+    if (!api && !isYtmSeed(seed)) return;
     e.tried.insert(seed);
     e.inFlight = true;
     const uint64_t gen = e.generation;

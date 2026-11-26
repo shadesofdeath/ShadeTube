@@ -2281,5 +2281,20 @@
   "İçe aktarılan Last.fm geçmişini kaldır": "Supprimer l'historique Last.fm importé",
   "İçe aktarılan ListenBrainz geçmişini kaldır": "Supprimer l'historique ListenBrainz importé",
   "İçe aktarılan Spotify geçmişini kaldır": "Supprimer l'historique Spotify importé",
-  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "L'importation s'est arrêtée parce que le compte a changé. Ce qui a été récupéré reste dans l'historique de ce compte."
+  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "L'importation s'est arrêtée parce que le compte a changé. Ce qui a été récupéré reste dans l'historique de ce compte.",
+  "YouTube Music ile keşfet": "Explorer avec YouTube Music",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Aucun compte Google requis : la recherche, les albums, les artistes, les playlists et la radio viennent de YouTube Music",
+  "MusicBrainz ile keşfet": "Explorer avec MusicBrainz",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "Base de données musicale ouverte : MusicBrainz et ListenBrainz",
+  "Spotify olmadan katalog": "Catalogue sans Spotify",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Tant que Spotify n'est pas connecté, la recherche, les albums, les artistes et l'Accueil viennent d'ici. YouTube Music : les titres sont lus depuis exactement cet enregistrement, avec playlists et radio. MusicBrainz : la base de données musicale ouverte.",
+  "YouTube Music bunun için radyo sunmuyor": "YouTube Music ne propose pas de radio pour cet élément",
+  "Bunun için radyo yok": "Pas de radio pour cet élément",
+  "YouTube Music bağlantısını kopyala": "Copier le lien YouTube Music",
+  "Ruh hâli ve türler": "Humeurs et genres",
+  "YouTube Music albümü": "Album YouTube Music",
+  "YouTube Music sanatçısı": "Artiste YouTube Music",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music n'a affiché aucune playlist pour ce genre.",
+  "YouTube Music çalma listesi": "Playlist YouTube Music",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "PLAYLIST · YOUTUBE MUSIC"
 }

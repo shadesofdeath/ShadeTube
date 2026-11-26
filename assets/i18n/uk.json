@@ -2480,5 +2480,20 @@
   "İçe aktarılan Last.fm geçmişini kaldır": "Видалити імпортовану історію Last.fm",
   "İçe aktarılan ListenBrainz geçmişini kaldır": "Видалити імпортовану історію ListenBrainz",
   "İçe aktarılan Spotify geçmişini kaldır": "Видалити імпортовану історію Spotify",
-  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "Імпорт зупинено, бо змінився обліковий запис. Завантажене залишиться в історії того облікового запису."
+  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "Імпорт зупинено, бо змінився обліковий запис. Завантажене залишиться в історії того облікового запису.",
+  "YouTube Music ile keşfet": "Слухати через YouTube Music",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Обліковий запис Google не потрібен: пошук, альбоми, виконавці, плейлисти й радіо беруться з YouTube Music",
+  "MusicBrainz ile keşfet": "Слухати через MusicBrainz",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "Відкрита музична база даних: MusicBrainz і ListenBrainz",
+  "Spotify olmadan katalog": "Каталог без Spotify",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Поки Spotify не підключено, пошук, альбоми, виконавці й головна беруться звідси. YouTube Music: пісні грають саме з цього запису, є плейлисти й радіо. MusicBrainz: відкрита музична база даних.",
+  "YouTube Music bunun için radyo sunmuyor": "YouTube Music не пропонує радіо для цього",
+  "Bunun için radyo yok": "Для цього немає радіо",
+  "YouTube Music bağlantısını kopyala": "Копіювати посилання YouTube Music",
+  "Ruh hâli ve türler": "Настрої та жанри",
+  "YouTube Music albümü": "Альбом YouTube Music",
+  "YouTube Music sanatçısı": "Виконавець YouTube Music",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music не показав плейлистів для цього жанру.",
+  "YouTube Music çalma listesi": "Плейлист YouTube Music",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "ПЛЕЙЛИСТ · YOUTUBE MUSIC"
 }

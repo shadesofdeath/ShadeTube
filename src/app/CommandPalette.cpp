@@ -494,7 +494,7 @@ private:
         spotify::Api* api = source::activeApi();
         const std::string query = toUtf8(q);
         life_.renew();
-        async(Priority::High, life_.ref(), [api, query, token] { return source::search(api, query, 6, token); },
+        async(Priority::High, life_.ref(), [api, query, token] { return source::quickSearch(api, query, 6, token); },
               [this, q](Result<catalog::SearchResults> r) {
                   if (box_->text() != q) return;   // typed on meanwhile: a newer search follows
                   searching_ = false;

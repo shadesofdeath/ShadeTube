@@ -17,6 +17,7 @@
 #include "core/Utf.h"
 #include "gfx/Theme.h"
 #include "spotify/Session.h"
+#include "ytmusic/YtMusic.h"
 #include "ui/Window.h"
 
 #include <winrt/base.h>
@@ -227,6 +228,16 @@ Listing listAlbum(spotify::Api* api, const std::string& id, const CT& ct) {
     return l;
 }
 
+// Worker thread: a YouTube Music playlist, every page (the rows carry their videos).
+Listing listYtmPlaylist(const std::string& id, const CT& ct) {
+    Listing l;
+    const ytm::PlaylistPage first = ytm::playlist(id, ct);
+    l.name = first.playlist.name;
+    l.images = first.playlist.images;
+    l.tracks = ytm::playlistTracks(id, 5000, ct);
+    return l;
+}
+
 void listNext();
 
 void finishPass() {
@@ -371,7 +382,7 @@ void beginListing(const Rule& r) {
         l.tracks = lib.liked();
         return onListed(id, std::move(l), startedAt);
     }
-    if (r.kind == Kind::Playlist && !isSpotifyRule(r)) {
+    if (r.kind == Kind::Playlist && !isSpotifyRule(r) && !source::isYtmId(r.id)) {
         const auto* p = lib.playlist(id);
         const auto* tracks = lib.playlistTracks(id);
         if (!p || !tracks) return onListFailed(id, ListError::NotFound, "local playlist not found");
@@ -394,6 +405,7 @@ void beginListing(const Rule& r) {
         [api, id, kind, pause, ct] {
             if (pause) std::this_thread::sleep_for(std::chrono::milliseconds(1500));   // one collection at a time, gently
             if (kind == Kind::Album) return listAlbum(api, id, ct);
+            if (kind == Kind::Playlist && ytm::isYtmId(id)) return listYtmPlaylist(id, ct);
             if (!api) throw spotify::ApiError(401, "not logged in");
             return listSpotifyPlaylist(api, id, kind == Kind::Liked, ct);
         },
@@ -492,7 +504,7 @@ void onLibraryChanged() {
     auto& e = engine();
     const int64_t now = nowUnix();
     for (auto& r : e.state.rules)
-        if (!isSpotifyRule(r) && r.kind != Kind::Album) r.changedAt = now;   // local lists: listing them is free
+        if (!isSpotifyRule(r) && r.kind != Kind::Album && !source::isYtmId(r.id)) r.changedAt = now;   // local lists: free
     // Spotify Liked Songs: a like / unlike shows in the snapshot's ids at once.
     auto* sess = ctx().session;
     Rule* liked = findRule(e.state, kSpotifyLikedId);

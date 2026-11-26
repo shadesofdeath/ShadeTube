@@ -23,6 +23,7 @@
 #include "ui/TextBox.h"
 #include "ui/Window.h"
 #include "youtube/MatchService.h"
+#include "ytmusic/YtMusic.h"
 
 #include <knownfolders.h>
 #include <shlobj.h>
@@ -450,16 +451,17 @@ void exportList(What what, const std::string& id, const std::string& name) {
             return saveRows(name, lib.liked());
         break;
     case What::Playlist:
-        if (id.rfind("spotify:", 0) != 0) {
+        if (id.rfind("spotify:", 0) != 0 && !source::isYtmId(id)) {
             const auto* tracks = lib.playlistTracks(id);
             return saveRows(name, tracks ? *tracks : std::vector<Track>{});
         }
         break;
     case What::Album: break;
     }
-    // Spotify lists and albums: fetched in full on a worker.
+    // Spotify / YouTube Music lists and albums: fetched in full on a worker.
     spotify::Api* api = source::activeApi();
-    if (what != What::Album && !api) {
+    const bool ytmList = what == What::Playlist && source::isYtmId(id);
+    if (what != What::Album && !ytmList && !api) {
         toast(tr(L"Spotify'a bağlı değilsin"), true);
         return;
     }
@@ -467,8 +469,9 @@ void exportList(What what, const std::string& id, const std::string& name) {
     toast(tr(L"Liste hazırlanıyor…"));
     async(
         Priority::High, g_life.ref(),
-        [api, uri, what] {
+        [api, uri, what, ytmList] {
             const CT ct;
+            if (ytmList) return ytm::playlistTracks(uri, 5000, ct);
             if (what == What::Album) {
                 auto album = source::album(api, uri, ct);
                 for (auto& t : album.tracks)
@@ -548,6 +551,23 @@ void importYouTubePlaylist(const std::string& playlistId) {
             return p;
         },
         tr(L"YouTube oynatma listesi"));
+}
+
+void importYtmPlaylist(const std::string& id) {
+    runImport(
+        [id](const CT& ct) {
+            pio::Parsed p;
+            p.name = ytm::playlist(id, ct).playlist.name;
+            int n = 0;
+            for (auto& t : ytm::playlistTracks(id, 5000, ct)) {   // named and pinned to their videos: no lookups
+                pio::Entry e;
+                e.line = ++n;
+                e.track = std::move(t);
+                p.entries.push_back(std::move(e));
+            }
+            return p;
+        },
+        tr(L"YouTube Music çalma listesi"));
 }
 
 void showImportMenu(gfx::Point windowPos) {

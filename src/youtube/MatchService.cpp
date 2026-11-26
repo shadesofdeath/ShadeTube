@@ -495,14 +495,17 @@ Resolved MatchService::soundCloud(const catalog::Track& track, const CT& ct) {
 }
 
 Resolved MatchService::resolve(const catalog::Track& track, bool allowWebm, bool lowQuality, const CT& ct) {
-    // A track that already knows its video (manual pick stored in the library) skips matching.
-    if (!track.videoId.empty() && !cachedMatch(track.id)) {
+    // A track that already knows its video (manual pick stored in the library, a YouTube Music song) skips matching. A
+    // "yt:<videoId>" track is that video even when a copy of it lost Track::videoId (e.g. rebuilt from the history).
+    std::string pinned = track.videoId;
+    if (pinned.empty() && track.id.size() == 14 && track.id.rfind("yt:", 0) == 0) pinned = track.id.substr(3);
+    if (!pinned.empty() && !cachedMatch(track.id)) {
         Match m;
-        m.videoId = track.videoId;
+        m.videoId = pinned;
         m.title = track.name;
         m.score = 100;
         m.manual = true;
-        return {m, stream(track.videoId, allowWebm, lowQuality, false, ct)};
+        return {m, stream(pinned, allowWebm, lowQuality, false, ct)};
     }
     std::string failedId;              // the cached video that just failed: not tried again as a candidate
     std::exception_ptr cachedError;

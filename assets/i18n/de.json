@@ -2281,5 +2281,20 @@
   "İçe aktarılan Last.fm geçmişini kaldır": "Importierten Last.fm-Verlauf entfernen",
   "İçe aktarılan ListenBrainz geçmişini kaldır": "Importierten ListenBrainz-Verlauf entfernen",
   "İçe aktarılan Spotify geçmişini kaldır": "Importierten Spotify-Verlauf entfernen",
-  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "Der Import wurde angehalten, weil das Konto gewechselt wurde. Was schon geholt wurde, bleibt im Verlauf dieses Kontos."
+  "İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.": "Der Import wurde angehalten, weil das Konto gewechselt wurde. Was schon geholt wurde, bleibt im Verlauf dieses Kontos.",
+  "YouTube Music ile keşfet": "Mit YouTube Music entdecken",
+  "Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir": "Kein Google-Konto nötig: Suche, Alben, Künstler, Playlists und Radio kommen von YouTube Music",
+  "MusicBrainz ile keşfet": "Mit MusicBrainz entdecken",
+  "Açık müzik veritabanı: MusicBrainz ve ListenBrainz": "Offene Musikdatenbank: MusicBrainz und ListenBrainz",
+  "Spotify olmadan katalog": "Katalog ohne Spotify",
+  "Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı.": "Solange Spotify nicht verbunden ist, kommen Suche, Alben, Künstler und Startseite von hier. YouTube Music: Songs spielen genau von dieser Aufnahme, dazu Playlists und Radio. MusicBrainz: die offene Musikdatenbank.",
+  "YouTube Music bunun için radyo sunmuyor": "YouTube Music bietet hierfür kein Radio an",
+  "Bunun için radyo yok": "Hierfür gibt es kein Radio",
+  "YouTube Music bağlantısını kopyala": "YouTube-Music-Link kopieren",
+  "Ruh hâli ve türler": "Stimmungen & Genres",
+  "YouTube Music albümü": "YouTube-Music-Album",
+  "YouTube Music sanatçısı": "YouTube-Music-Künstler",
+  "YouTube Music bu tür için liste göstermedi.": "YouTube Music hat für dieses Genre keine Playlists angezeigt.",
+  "YouTube Music çalma listesi": "YouTube-Music-Playlist",
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "PLAYLIST · YOUTUBE MUSIC"
 }

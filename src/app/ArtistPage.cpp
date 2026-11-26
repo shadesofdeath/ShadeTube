@@ -10,6 +10,7 @@
 #include "app/HomeWidgets.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/Radio.h"
 #include "app/Social.h"
 #include "app/Source.h"
 #include "core/I18n.h"
@@ -134,7 +135,9 @@ public:
         follow_->setLabel(f ? tr(L"Takip ediliyor") : tr(L"Takip et"));
         follow_->setIcon(f ? "check" : "");
         follow_->setActive(f);
-        radio_->setVisible(radioAvailable() && artist_.id.rfind("spotify:artist:", 0) == 0);
+        // Spotify's artist radio, or YouTube Music's (the artist's mix).
+        radio_->setVisible(radioAvailable() && (artist_.id.rfind("spotify:artist:", 0) == 0 || source::isYtmId(artist_.id)) &&
+                           !radioSeed(artist_.id).empty());
         blockBtn_->setVisible(blocked());
         requestLayout();
         invalidate();
@@ -1133,12 +1136,8 @@ private:
                      ctx().player->enqueue(top);
                      toast(tr(L"Sıraya eklendi"));
                  }},
-                {source::isSpotifyId(artist.id) ? tr(L"Spotify bağlantısını kopyala")
-                                                : tr(L"MusicBrainz bağlantısını kopyala"),
-                 "link", L"", [artist] {
-                     copyText(source::isSpotifyId(artist.id)
-                                  ? L"https://open.spotify.com/artist/" + toWide(artist.id.substr(artist.id.rfind(':') + 1))
-                                  : L"https://musicbrainz.org/artist/" + toWide(artist.id));
+                {source::copyLinkLabel(artist.id), "link", L"", [artist] {
+                     copyText(source::webLink("artist", artist.id));
                      toast(tr(L"Bağlantı kopyalandı"));
                  }}};
             if (top.empty()) items.erase(items.begin());

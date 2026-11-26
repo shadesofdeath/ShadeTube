@@ -21,6 +21,7 @@
 #include "spotify/SpotifyApi.h"
 #include "ui/Acrylic.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <windows.h>
 
@@ -71,6 +72,7 @@ std::optional<Track> fetchSong(spotify::Api* api, const preview::Collection& c) 
     }
     case preview::Collection::Kind::Artist: return pickSong(source::artistPage(api, c.id).topTracks, true);
     case preview::Collection::Kind::Playlist:
+        if (ytm::isYtmId(c.id)) return pickSong(ytm::playlist(c.id).tracks);
         if (!api) return std::nullopt;
         return pickSong(api->playlistTracks(c.id, 0, 20).items);
     case preview::Collection::Kind::Liked:
@@ -342,14 +344,15 @@ bool AppPort::lookup(uint64_t id, const preview::Collection& c) {
     spotify::Api* api = source::activeApi();
     auto& lib = ctx().library;
     // On this PC: Liked Songs logged out, local playlists. Posted: the session expects the answer later.
-    if ((c.kind == K::Liked && !api) || (c.kind == K::Playlist && !source::isSpotifyId(c.id))) {
+    const bool ytmList = c.kind == K::Playlist && source::isYtmId(c.id);   // YouTube Music: no account needed
+    if ((c.kind == K::Liked && !api) || (c.kind == K::Playlist && !source::isSpotifyId(c.id) && !ytmList)) {
         std::optional<Track> song;
         if (c.kind == K::Liked) song = pickSong(lib.liked());
         else if (const auto* tracks = lib.playlistTracks(c.id)) song = pickSong(*tracks);
         Dispatcher::post([deliver, song] { deliver(song); });
         return true;
     }
-    if ((c.kind == K::Playlist || c.kind == K::Liked) && !api) return false;
+    if ((c.kind == K::Playlist || c.kind == K::Liked) && !api && !ytmList) return false;
     async(Priority::High, life.ref(), [api, c] { return fetchSong(api, c); },
           [deliver](Result<std::optional<Track>> r) { deliver(r ? *r : std::nullopt); });
     return true;
