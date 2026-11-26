@@ -987,14 +987,20 @@ private:
         const std::string cc = homeCountry();
         chartsSec_->add<SectionHeader>(tr(L"Popüler podcastler"), toUpperTr(tr(L"Apple Podcasts listesi")));
         auto* grid = addCardRow(chartsSec_, 150, 0);
-        auto* skeleton = chartsSec_->add<SkeletonBlock>(0);
+        auto* skeleton = chartsSec_->add<SkeletonCards>(1, 150.f);   // a row of cards while the chart loads
         auto cts = cts_;
         async(
             Priority::Normal, life_.ref(), [cc, cts] { return podcast::Client::shared().topCharts(cc, 30, cts->token()); },
             [this, grid, skeleton](Result<std::vector<DirectoryEntry>> r) {
                 chartsSec_->removeChild(skeleton);
                 if (!r || r->empty()) {
-                    chartsSec_->add<ui::Label>(tr(L"Popüler podcastler yüklenemedi."), type::secondary, ui::Tone::Secondary);
+                    errorState(chartsSec_, r ? std::wstring(tr(L"Popüler podcastler yüklenemedi.")) : toWide(r.errorMessage()),
+                               [this, ref = life_.ref()] {   // after the click: the retry clears this section
+                                   Dispatcher::post([this, ref] {
+                                       if (!ref.expired()) loadCharts();
+                                   });
+                               })
+                        ->setCompact(true);
                 } else {
                     for (const auto& e : *r) addDirectoryCard(grid, e);
                 }
@@ -1034,7 +1040,7 @@ private:
         searchSec_->clearChildren();
         searchSec_->add<SectionHeader>(i18n::format(tr(L"“{}” için sonuçlar"), {toWide(text)}), toUpperTr(tr(L"Apple Podcasts dizini")));
         auto* grid = addCardRow(searchSec_, 150, 0);
-        auto* skeleton = searchSec_->add<SkeletonBlock>(0);
+        auto* skeleton = searchSec_->add<SkeletonCards>(1, 150.f);
         scroll_->contentChanged();
         searchLife_.renew();
         const std::string cc = homeCountry();
@@ -1042,8 +1048,12 @@ private:
             Priority::High, searchLife_.ref(), [text, cc] { return podcast::Client::shared().search(text, cc, 30); },
             [this, grid, skeleton](Result<std::vector<DirectoryEntry>> r) {
                 searchSec_->removeChild(skeleton);
-                if (!r) searchSec_->add<ui::Label>(tr(L"Arama yapılamadı. Bağlantını kontrol et."), type::secondary, ui::Tone::Secondary);
-                else if (r->empty()) searchSec_->add<ui::Label>(tr(L"Podcast bulunamadı"), type::secondary, ui::Tone::Secondary);
+                if (!r) errorState(searchSec_, toWide(r.errorMessage()), [this, ref = life_.ref()] {
+                    Dispatcher::post([this, ref] {
+                        if (!ref.expired()) startSearch(query_);
+                    });
+                })->setCompact(true);
+                else if (r->empty()) noResultsState(searchSec_, tr(L"Podcast bulunamadı"));
                 else
                     for (const auto& e : *r) addDirectoryCard(grid, e);
                 scroll_->contentChanged();
@@ -1069,12 +1079,12 @@ private:
         c->add<ui::Label>(toUpperTr(downloads ? tr(L"Bu bilgisayarda") : tr(L"Aboneliklerinden")), type::monoLabel, ui::Tone::Tertiary);
         if (downloads) {
             const auto list = podcast::store().downloaded();
-            if (list.empty()) c->add<MessagePanel>("download", tr(L"İndirilen bölüm yok"), tr(L"Bir bölümün yanındaki ok ile çevrimdışı dinlemek için indir."));
+            if (list.empty()) emptyState(c, "download", tr(L"İndirilen bölüm yok"), tr(L"Bir bölümün yanındaki ok ile çevrimdışı dinlemek için indir."));
             else c->add<EpisodeList>(EpisodeList::Options{true, true})->setEpisodes(list);
             contentReady();
             return;
         }
-        auto* skeleton = c->add<SkeletonBlock>(4);
+        auto* skeleton = c->add<SkeletonRows>(6);   // episode rows while the feeds are read
         const auto subs = podcast::store().subscriptions();
         std::unordered_map<std::string, bool> played;
         async(
@@ -1082,7 +1092,7 @@ private:
             [this, c, skeleton](Result<std::vector<Episode>> r) {
                 c->removeChild(skeleton);
                 if (!r || r->empty())
-                    c->add<MessagePanel>("offline", tr(L"Yeni bölüm yok"), tr(L"Abone olduğun podcastlerin bölümleri burada görünür."));
+                    emptyState(c, "podcast", tr(L"Yeni bölüm yok"), tr(L"Abone olduğun podcastlerin bölümleri burada görünür."));
                 else c->add<EpisodeList>(EpisodeList::Options{true, true})->setEpisodes(std::move(*r));
                 scroll_->contentChanged();
                 contentReady();

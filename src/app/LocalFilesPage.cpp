@@ -387,25 +387,23 @@ private:
         if (Settings::get().localFolders.empty() && lib.tracks().empty()) {
             rescan_->setVisible(false);
             status_->setVisible(false);
-            emptyPanel(c->add<MessagePanel>("folder", tr(L"Bilgisayarındaki müziği ekle"),
-                                             tr(L"Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada "
-                                                L"listelenir, internet olmadan çalar. Dosyaların yalnızca sen etiketlerini "
-                                                L"düzenlediğinde değiştirilir."),
-                                             tr(L"Klasör ekle"), [] { addFolderPosted(); }),
-                       "plus");
+            emptyState(c, "folder", tr(L"Bilgisayarındaki müziği ekle"),
+                       tr(L"Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet "
+                          L"olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir."),
+                       tr(L"Klasör ekle"), [] { addFolderPosted(); }, "plus");
             contentReady();
             return;
         }
         if (lib.tracks().empty()) {
-            if (lib.scanning() || !lib.loaded())
-                c->add<MessagePanel>("refresh", tr(L"Klasörler taranıyor"),
-                                     tr(L"Bu biraz sürebilir; bitince şarkıların burada listelenir."));
-            else
-                emptyPanel(c->add<MessagePanel>("music-note", tr(L"Şarkı bulunamadı"),
-                                                tr(L"Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen "
-                                                   L"biçimler: MP3, M4A, AAC, FLAC, WAV ve WMA."),
-                                                tr(L"Yeniden tara"), [] { LocalLibrary::get().rescan(); }),
-                           "refresh");
+            if (lib.scanning() || !lib.loaded()) {   // the first scan: what happens, over rows of placeholders
+                c->add<ui::Label>(tr(L"Klasörler taranıyor"), type::secondary, ui::Tone::Tertiary);
+                c->add<SkeletonRows>(8, true, true);
+            } else {
+                emptyState(c, "music-note", tr(L"Şarkı bulunamadı"),
+                           tr(L"Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen biçimler: MP3, M4A, AAC, "
+                              L"FLAC, WAV ve WMA."),
+                           tr(L"Yeniden tara"), [] { LocalLibrary::get().rescan(); }, "refresh");
+            }
             contentReady();
             return;
         }
@@ -468,12 +466,6 @@ private:
         body_ = c->add<ui::Column>(16.f);
         buildBody();
         contentReady();
-    }
-
-    // MessagePanel's action button carries a "refresh" icon; give it the right one.
-    static void emptyPanel(MessagePanel* panel, const char* icon) {
-        for (const auto& child : panel->children())
-            if (auto* b = dynamic_cast<Button*>(child.get())) b->setIcon(icon);
     }
 
     // The tab's content (table / grid / a drilled-down album or artist). The header, search box and tabs stay.
@@ -539,6 +531,7 @@ private:
         if (!tree) {
             waitingForTree_ = true;
             body_->add<ui::Label>(tr(L"Klasörler hazırlanıyor…"), type::secondary, ui::Tone::Tertiary);
+            body_->add<SkeletonCards>(1, 168.f);   // the folder tree is being built
             return;
         }
         showsTree_ = true;
@@ -559,7 +552,7 @@ private:
         }
         if (node < 0 && tree->roots.size() == 1) node = tree->roots[0];   // one listed folder: it is the top level
         if (node < 0 && tree->roots.empty()) {
-            body_->add<ui::Label>(tr(L"Eklenen klasörlerde şarkı yok."), type::secondary, ui::Tone::Tertiary);
+            emptyState(body_, "folder", tr(L"Eklenen klasörlerde şarkı yok."), {})->setCompact(true);
             return;
         }
         const auto& nodes = tree->nodes;
@@ -625,7 +618,7 @@ private:
             if (!kids.empty()) body_->add<SectionHeader>(tr(L"Bu klasördeki şarkılar"), songCount(static_cast<int64_t>(list.size())));
             addTable(list, false);
         } else if (shown.empty() && !needle.empty()) {
-            body_->add<ui::Label>(tr(L"Aramanla eşleşen sonuç yok."), type::secondary, ui::Tone::Tertiary);
+            noResultsState(body_, tr(L"Aramanla eşleşen sonuç yok."));
         }
     }
 
@@ -643,11 +636,12 @@ private:
         o.showAdded = false;
         o.showAlbum = !albumOrder;
         o.albumNumbering = albumOrder;
+        o.markLocal = false;   // every song here is a local file
         table_ = body_->add<TrackTable>(o);
         table_->setTracks(list);
         if (!filter_.empty()) table_->setFilter(filter_);
         table_->onPlay = [this](int i) { ctx().player->playContext(table_->displayedTracks(), i, currentContext()); };
-        noMatch_ = body_->add<ui::Label>(tr(L"Aramanla eşleşen şarkı yok."), type::secondary, ui::Tone::Tertiary);
+        noMatch_ = noResultsState(body_, tr(L"Aramanla eşleşen şarkı yok."));
         syncNoMatch();
     }
 
@@ -848,7 +842,7 @@ private:
     ui::TextBox* filterBox_ = nullptr;
     ui::Column* body_ = nullptr;
     TrackTable* table_ = nullptr;
-    ui::Label* noMatch_ = nullptr;
+    ui::Widget* noMatch_ = nullptr;
 };
 
 // Ayarlar: "Kitaplığı tara" with a live status line (repaints on scan progress; the page is rebuilt when the

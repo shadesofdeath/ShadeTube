@@ -1100,7 +1100,7 @@ private:
         auto& s = store();
         banner_ = nullptr;
         if (!s.loaded()) {   // the history is still being read (the store notifies when it lands)
-            showSkeleton(3);
+            showLoading(Loading::Shelves);
             return;
         }
         built_ = true;
@@ -1115,7 +1115,7 @@ private:
             c->setSpacingBefore(banner_, 20);
         }
         if (!anything) {
-            c->add<MessagePanel>("stats", tr(L"Henüz dinleme geçmişi yok"),
+            emptyState(c, "stats", tr(L"Henüz dinleme geçmişi yok"),
                                  tr(L"Şarkı dinledikçe en çok dinlediklerin, toplam süren ve son çalınanlar burada "
                                     L"birikir."));
             if (!g_import.active && s.canImport()) c->add<ImportCard>();

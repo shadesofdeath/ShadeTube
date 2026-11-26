@@ -300,7 +300,7 @@ private:
         const bool current = storeIsCurrent();
         if (!current || s.store.items.empty()) {
             if (s.inFlight || !current || (s.store.fetchedAt == 0 && s.error.empty())) {
-                showSkeleton(4);
+                showLoading(Loading::Cards);
                 return;
             }
             if (!s.error.empty() && s.store.fetchedAt == 0) {
@@ -315,14 +315,14 @@ private:
         for (const auto& i : s.store.items)
             if (!s.store.seen.count(i.album.id)) fresh_.insert(i.album.id);
         if (s.store.items.empty()) {
-            c->add<MessagePanel>("sparkle", tr(L"Henüz yeni bir şey yok"),
+            emptyState(c, "sparkle", tr(L"Henüz yeni bir şey yok"),
                                  tr(L"Takip ettiğin sanatçılar yeni bir albüm ya da tekli yayımladığında burada görünür."));
             contentReady();
             return;
         }
         const auto groups = releases::group(s.store.items, filter_, today);
         if (groups.empty())
-            c->add<ui::Label>(tr(L"Bu filtrede yeni çıkan yok."), type::secondary, ui::Tone::Tertiary);
+            noResultsState(c, tr(L"Bu filtrede yeni çıkan yok."));
         for (const auto& g : groups) {
             c->add<SectionHeader>(bucketTitle(g.bucket), std::to_wstring(g.items.size()));
             auto* grid = addCardRow(c, 150, 0);
