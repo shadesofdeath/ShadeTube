@@ -87,6 +87,10 @@ public:
     // tree is also recorded as a content change where the source is (contentGeneration()).
     void invalidateFrom(const Widget* source, const Widget* top);
     void invalidateAfter(double ms);   // schedule a repaint (e.g. player position ticks)
+    // A repaint `ms` after the frame being painted is shown (frame::now(), the vblank it lands on) rather than after
+    // painting began: a steady cadence that doesn't depend on the refresh rate (25 ms = every second 60 Hz frame,
+    // every fourth at 120 Hz, ~30 fps). For continuous low-rate motion: the seek wave, the playing bars.
+    void invalidateAfterShown(double ms);
     // Content changes below the overlays, for their acrylic backdrops (ui/Acrylic): the generation advances whenever
     // a widget of the tree asks for a repaint (recorded at its window rect, plus a margin for shadows) or a layout,
     // or the window is resized, zoomed or re-themed (the whole window). lastChangeIn() = the generation of the latest

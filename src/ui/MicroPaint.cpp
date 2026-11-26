@@ -33,7 +33,7 @@ void paintEqualizer(gfx::Canvas& c, Widget* owner, const Rect& box, const Color&
         x += barW + gap;
     }
     if (clk.moving() && motion::micro() && owner)
-        if (auto* w = owner->window()) w->invalidateAfter(equalizer::kFrameMs);
+        if (auto* w = owner->window()) w->invalidateAfterShown(equalizer::kFrameMs);
 }
 
 void paintSkeleton(gfx::Canvas& c, Widget* owner, const Rect& r, float radius) {

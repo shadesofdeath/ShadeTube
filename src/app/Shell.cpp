@@ -1379,7 +1379,10 @@ void PlayerBar::paint(Canvas& c) {
     // 33 ms). Paused: no wake-ups at all.
     if (p && p->isPlaying()) {
         const bool flowing = seek_->waveMoving() && !LyricsFullscreen::isOpen();
-        if (auto* w = window()) w->invalidateAfter(flowing ? ui::kWaveFrameMs : nowPlaying_ ? 33 : 250);
+        if (auto* w = window()) {   // the flowing wave: paced by presentation (~30 fps at any refresh rate)
+            if (flowing) w->invalidateAfterShown(ui::kWaveFrameMs);
+            else w->invalidateAfter(nowPlaying_ ? 33 : 250);
+        }
     }
 }
 
@@ -1398,6 +1401,7 @@ constexpr float kHeadH = 36;   // a section header inside the list
 QueuePanel::QueuePanel()
     : title_(tr(L"Sıradaki"), type::title), meta_({}, type::monoLabel), nowLabel_(toUpperTr(tr(L"Şimdi çalıyor")), type::monoLabel) {
     clipsChildren = true;
+    focusable = true;   // one Tab stop: the keyboard cursor over the upcoming rows (onKeyDown)
     gfx::TextOptions right;
     right.align = gfx::TextAlign::Trailing;
     meta_.setOptions(right);
@@ -1518,20 +1522,7 @@ bool QueuePanel::onMouseDown(const ui::MouseEvent& e) {
     if (i < 0) return false;
     auto* p = ctx().player;
     if (e.button == ui::MouseButton::Right) {
-        const auto track = p->items()[p->order()[i]];
-        const int idx = i;
-        std::vector<ui::MenuItem> items{{tr(L"Şimdi çal"), "play", L"", [idx] { ctx().player->jumpTo(idx); }},
-                                        {tr(L"Sıradan kaldır"), "minus", L"", [idx] { ctx().player->removeAt(idx); }}};
-        if (track.recommended) {   // smart shuffle / "Geliştir": into the list it was recommended for, or stop them
-            items.push_back(ui::MenuItem::sep());
-            if (smartshuffle::canAdd({}, track))
-                items.push_back({tr(L"Bu öneriyi listeye ekle"), "plus", L"", [track] { smartshuffle::add({}, track); }});
-            items.push_back({tr(L"Önerileri gösterme"), "close", L"", [] { smartshuffle::stop({}); }});
-        }
-        items.push_back(ui::MenuItem::sep());
-        items.push_back({tr(L"Sırayı dışa aktar…"), "share", L"", [] { transfer::exportList(transfer::What::Queue, {}, {}); }});
-        items.push_back({tr(L"Sırayı temizle"), "trash", L"", [] { ctx().player->clearQueue(); }});
-        ui::Menu::open(ctx().window, e.windowPos, std::move(items));
+        showRowMenu(i, e.windowPos);
         return false;
     }
     if (e.button != ui::MouseButton::Left) return false;
@@ -1549,6 +1540,92 @@ bool QueuePanel::onMouseDown(const ui::MouseEvent& e) {
     dragTo_ = i;
     dragStartY_ = dragY_ = e.pos.y - rect().y;
     dragging_ = false;
+    return true;
+}
+
+void QueuePanel::showRowMenu(int i, gfx::Point windowPos) {
+    auto* p = ctx().player;
+    if (!p || i < 0 || i >= static_cast<int>(p->order().size())) return;
+    const auto track = p->items()[p->order()[i]];
+    std::vector<ui::MenuItem> items{{tr(L"Şimdi çal"), "play", L"", [i] { ctx().player->jumpTo(i); }},
+                                    {tr(L"Sıradan kaldır"), "minus", L"", [i] { ctx().player->removeAt(i); }}};
+    if (track.recommended) {   // smart shuffle / "Geliştir": into the list it was recommended for, or stop them
+        items.push_back(ui::MenuItem::sep());
+        if (smartshuffle::canAdd({}, track))
+            items.push_back({tr(L"Bu öneriyi listeye ekle"), "plus", L"", [track] { smartshuffle::add({}, track); }});
+        items.push_back({tr(L"Önerileri gösterme"), "close", L"", [] { smartshuffle::stop({}); }});
+    }
+    items.push_back(ui::MenuItem::sep());
+    items.push_back({tr(L"Sırayı dışa aktar…"), "share", L"", [] { transfer::exportList(transfer::What::Queue, {}, {}); }});
+    items.push_back({tr(L"Sırayı temizle"), "trash", L"", [] { ctx().player->clearQueue(); }});
+    ui::Menu::open(ctx().window, windowPos, std::move(items));
+}
+
+int QueuePanel::cursorIndex() const {
+    auto* p = ctx().player;
+    if (!p || p->currentOrderIndex() < 0 || sections_.count == 0) return -1;
+    return p->currentOrderIndex() + 1 + std::clamp(cursor_, 0, sections_.count - 1);
+}
+
+Rect QueuePanel::focusRect() const {
+    const int i = cursorIndex();
+    if (i < 0) return rect();
+    const Rect rr = rowRect(i);
+    const float top = std::max(rr.y, listTop() - 4), bottom = std::min(rr.bottom(), rect().h);   // clipped to the list
+    return {rect().x + rr.x + 4, rect().y + top, rr.w - 8, std::max(0.f, bottom - top)};
+}
+
+void QueuePanel::revealCursor() {
+    if (cursorIndex() < 0) return;
+    const float y = sections_.rowY(std::clamp(cursor_, 0, sections_.count - 1)), viewH = rect().h - listTop();
+    float s = scroll_.target();
+    if (y < s) s = y;
+    else if (y + sections_.rowH > s + viewH - 8) s = y + sections_.rowH - viewH + 8;
+    scroll_.setBounds(0, maxScroll());
+    if (s != scroll_.target()) scroll_.glideTo(s);
+}
+
+bool QueuePanel::onKeyDown(const ui::KeyEvent& e) {
+    auto* p = ctx().player;
+    const int n = sections_.count;
+    if (!p || p->currentOrderIndex() < 0 || n == 0 || e.ctrl) return false;
+    int k = std::clamp(cursor_, 0, n - 1);
+    const int page = std::max(1, static_cast<int>((rect().h - listTop()) / sections_.rowH) - 1);
+    const int cur = p->currentOrderIndex();
+    if (e.alt && (e.vk == VK_UP || e.vk == VK_DOWN)) {   // move the row
+        const int to = std::clamp(k + (e.vk == VK_UP ? -1 : 1), 0, n - 1);
+        if (to != k) {
+            p->move(cur + 1 + k, cur + 1 + to);
+            cursor_ = to;
+            revealCursor();
+        }
+        return true;
+    }
+    if (e.alt) return false;
+    switch (e.vk) {
+    case VK_DOWN: k = std::min(n - 1, k + 1); break;
+    case VK_UP: k = std::max(0, k - 1); break;
+    case VK_NEXT: k = std::min(n - 1, k + page); break;
+    case VK_PRIOR: k = std::max(0, k - page); break;
+    case VK_HOME: k = 0; break;
+    case VK_END: k = n - 1; break;
+    case VK_RETURN: p->jumpTo(cur + 1 + k); return true;
+    case VK_DELETE:
+        if (!e.repeat) p->removeAt(cur + 1 + k);
+        cursor_ = std::min(k, n - 2);
+        return true;
+    case VK_APPS:
+    case VK_F10: {
+        if (e.vk == VK_F10 && !e.shift) return false;
+        const Rect fr = toWindow(focusRect());
+        showRowMenu(cur + 1 + k, {fr.x + 48, fr.bottom()});
+        return true;
+    }
+    default: return false;
+    }
+    cursor_ = k;
+    revealCursor();
+    invalidate();
     return true;
 }
 

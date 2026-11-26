@@ -99,6 +99,8 @@ private:
     float topInset_ = 0;                 // the title bar's height (setTopInset)
     Rect artRect_{}, infoRect_{};        // the cover; the text column under (wide) / beside (narrow) it
     Rect titleRect_{}, subRect_{}, metaRect_{}, matchRect_{};
+    // Tab stops for the painted "Yanlış eşleşme?" / "Yanlış sözler mi?" links (placed at their rects every frame).
+    ui::FocusProxy *matchFocus_ = nullptr, *pickerFocus_ = nullptr;
     Rect elapsedRect_{}, totalRect_{};
     Rect columnRect_{};                  // the tabs' column
     Rect contentRect_{};                 // below the tab row (and the label row)

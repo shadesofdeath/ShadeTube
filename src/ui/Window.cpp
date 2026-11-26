@@ -373,6 +373,12 @@ uint64_t Window::lastChangeIn(uint64_t since, const Rect& area) const {
 
 void Window::invalidateAfter(double ms) { wakeAt_ = std::min(wakeAt_, frame::realNow() + ms); }
 
+void Window::invalidateAfterShown(double ms) {
+    // frame::now() is this frame's presentation time (later than now while painting); never earlier than a plain
+    // invalidateAfter(ms) would wake.
+    wakeAt_ = std::min(wakeAt_, std::max(frame::now(), frame::realNow()) + ms);
+}
+
 void Window::scheduleLayout() {
     layoutDirty_ = true;
     dirty_ = true;

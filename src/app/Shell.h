@@ -206,8 +206,16 @@ public:
     void drop(const DragPayload& payload, gfx::Point windowPos) override;
     // Song preview (app/Preview): an upcoming row (recommendations too); not the playing one.
     std::optional<PreviewHit> previewAt(gfx::Point windowPos, bool keyboard) override;
+    // Keyboard (one Tab stop, the track table's keys): Up / Down / PageUp / PageDown / Home / End move the cursor over
+    // the upcoming rows, Enter plays the row, Delete takes it out of the queue, Alt+Up / Alt+Down move it, menu key /
+    // Shift+F10 open its menu. The Window draws the focus ring around the cursor's row.
+    bool onKeyDown(const ui::KeyEvent& e) override;
+    Rect focusRect() const override;
 
 private:
+    void showRowMenu(int orderIndex, gfx::Point windowPos);
+    void revealCursor();                 // scrolls the upcoming rows so the cursor's row is in view
+    int cursorIndex() const;             // the cursor's order index, clamped to the upcoming rows (-1: none)
     int dropIndexAt(gfx::Point windowPos) const;   // order index the dropped songs go in front of
     int rowAt(gfx::Point p) const;       // order index or -1
     Rect rowRect(int orderIndex) const;
@@ -225,6 +233,7 @@ private:
     uint64_t secGen_ = 0;
     ui::SmoothScroll scroll_;            // the upcoming rows (ui/ScrollPhysics: wheel glide, touchpad 1:1)
     int hover_ = -1;
+    int cursor_ = -1;                    // keyboard cursor: upcoming slot k (0 = the row after the playing one)
     bool hoverRemove_ = false;
     ui::HoverFade hoverFade_;            // upcoming rows' hover fades in / out (ui/Micro)
     int dragFrom_ = -1, dragTo_ = -1;    // order indices: the row being moved and the slot it goes to
