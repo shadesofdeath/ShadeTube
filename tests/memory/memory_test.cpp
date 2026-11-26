@@ -8,7 +8,8 @@
 //   trimPool  released bitmaps' memory comes back after Device::trimPool() (where the driver charges them to the
 //             process, as integrated GPUs do; the numbers are printed)
 //   report    core/MemoryStats::detailedReport() names the split, the heaps, the stacks, the heap's block sizes
-//   stats     ListenStats::readFile() leaves no capacity slack in the index and the plays
+//   stats     ListenStats::readFile() leaves no capacity slack in the index and the plays, and the first new song /
+//             play after it grows them by a sixteenth, not by half
 //   memory_test
 #include "app/ListenStats.h"
 #include "core/Dispatcher.h"
@@ -283,6 +284,20 @@ void testStats() {
     CHECK(ix.artists.capacity() == ix.artists.size());
     CHECK(ix.albums.capacity() == ix.albums.size());
     CHECK(snap.plays.capacity() == snap.plays.size());
+
+    // The first new song and play after the read grow by a sixteenth (at least 256), not by half.
+    app::ListenStats s(file);
+    s.load();
+    catalog::Track fresh;
+    fresh.id = "local:new";
+    fresh.name = "A new song";
+    fresh.artists = {{"", "A new artist"}};
+    s.addPlay(fresh, 1'900'000'000, 120'000);
+    const auto& t = s.index().tracks;
+    std::printf("   after one new song: %zu tracks, capacity %zu; %zu plays, capacity %zu\n", t.size(), t.capacity(),
+                s.plays().size(), s.plays().capacity());
+    CHECK(t.size() == 3002 && t.capacity() <= 3001 + 256);
+    CHECK(s.plays().size() == 6003 && s.plays().capacity() <= 6002 + 6002 / 16);
 }
 
 } // namespace

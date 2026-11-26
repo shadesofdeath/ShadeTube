@@ -282,6 +282,14 @@ Track trackFromJson(const json& j) {
     return t;
 }
 
+// Room for one more element, growing by a sixteenth (at least 256) instead of the library's half: a big history that
+// gains a song or a play keeps ~6 % of slack, not a third (+2.8 MB of tracks for 30 000 songs after the first new
+// one; with the half the old and the new block are also both alive while it moves). Still amortized O(1).
+template <class V>
+void roomForOne(V& v) {
+    if (v.size() == v.capacity()) v.reserve(v.size() + std::max<size_t>(256, v.size() / 16));
+}
+
 } // namespace
 
 // ============================================================================================================
@@ -313,6 +321,7 @@ uint32_t Index::intern(Track t, const Keys& keys) {
             if (!keys.firstArtist.empty() && !group.artistKey.empty() && keys.firstArtist != group.artistKey) group.various = true;
         } else {
             g = static_cast<uint32_t>(albums.size());
+            roomForOne(albums);
             albums.push_back({t.albumId, t.albumName, t.image, firstArtist(t), keys.firstArtist, false});
         }
         if (!keys.albumId.empty()) albumByKey.try_emplace(keys.albumId, g);
@@ -322,13 +331,18 @@ uint32_t Index::intern(Track t, const Keys& keys) {
     auto [it, added] = trackByKey.try_emplace(keys.track, static_cast<uint32_t>(tracks.size()));
     const uint32_t idx = it->second;
     if (added) {
+        roomForOne(trackArtists);
+        roomForOne(trackAlbum);
         trackArtists.emplace_back();
         trackAlbum.push_back(-1);
         auto& ta = trackArtists.back();
         for (size_t i = 0; i < t.artists.size() && i < keys.artists.size(); ++i) {
             if (keys.artists[i].empty()) continue;
             auto [g, newGroup] = artistByKey.try_emplace(keys.artists[i], static_cast<uint32_t>(artists.size()));
-            if (newGroup) artists.push_back({t.artists[i].id, t.artists[i].name, {}, {}, {}, false});
+            if (newGroup) {
+                roomForOne(artists);
+                artists.push_back({t.artists[i].id, t.artists[i].name, {}, {}, {}, false});
+            }
             if (std::find(ta.begin(), ta.end(), g->second) == ta.end()) ta.push_back(g->second);
         }
         albumGroup(idx);
@@ -349,7 +363,10 @@ uint32_t Index::intern(Track t, const Keys& keys) {
         if (g.id.empty()) g.id = t.albumId;
         if (g.image.empty()) g.image = t.image;
     }
-    if (added) tracks.push_back(std::move(t));
+    if (added) {
+        roomForOne(tracks);
+        tracks.push_back(std::move(t));
+    }
     return idx;
 }
 
@@ -385,6 +402,7 @@ catalog::Track ListenStats::toCatalog(const Track& t) {
 }
 
 void ListenStats::insertPlay(const Play& p) {
+    roomForOne(plays_);
     if (plays_.empty() || plays_.back().startedAt <= p.startedAt) {
         plays_.push_back(p);
     } else {
