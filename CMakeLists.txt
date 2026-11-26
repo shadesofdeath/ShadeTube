@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(ShadeTube VERSION 0.10.0 LANGUAGES CXX)
+project(ShadeTube VERSION 0.10.0 LANGUAGES CXX C)   # C: the vendored Xiph decoders
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,6 +18,12 @@ set(YTE_HTTP_BACKEND "WINHTTP" CACHE STRING "" FORCE)
 add_subdirectory(external/YoutubeExplode EXCLUDE_FROM_ALL)
 # QR codes (the phone remote control's pairing code): Nayuki's generator, vendored unchanged (MIT).
 add_subdirectory(external/qrcodegen EXCLUDE_FROM_ALL)
+# Built-in Opus / Vorbis decoding (YouTube's Opus-in-WebM, local Ogg files, Ogg radio), independent of what Media
+# Foundation has installed: the Xiph reference libraries, decoder parts only, vendored unchanged (BSD-3-Clause).
+add_subdirectory(external/libogg EXCLUDE_FROM_ALL)
+add_subdirectory(external/libopus EXCLUDE_FROM_ALL)
+add_subdirectory(external/opusfile EXCLUDE_FROM_ALL)
+add_subdirectory(external/libvorbis EXCLUDE_FROM_ALL)
 
 # ---- Common compile settings for our own targets ----------------------------------------------
 add_library(st_options INTERFACE)
