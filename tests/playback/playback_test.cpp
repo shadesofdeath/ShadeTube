@@ -264,7 +264,7 @@ bool decodes(const fs::path& file, std::string& info, uint32_t targetRate = 0, u
     }
     st::audio::Decoder decoder;
     bool unsupported = false;
-    const HRESULT hr = decoder.open(buffer, mime, unsupported, targetRate);
+    const HRESULT hr = decoder.open(buffer, mime, unsupported, st::audio::RatePolicy{targetRate});
     if (FAILED(hr)) {
         std::snprintf(msg, sizeof msg, "%s: open hr=0x%08X%s", mime.c_str(), static_cast<unsigned>(hr),
                       unsupported ? " (unsupported)" : "");

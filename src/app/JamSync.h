@@ -14,7 +14,9 @@
 // corrections per song once it has played 2 s and 4 s passed since the last seek (> 250 ms). Seeks and loads aim
 // ahead by what they take to be heard; each one's landing is measured 0.8 s into playback and the lead moves half the
 // error (learnSeekLead / learnLoadLead). Items this player failed to play twice are held (paused) until the host
-// moves on; podcasts and radio stations (ItemKind::Unsupported) are not followed.
+// moves on; items it can't follow (ItemKind::Unsupported: a level-1 host's podcast or station) are held too.
+// Podcast episodes follow like songs at the host's speed (SessionState::speed); a radio station is live: the guest
+// plays the same station, play / pause follow, nothing is sought.
 //
 // Standalone and pure (tests/jam compiles it): app/JamProtocol only.
 #include "app/JamProtocol.h"
@@ -99,8 +101,8 @@ struct Decision {
     bool hasDrift = false;
 };
 
-// Where the host is now on its own clock (`hostNowMs`): positionMs + the time since atHostMs while it advances,
-// clamped to the item's length.
+// Where the host is now on its own clock (`hostNowMs`): positionMs + the time since atHostMs (times its speed) while
+// it advances, clamped to the item's length.
 int64_t expectedPosition(const SessionState& s, int64_t hostNowMs);
 bool hostAdvancing(const SessionState& s);   // playing and the host's player reports Playing
 

@@ -9,8 +9,8 @@
 //   and youtu.be/<id> (11-char video ids); youtube.com / music.youtube.com /playlist?list=<id> (imported as a local
 //   playlist: app/PlaylistTransfer);
 //   musicbrainz.org/{release-group,release,artist,recording}/<mbid>[/...];
-//   shadetube://jam/<base64url token>[/] (a listen-together invite; app/JamInvite decodes the token). Any other
-//   shadetube: link is Unsupported.
+//   shadetube://jam/<base64url token>[/] (a listen-together invite; app/JamInvite decodes the token) and
+//   shadetube://blend/<base64url token>[/] (a Blend invite). Any other shadetube: link is Unsupported.
 // Links of those services to things ShadeTube can't open (podcasts, users, YouTube channels,
 // spotify.link short links...) parse as Kind::Unsupported, so the caller can say so instead of searching for a URL.
 //
@@ -36,6 +36,7 @@ enum class Kind {
     MbRecording,        // a song: played
     Unsupported,        // a known service, but nothing ShadeTube opens
     JamInvite,          // shadetube://jam/<token>: a "Birlikte dinle" invite (app/Together; id = the whole link)
+    BlendInvite,        // shadetube://blend/<token>: a Blend invite (app/Blends; id = the whole link)
 };
 
 struct Link {

@@ -73,9 +73,11 @@ struct RadioError : std::runtime_error {
 };
 
 // ---- Codec filter --------------------------------------------------------------------------------------------------
-// What the audio engine plays: MP3 and AAC / AAC+ (HE-AAC) Icecast / Shoutcast streams, and HLS playlists (the
-// engine's live path reads .m3u8: audio/StreamSource::live). The switch hides HLS stations if that ever regresses.
+// What the audio engine plays: MP3, AAC / AAC+ (HE-AAC) and OGG (Ogg Opus / Vorbis, the built-in decoders) Icecast /
+// Shoutcast streams, and HLS playlists (the engine's live path reads .m3u8: audio/StreamSource::live). "OGG" stations
+// whose name or URL says FLAC are Ogg FLAC, which it doesn't. The switch hides HLS stations if that ever regresses.
 inline constexpr bool kPlayHls = true;
+bool saysFlac(const Station& s);
 bool playable(const Station& s);
 std::vector<Station> filterPlayable(std::vector<Station> stations);
 // Small mono badge: "MP3 · 128", "AAC+ · 64", "AAC" (bitrate unknown).

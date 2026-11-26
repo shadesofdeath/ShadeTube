@@ -267,6 +267,10 @@ void JamPanel::rebuild() {
         paragraph(c, tr(L"Oturum sahibi çalmayı yönetir; misafirler şarkı ekleyebilir. En fazla 10 kişi katılabilir."),
                   ui::Tone::Tertiary);
         c->add<Spacer>(8.f);
+        paragraph(c, tr(L"Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika "
+                        L"içinde açtığında oturum kaldığı yerden sürer."),
+                  ui::Tone::Tertiary);
+        c->add<Spacer>(8.f);
         paragraph(c, tr(L"Her şey davet bağlantısındaki anahtarla uçtan uca şifrelenir: aradaki herkese açık MQTT "
                         L"sunucusu yalnızca şifreli veri görür. Bağlantıyı yalnızca güvendiğin kişilerle paylaş."),
                   ui::Tone::Tertiary);

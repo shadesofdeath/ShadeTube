@@ -228,10 +228,18 @@ std::string streamUrl(const Station& s) {
     return isHttpUrl(s.url) ? s.url : std::string();
 }
 
+// radio-browser labels Ogg FLAC streams "OGG" too; their name or URL nearly always says so.
+bool saysFlac(const Station& s) {
+    for (const std::string* t : {&s.name, &s.url, &s.urlResolved})
+        if (asciiLower(*t).find("flac") != std::string::npos) return true;
+    return false;
+}
+
 bool playable(const Station& s) {
     if (s.uuid.empty() || streamUrl(s).empty()) return false;
     const std::string& c = s.codec;
-    const bool known = c == "MP3" || c == "AAC" || c == "AAC+";
+    // "OGG": Ogg Opus / Ogg Vorbis, decoded built in (Ogg FLAC isn't).
+    const bool known = c == "MP3" || c == "AAC" || c == "AAC+" || (c == "OGG" && !saysFlac(s));
     if (s.hls) return kPlayHls && (known || c.empty() || c == "UNKNOWN");
     return known;
 }

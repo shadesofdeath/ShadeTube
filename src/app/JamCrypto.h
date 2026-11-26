@@ -10,6 +10,7 @@
 //     with a key only that guest can derive (the guest's own key pair, announced in its hello); someone who was
 //     removed reads the old room but can't open the hand-offs.
 //   - hex and base64url (RFC 4648 §5, no padding)
+//   - DPAPI for what is kept on disk (crypt32)
 //
 // Standalone (tests/jam compiles it): the Windows SDK only. Any thread.
 #include <array>
@@ -45,6 +46,11 @@ inline std::span<const uint8_t> asBytes(std::string_view s) {
 Bytes seal(std::span<const uint8_t> key, std::span<const uint8_t> plaintext, std::span<const uint8_t> aad);
 // nullopt when the key / associated data don't match or anything was changed (tag mismatch) or `sealed` is too short.
 std::optional<Bytes> open(std::span<const uint8_t> key, std::span<const uint8_t> sealed, std::span<const uint8_t> aad);
+
+// DPAPI (CryptProtectData for the current Windows user): secrets kept on disk — a host's room to resume after a restart
+// (app/Together), the blends' keys (app/Blends). nullopt when Windows refuses (another user's file, damaged data).
+std::optional<Bytes> protect(std::span<const uint8_t> plain, const wchar_t* description);
+std::optional<Bytes> unprotect(std::span<const uint8_t> sealed);
 
 // An ECDH P-256 key pair (private part never leaves the object).
 class EcdhKey {

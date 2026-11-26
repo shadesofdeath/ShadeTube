@@ -1,6 +1,7 @@
-// Ayarlar > SES: loudness normalisation, crossfade, the 10-band equalizer (presets + a response graph you drag) and
-// the output device. Everything applies live: the equalizer and the device through Player::applyAudioSettings(),
-// normalisation and crossfade from the next track the player loads or preloads.
+// Ayarlar > SES: loudness normalisation, crossfade, the 10-band equalizer (presets + a response graph you drag), the
+// output device and WASAPI exclusive mode (with its live status). Everything applies live: the equalizer, the device
+// and exclusive mode through Player::applyAudioSettings(), normalisation and crossfade from the next track the player
+// loads or preloads.
 #include "app/SettingsWidgets.h"
 #include "audio/AudioEngine.h"
 #include "core/Async.h"
@@ -336,6 +337,92 @@ private:
     Lifetime life_;
 };
 
+// "44,1 kHz" / "48 kHz" with the UI language's decimal separator.
+std::wstring rateText(uint32_t hz) {
+    wchar_t b[32];
+    if (hz % 1000 == 0) swprintf(b, 32, L"%u kHz", hz / 1000);
+    else swprintf(b, 32, L"%.1f kHz", hz / 1000.0);
+    std::wstring s = b;
+    std::replace(s.begin(), s.end(), L'.', i18n::decimalSeparator());
+    return s;
+}
+
+// What exclusive mode does right now, under its toggle: the device format it holds, or why it plays shared (polled
+// twice a second while the row exists; nothing shows while the mode is off).
+class ExclusiveStatus : public ui::Widget {
+public:
+    ExclusiveStatus() : text_({}, gfx::type::secondary) {
+        hitTestVisible = false;
+        gfx::TextOptions wrap;
+        wrap.wrap = true;
+        text_.setOptions(wrap);
+        instance_ = this;   // the newest one (a rebuilt page replaces the old row)
+        ++count_;
+        if (!timer_) timer_ = SetTimer(nullptr, 0, 500, [](HWND, UINT, UINT_PTR, DWORD) {
+            if (instance_) instance_->refresh();
+        });
+        refresh();
+    }
+    ~ExclusiveStatus() override {
+        if (instance_ == this) instance_ = nullptr;
+        if (--count_ == 0 && timer_) {
+            KillTimer(nullptr, timer_);
+            timer_ = 0;
+        }
+    }
+    float preferredHeight(float w) override { return text_.empty() ? 0.f : std::ceil(text_.measure(w - 20).h) + 20; }
+    void paint(Canvas& c) override {
+        if (text_.empty()) return;
+        const Rect r = rect();
+        const auto& col = gfx::colors();
+        c.fillCircle({r.x + 3, r.y + 4 + 9}, 3.f, active_ ? gfx::accent().base : col.fgTertiary);
+        c.text(text_, {r.x + 16, r.y + 4, r.w - 20, r.h - 8}, col.fgSecondary);
+        c.hline(r.x, r.right(), r.bottom() - 1, col.hairSubtle);
+    }
+
+private:
+    void refresh() {
+        std::wstring s;
+        bool active = false;
+        if (const auto* p = ctx().player; p && Settings::get().exclusiveAudio) {
+            const audio::OutputInfo o = p->outputInfo();
+            using F = audio::OutputInfo::Fallback;
+            if (o.open && o.exclusive) {
+                active = true;
+                const std::wstring format = o.floatFormat ? i18n::format(tr(L"{} bit kayan nokta"), {std::to_wstring(o.bits)})
+                                                          : i18n::format(tr(L"{} bit"), {std::to_wstring(o.validBits)});
+                s = i18n::format(tr(L"Şu an özel modda: {} · {}"), {rateText(o.sampleRate), format});
+            } else if (o.open && o.fallback == F::Busy) {
+                s = tr(L"Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.");
+            } else if (o.fallback == F::Busy) {   // held exclusively by someone else: not even shared mode opens
+                s = tr(L"Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.");
+            } else if (o.open && o.fallback == F::NotAllowed) {
+                s = tr(L"Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): "
+                       L"paylaşımlı modda çalıyor.");
+            } else if (o.open && o.fallback == F::Format) {
+                s = tr(L"Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.");
+            } else if (o.open && o.fallback == F::Other) {
+                s = tr(L"Özel mod açılamadı: paylaşımlı modda çalıyor.");
+            } else {
+                s = tr(L"Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.");
+            }
+        }
+        if (s == text_.text() && active == active_) return;
+        text_.setText(std::move(s));
+        active_ = active;
+        if (parent()) {
+            requestLayout();   // the height may change with the text
+            invalidate();
+        }
+    }
+
+    gfx::Text text_;
+    bool active_ = false;
+    static inline ExclusiveStatus* instance_ = nullptr;
+    static inline int count_ = 0;
+    static inline UINT_PTR timer_ = 0;
+};
+
 } // namespace
 
 void buildAudioRows(ui::Column* c, const std::function<void()>& rebuild) {
@@ -419,6 +506,19 @@ void buildAudioRows(ui::Column* c, const std::function<void()>& rebuild) {
                                           L"geçilir ve geri takılınca ona dönülür."));
         row->control<DevicePicker>(240.f, rebuild);
     }
+
+    // WASAPI exclusive mode.
+    settingsToggle(c, tr(L"Özel mod (WASAPI)"),
+                   tr(L"Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan "
+                      L"kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt "
+                      L"serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam "
+                      L"eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı "
+                      L"arasında kısa bir sessizlik olur."),
+                   s.exclusiveAudio, [](bool v) {
+                       Settings::get().exclusiveAudio = v;
+                       applyAudio();
+                   });
+    c->add<ExclusiveStatus>();
 }
 
 } // namespace st::app

@@ -486,6 +486,12 @@ void Player::applyAudioSettings() {
     for (size_t i = 0; i < eq.gainsDb.size() && i < s.eqGains.size(); ++i) eq.gainsDb[i] = s.eqGains[i];
     engine_->setEqualizer(eq);
     engine_->setOutputDevice(toWide(s.outputDeviceId));
+    // SHADETUBE_EXCLUSIVE=1 / 0 overrides the setting (the player test programs and a sandboxed app in exclusive mode).
+    static const int forced = [] {
+        wchar_t v[4] = {};
+        return GetEnvironmentVariableW(L"SHADETUBE_EXCLUSIVE", v, 4) ? (v[0] == L'1' ? 1 : 0) : -1;
+    }();
+    engine_->setExclusive(forced >= 0 ? forced == 1 : s.exclusiveAudio);
 }
 
 float Player::speedFor(const Track& t) {
@@ -750,8 +756,8 @@ std::string Player::localMimeType(const std::wstring& path) {
     if (dot == std::wstring::npos || path.find_first_of(L"\\/", dot) != std::wstring::npos) return {};
     std::wstring ext = path.substr(dot + 1);
     for (auto& ch : ext) ch = static_cast<wchar_t>(towlower(ch));
-    // Media Foundation byte-stream handlers are registered by these types (HKLM ...\ByteStreamHandlers). Ogg has none
-    // in a stock Windows: .ogg / .opus play only with an installed Ogg handler (otherwise "desteklenmeyen biçim").
+    // Media Foundation byte-stream handlers are registered by these types (HKLM ...\ByteStreamHandlers). Ogg and
+    // WebM / Matroska with Opus or Vorbis don't need one: the engine sniffs them and decodes them itself.
     static const std::pair<const wchar_t*, const char*> kTypes[] = {
         {L"mp3", "audio/mpeg"},  {L"m4a", "audio/mp4"},      {L"mp4", "audio/mp4"},   {L"m4b", "audio/mp4"},
         {L"aac", "audio/aac"},   {L"adts", "audio/aac"},     {L"flac", "audio/flac"}, {L"wav", "audio/wav"},
@@ -1136,7 +1142,9 @@ void Player::onEngineError(audio::ErrorKind kind, const std::string& message, ui
         return;
     }
     if (kind == audio::ErrorKind::UnsupportedFormat && allowWebm_) {
-        allowWebm_ = false;   // fall back to AAC for the rest of the session
+        // The engine decodes Opus / Vorbis WebM itself, so this is a stream it can't read at all (another codec in
+        // WebM, a damaged file): fall back to AAC for the rest of the session.
+        allowWebm_ = false;
         startResolve(pos_, at, true, true);
         return;
     }

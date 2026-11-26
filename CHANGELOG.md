@@ -59,6 +59,26 @@ All notable changes to ShadeTube, newest first.
   notification with the cover, title and artist, plus Next and Like buttons, when a new song starts while ShadeTube is
   out of sight. Each song replaces the last one; nothing shows while the mini player is on screen, when you skip with
   the media keys (Windows shows the song itself) or in full-screen apps.
+- **Blend**: one shared playlist made from your taste and a friend's (or several friends'), like Spotify's Blend but
+  with no accounts and no server. Create a Blend from "Made for you", send the invite link, and when your friend opens
+  it in ShadeTube you both get the same list: the songs you both love first, then one pick from each of you in turn,
+  every song marked with whose taste it is, plus a taste match percentage. You see exactly which songs and artists
+  will be shared before anything is sent (your top 50 songs and 30 artists of the last six months, nothing else), and
+  it is end-to-end encrypted. You don't need to be online at the same time. Refresh it, save it as a playlist or leave
+  it whenever you like.
+- **Listen together with podcasts and radio**: podcast episodes (at the host's speed) and internet radio stations are
+  now shared with your guests, not just songs. Guests on ShadeTube 0.10.0 keep working; they just sit out podcasts
+  and radio.
+- **Listen together survives a restart**: if the host closes or restarts ShadeTube (an update, a crash), the session
+  continues when the app is back within 10 minutes; guests wait and follow again by themselves. A guest whose app
+  restarts rejoins on its own too.
+- **Opus and Ogg everywhere**: ShadeTube now decodes Opus and Vorbis itself, so YouTube's best audio (Opus, about
+  160 kbps) plays on every Windows, with no codec extension needed. Your `.ogg`, `.oga` and `.opus` files show up in
+  Local files with their tags, covers and exact lengths, and Ogg Vorbis radio stations play too. Seeking, gapless
+  playback, crossfade, volume normalization (including R128 / ReplayGain tags) and speed all work with them.
+- **Exclusive mode**: Settings › Sound › "Exclusive mode (WASAPI)" gives ShadeTube the output device to itself: songs
+  play at their own sample rate without the Windows mixer, and the settings show the format the device runs at (or
+  why it fell back to shared mode). Other apps are silent while it plays; pausing frees the device.
 - **Last.fm and ListenBrainz history in Stats**: next to "Spotify geçmişini getir", bring in years of scrobbles from
   Last.fm (any public profile by user name, with the API key from Settings › Connections, or a lastfm-to-csv /
   lastfmstats / Ghan export file) and ListenBrainz (any profile by user name, or the export ZIP). Big histories come in

@@ -4,7 +4,7 @@ How ShadeTube is built, how it is put together and how to test and release it. F
 [README](../README.md); for what changed between versions, see the [changelog](../CHANGELOG.md).
 
 ShadeTube is a native Windows x64 app in C++20: Direct2D + DirectWrite UI with its own widget tree and window chrome,
-Media Foundation → WASAPI audio, catalog data from Spotify (the user's own account) or MusicBrainz, and audio
+Media Foundation and built-in Opus / Vorbis decoders → WASAPI audio (shared or exclusive), catalog data from Spotify (the user's own account) or MusicBrainz, and audio
 streamed from YouTube through a C++ YoutubeExplode port.
 
 ## Contents
@@ -24,7 +24,9 @@ with C++** workload (ships CMake and Ninja); Python 3 only for `tools/` and the 
 configure needs network access: `cmake/WebView2.cmake` downloads the pinned Microsoft.Web.WebView2 SDK into
 `<build dir>/_webview2` and links its static loader. `external/YoutubeExplode` (the C++ YouTube library, also
 published as [shadesofdeath/YoutubeExplode](https://github.com/shadesofdeath/YoutubeExplode)) is part of this
-repository; it builds as a CMake subproject (WinHTTP backend) and also provides nlohmann/json.
+repository; it builds as a CMake subproject (WinHTTP backend) and also provides nlohmann/json. The Xiph decoders
+(external/libopus, opusfile, libvorbis, libogg; decoder sources of the official release tarballs, unchanged,
+their SHA-256 in each CMakeLists.txt) build as static C libraries.
 
 ```bat
 build.bat Debug                         :: configure (Ninja) + build everything -> build\Debug\bin\ShadeTube.exe
@@ -64,6 +66,7 @@ ShadeTube/
 ├─ bucket/shadetube.json         Scoop manifest: the repository doubles as a Scoop bucket
 ├─ external/YoutubeExplode/      C++ YoutubeExplode (dependency; change it upstream)
 ├─ external/qrcodegen/           Nayuki's QR Code generator (C++, MIT, vendored unchanged; the remote's pairing code)
+├─ external/libopus/ opusfile/ libvorbis/ libogg/   Xiph decoders (BSD-3-Clause, decoder parts vendored unchanged; 3.42)
 ├─ tools/
 │   package.ps1                  Release build -> dist\ShadeTube-<ver>-win64.zip + .sha256
 │   update_manifests.py          winget + Scoop manifests for the packaged release (see 6)
@@ -78,7 +81,8 @@ ShadeTube/
 │   spotify/     st_spotify      Totp, Auth, SpotifyApi (Pathfinder + spclient), HashRegistry, Session, Accounts
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
-│                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core)
+│                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
+│                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.42)
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
 │                                cache, 3.42)
@@ -117,9 +121,12 @@ ShadeTube/
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, browse, collections,
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiocache, audiodsp, collections,
 └─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiodsp, collections,
+│                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.42)
+└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, blend, collections,
                                  downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  credits, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  downloads, headers, jam, library, links, lists, liveaudio, localfiles, lyrics, micro, miniplayer,
+                                 codecs, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  downloads, headers, history, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, songnotify, sponsorblock,
@@ -163,7 +170,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   requested pixel size** and keeps D2D bitmaps in a GPU LRU with a byte budget (64 MB; eviction stops at bitmaps
   painted in the last two frames, so a screen needing more goes over it instead of thrashing). D2D's texture cache is
   capped at 24 MB. Requests from widgets that went off-screen are skipped.
-- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held. Every download
+- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held (the built-in Opus /
+  Vorbis decoders add ~0.1-0.2 MB per track, 3.42). Every download
   above 1 MB is buffered in a memory-mapped temporary file (`FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE`)
   and a local file is mapped read-only as it is, so their pages belong to the file cache, not the private commit, and
   Windows can drop them under pressure. A heap block is the fallback when no temporary file can be created. The song
@@ -247,13 +255,14 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 3. Otherwise the song cache (3.42) when it holds the track's video in the current quality's format, else
    `youtube::MatchService::resolve(track)`: the persistent `spotifyId → videoId` cache
    (`cache\matches.json`, manual picks pinned), else `YoutubeExplode::Music::TrackMatcher::find({title, artists,
-   duration, album})`; then the manifest → best audio stream (AAC/MP4 preferred; Opus/WebM when the OS decodes it
-   and quality is High; Normal = ≤ 128 kbps AAC; DRC "stable volume" variants only when nothing else exists). Stream
+   duration, album})`; then the manifest → best audio stream (AAC/MP4 preferred; Opus/WebM, decoded built in (3.42),
+   when quality is High; Normal = ≤ 128 kbps AAC; DRC "stable volume" variants only when nothing else exists). Stream
    URLs are cached until they expire (about 5 h). If YouTube fails and a backup source is set, the stream comes from
    Piped / Invidious (3.9).
-4. `AudioEngine::open()`: `ProgressiveBuffer` (ranged download) → `MfByteStream` → MF Source Reader → float PCM →
-   [crossfade mix] → equalizer → volume ramp / loudness gain → look-ahead limiter → WASAPI shared, event-driven, on
-   the Windows default device or the one picked in *Ayarlar › Ses*.
+4. `AudioEngine::open()`: `ProgressiveBuffer` (ranged download) → the built-in decoder for Opus / Vorbis in WebM,
+   Matroska and Ogg (3.42), else `MfByteStream` → MF Source Reader → float PCM → [crossfade mix] → equalizer → volume
+   ramp / loudness gain → look-ahead limiter → WASAPI event-driven, shared (or exclusive, 3.43), on the Windows default
+   device or the one picked in *Ayarlar › Ses*.
 5. The next queue item is resolved at Low priority and preloaded 25 s before the end (`Settings.preloadNext`, implied
    by a crossfade) for a gapless handoff; downloads and local files are preloaded straight from disk. The queue is
    saved to `session.json` and restored at startup.
@@ -266,7 +275,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   reports each stream's `loudnessDb` against its -14 LUFS reference (YoutubeExplode parses it per format, with
   `playerConfig.audioConfig` as the fallback), so a stream gets `target + 14 - loudnessDb` dB. Local files and
   downloads use their ReplayGain track gain (`audio/ReplayGain`: ID3v2 TXXX, FLAC Vorbis comments, MP4 freeform atoms,
-  read by the decode thread before the decoder opens) plus `target + 18`; no tag = no gain. MP3 downloads carry the
+  read by the decode thread before the decoder opens; Ogg files: `REPLAYGAIN_TRACK_GAIN`, or Opus' `R128_TRACK_GAIN` + 5 dB,
+  from the comments the built-in decoder reads) plus `target + 18`; no tag = no gain. MP3 downloads carry the
   stream's loudness as a `REPLAYGAIN_TRACK_GAIN` TXXX frame (`-4 - loudnessDb`), so they play at the same level.
   Without the peak levels, boosts are capped at +4 dB (+8 dB at the loud target); cuts go down to -20 dB.
 - **Limiter** (`audio/Limiter`): the whole device block goes through a look-ahead peak limiter (-0.3 dBFS ceiling,
@@ -285,8 +295,9 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   mix fade both out. *Smart* parts: a song whose last 20 s went silent (under -50 dBFS for 1.5 s) hands over at once
   with a 0.5 s fade, and the incoming song's leading silence (up to 5 s) is skipped (`Track::skipSilence`).
 - **One output rate**: the engine asks the device for its shared-mode mix rate (`WasapiOutput::mixRate`) and every
-  track decodes to it (`Decoder` requests that rate from the Source Reader, whose resampler converts; live streams
-  keep theirs). Songs of 44.1 and 48 kHz therefore hand over gaplessly or crossfade without reopening the device.
+  track decodes to it (`Decoder` requests that rate from the Source Reader's resampler, or the built-in decoders'
+  `audio/Resampler`, through a `RatePolicy`; live streams keep theirs). Songs of 44.1 and 48 kHz therefore hand over
+  gaplessly or crossfade without reopening the device. Exclusive mode decodes at the tracks' own rates instead (3.43).
 - **Playback speed** (`Settings.musicSpeed` / `podcastSpeed`, 0.5-3x, `Player::setSpeed`, the player bar's speed
   button, the speed shortcuts): `StreamSource::speed` starts a track at its kind's speed and `AudioEngine::setSpeed`
   changes the current one. `audio/TimeStretch` is a WSOLA stretcher (SoundTouch's method: sequences joined where the
@@ -406,8 +417,8 @@ error and backoff, plus per-track download attempts.
   reads tags through the Windows property system (file name "Artist - Title" as fallback) and extracts embedded
   covers once. The index (`local-library.json`: path, size, mtime, tags) makes rescans incremental; an unreachable
   folder keeps its tracks. Ids are `local:<FNV-1a of the lower-cased path>`. User files are only read, except when the
-  user edits their tags (below). Scanned extensions: `.mp3 .m4a .aac .flac .wav .wma`, plus `.ogg .oga .opus` when a
-  Media Foundation handler for them is installed.
+  user edits their tags (below). Scanned extensions: `.mp3 .m4a .aac .flac .wav .wma .ogg .oga .opus`. Ogg Opus /
+  Vorbis files have no Windows property handler: their comments, duration and cover come from `audio/XiphTags` (3.42).
 - **Views** (`app/LocalFilesPage.cpp`): Şarkılar, Albümler, Sanatçılar and **Klasörler**. The view and the open folder
   are remembered (`Settings.localView`, `localFolder`) and named in the route (`{LocalFiles, "songs" | "albums" |
   "artists" | "folders" | "folder:<path>"}`, `""` = the remembered one; a tab switch rewrites the current history entry
@@ -727,7 +738,7 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
   `tag:<tag>`, `country:<CC>`, `top`, `votes`, `favorites`, `recent`, `genres`, `search:<name>`.
 - **Stations** play as `catalog::Track`s with the id `radio:<stationuuid>` through `Player::liveStreamFor`: no
   duration, no seeking, no prefetch or crossfade. Only codecs the engine plays are listed (MP3, AAC / HE-AAC, Ogg
-  Opus, HLS). `radio.json` keeps favorites, recently played and the stations of the playing list, so a restored queue
+  Opus, Ogg Vorbis, HLS). `radio.json` keeps favorites, recently played and the stations of the playing list, so a restored queue
   still resolves.
 - **Live streams** (`audio/LiveStream`, one thread per stream): playlists (`.pls` / `.m3u` / `.asx`, nested,
   redirects), ICY bodies with the interleaved metadata stripped (StreamTitle kept) or HLS (master and media playlists,
@@ -942,14 +953,16 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
   album, length, cover, the exact YouTube video it plays, who added it, kind), position + the host's steady clock,
   playing / status, guest permission, members, bans, a revision. Items it plays from disk are `File` (guests use the
   host's video when the match cache knows one, else look them up by title / artist / length); podcast episodes and
-  radio stations are `Unsupported`: not shared (the host gets a toast, guests pause and the panel says why). Guests'
+  radio stations are shared with 0.11.0+ guests (3.43) and `Unsupported` for older ones (they pause and the panel says
+  why). Guests'
   `req`s: `add` always (the song goes after the songs guests added before, marked "+ NAME" in the queue panel); play,
   pause, next, previous, seek and jump only with "Misafirler çalmayı kontrol edebilir". Presence: hello (name + the
   guest's ECDH public key), heartbeats every 10 s, the last will; 35 s of silence = offline, offline members leave the
   list after 3 min; at most 10 people. "Çıkar" bans the device (ignored by the host, listed in the state, the guest
   leaves). "Yeni bağlantı" moves the session to a new room + key: each online guest gets the new link sealed with
   SHA-256(ECDH(host ephemeral, guest key) || label), the old room's retained state is cleared; a removed device reads
-  the old room but can't open the hand-offs. Both ends play at 1x during a session.
+  the old room but can't open the hand-offs. Both ends play songs at 1x during a session (episodes: the host's speed,
+  3.43). Closing the host's app keeps the session for a restart (3.43).
 - **Guest**: on joining, `session.json` is copied to `jam-own-session.json` and shuffle / repeat / speed go to
   `jam.json`; leaving, being removed, the host ending the session or the next start after a crash put them back
   (`Player::restoreSession` stops what plays first). Following runs four times a second (`jam::decide`): the host's
@@ -2442,6 +2455,211 @@ Ayarlar › Pencere ve sistem › "Şarkı değişince bildirim göster" (`Setti
   locked screen); Focus assist / Do not disturb itself is left to Windows, which holds toasts back. Not for the same song
   again (repeat one, a re-resolve), radio stations, podcast episodes or a song paused by then. The verdict is logged
   (`songnotify` lines).
+### 3.42 Blend
+
+A shared playlist made from the taste of two or more people, without a server or accounts, on the listen-together
+transport (3.24). `app/Blend` (standalone, pure: the taste profile, its JSON, the mix, the match, the store record;
+`blend_test`), `app/Blends` (the blends of this PC, the exchange, the consent dialog, the actions, the palette) and
+`app/BlendPage.cpp` (cover, cards, the page).
+
+- **Taste profile** (`blend::makeProfile`, on a worker from a copy of `ListenStats`' tracks + plays, imported history
+  included): streams only, podcast / radio ids out; each stream weighs `0.5^(age / 60 days)` within the last 180 days
+  (fewer than 15 songs there: the whole history with a one-year half-life, `win: 0`). The 50 heaviest songs (id, title,
+  up to 4 artists, album, http(s) cover, length) and the 30 heaviest artists (every credited artist of a song counts),
+  each with a weight 1..100 relative to the member's top one, the display name (`Settings::jamName` or its default) and
+  the time rounded down to the hour. No play counts, no times, nothing else. Fewer than 5 songs: refused ("listen a bit
+  more"). 300 000 plays: 26 ms (MinSizeRel).
+- **Keys** are computed by the sender (`k`: 16 hex digits of FNV-1a-64 over `ListenStats::keysFor`'s folded "title +
+  first artist" / artist name) and the mix only compares those, so two app versions that fold names differently still
+  build the same list.
+- **The mix** (`blend::build`, the same on every PC from the same profiles): members sorted by member id, one profile
+  each (the newest), at most 10; songs two or more members have first (by how many, then their summed weight, then
+  key), then one song per member in turn in each member's own order, skipping songs already in; 50 songs at most. Each
+  row knows whose taste it is (`from`). **Taste match**: the mean over pairs of `0.7 × artists + 0.3 × songs`, each a
+  weighted overlap (Σ min of the two members' shares, integer cross products), shown as `100 × (1 − (1 − c)³)`, so half
+  the taste in common reads ~88 %.
+- **Invite and topics**: `shadetube://blend/<base64url(1 | flags | blend id (16) | key (32) | broker)>` (the session
+  invite's payload under its own prefix: neither opens as the other, and 0.10.0 answers "can't open this ShadeTube
+  link"); topics `shadetube/blend/v1/<hex SHA-256(blend id)>/…`. Each member has a random member id per blend (not the
+  Jam device id, so blends and sessions can't be linked).
+- **Exchange**: `p/<member>` holds that member's profile as a **retained** JamProtocol envelope (type `taste`, sealed
+  with the blend key, the topic as associated data; the envelope's device must be the topic's member), so a member who
+  opens the link hours later still finds it: nobody has to be online at the same time as anybody else (`blend_test
+  live` checks it on all three public brokers with the members never connected together). Leaving replaces it with a
+  sealed retained `left` record. `x` carries `ask` (not retained): a member refreshed and asks those connected right
+  now to share their current taste too — they get a toast, never an automatic send. When the app talks to the broker:
+  after creating (held up to 30 minutes, closed 3 s after someone shared), joining or refreshing; while the page is open
+  (renewed every minute while it is painted); 20 s after startup and every 6 hours, 10 s per blend, one after the
+  other. Every visit re-publishes this PC's profile *as it was shared* (a broker that lost it gets it back) and reads
+  the others'; a newer profile (by `at`) replaces the older one.
+- **Consent**: creating, joining and refreshing open a dialog with the exact artists and songs (all of them, in a
+  scrolled list), the name and what is not shared; only "Paylaş ve …" sends. "Paylaştıklarını gör" shows what is
+  shared now. Joining reads the others' profiles at once (so the page shows the inviter), but sends nothing before the
+  consent.
+- **Store**: `blends.dat` = DPAPI-sealed JSON (`v`, `blends`: link, member id, my profile, the others', who left,
+  creator, times), written on a worker (a newer save wins); read on a worker at startup. At most 20 blends.
+- **UI**: blend cards and a "Blend oluştur" card (outlined, "+") at the end of "Senin için listeler" (Home, Library;
+  the section shows while there is a smart list or a blend). The cover is the smart lists' (mosaic of the first rows'
+  covers, filled from the Stats artwork cache like theirs, band "BLEND · %87 UYUM" + the names). The page
+  (`Route{RouteKind::SmartList, "blend:<id>"}`, `--route smart:blend:<id>`) has the smart list header, a why line
+  ("first the 5 songs you both love…", who left), the track table with a chip per row (`TrackTable::chipFor`: "ORTAK",
+  "SEN", "AYŞE", "AYŞE + CAN"), play / shuffle / add, and a menu: Yenile, copy the invite, Paylaştıklarını gör, queue,
+  "Çalma listesi olarak kaydet" (`promptNewPlaylist`), Blend'den ayrıl. Waiting for a friend / consent pending: the
+  page says so with a button (copy the link / see what would be shared). Invite links open from paste, the search box,
+  "Blend davetiyle katıl…" (palette), `--open-link` and the URL protocol (`links::Kind::BlendInvite`).
+- **Dev**: `SHADETUBE_BLEND=create | <invite> | refresh:<id> | leave:<id>`, a trailing `!` agrees without the dialogs;
+  `SHADETUBE_BLEND_INVITE_FILE` receives a new blend's link; `blend` lines log every mix change with an order
+  fingerprint (two members' logs show the same one when they built the same list).
+- **Measured** (two sandbox profiles, EMQX): A created and quit; B opened the link after A had quit, got A's profile
+  in ~1 s and built the list; A started again 30 s later, its startup visit got B's profile: both logs show the
+  same 29-song mix (5 shared, 75 %, the same order fingerprint). A refresh on A reached B's open page as a toast in
+  ~1 s; B leaving showed up on A's next visit.
+
+### 3.43 Listen together: podcasts, radio and restarts
+
+Additions to 3.24 in 0.11.0, in the same files (`app/JamProtocol`, `app/JamSync`, `app/Together`).
+
+- **Versions**: the envelope's `v` stays 1 — 0.10.0 drops any other value (`OpenError::Version`), so a bump there
+  would turn old peers away with "session not found". New abilities are announced by a **feature level** instead:
+  `pv` in the host's state and in a guest's hello and heartbeats (absent = 1 = 0.10.0; `jam::kFeatureLevel` = 2), and
+  travel in fields older parsers ignore (they read only the keys they know).
+- **Podcast episodes and stations** keep `"k":"x"` on the wire, so a level-1 guest still holds on them as unsupported
+  (it would read an unknown kind as a song and look the episode's title up on YouTube); `pe` (feed URL, guid, audio
+  URL, type, show, date) or `rs` (stationuuid, stream URL, codec, country, tags, bitrate, HLS) say what they are, and a
+  level-2 parser turns them into `ItemKind::Episode` / `Station` (http(s) URLs only, `podcast:` / `radio:<uuid>` ids
+  only, else they stay unsupported). The host fills them from its podcast / radio stores; episodes of feeds the user
+  added by RSS address (often private, a token in the URL, or on the LAN) stay unsupported. The guest puts the host's
+  copy into its own registry unless it knows the episode / station already (its own copy wins; never for a feed it
+  added by address itself), so the player resolves them as usual — public internet only.
+- **Speed**: the state's `sp` is the current episode's speed (songs stay at 1 for everyone; the host may now change an
+  episode's speed). `expectedPosition` advances by `elapsed × speed`; the guest sets `Settings::podcastSpeed` / the
+  player's speed to the host's (its own comes back when it leaves, `jam.json`'s `guestSaved`).
+- **Stations are live**: `decide()` loads the station (no seek, autoplay = the host plays), jumps to it when it is next,
+  follows play / pause, never seeks or measures drift; the panel shows "Aynı istasyon · canlı". The host no longer
+  treats a station's listening time as drift (it re-published its state four times a second, also in 0.10.0).
+- **Host restart**: closing the app (any exit, including Windows ending the session) no longer ends the session. The
+  host publishes a last retained state (paused where it was, `away` = unix time), says `bye` with reason `away`, and
+  keeps the room in `jam-host.dat` (DPAPI: room id, key, broker, revision, permission, bans, members with their ECDH
+  keys, who added what, saved time), which is also written when the session starts or changes and every minute (a
+  crash). The next start within `jam::kResumeWindowSec` (10 min) resumes it: same room, key and broker first; revisions
+  continue from `unix seconds << 20` (above anything published before, also when the last save is a minute old);
+  sequence numbers start a new epoch as on every connection; members come back offline and turn online with their
+  heartbeats; a toast offers "Oturumu bitir". An older file is cleared from its broker on a worker (an `end` and an
+  empty retained state). Ending the session ("Oturumu bitir", joining another one) deletes the file.
+- **Guests while the host is away**: on `bye`/`away` (or a state with `away`) they pause where the host was, show "Oturum
+  sahibi uygulamayı kapattı…", stay on that broker (no failover while away) and follow again when a state without
+  `away` arrives ("{} geri döndü"); after the window + 1 minute they leave ("geri dönmedi"). A state found with an
+  `away` older than that counts as an ended session. 0.10.0 guests see the paused state and "host lost its connection",
+  keep waiting, and follow the resumed host by themselves (checked).
+- **Guest restart**: a guest's app that closes says `bye`/`away` (the host marks it offline, not gone) and keeps the
+  invite in `jam-guest.dat` (DPAPI; rewritten every minute while in a session); the next start within the window joins
+  the room again by itself (its own queue was restored on exit as before and is saved again on the join). Leaving,
+  being removed, the session ending or not being found deletes it.
+- **Dev**: `SHADETUBE_JAM_DEV=quit@<s>` quits the app (either role) that long into a session; `SHADETUBE_PLAY_STATION`
+  plays a station by name at startup; `--play-episode` and `SHADETUBE_VIDEO_DEMO=speed@<ms>=1.5` drive episodes.
+- **Measured** (two / three sandbox instances, EMQX): an NPR episode at 120 s followed within +2 … +16 ms, the host's
+  switch to 1.5x reached the guest with one seek; Radio Paradise followed across a "next station" and a station error;
+  host quit + restart 17-30 s later resumed the room with both a 0.11 and a 0.10.0 guest following again; a guest
+  restart rejoined by itself; a 0.11 guest followed a 0.10.0 host's songs.
+### 3.42 Built-in Opus / Vorbis decoding
+
+YouTube's best audio is Opus in WebM (~160 kbps), and Windows decodes it only with the right Store extensions; stock
+Windows has no Ogg handler at all. So Opus and Vorbis are decoded by the Xiph reference libraries, vendored and linked
+statically (`external/libopus` 1.6.1 decoder, `opusfile` 0.12, `libvorbis` 1.3.7 decoder + vorbisfile, `libogg`
+1.3.6; official tarballs, SHA-256 in each `CMakeLists.txt`, licenses in `THIRD_PARTY_NOTICES.md`), on every Windows.
+
+- **Where** (`audio/Decoder`): `XiphDecoder::probe` reads the stream's first 4 bytes: `OggS` → opusfile, else
+  vorbisfile; the EBML magic → `audio/Matroska` (WebM / Matroska) with an `A_OPUS` (libopus multistream decoder:
+  mapping families 0, 1, 2, 255) or `A_VORBIS` (libvorbis, the Xiph-laced CodecPrivate) track. Anything else (AAC /
+  MP3 / FLAC..., another codec in Matroska or Ogg: `S_FALSE`) goes to the Media Foundation Source Reader as before,
+  so a container Windows can play with an installed handler still plays. Both paths read the same `ProgressiveBuffer`
+  (range requests, the temporary-file / mapping rule, interrupted reads during a seek, decoder reopening): opusfile /
+  vorbisfile through read / seek callbacks, the demuxer through `ByteReader`. Downloads' MP3 transcode
+  (`audio/Downloader`) uses the same `Decoder`, so Opus streams can be downloaded as MP3 everywhere too.
+- **Matroska demuxer** (`audio/Matroska`): EBML header, Segment, SeekHead, Info (scale, duration), Tracks (the first
+  audio track: CodecPrivate, CodecDelay, SeekPreRoll, rate, channels), Cues — read at open when they come first
+  (YouTube), else at the first seek through the SeekHead — and clusters with SimpleBlocks / BlockGroups
+  (DiscardPadding), Xiph / EBML / fixed lacing, unknown-size clusters. Seeking takes the last cue at or before the
+  target, or walks the cluster headers when there are none. Every size is bounded (16 MB blocks, 1 MB CodecPrivate,
+  10^6 cues); a damaged file ends or fails cleanly.
+- **Timing**: positions are exact. Ogg: opusfile / vorbisfile seek sample-accurately and trim the Opus pre-skip and the
+  last page's granule. WebM: presentation time = block time - CodecDelay; the pre-skip and the last block's
+  DiscardPadding are dropped, a seek decodes from the cue before (target - SeekPreRoll, 80 ms) and the Track drops
+  what lies before the target. Matroska block times are whole milliseconds and muxers round them their own way (ffmpeg
+  writes Opus blocks 1 ms late): the first block after a seek is snapped onto the packet grid (`k * duration -
+  pre-skip`, when within 1 ms), so a seek lands on the same samples a straight decode gives. A run's later frames are
+  counted, never taken from block times.
+- **Output**: interleaved float stereo — mono doubled, 3-8 channels (Vorbis order, shared by Opus family 1)
+  downmixed with -3 dB centre / surrounds, LFE dropped, normalised. The OpusHead output gain is applied. The rate comes
+  from the track's `RatePolicy` (the mix rate in shared mode, 3.43 for exclusive): `audio/Resampler` converts — a
+  windowed sinc (Kaiser, ~80 dB stop band, pass band to 90 % of the lower Nyquist, widened when decimating; 1 kHz
+  sine 48 → 44.1 kHz: 103 dB SNR) with zero delay and a global output grid (`reset(startFrame)`), so a seek never
+  shifts the output by a fraction of a frame and a whole stream gives `ceil(N * out / in)` frames. A chained Ogg Vorbis
+  link at another rate is resampled to the first one's.
+- **Tags**: R128_TRACK_GAIN (+5 dB: -23 → -18 LUFS) or REPLAYGAIN_TRACK_GAIN of an Ogg file feed loudness
+  normalisation (3.4) after the decoder opened. `audio/XiphTags` gives the local library (3.8) the comments
+  (multi-valued ARTIST, ALBUMARTIST / ALBUM ARTIST, TRACKNUMBER / DISCNUMBER "3/9", DATE / YEAR), the exact duration and
+  the front cover (METADATA_BLOCK_PICTURE type 3, else the first); stock Windows has no property handler for them.
+- **Live radio** (3.18): Ogg Opus decodes with libopus instead of the Opus MFT (pre-skip dropped after every start /
+  discontinuity), and Ogg Vorbis stations play now: `live::OggDemuxer` collects the identification, comment (title) and
+  setup headers per logical stream (shared by its frames, keyed by a hash of identification + setup), gives each
+  packet its duration from the block sizes (`(previous + current) / 4`, the first only primes) and marks the first
+  frame of every chained stream as a discontinuity; `LiveDecoder` runs `VorbisPacketDecoder`. Ogg FLAC / Speex are
+  still refused.
+- **Cost** (measured 2026-11-27, Release): the exe grew 470 KB (12 032 512 → 12 503 040 bytes with this round's
+  exclusive mode; the four libraries are nearly all of it). Playing a 90 s 160 kbps file in a sandboxed app, commit
+  was 65.4 MB with Opus (built in) against 69.7 MB with the same AAC through Media Foundation (fewer DLLs mapped:
+  images 220.6 vs 244.5 MB); per track the decoder holds ~0.1-0.2 MB, plus a ~120 KB kernel table while resampling.
+  Decoding (codecs_test --bench): Opus 0.15 % of a core (650x real time), Vorbis q5 0.11 %, AAC through MF 0.20 %;
+  resampling 44.1 ↔ 48 kHz adds ~0.6 % (plain C, no SIMD; MF's own resampler is cheaper, ours keeps the timing
+  exact).
+- **Tests**: `codecs_test` (5.2) on ffmpeg-made chirp fixtures (`tests/codecs/fixtures`, `make_fixtures.py`):
+  lengths, alignment with the formula (best lag 0), seeks against the full decode, resampling, downmix, tags, the
+  demuxer on hand-built / truncated / damaged input, live Ogg parsing + decoding, a short engine run; `audio_test
+  --webm` runs the whole YouTube suite on Opus streams.
+
+### 3.43 WASAPI exclusive mode
+
+*Ayarlar › Ses › Özel mod (WASAPI)* (`Settings.exclusiveAudio`, off by default; `Player::applyAudioSettings` →
+`AudioEngine::setExclusive`, live; `SHADETUBE_EXCLUSIVE=1|0` overrides it for test programs and sandboxed runs).
+
+- **Opening** (`audio/WasapiOutput`): IsFormatSupported(EXCLUSIVE) on the requested rate and channel count, best
+  format first: 32-bit integer, 24-in-32, packed 24-bit, 32-bit float, 16-bit (TPDF dither). Event-driven with equal
+  buffer and period: 20 ms (the default period when refused, the driver's aligned size on
+  `AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED`). Every WASAPI event wants one whole buffer: the engine thread notes which handle
+  woke it (`signalled()`), `writable()` says how much to write (one buffer per event, one before `start()`), the float
+  block is converted at `releaseBuffer()`, and `padding()` comes from IAudioClock (written - played). Latency for video
+  mode's clock: GetStreamLatency (one period) + the limiter.
+- **Refusal → shared mode**: `AUDCLNT_E_DEVICE_IN_USE` (another app holds it), `..._EXCLUSIVE_MODE_NOT_ALLOWED` (the
+  device's *Allow applications to take exclusive control* is off), `AUDCLNT_E_UNSUPPORTED_FORMAT` or anything else:
+  the stream opens shared (AUTOCONVERTPCM resamples the track's rate) and `WasapiOutput::info().fallback` says why;
+  `AudioEngine::outputInfo()` publishes it with the device format. While another app holds the device exclusively,
+  Windows refuses shared streams too: the engine reports a device error and retries as before.
+- **Rates** (`RatePolicy`): exclusive mode probes the device's exclusive rates (`exclusiveRates()`: 44.1-384 kHz and
+  a few low ones, stereo, any of the formats) at start, on a device change and when it was refused (while nothing is
+  open). A track decodes at its own rate when the device takes it, else the nearest (an integer multiple first, else
+  the next higher, else the highest); the device opens in that rate. No accepted rate (refused) = shared-mode rate.
+- **Between tracks** (choice): a track of another rate needs the device reopened — the previous one plays out first,
+  so a gapless handoff gets a short gap (~50-150 ms) and an album of one rate stays gapless. A **crossfade** keeps the
+  rate that plays: a preloaded track with a crossfade decodes at the current track's rate (resampled), so the mix
+  works; the next track that starts on its own (after a pause, a jump) opens at its own rate again.
+- **Never holding a silent device**: no warm-up open at startup in exclusive mode, and when the output stops while
+  nothing is meant to play (paused, stopped, the queue ended, an error) the client is closed, so other apps play
+  meanwhile and a refused exclusive open is tried again at the next start. Seeks, stalls and the next track loading
+  keep it.
+- **Unchanged**: equalizer, normalisation, limiter, crossfade, speed, the preview voice (decoded at the rate the
+  device runs at; started on a closed device it takes the held track's rate), video mode's clock and the phone remote
+  (which only drives the Player). Windows' own per-app volume and audio enhancements (APOs) don't apply to an
+  exclusive stream.
+- **Device change / unplug**: the endpoint notifier works as in shared mode (default changed, our device removed,
+  the preferred device back); the engine closes, re-probes the rates and reopens exclusively on the new device. Toggling
+  the setting reopens the device at once (playing on).
+- **UI**: the toggle's description says what the mode does and doesn't (other apps silenced, the device freed when
+  paused, which effects apply, the short gap between rates); a status line under it (`ExclusiveStatus`, polled twice
+  a second) shows "Şu an özel modda: 44,1 kHz · 24 bit" or why it plays shared.
+- **Tests**: `codecs_test --exclusive` (exclusive at the file's rate, a second engine refused → Busy, released while
+  paused, a 44.1 → 48 kHz handoff reopening, a crossfade keeping the rate, the preview, back to shared while playing),
+  `audio_test --exclusive [--webm]`, and `playback_test` / `preview_test` with `SHADETUBE_EXCLUSIVE=1`.
 ### 3.42 Last.fm and ListenBrainz history import
 
 Stats › *İçe aktar* (a menu: Spotify, Last.fm, ListenBrainz) and, until something is imported, three cards in a row
@@ -2593,7 +2811,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing (artist links from url-rels, Wikipedia titles and summaries), cold vs warm cache | `--offline`, `--keep-cache` |
 | `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
-| `audio_test` | `AudioEngine` against real YouTube streams (states, positions, memory) | network; `[videoA] [videoB]` |
+| `audio_test` | `AudioEngine` against real YouTube streams (states, positions, seeks beyond the download, pause, gapless, crossfade, the other container, memory) | network; `[--webm] [--exclusive] [videoA] [videoB]` (`--webm`: everything on Opus / WebM, the built-in decoder; `--exclusive`: WASAPI exclusive mode) |
+| `codecs_test` | built-in Opus / Vorbis (3.42) on ffmpeg-made chirp fixtures: `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.43 on the default device, ~15 s); `--live <url>` (a station's state for 15 s); `--bench <file> [rate]` (decode speed) |
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, `refreshEntry` = what a scan stores, folder tree (natural order, covers, nested / drive roots, 50 000 files timed), files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
@@ -2616,9 +2835,10 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `credits_test` | song credits: role folding and groups, merging, the Spotify credits query and legacy JSON, MusicBrainz recording / work / label relationships, title cleaning and the recording ranking, `app/Credits` (JSON round trip and expiry, the provider chain, memory + disk cache, the summary) | offline (fixtures); `live ["Artist" "Title" [seconds]]` (MusicBrainz search + credits, read-only; Spotify too with `SHADETUBE_SPDC`, track `SHADETUBE_CREDITS_TRACK`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
-| `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
+| `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), level 2 (episodes / stations on the wire, what a 0.10.0 parser keeps of them, hostile data, feature level / speed / away, the envelope still at version 1, episodes at the host's speed, stations followed live), the host's saved room (round trip, resume window) + DPAPI, blend invite links, the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
+| `blend_test` | Blend (`app/Blend`): song / artist keys, taste profiles (streams only, podcast / radio out, recency, the six-month window and its fallback, caps, weights, features), profile JSON (hostile input), the mix (shared first, then one per member in turn, whose taste, cap, three members, newest profile per member, the same mix in any order), the taste match, the store record, timing with 300 000 plays | offline; `live [wss://broker…]` (two members never online together exchange retained sealed profiles through a real broker and build the same mix; leaving); `retain put <file> [broker]` / `retain get <file>` (how long a broker keeps a retained record) |
 | `radio_test` | radio-browser.info parsing (fixtures), codec filter, station -> track mapping, genre labels, `radio.json` store | offline; `live` (discovery, lists, failover; never counts a click) |
-| `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations) |
+| `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS, Ogg Opus and Ogg Vorbis when ffmpeg is on PATH), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations, a few of every codec family incl. OGG / OPUS) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, the accent-tinted app icon (sizes, colors, the logo's color against `app.ico`, `WindowIcon` on a test window: sizes, no re-render, no leaked handles, class icon back), AUMID / Start menu identity under a test id | default; `--start-menu`; `--icons <dir> [RRGGBB…]` (writes the tinted icon as `.ico` files to look at) |
 | `smartshuffle_test` | track keys and exclusions, candidate filter, queue insertion points (spacing, window, idempotence), `interleave`, a real `Player` (insert / drop / clear recommendations, session flag) | offline; needs an audio device |
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
@@ -2651,7 +2871,19 @@ Listen together end to end (3.24): two sandbox profiles, each with its own `SHAD
 (or a running guest gets `ShadeTube.exe --open-link <link>`). Then `--command play-pause` / `next` to the host (or the
 guest with `SHADETUBE_JAM_DEV=control` on the host), `--open-link <YouTube URL>` to the guest (a song it adds) and
 `SHADETUBE_JAM_DEV=rotate@45,kick@80`; both logs (`jam` lines) say what each side did: `host: state rev …`,
-`guest: load / jump / seek / play / pause`, `guest: following "…": drift +31 ms`.
+`guest: load / jump / seek / play / pause`, `guest: following "…": drift +31 ms`. Episodes and stations (3.43):
+`--play-episode "<feed>#0@120"` (+ `SHADETUBE_VIDEO_DEMO=speed@25000=1.5`) or `SHADETUBE_PLAY_STATION=<name>` on the
+host. Restarts: `SHADETUBE_JAM_DEV=quit@<s>` on the host (or a guest), then start it again without the session
+variables: `host: resumed room …` / `guest: the host is back` / `guest: joining the session again`. A host launched
+with `--preview` doesn't hold the single-instance mutex, so a later `--command` launch for that profile starts a second
+instance (which then resumes the same room): give the host no `--preview` when it should take `--command`s. Old peers:
+the released 0.10.0 exe (`dist\ShadeTube-0.10.0-win64\ShadeTube.exe`) on a third profile.
+
+Blend end to end (3.42): two profiles with listening history (`SHADETUBE_IMPORT_HISTORY` with a synthetic Spotify
+history, then close the app), `jamName` set in each `settings.json`. A: `SHADETUBE_BLEND=create!`,
+`SHADETUBE_BLEND_INVITE_FILE=<file>`, close it; B: `SHADETUBE_BLEND=<link>!`; A again (its visit 20 s after startup
+reads B): both `blend` logs name the same mix and order fingerprint. `--route smart:blend:<id>` (the id is in the
+log) opens the page.
 
 ### 5.3 Dev flags (ShadeTube.exe)
 
@@ -2681,6 +2913,7 @@ apps*).
 | Variable | Effect |
 |---|---|
 | `SHADETUBE_DATA_DIR` | profile folder instead of `%LOCALAPPDATA%\ShadeTube` (app and tests) |
+| `SHADETUBE_EXCLUSIVE` | `1` / `0`: WASAPI exclusive mode on / off whatever the setting (3.43; the Player test programs and sandboxed app runs) |
 | `SHADETUBE_I18N_DIR` | folder with `<code>.json` read instead of the embedded translation |
 | `SHADETUBE_FORCE_ALT=1` | skip YoutubeExplode while a backup source is set (tests the Piped / Invidious path) |
 | `SHADETUBE_OFFLINE=1` | the shared transport (`http::client()`, `getLimited()`: YouTube, SponsorBlock, covers, Spotify, lyrics, MusicBrainz) goes through a proxy name that never resolves, so every request fails as on a PC without a connection (the song cache's offline plays, 3.42). The engine's stream downloads and the private WinHTTP sessions (backup servers, radio, podcasts, listen together) are not affected |
@@ -2711,7 +2944,10 @@ apps*).
 | `SHADETUBE_JAM_HOST=1` | starts a listen-together session at startup (3.24) |
 | `SHADETUBE_JAM_INVITE_FILE` | `<path>`: the host writes its invite link there (and again when it changes) |
 | `SHADETUBE_JAM_JOIN` | `<invite link>`: joins that session at startup (a guest in a second sandbox profile) |
-| `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest) |
+| `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest); either role: `quit@<s>` (the app quits `<s>` s into the session: restart tests, 3.43) |
+| `SHADETUBE_PLAY_STATION` | `<name>`: plays the most clicked playable radio-browser.info station of that name at startup (3.43) |
+| `SHADETUBE_BLEND` | `create`, `<blend invite>`, `refresh:<id>` or `leave:<id>`, 6 s after the blends are loaded; a trailing `!` agrees without the consent / confirm dialogs (3.42) |
+| `SHADETUBE_BLEND_INVITE_FILE` | `<path>`: a blend created with `SHADETUBE_BLEND` writes its invite link there |
 | `SHADETUBE_KEYS_DEMO` | `<ms>:<combo>[,<combo>…]`: presses these key combos (text form: `Ctrl+NumAdd`, `Ctrl+Shift+4`) through the main window's shortcut dispatch, the first after `<ms>`, then every 300 ms; `action:<id>` runs that action (e.g. `action:compact-lists`). For `--screenshot` checks of the zoom badge / live relayout |
 | `SHADETUBE_SCROLL_DEMO` | `<steps>[@x,y]`: 2.5 s after startup posts wheel / key input to the window at window DIPs x,y (default: 60 % across, middle) from a timer thread, at real device rhythm, and logs every frame of each moving `ScrollView` once done (`scroll` lines: frame gap, offset, step, velocity, target, feel, frame CPU so far) plus a summary per view (frames, gaps over 1.5× the median, longest gap, direction changes, largest speed change between frames). Steps, comma separated (default `notch,spin,touch,keys`): `notch` (6 notches 140 ms apart), `spin` (24 notches 20 ms apart, then 3 back), `touch` (a precision-touchpad swipe with inertia, then one back), `keys` (PageDown ×2, End, Home, Down ×8 repeated), `end` (80 fast notches into the end, 80 into the top). Use with `--route` and `--screenshot`; hover refresh is off meanwhile |
 | `SHADETUBE_PROTOCOL_KEY` | HKCU key used instead of `Software\Classes\shadetube` for the URL protocol (tests); without it a sandbox profile never registers it |
@@ -2808,8 +3044,14 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   many label releases are only 30 s previews there.
 - **Unsigned exe**: SmartScreen warns on first run. The updater relies on SHA-256 and VERSIONINFO checks, not on a
   code signature.
-- **Ogg / Opus local files**: stock Windows has no Media Foundation Ogg handler, so `.ogg` / `.oga` / `.opus` files
-  are scanned and played only when one is installed. Passthrough `.m4a` downloads are not SponsorBlock-trimmed.
+- **Ogg / WebM**: Opus and Vorbis decode built in (3.42); Ogg FLAC / Speex and other codecs in WebM / Matroska still
+  need a Media Foundation handler. Local `.webm` / `.weba` / `.mka` files are not scanned or accepted as drops (the
+  engine plays them; their Matroska tags aren't read). Chained Ogg Vorbis links at another rate are resampled; a Matroska file without cues seeks by
+  walking its cluster headers (slow over the network). Passthrough `.m4a` downloads are not SponsorBlock-trimmed.
+- **Exclusive mode** (3.43): a track of another rate reopens the device (a short gap instead of a gapless handoff);
+  Windows' per-app volume and enhancements don't apply; while another app holds the device exclusively nothing
+  plays (Windows refuses shared streams too). Tested on one device (Realtek, 16-384 kHz, 24-in-32): unplugging and
+  switching devices while exclusive were not exercised physically.
 - **Phone remote** is plain HTTP on the local network (no TLS: tokens and commands can be seen by anyone sniffing
   that network; the pairing secret stays in the URL fragment and the page). The phone's token belongs to the page's
   origin, so a new LAN address (DHCP) or port means scanning the QR code again; on iOS a page added to the home
@@ -2820,8 +3062,19 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   download's catalog name in the app doesn't follow its edited file tags.
 - **Listen together** depends on public MQTT brokers (free services without guarantees; a custom broker can be set).
   Members share the room key, so a member could forge messages under another device id; removing someone keeps them
-  out only after "Yeni davet bağlantısı" (the old key still reads the old room). The session lives in the host's
-  running app (a host restart ends it); podcasts and radio are not shared; guests need the songs on YouTube.
+  out only after "Yeni davet bağlantısı" (the old key still reads the old room). A host's restart keeps the session
+  for 10 minutes (3.43); after that, or when the host's broker is down then, guests give up. 0.10.0 guests sit out
+  podcasts and radio; episodes of feeds added by RSS address are never shared; guests need the songs on YouTube.
+  Two instances on the same profile (only possible with `--preview`) both resume a kept room and fight over it.
+- **Blend** relies on the public broker named in the invite keeping retained messages: a member offline for a while
+  finds the others' profiles only if the broker still has them (on 2026-11-27 all three public brokers still returned
+  a retained record 15 minutes later — longer gaps were not measured, see `blend_test retain`; how long a free
+  broker keeps them is its own policy, and a broker restart may drop them — every visit publishes the profile again).
+  When the invite's broker is unreachable, members fall back to the next broker in the list, where the others' profiles
+  are only found once they have visited that broker too, i.e. both must then be online for it in turn. Members share
+  the blend key, so one could publish under another's member id. The playlist only holds songs from the members'
+  histories (no recommendations); imported history songs have no lengths and get covers only through the Stats
+  artwork lookups. Matching songs across members needs the same title and first artist.
   Two instances are best tested on two profiles of one PC (`SHADETUBE_INSTANCE_CLASS` / `_MUTEX` per profile let
   `--command` and `--open-link` reach each); sync across two machines depends on their audio output latency.
 - **Playback speed** uses time-domain stretching (WSOLA): transparent for speech and fine for music around 0.75-1.5x,
