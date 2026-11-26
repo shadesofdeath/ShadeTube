@@ -2312,5 +2312,16 @@
   "Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz": "Випуски з RSS-стрічок, доданих вами вручну, під час спільного прослуховування не передаються",
   "Bu istasyon birlikte dinlemede paylaşılamıyor": "Цю станцію не можна передати під час спільного прослуховування",
   "Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez": "У деяких гостей старий ShadeTube: подкасти й радіо вони слухати не зможуть",
-  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Випуски подкастів і радіостанції теж передаються. Якщо організатор закриє застосунок і відкриє його знову протягом 10 хвилин, сеанс продовжиться з того самого місця."
+  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Випуски подкастів і радіостанції теж передаються. Якщо організатор закриє застосунок і відкриє його знову протягом 10 хвилин, сеанс продовжиться з того самого місця.",
+  "Özel mod (WASAPI)": "Монопольний режим (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Пристрій виводу використовує лише ShadeTube: треки звучать зі своєю частотою дискретизації, оминаючи мікшер Windows. Звук інших застосунків у цей час не чути; на паузі пристрій звільняється. Еквалайзер, вирівнювання гучності, плавний перехід, швидкість і попередній перегляд працюють далі; звукові покращення Windows не застосовуються. Без плавного переходу між треками з різною частотою дискретизації буде коротка пауза.",
+  "{} bit kayan nokta": "{} біт з рухомою комою",
+  "{} bit": "{} біт",
+  "Şu an özel modda: {} · {}": "Зараз у монопольному режимі: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Пристроєм керує інший застосунок: поки що відтворення у спільному режимі.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Цей пристрій не дозволяє монопольне використання (налаштування звуку Windows › властивості пристрою › Додатково): відтворення у спільному режимі.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Пристрій не підтримує формат цього треку в монопольному режимі: відтворення у спільному режимі.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Не вдалося відкрити монопольний режим: відтворення у спільному режимі.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Пристрій відкривається в монопольному режимі на початку відтворення і звільняється на паузі.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Пристрій у монопольному режимі використовує інший застосунок; відтворення продовжиться, коли він його звільнить."
 }

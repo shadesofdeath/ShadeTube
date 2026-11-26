@@ -2139,5 +2139,16 @@
   "Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz": "Episodes of RSS feeds you added yourself aren't shared when listening together",
   "Bu istasyon birlikte dinlemede paylaşılamıyor": "This station can't be shared when listening together",
   "Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez": "Some guests have an older ShadeTube: they can't listen to podcasts and radio",
-  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Podcast episodes and radio stations are shared too. If the host closes the app and opens it again within 10 minutes, the session continues where it left off."
+  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Podcast episodes and radio stations are shared too. If the host closes the app and opens it again within 10 minutes, the session continues where it left off.",
+  "Özel mod (WASAPI)": "Exclusive mode (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Only ShadeTube uses the output device: songs play at their own sample rate, bypassing the Windows mixer. Other apps can't be heard meanwhile; pausing frees the device. The equalizer, volume normalization, crossfade, speed and previews keep working; Windows' audio enhancements don't apply. With crossfade off, two songs with different sample rates have a short silence between them.",
+  "{} bit kayan nokta": "{}-bit float",
+  "{} bit": "{}-bit",
+  "Şu an özel modda: {} · {}": "Now in exclusive mode: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Another app is in control of the device: playing in shared mode for now.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "This device doesn't allow exclusive use (Windows sound settings › device properties › Advanced): playing in shared mode.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "The device doesn't support this song's format in exclusive mode: playing in shared mode.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Exclusive mode couldn't be opened: playing in shared mode.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "The device opens in exclusive mode when playback starts and is freed when you pause.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Another app is using the device in exclusive mode; playback continues once it lets go."
 }

@@ -5,9 +5,14 @@ add_library(st_audio STATIC
     AudioEngine.cpp AudioEngine.h
     ProgressiveBuffer.cpp ProgressiveBuffer.h   # range-request download into one contiguous buffer
     MfByteStream.cpp MfByteStream.h             # IMFByteStream over the buffer
-    Decoder.cpp Decoder.h                       # MF Source Reader -> float PCM
+    Decoder.cpp Decoder.h                       # built-in or MF Source Reader -> float PCM
+    XiphDecoder.cpp XiphDecoder.h               # built-in: Ogg Opus / Vorbis, WebM / Matroska Opus / Vorbis
+    XiphCodecs.cpp XiphCodecs.h                 # libopus / libvorbis packet decoders, downmix, Vorbis comments
+    Matroska.cpp Matroska.h                     # minimal WebM / Matroska audio demuxer
+    Resampler.cpp Resampler.h                   # windowed-sinc rate conversion (built-in decoders)
+    XiphTags.cpp XiphTags.h                     # Ogg Opus / Vorbis file info for the local library (tags, cover)
     Track.cpp Track.h                           # buffer + decode thread + PCM ring
-    WasapiOutput.cpp WasapiOutput.h             # WASAPI shared, event-driven render client
+    WasapiOutput.cpp WasapiOutput.h             # WASAPI event-driven render client (shared / exclusive)
     Spectrum.cpp Spectrum.h                     # Hann + radix-2 FFT -> log bands
     Equalizer.cpp Equalizer.h                   # 10-band peaking biquads + presets (also drawn by Ayarlar > SES)
     ReplayGain.cpp ReplayGain.h                 # ReplayGain track gain from ID3 / FLAC / MP4 tags (local files)
@@ -22,4 +27,5 @@ add_library(st_audio STATIC
 )
 target_link_libraries(st_audio
     PUBLIC st_core
-    PRIVATE mfplat mfreadwrite mfuuid ole32 avrt winhttp advapi32 ws2_32 bcrypt)
+    PRIVATE mfplat mfreadwrite mfuuid ole32 avrt winhttp advapi32 ws2_32 bcrypt
+            xiph_opusfile xiph_vorbis xiph_opus xiph_ogg)

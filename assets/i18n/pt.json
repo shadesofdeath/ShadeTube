@@ -2139,5 +2139,16 @@
   "Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz": "Episódios de feeds RSS que você mesmo adicionou não são compartilhados ouvindo juntos",
   "Bu istasyon birlikte dinlemede paylaşılamıyor": "Esta estação não pode ser compartilhada ouvindo juntos",
   "Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez": "Alguns convidados têm um ShadeTube antigo: eles não podem ouvir podcasts nem rádio",
-  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Episódios de podcast e estações de rádio também são compartilhados. Se o anfitrião fechar o app e abrir de novo em até 10 minutos, a sessão continua de onde parou."
+  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Episódios de podcast e estações de rádio também são compartilhados. Se o anfitrião fechar o app e abrir de novo em até 10 minutos, a sessão continua de onde parou.",
+  "Özel mod (WASAPI)": "Modo exclusivo (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Só o ShadeTube usa o dispositivo de saída: as músicas tocam na própria taxa de amostragem, sem passar pelo mixer do Windows. Enquanto isso, outros apps não são ouvidos; ao pausar, o dispositivo é liberado. Equalizador, normalização de volume, transição, velocidade e prévias continuam funcionando; os aprimoramentos de áudio do Windows não são aplicados. Com a transição desligada, há um breve silêncio entre duas músicas com taxas de amostragem diferentes.",
+  "{} bit kayan nokta": "{} bits de ponto flutuante",
+  "{} bit": "{} bits",
+  "Şu an özel modda: {} · {}": "Agora no modo exclusivo: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Outro app está controlando o dispositivo: tocando no modo compartilhado por enquanto.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Este dispositivo não permite uso exclusivo (configurações de som do Windows › propriedades do dispositivo › Avançado): tocando no modo compartilhado.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "O dispositivo não suporta o formato desta música no modo exclusivo: tocando no modo compartilhado.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Não foi possível abrir o modo exclusivo: tocando no modo compartilhado.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "O dispositivo abre no modo exclusivo quando a reprodução começa e é liberado ao pausar.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Outro app está usando o dispositivo no modo exclusivo; a reprodução continua quando ele o liberar."
 }

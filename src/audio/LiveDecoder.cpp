@@ -16,8 +16,6 @@ namespace st::audio {
 
 namespace {
 
-// MFAudioFormat_Opus (WAVE_FORMAT_OPUS = 0x704F); defined locally for older SDKs.
-constexpr GUID kAudioFormatOpus = {0x0000704F, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
 constexpr DWORD kMinOutputBytes = 96 * 1024;   // HE-AAC 5.1: 2048 frames * 6 ch * 4 bytes = 48 KB
 
 HRESULT mpegInputType(const live::Frame& f, ComPtr<IMFMediaType>& type) {
@@ -79,23 +77,14 @@ HRESULT aacInputType(const live::Frame& f, bool withConfig, ComPtr<IMFMediaType>
     return type->SetBlob(MF_MT_USER_DATA, user, size);
 }
 
-HRESULT opusInputType(const live::Frame& f, bool withConfig, ComPtr<IMFMediaType>& type) {
-    HRESULT hr = MFCreateMediaType(&type);
-    if (SUCCEEDED(hr)) hr = type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-    if (SUCCEEDED(hr)) hr = type->SetGUID(MF_MT_SUBTYPE, kAudioFormatOpus);
-    if (SUCCEEDED(hr)) hr = type->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, 48000);
-    if (SUCCEEDED(hr)) hr = type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, f.channels);
-    if (SUCCEEDED(hr) && withConfig && !f.codecPrivate.empty())
-        hr = type->SetBlob(MF_MT_USER_DATA, f.codecPrivate.data(), static_cast<UINT32>(f.codecPrivate.size()));
-    return hr;
-}
 
 GUID inputSubtype(const live::Frame& f) {
     switch (f.codec) {
     case live::Codec::Mpeg: return f.layer == 3 ? MFAudioFormat_MP3 : MFAudioFormat_MPEG;
     case live::Codec::Aac: return MFAudioFormat_AAC;
-    case live::Codec::Opus: return kAudioFormatOpus;
-    case live::Codec::None: break;
+    case live::Codec::Opus:
+    case live::Codec::Vorbis:
+    case live::Codec::None: break;   // built-in decoders
     }
     return GUID_NULL;
 }
@@ -108,13 +97,41 @@ void LiveDecoder::close() {
     mft_.Reset();
     if (activate_) activate_->ShutdownObject();
     activate_.Reset();
+    opus_.reset();
+    vorbis_.reset();
     key_ = 0;
-    rate_ = channels_ = bits_ = 0;
+    rate_ = channels_ = bits_ = sourceChannels_ = skip_ = 0;
 }
 
 HRESULT LiveDecoder::open(const live::Frame& f, bool& unsupported) {
     close();
     unsupported = false;
+    if (f.codec == live::Codec::Opus) {
+        auto dec = std::make_unique<xiph::OpusPacketDecoder>();
+        if (!dec->open(f.codecPrivate.data(), f.codecPrivate.size())) {
+            unsupported = true;
+            return MF_E_INVALIDMEDIATYPE;
+        }
+        rate_ = 48000;
+        sourceChannels_ = dec->channels();
+        skip_ = dec->head().preSkip;
+        opus_ = std::move(dec);
+    } else if (f.codec == live::Codec::Vorbis) {
+        auto dec = std::make_unique<xiph::VorbisPacketDecoder>();
+        if (!f.vorbis || !dec->open(f.vorbis->packets)) {
+            unsupported = true;
+            return MF_E_INVALIDMEDIATYPE;
+        }
+        rate_ = dec->sampleRate();
+        sourceChannels_ = dec->channels();
+        vorbis_ = std::move(dec);
+    }
+    if (opus_ || vorbis_) {
+        channels_ = std::min<uint32_t>(sourceChannels_, 2);
+        floatOut_ = true;
+        key_ = live::frameConfigKey(f);
+        return S_OK;
+    }
     const GUID subtype = inputSubtype(f);
     if (subtype == GUID_NULL || !f.sampleRate || !f.channels) {
         unsupported = true;
@@ -146,8 +163,7 @@ HRESULT LiveDecoder::open(const live::Frame& f, bool& unsupported) {
             switch (f.codec) {
             case live::Codec::Mpeg: hr = withConfig ? mpegInputType(f, type) : E_FAIL; break;
             case live::Codec::Aac: hr = aacInputType(f, withConfig, type); break;
-            case live::Codec::Opus: hr = opusInputType(f, withConfig, type); break;
-            case live::Codec::None: hr = E_FAIL; break;
+            default: hr = E_FAIL; break;
             }
             if (SUCCEEDED(hr)) hr = mft->SetInputType(0, type.Get(), 0);
             if (SUCCEEDED(hr)) break;
@@ -222,9 +238,32 @@ HRESULT LiveDecoder::chooseOutputType() {
 
 void LiveDecoder::flush() {
     if (mft_) mft_->ProcessMessage(MFT_MESSAGE_COMMAND_FLUSH, 0);
+    if (opus_) {
+        opus_->reset();
+        skip_ = opus_->head().preSkip;   // a new start: its first frames are the encoder's look-ahead again
+    }
+    if (vorbis_) vorbis_->reset();
+}
+
+HRESULT LiveDecoder::decodeXiph(const live::Frame& f, std::vector<float>& out) {
+    pcm_.clear();
+    const int frames = opus_ ? opus_->decode(f.data.data(), f.data.size(), pcm_) : vorbis_->decode(f.data.data(), f.data.size(), pcm_);
+    if (frames < 0) return E_FAIL;
+    size_t from = 0;
+    if (skip_ > 0) {
+        from = std::min<size_t>(skip_, static_cast<size_t>(frames));
+        skip_ -= static_cast<uint32_t>(from);
+    }
+    const size_t n = static_cast<size_t>(frames) - from;
+    if (n == 0) return S_OK;
+    const float* src = pcm_.data() + from * sourceChannels_;
+    if (sourceChannels_ <= 2) out.insert(out.end(), src, src + n * sourceChannels_);
+    else xiph::appendStereo(src, n, sourceChannels_, out);
+    return S_OK;
 }
 
 HRESULT LiveDecoder::decode(const live::Frame& f, std::vector<float>& out) {
+    if (opus_ || vorbis_) return decodeXiph(f, out);
     if (!mft_) return MF_E_NOT_INITIALIZED;
     ComPtr<IMFMediaBuffer> buffer;
     HRESULT hr = MFCreateMemoryBuffer(static_cast<DWORD>(f.data.size()), &buffer);

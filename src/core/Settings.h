@@ -38,6 +38,7 @@ struct Settings {
     int crossfadeSec = 0;                // 0 = gapless handoff, 1..12 = crossfade between tracks
     std::string outputDeviceId;          // WASAPI endpoint id; "" = follow the Windows default device
     std::string outputDeviceName;        // its friendly name when it was picked (shown without enumerating devices)
+    bool exclusiveAudio = false;         // WASAPI exclusive mode (the device to ourselves, tracks at their own rate)
     float musicSpeed = 1.f;              // playback speed of songs (0.5 .. 3, pitch kept)
     float podcastSpeed = 1.f;            // ... and of podcast episodes (remembered separately)
 

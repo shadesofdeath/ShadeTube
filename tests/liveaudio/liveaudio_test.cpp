@@ -7,7 +7,7 @@
 //      drip (pre-buffer, stall, rebuffer), a format change mid-stream, junk bytes, .pls / .m3u / redirect, a finite
 //      file, HLS (MPEG-TS VOD, packed AAC live behind a master playlist, fMP4 live, a media playlist behind a redirect,
 //      a media sequence that starts over, an audio PID change), public-only streams refusing the mock server, an HTML
-//      page and a 404 / closed port (errors), pause + resume; Ogg Opus / Vorbis when ffmpeg is on PATH; with --long
+//      page and a 404 / closed port (errors), pause + resume; Ogg Opus / Vorbis (built-in decoders) when ffmpeg is on PATH; with --long
 //      the disconnect after a long pause.
 //   3. The Player with liveStreamFor: live items, titles, seek ignored, pause / resume, next / previous / error
 //      advance over a station list, onLiveFailed, repeat wrap, no onQueueLow, session restore (paused, live).
@@ -15,7 +15,7 @@
 //      Ogg / AAC+ ones), ~8 s each at volume 0, public hosts only as the app plays them, with a per-codec summary.
 //      Needs the network; stations that fail are reported, not counted as failures.
 //
-//   liveaudio_test [--offline] [--long] [live [count]]
+//   liveaudio_test [--offline] [--long] [live [count] [stream URL...]]
 // Fixtures, the sandbox profile (SHADETUBE_DATA_DIR) and the server's files live in <exe dir>\liveaudio_tmp.
 #include "audio/AudioEngine.h"
 #include "audio/LiveParsers.h"
@@ -287,7 +287,8 @@ void testParsers() {
     const std::string legacy = GetACP() == 1254 ? "Şarkı ğ" : "Þarký ð";
     CHECK(live::icyStreamTitle("StreamTitle='\xDE" "ark\xFD \xF0';") == legacy);
 
-    // Ogg: Opus packets with their duration and the OpusTags title; Vorbis is refused.
+    // Ogg: Opus packets with their duration and the OpusTags title; a Vorbis stream waits for its other headers
+    // (tests/codecs plays real Vorbis streams).
     std::vector<uint8_t> head = bytes("OpusHead");
     head.insert(head.end(), {1, 2, 0x38, 0x01, 0x80, 0xBB, 0, 0, 0, 0, 0});
     std::vector<uint8_t> tags = bytes("OpusTags");
@@ -312,7 +313,7 @@ void testParsers() {
     live::OggDemuxer vorbis;
     const auto vorbisPage = oggPage({bytes(std::string("\x01vorbis\x00\x00\x00\x00\x02\x44\xAC\x00\x00", 16))}, 0x02, 0);
     vorbis.push(vorbisPage.data(), vorbisPage.size());
-    CHECK(!vorbis.next(f) && vorbis.unsupported() && vorbis.unsupportedCodec() == "Vorbis");
+    CHECK(!vorbis.next(f) && !vorbis.unsupported());
     // An "Opus packet" far larger than Opus allows (a hostile stream filling memory with huge frames) is dropped.
     {
         std::vector<uint8_t> huge(3 * 255 * 255 + 100, 0x11);   // ~190 KB over four pages
@@ -949,9 +950,11 @@ void testEngine(Harness& h, const MockServer& srv, bool haveOpus, bool haveVorbi
         h.stop();
     }
     if (haveVorbis) {
-        std::printf("engine: Ogg Vorbis (ffmpeg fixture) is refused\n");
-        CHECK(h.open(srv.url("/live/tone.ogg?id=t21"), 8000) < 0 && h.rec.errorKind() == ErrorKind::UnsupportedFormat);
-        CHECK(!AudioEngine::supportsLiveCodec("OGG"));
+        std::printf("engine: Ogg Vorbis (ffmpeg fixture, the built-in decoder)\n");
+        const int64_t t = h.open(srv.url("/live/tone.ogg?id=t21"));
+        CHECK(t >= 0 && h.engine->liveInfo().codec == "Vorbis");
+        CHECK(h.run(3000));
+        CHECK(AudioEngine::supportsLiveCodec("OGG"));
         h.stop();
     }
     CHECK(AudioEngine::supportsLiveCodec("MP3") && AudioEngine::supportsLiveCodec("AAC+") && AudioEngine::supportsLiveCodec("audio/aacp") &&
@@ -1086,7 +1089,7 @@ void testPlayer(const MockServer& srv) {
 
 // ---- 4. real stations ----------------------------------------------------------------------------------------------
 
-void testRealStations(Harness& h, int count) {
+void testRealStations(Harness& h, int count, const std::vector<std::string>& extra) {
     std::printf("live: public stations from radio-browser.info (volume 0)\n");
     constexpr wchar_t kUa[] = L"ShadeTube-tests/0.4";
     const std::wstring api = L"https://de1.api.radio-browser.info/json/stations/";
@@ -1122,7 +1125,9 @@ void testRealStations(Harness& h, int count) {
     add(L"search?hls=true&order=clickcount&reverse=true&hidebroken=true&limit=3", 2);
     add(L"search?codec=AAC%2B&order=clickcount&reverse=true&hidebroken=true&limit=3", 2);
     add(L"search?codec=OGG&order=clickcount&reverse=true&hidebroken=true&limit=3", 2);
+    add(L"search?codec=OPUS&order=clickcount&reverse=true&hidebroken=true&limit=3", 2);
     add(L"search?codec=AAC&order=clickcount&reverse=true&hidebroken=true&limit=3", 1);
+    for (const auto& url : extra) list.push_back({url, url, "(given)", 0, false});   // stream URLs on the command line
 
     struct Tally {
         int played = 0, total = 0;
@@ -1163,6 +1168,7 @@ void testRealStations(Harness& h, int count) {
 int wmain(int argc, wchar_t** argv) {
     bool offline = false, longRun = false, liveMode = false;
     int liveCount = 8;
+    std::vector<std::string> liveUrls;
     for (int i = 1; i < argc; ++i) {
         const std::wstring a = argv[i];
         if (a == L"--offline") offline = true;
@@ -1170,6 +1176,8 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"live") {
             liveMode = true;
             if (i + 1 < argc && iswdigit(argv[i + 1][0])) liveCount = _wtoi(argv[++i]);
+        } else if (liveMode && a.starts_with(L"http")) {
+            liveUrls.push_back(st::toUtf8(a));
         }
     }
     wchar_t exe[MAX_PATH]{};
@@ -1186,7 +1194,7 @@ int wmain(int argc, wchar_t** argv) {
     testParsers();
     if (liveMode && !offline) {
         Harness h;
-        testRealStations(h, liveCount);
+        testRealStations(h, liveCount, liveUrls);
     } else if (!offline) {
         std::printf("fixtures\n");
         const fs::path dir = tmp / L"fixtures";

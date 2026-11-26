@@ -1939,5 +1939,16 @@
   "Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz": "Episode dari feed RSS yang kamu tambahkan sendiri tidak dibagikan saat dengar bersama",
   "Bu istasyon birlikte dinlemede paylaşılamıyor": "Stasiun ini tidak bisa dibagikan saat dengar bersama",
   "Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez": "Beberapa tamu memakai ShadeTube versi lama: mereka tidak bisa mendengarkan podcast dan radio",
-  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Episode podcast dan stasiun radio juga dibagikan. Jika tuan rumah menutup aplikasi lalu membukanya lagi dalam 10 menit, sesi berlanjut dari posisi terakhir."
+  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Episode podcast dan stasiun radio juga dibagikan. Jika tuan rumah menutup aplikasi lalu membukanya lagi dalam 10 menit, sesi berlanjut dari posisi terakhir.",
+  "Özel mod (WASAPI)": "Mode eksklusif (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Hanya ShadeTube yang memakai perangkat output: lagu diputar pada laju sampelnya sendiri tanpa melewati mixer Windows. Selama itu suara aplikasi lain tidak terdengar; saat dijeda, perangkat dilepas. Equalizer, normalisasi volume, crossfade, kecepatan, dan pratinjau tetap berfungsi; peningkatan audio Windows tidak diterapkan. Tanpa crossfade, ada hening sejenak di antara dua lagu dengan laju sampel berbeda.",
+  "{} bit kayan nokta": "{} bit floating point",
+  "{} bit": "{} bit",
+  "Şu an özel modda: {} · {}": "Sekarang dalam mode eksklusif: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Aplikasi lain sedang mengendalikan perangkat: untuk sementara diputar dalam mode bersama.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Perangkat ini tidak mengizinkan penggunaan eksklusif (pengaturan suara Windows › properti perangkat › Lanjutan): diputar dalam mode bersama.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Perangkat tidak mendukung format lagu ini dalam mode eksklusif: diputar dalam mode bersama.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Mode eksklusif tidak dapat dibuka: diputar dalam mode bersama.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Perangkat dibuka dalam mode eksklusif saat pemutaran dimulai dan dilepas saat dijeda.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Aplikasi lain sedang memakai perangkat dalam mode eksklusif; pemutaran berlanjut setelah perangkat dilepas."
 }

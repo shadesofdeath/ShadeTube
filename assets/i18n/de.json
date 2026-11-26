@@ -2139,5 +2139,16 @@
   "Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz": "Folgen von RSS-Feeds, die du selbst hinzugefügt hast, werden beim gemeinsamen Hören nicht geteilt",
   "Bu istasyon birlikte dinlemede paylaşılamıyor": "Dieser Sender kann beim gemeinsamen Hören nicht geteilt werden",
   "Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez": "Einige Gäste haben ein älteres ShadeTube: Podcasts und Radio können sie nicht mithören",
-  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Auch Podcastfolgen und Radiosender werden geteilt. Schließt der Gastgeber die App und öffnet sie innerhalb von 10 Minuten wieder, geht die Sitzung dort weiter, wo sie aufgehört hat."
+  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Auch Podcastfolgen und Radiosender werden geteilt. Schließt der Gastgeber die App und öffnet sie innerhalb von 10 Minuten wieder, geht die Sitzung dort weiter, wo sie aufgehört hat.",
+  "Özel mod (WASAPI)": "Exklusiver Modus (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Nur ShadeTube nutzt das Ausgabegerät: Songs laufen mit ihrer eigenen Abtastrate am Windows-Mixer vorbei. Andere Apps sind währenddessen nicht zu hören; beim Pausieren wird das Gerät freigegeben. Equalizer, Lautstärkeangleichung, Überblendung, Geschwindigkeit und Vorschau funktionieren weiter; die Audioverbesserungen von Windows werden nicht angewendet. Ohne Überblendung entsteht zwischen zwei Songs mit unterschiedlicher Abtastrate eine kurze Pause.",
+  "{} bit kayan nokta": "{} Bit Gleitkomma",
+  "{} bit": "{} Bit",
+  "Şu an özel modda: {} · {}": "Jetzt im exklusiven Modus: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Eine andere App kontrolliert das Gerät: Wiedergabe vorerst im gemeinsamen Modus.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Dieses Gerät erlaubt keine exklusive Nutzung (Windows-Soundeinstellungen › Geräteeigenschaften › Erweitert): Wiedergabe im gemeinsamen Modus.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Das Gerät unterstützt das Format dieses Songs im exklusiven Modus nicht: Wiedergabe im gemeinsamen Modus.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Der exklusive Modus konnte nicht geöffnet werden: Wiedergabe im gemeinsamen Modus.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Das Gerät wird bei der Wiedergabe exklusiv geöffnet und beim Pausieren freigegeben.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Eine andere App nutzt das Gerät im exklusiven Modus; die Wiedergabe geht weiter, sobald sie es freigibt."
 }

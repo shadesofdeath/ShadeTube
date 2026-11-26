@@ -2139,5 +2139,16 @@
   "Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz": "Les épisodes des flux RSS que vous avez ajoutés vous-même ne sont pas partagés pendant l'écoute partagée",
   "Bu istasyon birlikte dinlemede paylaşılamıyor": "Cette station ne peut pas être partagée pendant l'écoute partagée",
   "Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez": "Certains invités ont un ShadeTube plus ancien : ils ne peuvent pas écouter les podcasts ni la radio",
-  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Les épisodes de podcast et les stations de radio sont aussi partagés. Si l'hôte ferme l'application et la rouvre dans les 10 minutes, la session reprend là où elle s'était arrêtée."
+  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "Les épisodes de podcast et les stations de radio sont aussi partagés. Si l'hôte ferme l'application et la rouvre dans les 10 minutes, la session reprend là où elle s'était arrêtée.",
+  "Özel mod (WASAPI)": "Mode exclusif (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Seul ShadeTube utilise le périphérique de sortie : les titres sont lus à leur propre fréquence d'échantillonnage, sans passer par le mélangeur de Windows. Les autres applications ne s'entendent plus pendant ce temps ; la pause libère le périphérique. L'égaliseur, la normalisation du volume, le fondu enchaîné, la vitesse et les aperçus continuent de fonctionner ; les améliorations audio de Windows ne s'appliquent pas. Sans fondu, un court silence sépare deux titres de fréquences d'échantillonnage différentes.",
+  "{} bit kayan nokta": "{} bits à virgule flottante",
+  "{} bit": "{} bits",
+  "Şu an özel modda: {} · {}": "Actuellement en mode exclusif : {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Une autre application contrôle le périphérique : lecture en mode partagé pour l'instant.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Ce périphérique n'autorise pas l'utilisation exclusive (paramètres audio de Windows › propriétés du périphérique › Avancé) : lecture en mode partagé.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Le périphérique ne prend pas en charge le format de ce titre en mode exclusif : lecture en mode partagé.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Impossible d'ouvrir le mode exclusif : lecture en mode partagé.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Le périphérique s'ouvre en mode exclusif au début de la lecture et se libère à la pause.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Une autre application utilise le périphérique en mode exclusif ; la lecture reprend dès qu'elle le libère."
 }

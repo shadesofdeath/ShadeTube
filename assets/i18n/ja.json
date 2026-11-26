@@ -1939,5 +1939,16 @@
   "Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz": "自分で追加したRSSフィードのエピソードは、一緒に聴くでは共有されません",
   "Bu istasyon birlikte dinlemede paylaşılamıyor": "この局は一緒に聴くで共有できません",
   "Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez": "一部のゲストのShadeTubeは古いため、ポッドキャストとラジオを聴けません",
-  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "ポッドキャストのエピソードとラジオ局も共有されます。ホストがアプリを閉じても10分以内に開き直せば、セッションは中断したところから続きます。"
+  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "ポッドキャストのエピソードとラジオ局も共有されます。ホストがアプリを閉じても10分以内に開き直せば、セッションは中断したところから続きます。",
+  "Özel mod (WASAPI)": "排他モード (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "出力デバイスを ShadeTube だけが使います。曲は Windows のミキサーを通らず、それぞれのサンプリングレートで再生されます。その間ほかのアプリの音は聞こえません。一時停止するとデバイスは解放されます。イコライザー、音量の均一化、クロスフェード、再生速度、プレビューは引き続き使えますが、Windows のオーディオ拡張は適用されません。クロスフェードがオフのときは、サンプリングレートの異なる曲の間に短い無音が入ります。",
+  "{} bit kayan nokta": "{} ビット浮動小数点",
+  "{} bit": "{} ビット",
+  "Şu an özel modda: {} · {}": "現在は排他モード：{} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "別のアプリがデバイスを使用中のため、今は共有モードで再生しています。",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "このデバイスは排他的な使用を許可していません（Windows のサウンド設定 › デバイスのプロパティ › 詳細）。共有モードで再生しています。",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "デバイスがこの曲の形式を排他モードでサポートしていないため、共有モードで再生しています。",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "排他モードを開けなかったため、共有モードで再生しています。",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "再生が始まるとデバイスは排他モードで開かれ、一時停止すると解放されます。",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "別のアプリがデバイスを排他モードで使用しています。解放されると再生が続きます。"
 }

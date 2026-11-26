@@ -1,13 +1,17 @@
 #pragma once
-// Media Foundation decoder MFT fed one compressed frame at a time (internal to st_audio): MPEG audio layer III (MP3
-// decoder MFT) and layer I / II (MPEG audio decoder MFT), ADTS AAC incl. HE-AAC v1 / v2 (AAC decoder MFT) and Opus
-// (Opus decoder MFT) -> interleaved 32-bit float PCM. Live streams have no container Media Foundation could open as a
-// file, so the framing is ours (live::FrameParser) and only the decoder is Media Foundation's.
+// One compressed frame at a time (internal to st_audio) -> interleaved 32-bit float PCM: Media Foundation decoder MFTs
+// for MPEG audio layer III (MP3 decoder MFT) and layer I / II (MPEG audio decoder MFT) and ADTS AAC incl. HE-AAC v1 / v2
+// (AAC decoder MFT); the built-in libopus / libvorbis decoders (audio/XiphCodecs) for Ogg Opus and Ogg Vorbis, so those
+// stations play on every Windows. Live streams have no container Media Foundation could open as a file, so the
+// framing is ours (live::FrameParser, live::OggDemuxer). Opus and Vorbis come out at their own rate, mono or stereo
+// (more channels are downmixed); Opus drops its pre-skip after every (re)start.
 //
 // Not thread-safe: owned by one Track decode thread (COM initialised, MFStartup done by the engine).
 #include "audio/LiveParsers.h"
+#include "audio/XiphCodecs.h"
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include <mftransform.h>
@@ -25,7 +29,7 @@ public:
     // (Re)creates the decoder for the configuration of `f`. On failure `unsupported` says that no decoder on this
     // system accepts the format (as opposed to a transient error).
     HRESULT open(const live::Frame& f, bool& unsupported);
-    bool isOpen() const { return mft_ != nullptr; }
+    bool isOpen() const { return mft_ != nullptr || opus_ || vorbis_; }
     uint64_t configKey() const { return key_; }   // live::frameConfigKey of the open configuration
     void close();
 
@@ -40,6 +44,13 @@ public:
 private:
     HRESULT chooseOutputType();
     HRESULT drain(std::vector<float>& out);
+    HRESULT decodeXiph(const live::Frame& f, std::vector<float>& out);
+
+    std::unique_ptr<xiph::OpusPacketDecoder> opus_;
+    std::unique_ptr<xiph::VorbisPacketDecoder> vorbis_;
+    uint32_t sourceChannels_ = 0;   // built-in: the stream's channels (channels_ is what comes out)
+    uint32_t skip_ = 0;             // Opus pre-skip frames still to drop
+    std::vector<float> pcm_;
 
     Microsoft::WRL::ComPtr<IMFActivate> activate_;
     Microsoft::WRL::ComPtr<IMFTransform> mft_;

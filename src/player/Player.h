@@ -96,6 +96,8 @@ public:
     uint64_t clockTag() const { return currentTag_; }
     std::string lastError() const { return lastError_; }
     size_t bufferedBytes() const { return engine_->bufferedBytes(); }
+    // What the audio output does now (exclusive or shared mode, the device format; Ayarlar > Ses).
+    audio::OutputInfo outputInfo() const { return engine_->outputInfo(); }
 
     // Fired on the UI thread whenever state/track/queue changes (not for position ticks).
     std::function<void()> onChanged;

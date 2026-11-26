@@ -1939,5 +1939,16 @@
   "Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz": "직접 추가한 RSS 피드의 에피소드는 함께 듣기에서 공유되지 않아요",
   "Bu istasyon birlikte dinlemede paylaşılamıyor": "이 방송국은 함께 듣기에서 공유할 수 없어요",
   "Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez": "일부 게스트의 ShadeTube가 오래된 버전이라 팟캐스트와 라디오를 들을 수 없어요",
-  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "팟캐스트 에피소드와 라디오 방송국도 공유돼요. 호스트가 앱을 닫았다가 10분 안에 다시 열면 세션이 멈춘 곳부터 이어져요."
+  "Podcast bölümleri ve radyo istasyonları da paylaşılır. Oturum sahibi uygulamayı kapatırsa 10 dakika içinde açtığında oturum kaldığı yerden sürer.": "팟캐스트 에피소드와 라디오 방송국도 공유돼요. 호스트가 앱을 닫았다가 10분 안에 다시 열면 세션이 멈춘 곳부터 이어져요.",
+  "Özel mod (WASAPI)": "독점 모드 (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "출력 장치를 ShadeTube만 사용합니다. 곡은 Windows 믹서를 거치지 않고 각자의 샘플링 레이트로 재생됩니다. 그동안 다른 앱의 소리는 들리지 않으며, 일시 정지하면 장치가 해제됩니다. 이퀄라이저, 음량 평준화, 크로스페이드, 재생 속도, 미리 듣기는 계속 작동하지만 Windows 오디오 향상 기능은 적용되지 않습니다. 크로스페이드가 꺼져 있으면 샘플링 레이트가 다른 두 곡 사이에 짧은 무음이 생깁니다.",
+  "{} bit kayan nokta": "{}비트 부동소수점",
+  "{} bit": "{}비트",
+  "Şu an özel modda: {} · {}": "현재 독점 모드: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "다른 앱이 장치를 제어하고 있어 지금은 공유 모드로 재생합니다.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "이 장치는 독점 사용을 허용하지 않습니다(Windows 소리 설정 › 장치 속성 › 고급). 공유 모드로 재생합니다.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "장치가 독점 모드에서 이 곡의 형식을 지원하지 않아 공유 모드로 재생합니다.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "독점 모드를 열 수 없어 공유 모드로 재생합니다.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "재생을 시작하면 장치가 독점 모드로 열리고, 일시 정지하면 해제됩니다.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "다른 앱이 장치를 독점 모드로 사용하고 있습니다. 장치가 해제되면 재생이 이어집니다."
 }

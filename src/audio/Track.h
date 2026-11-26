@@ -17,6 +17,7 @@
 // format; read() returns nothing for a caller still expecting the old one, so the engine stalls and reopens the
 // device. Titles are queued with the PCM position they start at and taken by the engine when that is audible.
 #include "audio/AudioEngine.h"
+#include "audio/Decoder.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -40,10 +41,11 @@ class ProgressiveBuffer;
 class Track {
 public:
     // `wakeEvent` (HANDLE) is signalled when the engine should look at this track again (format
-    // known, data after requestWake(), end of stream, error). `outputRate` (0 = native): the sample rate to decode
-    // to, the engine's output rate (live streams keep their own).
+    // known, data after requestWake(), end of stream, error). `rates`: the sample rate to decode to (the engine's
+    // output rate in shared mode; in exclusive mode the stream's own, or the nearest the device takes). Live streams
+    // keep their own.
     Track(const StreamSource& source, int64_t startMs, std::atomic<int64_t>* memCounter, void* wakeEvent,
-          uint32_t outputRate = 0);
+          RatePolicy rates = {});
     ~Track();
     Track(const Track&) = delete;
     Track& operator=(const Track&) = delete;
@@ -104,7 +106,7 @@ private:
     std::shared_ptr<ProgressiveBuffer> buffer_;
     std::shared_ptr<LiveStream> live_;
     const int64_t liveStartMs_ = 0;   // live: position the clock starts at
-    const uint32_t outputRate_ = 0;   // decode to this rate (0 = native)
+    const RatePolicy rates_;          // the rate to decode to
     void* wakeEvent_;
 
     mutable std::mutex mutex_;
