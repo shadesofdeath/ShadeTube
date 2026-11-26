@@ -1426,4 +1426,79 @@ std::string Api::trackLyrics(const std::string& trackId, const CT& ct, const std
     }
 }
 
+// ---- Credits (Pathfinder queryTrackCreditsGroupedModal; legacy spclient track-credits-view) -----------------------
+// The web player's "Credits" dialog (xpui-root-dialogs chunk, 2026-11-26): {trackUri, contributorsLimit: 100,
+// contributorsOffset: 0} -> data.trackUnion{__typename: "Track", name, artists, creditsTrait{contributors{items[{name,
+// role, roleGroup{name}, uri | reference{uri, url}, aiAttribution}]}, sources{items[{name}]}}}. The dialog groups the
+// items by roleGroup.name and merges one person's roles; so does Credits::add (by our own groups).
+
+namespace {
+std::string artistUriOf(const json& item) {
+    std::string uri = str(item, "uri");
+    if (uri.empty()) uri = str(at(item, "reference"), "uri");
+    if (uri.empty()) uri = str(item, "creatorUri");
+    return uri.rfind("spotify:artist:", 0) == 0 ? uri : std::string();
+}
+} // namespace
+
+Credits Api::parseTrackCredits(const json& data) {
+    Credits c;
+    c.provider = "spotify";
+    const json& trait = at(at(data, "trackUnion"), "creditsTrait");
+    for (const auto& item : at(at(trait, "contributors"), "items")) {
+        const std::string name = str(item, "name");
+        if (name.empty()) continue;
+        const std::string role = str(item, "role");
+        const std::string group = str(at(item, "roleGroup"), "name");
+        c.add(name, artistUriOf(item), role, roleGroup(role, group));
+    }
+    for (const auto& s : at(at(trait, "sources"), "items")) c.addSource(str(s, "name"));
+    return c;
+}
+
+Credits Api::parseLegacyCredits(const json& j) {
+    Credits c;
+    c.provider = "spotify";
+    for (const auto& rc : at(j, "roleCredits")) {
+        const std::string title = str(rc, "roleTitle");
+        for (const auto& a : at(rc, "artists")) {
+            const std::string name = str(a, "name");
+            if (name.empty()) continue;
+            const std::string id = artistUriOf(a);
+            bool any = false;
+            for (const auto& sub : at(a, "subroles")) {
+                if (!sub.is_string()) continue;
+                const std::string role = sub.get<std::string>();
+                c.add(name, id, role, roleGroup(role, title));
+                any = true;
+            }
+            if (!any) c.add(name, id, {}, roleGroup({}, title));
+        }
+    }
+    for (const auto& s : at(j, "sourceNames"))
+        if (s.is_string()) c.addSource(s.get<std::string>());
+    return c;
+}
+
+Credits Api::trackCredits(const std::string& trackUri, const CT& ct) {
+    const std::string id = trackUri.rfind("spotify:track:", 0) == 0 ? trackUri.substr(14) : trackUri;
+    if (id.empty() || id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") != std::string::npos)
+        throw ApiError(0, "Spotify credits: invalid track id " + trackUri);
+    try {
+        return parseTrackCredits(query("queryTrackCreditsGroupedModal",
+                                       json{{"trackUri", "spotify:track:" + id}, {"contributorsLimit", 100}, {"contributorsOffset", 0}},
+                                       ct));
+    } catch (const ApiError& e) {
+        if (e.status == 401 || e.status == 429 || ct.isCancellationRequested()) throw;
+        ST_LOG_INFO("spotify", "credits query failed ({}): asking the track-credits view", e.what());
+        try {
+            const json j = spclient("GET", "https://spclient.wg.spotify.com/track-credits-view/v0/experimental/" + id + "/credits",
+                                    nullptr, ct, 404);
+            return parseLegacyCredits(j);
+        } catch (const ApiError&) {
+            throw e;   // the query's failure is the one worth reporting
+        }
+    }
+}
+
 } // namespace st::spotify

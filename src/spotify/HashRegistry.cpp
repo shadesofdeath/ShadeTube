@@ -50,6 +50,9 @@ const std::vector<std::pair<const char*, const char*>> kBuiltins = {
     // with its badge query (whatsNewFeedNewItems) and the seen-state mutation.
     {"queryWhatsNewFeed", "d889c8c936ab192af8ced595427f5ba2acdf63478fdc0a181c8d477f8322630e"},
     {"moveItemsInPlaylist", "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"},
+    // The "Credits" dialog of a track (the lazily loaded xpui-root-dialogs.74170731.js chunk of web-player.4c608093.js,
+    // 2026-11-26): {trackUri, contributorsLimit, contributorsOffset} -> trackUnion.creditsTrait.
+    {"queryTrackCreditsGroupedModal", "5c109593bca8ea4cb28104e178820ff035418fb4694d34d10c89cc755fe64694"},
 };
 
 bool isHex64(std::string_view s) {
@@ -145,8 +148,10 @@ std::vector<std::string> nameWords(const std::string& op) {
 }
 
 // How likely chunk `name` defines one of the ops `words` came from. Per name segment ("xpui-routes-search"):
-// equal to a word +3, overlapping one +1, unrelated -1 (a specific name beats a broad one: "desktop" alone must not
-// pull in xpui-desktop-modals), "routes" +1 (route pages own their queries). Numbered chunks come last.
+// equal to a word +3 (a "...Modal" op and a "dialogs" segment count as equal: the web player's modals live in
+// xpui-root-dialogs), overlapping one +1, unrelated -1 (a specific name beats a broad one: "desktop" alone must not
+// pull in xpui-desktop-modals), "routes" +1 (route pages own their queries), "xpui" / "dwp" / "root" 0. Numbered
+// chunks come last.
 int chunkScore(const std::string& name, const std::vector<std::string>& words) {
     if (name.find_first_not_of("0123456789") == std::string::npos) return -1000;
     int score = 0;
@@ -156,7 +161,7 @@ int chunkScore(const std::string& name, const std::vector<std::string>& words) {
         if (e == std::string::npos) e = name.size();
         const std::string seg = name.substr(i, e - i);
         i = e + 1;
-        if (seg.empty() || seg == "xpui" || seg == "dwp") continue;
+        if (seg.empty() || seg == "xpui" || seg == "dwp" || seg == "root") continue;   // structural, like "routes"
         if (seg == "routes") {
             ++score;
             continue;
@@ -164,6 +169,8 @@ int chunkScore(const std::string& name, const std::vector<std::string>& words) {
         int best = -1;
         for (const auto& w : words) {
             if (seg == w) best = 3;
+            // The web player's modals live in its dialog chunks (queryTrackCreditsGroupedModal: xpui-root-dialogs).
+            else if (w == "modal" && (seg == "dialogs" || seg == "dialog")) best = 3;
             else if (best < 1 && seg.size() >= 4 && (seg.find(w) != std::string::npos || w.find(seg) != std::string::npos))
                 best = 1;
         }

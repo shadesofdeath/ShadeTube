@@ -11,6 +11,7 @@
 #include <atomic>
 #include <cstdlib>
 #include <format>
+#include <optional>
 
 namespace st::mb {
 
@@ -279,6 +280,46 @@ Track recording(const std::string& recordingId, const CT& ct) {
     auto hits = detail::parseRecordingHits(json{{"recordings", json::array({rec})}});
     if (hits.empty()) throw ApiError(404, "MusicBrainz: recording " + recordingId + " not found");
     return std::move(hits.front().track);
+}
+
+Credits recordingCredits(const std::string& recordingId, const CT& ct) {
+    // work-level-rels: the works' own relationships of the requested kinds (artist-rels: composer, lyricist...).
+    const json rec = mbGet("recording/" + recordingId +
+                               "?inc=artist-credits+artist-rels+work-rels+work-level-rels+label-rels",
+                           net::ttl::lookup, ct);
+    return detail::parseRecordingCredits(rec);
+}
+
+std::vector<std::string> findRecordings(const std::string& title, const std::string& artist, int durationMs, size_t max,
+                                        const CT& ct) {
+    const std::string t = detail::searchableTitle(title);
+    if (t.empty()) return {};
+    std::string q = "recording:\"" + detail::luceneEscape(t) + "\"";
+    if (!artist.empty()) q += " AND artist:\"" + detail::luceneEscape(artist) + "\"";
+    q += " AND video:false";
+    const json root = mbGet(std::format("recording?query={}&limit=25", enc(q)), net::ttl::search, ct);
+    auto ids = detail::rankRecordings(root, title, artist, durationMs);
+    if (ids.size() > max) ids.resize(max);
+    return ids;
+}
+
+Credits songCredits(const std::string& title, const std::string& artist, int durationMs, const CT& ct) {
+    // A recording "knows" more than its artist credit when any relationship added somebody or a source.
+    auto rich = [](const Credits& c) {
+        if (!c.sources.empty()) return true;
+        for (size_t g = 0; g < kCreditGroups; ++g)
+            for (const auto& p : c.groups[g])
+                if (g != static_cast<size_t>(CreditGroup::Performers) || p.roles != std::vector<std::string>{"main artist"})
+                    return true;
+        return false;
+    };
+    std::optional<Credits> first;
+    for (const auto& id : findRecordings(title, artist, durationMs, 3, ct)) {
+        Credits c = recordingCredits(id, ct);
+        if (rich(c)) return c;
+        if (!first) first = std::move(c);
+    }
+    return first ? std::move(*first) : Credits{"musicbrainz", {}, {}};
 }
 
 // ---- ListenBrainz --------------------------------------------------------------------------------------------
