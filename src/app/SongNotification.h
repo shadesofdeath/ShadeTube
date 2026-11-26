@@ -39,7 +39,7 @@ struct Input {
     bool enabled = false;               // the setting
     bool song = true;                   // a song (not a radio station or a podcast episode)
     bool playing = true;                // playing or on its way (not paused: e.g. the sleep timer's end of track)
-    bool repeat = false;                // the same song as the last notification
+    bool repeat = false;                // the same song as the change looked at before (repeat one, a re-resolve)
     bool inView = false;                // a ShadeTube window is in view (see above)
     double sinceMediaControlMs = 1e12;  // since a command from Windows' media controls
     bool guest = false;                 // a listen-together guest

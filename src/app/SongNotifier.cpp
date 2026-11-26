@@ -51,7 +51,7 @@ struct State {
     UINT_PTR timer = 0;
     std::deque<double> changes;       // steadyMs() of the recent track changes (sync bursts)
     double mediaControlAt = -1e12;    // steadyMs() of the last command from Windows' media controls
-    std::string lastNotified;         // the song of the last notification
+    std::string lastJudged;           // the song looked at last (notified or not): the same again is a repeat
     int imageSlot = 0;
     Lifetime life;                    // cover renders
     wun::ToastNotifier notifier{nullptr};
@@ -203,7 +203,6 @@ void present(const catalog::Track& t, const fs::path& image) {
 // The cover as a small PNG the shell can read (two files in turn: the one on screen is never rewritten under it).
 void notify(const catalog::Track& t) {
     auto& s = state();
-    s.lastNotified = keyOf(t);
     const auto* img = catalog::pickImage(t.album.images, 300);
     if (!img || s.winrtUnavailable) return present(t, {});
     const fs::path file = installer::shellDir() / (L"now-playing-" + std::to_wstring(s.imageSlot++ % 2) + L".png");
@@ -237,20 +236,21 @@ void CALLBACK onTimer(HWND, UINT, UINT_PTR id, DWORD) {
     auto* p = ctx().player;
     const auto* cur = p ? p->current() : nullptr;
     if (!cur || keyOf(*cur) != s.pendingId) return;   // moved on: that change has a timer of its own
-    const double now = steadyMs();
+    const double now = static_cast<double>(steadyMs());
     while (!s.changes.empty() && s.changes.front() < now - kStormWindowMs) s.changes.pop_front();
     Input in;
     in.enabled = Settings::get().songNotifications;
     in.song = !radio::isStationId(cur->id) && !catalog::isPodcastId(cur->id) && !p->isLive();
     const auto st = p->status();
     in.playing = st == player::Status::Playing || st == player::Status::Buffering || st == player::Status::Resolving;
-    in.repeat = s.pendingId == s.lastNotified;
+    in.repeat = s.pendingId == s.lastJudged;
     in.inView = appInView();
     in.sinceMediaControlMs = s.pendingAt - s.mediaControlAt;
     in.guest = together::guest();
     in.recentChanges = static_cast<int>(s.changes.size());
     in.busy = windowsBusy();
     const Verdict v = decide(in);
+    s.lastJudged = s.pendingId;
     if (v == Verdict::Off) return;
     ST_LOG_INFO(kTag, "song changed: {}", name(v));
     if (v == Verdict::Show) notify(*cur);
@@ -258,7 +258,7 @@ void CALLBACK onTimer(HWND, UINT, UINT_PTR id, DWORD) {
 
 void onTrackChanged(const catalog::Track& t) {
     auto& s = state();
-    const double now = steadyMs();
+    const double now = static_cast<double>(steadyMs());
     s.changes.push_back(now);
     while (!s.changes.empty() && s.changes.front() < now - kStormWindowMs) s.changes.pop_front();
     if (!Settings::get().songNotifications) return;
@@ -270,7 +270,7 @@ void onTrackChanged(const catalog::Track& t) {
 
 } // namespace
 
-void noteMediaControl() { state().mediaControlAt = steadyMs(); }
+void noteMediaControl() { state().mediaControlAt = static_cast<double>(steadyMs()); }
 
 } // namespace songnotify
 
