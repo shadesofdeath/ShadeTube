@@ -1026,6 +1026,122 @@ std::vector<DirectoryEntry> parseCharts(std::string_view body) {
     throw PodcastError("podcast charts: unknown format");
 }
 
+// ---- Spotify shows -> directory entries ---------------------------------------------------------------------------------
+
+namespace {
+
+// Folded words (case, accents, I/ı), "&" as "and"; "the", "a", "an" and "podcast(s)" dropped unless nothing else is left.
+std::vector<std::wstring> matchWords(std::string_view text) {
+    const std::wstring folded = foldForSearch(toWide(text));
+    std::vector<std::wstring> all;
+    std::wstring w;
+    auto flush = [&] {
+        if (!w.empty()) all.push_back(std::move(w));
+        w.clear();
+    };
+    for (const wchar_t c : folded) {
+        if (c == L'&') {
+            flush();
+            all.push_back(L"and");
+        } else if (c == L'\'' || c == L'’') {   // "rock'n" = "rockn"
+        } else if (std::iswalnum(c)) {
+            w.push_back(c);
+        } else {
+            flush();
+        }
+    }
+    flush();
+    std::vector<std::wstring> kept;
+    for (const auto& word : all)
+        if (word != L"the" && word != L"a" && word != L"an" && word != L"podcast" && word != L"podcasts") kept.push_back(word);
+    return kept.empty() ? all : kept;
+}
+
+std::wstring joined(const std::vector<std::wstring>& words) {
+    std::wstring s;
+    for (const auto& w : words) s += (s.empty() ? L"" : L" ") + w;
+    return s;
+}
+
+size_t charCount(const std::vector<std::wstring>& words) {
+    size_t n = 0;
+    for (const auto& w : words) n += w.size();
+    return n;
+}
+
+// `small` appears in `big` as a run of whole words.
+bool containsRun(const std::vector<std::wstring>& big, const std::vector<std::wstring>& small) {
+    if (small.empty() || small.size() > big.size()) return false;
+    for (size_t i = 0; i + small.size() <= big.size(); ++i)
+        if (std::equal(small.begin(), small.end(), big.begin() + static_cast<std::ptrdiff_t>(i))) return true;
+    return false;
+}
+
+// Dice coefficient over the word multisets, 0..1.
+double dice(const std::vector<std::wstring>& a, const std::vector<std::wstring>& b) {
+    if (a.empty() || b.empty()) return 0;
+    std::vector<std::wstring> rest = b;
+    size_t common = 0;
+    for (const auto& w : a)
+        if (auto it = std::find(rest.begin(), rest.end(), w); it != rest.end()) {
+            ++common;
+            rest.erase(it);
+        }
+    return 2.0 * static_cast<double>(common) / static_cast<double>(a.size() + b.size());
+}
+
+// 100 = the same words; 72..95 = one contained in the other with at least half its letters; else 90 x Dice.
+int nameScore(const std::vector<std::wstring>& a, const std::vector<std::wstring>& b) {
+    if (a.empty() || b.empty()) return 0;
+    if (a == b) return 100;
+    const bool aInB = containsRun(b, a), bInA = containsRun(a, b);
+    if (aInB || bInA) {
+        const double ratio = static_cast<double>(std::min(charCount(a), charCount(b))) /
+                             static_cast<double>(std::max(charCount(a), charCount(b)));
+        if (ratio >= 0.5) return 50 + static_cast<int>(45 * ratio);
+    }
+    return static_cast<int>(90 * dice(a, b));
+}
+
+// -1 = a side is unknown; else 0..100 like nameScore (containment counts whatever its length: "NPR" in "NPR News").
+int publisherScore(const std::vector<std::wstring>& a, const std::vector<std::wstring>& b) {
+    if (a.empty() || b.empty()) return -1;
+    if (a == b) return 100;
+    if (containsRun(a, b) || containsRun(b, a)) return 80;
+    return static_cast<int>(100 * dice(a, b));
+}
+
+} // namespace
+
+int matchScore(std::string_view name, std::string_view publisher, const DirectoryEntry& candidate) {
+    const auto n = matchWords(name), cn = matchWords(candidate.title);
+    const int title = nameScore(n, cn);
+    if (title == 0) return 0;
+    const int pub = publisherScore(matchWords(publisher), matchWords(candidate.author));
+    if (pub < 0) return title == 100 ? 80 : title * 4 / 5;   // nothing to confirm it with
+    if (pub >= 60) return std::min(100, title + (pub - 60) / 4);
+    // Another publisher: only a distinctive name that is exactly the same still counts.
+    if (title == 100) return n.size() >= 3 || charCount(n) >= 14 ? 72 : 55;
+    return std::max(0, title - 30);
+}
+
+std::optional<DirectoryEntry> bestMatch(std::string_view name, std::string_view publisher,
+                                        const std::vector<DirectoryEntry>& candidates, std::string_view rejectedFeed, int* score) {
+    const DirectoryEntry* best = nullptr;
+    int bestScore = 0;
+    for (const auto& c : candidates) {
+        if (!isHttpUrl(c.feedUrl) || (!rejectedFeed.empty() && c.feedUrl == rejectedFeed)) continue;
+        const int s = matchScore(name, publisher, c);
+        if (s > bestScore) {
+            best = &c;
+            bestScore = s;
+        }
+    }
+    if (score) *score = bestScore;
+    if (!best || bestScore < kMatchMin) return std::nullopt;
+    return *best;
+}
+
 // ---- JSON (store / cache) ----------------------------------------------------------------------------------------------
 
 json toJson(const Episode& e) {
@@ -1359,6 +1475,29 @@ struct Client::Impl {
     };
     std::unordered_map<std::string, Entry> cache;
     HINTERNET session = nullptr;
+    std::mutex politeMu;            // findFeed's request slots
+    Clock::time_point nextPolite{};
+
+    bool cached(const std::string& url) {
+        std::lock_guard lock(mu);
+        const auto it = cache.find(url);
+        return it != cache.end() && Clock::now() - it->second.at < kDirectoryTtl;
+    }
+    // Waits (cancellably) for the next free slot kPoliteGap after the previous one.
+    void politeWait(const CancellationToken& ct) {
+        Clock::time_point slot;
+        {
+            std::lock_guard lock(politeMu);
+            slot = std::max(Clock::now(), nextPolite);
+            nextPolite = slot + std::chrono::duration_cast<Clock::duration>(Client::kPoliteGap);
+        }
+        while (Clock::now() < slot) {
+            ct.throwIfCancellationRequested();
+            Sleep(static_cast<DWORD>(std::clamp<int64_t>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(slot - Clock::now()).count(), 1, 100)));
+        }
+        ct.throwIfCancellationRequested();
+    }
 
     ~Impl() {
         if (session) WinHttpCloseHandle(session);
@@ -1428,11 +1567,36 @@ std::string Client::get(const std::string& url, size_t maxBytes, bool allowLocal
     return std::move(r.body);
 }
 
+namespace {
+std::string searchUrl(const std::string& q, const std::string& country, int limit) {
+    return std::format("https://itunes.apple.com/search?media=podcast&entity=podcast&term={}&country={}&limit={}",
+                       http::urlEncode(q), countryCode(country), std::clamp(limit, 1, 200));
+}
+} // namespace
+
+std::optional<DirectoryEntry> Client::findFeed(const std::string& name, const std::string& publisher, const std::string& country,
+                                               const std::string& rejectedFeed, const CancellationToken& ct) {
+    const std::string q = trim(name);
+    if (q.empty()) return std::nullopt;
+    std::vector<std::string> stores{countryCode(country)};
+    if (stores.front() != "us") stores.push_back("us");
+    for (const auto& cc : stores) {
+        const std::string url = searchUrl(q, cc, 25);
+        if (!impl_->cached(url)) impl_->politeWait(ct);
+        int score = 0;
+        auto m = bestMatch(name, publisher, parseSearch(get(url, kDirectoryMax, false, ct, true)), rejectedFeed, &score);
+        if (m) {
+            ST_LOG_INFO("podcasts", "spotify show matched in the {} store (score {})", cc, score);
+            return m;
+        }
+    }
+    return std::nullopt;
+}
+
 std::vector<DirectoryEntry> Client::search(const std::string& term, const std::string& country, int limit, const CancellationToken& ct) {
     const std::string q = trim(term);
     if (q.empty()) return {};
-    const std::string url = std::format("https://itunes.apple.com/search?media=podcast&entity=podcast&term={}&country={}&limit={}",
-                                        http::urlEncode(q), countryCode(country), std::clamp(limit, 1, 200));
+    const std::string url = searchUrl(q, country, limit);
     try {
         return parseSearch(get(url, kDirectoryMax, false, ct, true));
     } catch (const PodcastError& e) {
@@ -1640,6 +1804,41 @@ int64_t newest(const Show& show) {
     return t;
 }
 
+json spotifyLinkJson(const SpotifyLink& l) {
+    json j = {{"name", l.showName}, {"publisher", l.showPublisher}, {"checked", l.checkedAt}};
+    if (!l.showImage.empty()) j["img"] = l.showImage;
+    if (l.matched()) {
+        j["feed"] = l.feedUrl;
+        j["apple"] = l.appleId;
+        j["title"] = l.title;
+        j["author"] = l.author;
+        j["feedImg"] = l.image;
+        j["score"] = l.score;
+    }
+    if (!l.rejectedFeed.empty()) j["rejected"] = l.rejectedFeed;
+    return j;
+}
+
+SpotifyLink spotifyLinkFromJson(const json& j) {
+    if (!j.is_object()) throw PodcastError("spotify link: not an object");
+    SpotifyLink l;
+    l.showName = str(j, "name");
+    l.showPublisher = str(j, "publisher");
+    l.showImage = str(j, "img");
+    l.feedUrl = str(j, "feed");
+    l.appleId = str(j, "apple");
+    l.title = str(j, "title");
+    l.author = str(j, "author");
+    l.image = str(j, "feedImg");
+    l.score = static_cast<int>(std::clamp<int64_t>(num64(j, "score"), 0, 100));
+    l.checkedAt = num64(j, "checked");
+    l.rejectedFeed = str(j, "rejected");
+    if (!isHttpUrl(l.feedUrl)) l.feedUrl.clear();
+    if (!isHttpUrl(l.image)) l.image.clear();
+    if (!isHttpUrl(l.showImage)) l.showImage.clear();
+    return l;
+}
+
 } // namespace
 
 void Store::load(const fs::path& file) {
@@ -1649,6 +1848,7 @@ void Store::load(const fs::path& file) {
     queue_.clear();
     known_.clear();
     knownOrder_.clear();
+    spotify_.clear();
     dirty_ = false;
     ++revision_;
     std::ifstream f(file, std::ios::binary);
@@ -1690,6 +1890,15 @@ void Store::load(const fs::path& file) {
                 }
                 if (queue_.size() >= kMaxQueue) break;
             }
+        if (j.contains("spotify") && j["spotify"].is_object())
+            for (const auto& [uri, l] : j["spotify"].items()) {
+                if (uri.rfind("spotify:show:", 0) != 0) continue;
+                try {
+                    spotify_[uri] = spotifyLinkFromJson(l);
+                } catch (const std::exception&) {
+                }
+                if (spotify_.size() >= kMaxSpotifyLinks) break;
+            }
     } catch (const std::exception& e) {
         // Kept as podcasts.json.bad, so the next save (which writes only what could be read) loses nothing.
         f.close();
@@ -1723,7 +1932,10 @@ bool Store::save() {
     }
     json queue = json::array();
     for (const auto& e : queue_) queue.push_back(storedEpisode(e));
-    const json j = {{"version", 1}, {"subscriptions", std::move(subs)}, {"episodes", std::move(eps)}, {"queue", std::move(queue)}};
+    json links = json::object();
+    for (const auto& [uri, l] : spotify_) links[uri] = spotifyLinkJson(l);
+    const json j = {{"version", 1},           {"subscriptions", std::move(subs)}, {"episodes", std::move(eps)},
+                    {"queue", std::move(queue)}, {"spotify", std::move(links)}};
     const std::string data = j.dump(-1, ' ', false, json::error_handler_t::replace);
     auto tmp = file_;
     tmp += L".tmp";
@@ -1991,6 +2203,56 @@ std::vector<Episode> Store::downloaded() const {
     out.reserve(list.size());
     for (const auto* en : list) out.push_back(en->episode);
     return out;
+}
+
+const SpotifyLink* Store::spotifyLink(const std::string& showUri) const {
+    const auto it = spotify_.find(showUri);
+    return it == spotify_.end() ? nullptr : &it->second;
+}
+
+bool Store::spotifyLinkFresh(const std::string& showUri, int64_t now) const {
+    const SpotifyLink* l = spotifyLink(showUri);
+    return l && (l->matched() || (l->checkedAt > 0 && now - l->checkedAt < kSpotifyRecheckSec && now >= l->checkedAt));
+}
+
+void Store::setSpotifyLink(const std::string& showUri, SpotifyLink link) {
+    if (showUri.rfind("spotify:show:", 0) != 0) return;
+    if (!isHttpUrl(link.feedUrl)) link.feedUrl.clear();
+    if (!isHttpUrl(link.image)) link.image.clear();
+    if (!isHttpUrl(link.showImage)) link.showImage.clear();
+    if (const auto it = spotify_.find(showUri); it != spotify_.end() && link.rejectedFeed.empty())
+        link.rejectedFeed = it->second.rejectedFeed;   // a lookup never forgets what the user turned down
+    spotify_[showUri] = std::move(link);
+    if (spotify_.size() > kMaxSpotifyLinks) {   // the oldest lookups go
+        std::vector<std::pair<int64_t, std::string>> byAge;
+        for (const auto& [uri, l] : spotify_) byAge.emplace_back(l.checkedAt, uri);
+        std::sort(byAge.begin(), byAge.end());
+        const size_t drop = spotify_.size() - kMaxSpotifyLinks;
+        size_t dropped = 0;
+        for (size_t i = 0; i < byAge.size() && dropped < drop; ++i)
+            if (byAge[i].second != showUri) {
+                spotify_.erase(byAge[i].second);
+                ++dropped;
+            }
+    }
+    ++revision_;   // saved with the rest; app/PodcastsSpotify tells its own listeners
+    dirty_ = true;
+}
+
+void Store::rejectSpotifyLink(const std::string& showUri, int64_t now) {
+    const auto it = spotify_.find(showUri);
+    if (it == spotify_.end() || !it->second.matched()) return;
+    SpotifyLink& l = it->second;
+    l.rejectedFeed = l.feedUrl;
+    l.feedUrl.clear();
+    l.appleId.clear();
+    l.title.clear();
+    l.author.clear();
+    l.image.clear();
+    l.score = 0;
+    l.checkedAt = now;
+    ++revision_;
+    dirty_ = true;
 }
 
 Store& store() {

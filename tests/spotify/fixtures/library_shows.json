@@ -1,0 +1,50 @@
+{
+ "me": {
+  "libraryV3": {
+   "__typename": "LibraryPage",
+   "totalCount": 4,
+   "items": [
+    {
+     "addedAt": {"isoString": "2026-10-01T10:00:00Z"},
+     "pinned": false,
+     "item": {
+      "__typename": "PodcastResponseWrapper",
+      "_uri": "spotify:show:2MAi0BvDc6GTFvKFPXnkCL",
+      "data": {
+       "__typename": "Podcast",
+       "uri": "spotify:show:2MAi0BvDc6GTFvKFPXnkCL",
+       "name": "Sample Show A",
+       "publisher": {"name": "Sample Publisher A"},
+       "coverArt": {"sources": [
+        {"url": "https://i.scdn.co/image/ab67656300005f1f00000000000000000000a001", "width": 300, "height": 300},
+        {"url": "https://i.scdn.co/image/ab6765630000ba8a00000000000000000000a001", "width": 640, "height": 640}
+       ]},
+       "mediaType": "AUDIO"
+      }
+     }
+    },
+    {
+     "item": {
+      "__typename": "AudiobookResponseWrapper",
+      "_uri": "spotify:show:7iHfbu1YPACw6oZPAFJtqe",
+      "data": {"__typename": "Audiobook", "uri": "spotify:show:7iHfbu1YPACw6oZPAFJtqe", "name": "An audiobook"}
+     }
+    },
+    {
+     "item": {
+      "__typename": "PodcastResponseWrapper",
+      "_uri": "spotify:show:4rOoJ6Egrf8K2IrywzwOMk",
+      "data": {"__typename": "Podcast", "name": "Sample Show B", "publisher": {"name": "Sample Publisher B"}, "mediaType": "MIXED"}
+     }
+    },
+    {
+     "item": {
+      "__typename": "PlaylistResponseWrapper",
+      "_uri": "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M",
+      "data": {"__typename": "Playlist", "uri": "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M", "name": "Not a show"}
+     }
+    }
+   ]
+  }
+ }
+}

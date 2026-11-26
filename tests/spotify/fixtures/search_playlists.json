@@ -1,0 +1,137 @@
+{
+ "data": {
+  "searchV2": {
+   "playlists": {
+    "items": [
+     {
+      "__typename": "PlaylistResponseWrapper",
+      "data": {
+       "__typename": "Playlist",
+       "attributes": [],
+       "description": "",
+       "format": "",
+       "images": {
+        "items": [
+         {
+          "sources": [
+           {
+            "height": 640,
+            "url": "https://mosaic.scdn.co/640/ab67616d00001e0219a949e3e4bd668fc41106fcab67616d00001e022240c0edb98124fb3491084aab67616d00001e028c0559b991acf898adfede08ab67616d00001e02d5a587c7de8efc3ba32bede7",
+            "width": 640
+           },
+           {
+            "height": 300,
+            "url": "https://mosaic.scdn.co/300/ab67616d00001e0219a949e3e4bd668fc41106fcab67616d00001e022240c0edb98124fb3491084aab67616d00001e028c0559b991acf898adfede08ab67616d00001e02d5a587c7de8efc3ba32bede7",
+            "width": 300
+           },
+           {
+            "height": 60,
+            "url": "https://mosaic.scdn.co/60/ab67616d00001e0219a949e3e4bd668fc41106fcab67616d00001e022240c0edb98124fb3491084aab67616d00001e028c0559b991acf898adfede08ab67616d00001e02d5a587c7de8efc3ba32bede7",
+            "width": 60
+           }
+          ]
+         }
+        ]
+       },
+       "name": "DUMAN TÜM ŞARKILAR",
+       "ownerV2": {
+        "__typename": "UserResponseWrapper",
+        "data": {
+         "__typename": "User",
+         "name": "Listener 1",
+         "socialHandle": null,
+         "uri": "spotify:user:listener1",
+         "username": "listener1"
+        }
+       },
+       "uri": "spotify:playlist:1HyDQhfHTMYScIH8qiSnH1"
+      }
+     },
+     {
+      "__typename": "PlaylistResponseWrapper",
+      "data": {
+       "__typename": "Playlist",
+       "attributes": [],
+       "description": "Geceler zehir, geceler kara...",
+       "format": "",
+       "images": {
+        "items": [
+         {
+          "sources": [
+           {
+            "height": null,
+            "url": "https://image-cdn-fa.spotifycdn.com/image/ab67706c0000da84b28e0ea227fb86567fcfcb11",
+            "width": null
+           }
+          ]
+         }
+        ]
+       },
+       "name": "Duman · En iyiler",
+       "ownerV2": {
+        "__typename": "UserResponseWrapper",
+        "data": {
+         "__typename": "User",
+         "name": "Listener 2",
+         "socialHandle": null,
+         "uri": "spotify:user:listener2",
+         "username": "listener2"
+        }
+       },
+       "uri": "spotify:playlist:2IzZXi7aS5PDXz8wlTxRr2"
+      }
+     },
+     {
+      "__typename": "PlaylistResponseWrapper",
+      "data": {
+       "__typename": "Playlist",
+       "attributes": [],
+       "description": "İletişim için İnstagram:ahmetcancertel",
+       "format": "",
+       "images": {
+        "items": [
+         {
+          "sources": [
+           {
+            "height": 640,
+            "url": "https://mosaic.scdn.co/640/ab67616d00001e020b362fca4833c8d3b0cc5616ab67616d00001e0228f01dda0c7ea5a55ca5b1b7ab67616d00001e0253ac3059ea9b90e1f60e73acab67616d00001e029aa96c06d5c346ccf6ffaf8d",
+            "width": 640
+           },
+           {
+            "height": 300,
+            "url": "https://mosaic.scdn.co/300/ab67616d00001e020b362fca4833c8d3b0cc5616ab67616d00001e0228f01dda0c7ea5a55ca5b1b7ab67616d00001e0253ac3059ea9b90e1f60e73acab67616d00001e029aa96c06d5c346ccf6ffaf8d",
+            "width": 300
+           },
+           {
+            "height": 60,
+            "url": "https://mosaic.scdn.co/60/ab67616d00001e020b362fca4833c8d3b0cc5616ab67616d00001e0228f01dda0c7ea5a55ca5b1b7ab67616d00001e0253ac3059ea9b90e1f60e73acab67616d00001e029aa96c06d5c346ccf6ffaf8d",
+            "width": 60
+           }
+          ]
+         }
+        ]
+       },
+       "name": "dktt, adamlar, maNga, duman, madrigal, yüzyüzeyken konuşuruz, yüksek sadakat, mor ve ötesi+",
+       "ownerV2": {
+        "__typename": "UserResponseWrapper",
+        "data": {
+         "__typename": "User",
+         "name": "Listener 3",
+         "socialHandle": null,
+         "uri": "spotify:user:listener3",
+         "username": "listener3"
+        }
+       },
+       "uri": "spotify:playlist:0jgFIHyXD2WegFDdAluTaC"
+      }
+     }
+    ],
+    "pagingInfo": {
+     "limit": 10,
+     "nextOffset": 10
+    },
+    "totalCount": 106
+   }
+  }
+ }
+}

@@ -81,6 +81,24 @@ struct LibraryEntry {
 // By item URI; folders as "folder:<group id>" (the rootlist id, see PlaylistTree).
 using LibraryEntries = std::unordered_map<std::string, LibraryEntry>;
 
+// The kinds of search results that page on their own (the search page's tabs: one persisted query per kind).
+enum class SearchKind { Tracks, Albums, Artists, Playlists, Shows, Profiles };
+
+// One page of one kind: only that kind's vector of `results` is filled.
+struct SearchBatch {
+    SearchResults results;
+    int total = 0;          // Spotify's count for the query (an estimate for large ones)
+    int nextOffset = -1;    // where the next page starts; -1 = no more
+    bool hasMore() const { return nextOffset >= 0; }
+};
+
+// A user's public playlists (the profile page), a page at a time.
+struct ProfilePlaylists {
+    std::vector<Playlist> playlists;
+    int total = 0;
+    int nextOffset = -1;    // -1 = no more
+};
+
 class Api {
 public:
     // Called by Session whenever the token is (re)minted. Thread-safe.
@@ -112,7 +130,34 @@ public:
 
     Album album(const std::string& uri, const CT& ct = {});           // + tracklist
     ArtistPage artistPage(const std::string& uri, const CT& ct = {}); // overview: top tracks, albums, related
+    // The overview of every kind (searchDesktop): tracks, albums, artists, playlists, podcasts (shows) and profiles.
+    // Episodes, audiobooks and genres are left out.
     SearchResults search(const std::string& query, int limit = 12, const CT& ct = {});
+    // `searchV2` of any search query -> results (the kinds it holds). Split out for tests.
+    static SearchResults parseSearch(const nlohmann::json& searchV2);
+    // One kind, from `offset` (the web player's searchTracks / searchAlbums / searchArtists / searchPlaylists /
+    // searchPodcasts / searchUsers, which page with offset + limit). Throws ApiError.
+    SearchBatch searchMore(SearchKind kind, const std::string& query, int offset, int limit = 30, const CT& ct = {});
+    static SearchBatch parseSearchBatch(SearchKind kind, const nlohmann::json& data);
+
+    // ---- Podcasts and profiles ------------------------------------------------------------------------------------
+    // The shows (podcasts) the user follows, most recently added first (libraryV3, the "Podcasts & Shows" filter).
+    // Audiobooks are left out. Throws ApiError.
+    std::vector<PodcastShow> libraryShows(const CT& ct = {});
+    // libraryV3's `data` -> the shows in it (any filter; other item types are skipped). Split out for tests.
+    static std::vector<PodcastShow> parseLibraryShows(const nlohmann::json& data, int* totalCount = nullptr);
+    // A show's details (queryShowMetadataV2): name, publisher, description, cover. Throws ApiError (404 when it is not
+    // a podcast).
+    PodcastShow show(const std::string& uri, const CT& ct = {});
+    static PodcastShow parseShow(const nlohmann::json& podcastUnionV2);
+    // A user's profile and public playlists (spclient user-profile-view/v3, JSON). `userUri` = spotify:user:<name>
+    // (or the bare username). Throws ApiError (404: no such user).
+    Profile profile(const std::string& userUri, const CT& ct = {});
+    ProfilePlaylists profilePlaylists(const std::string& userUri, int offset, int limit = 50, const CT& ct = {});
+    static Profile parseProfile(const nlohmann::json& j);
+    // The answer to a request of `limit` from `offset`. Spotify drops rows it won't show after paging (a page of 20 may
+    // hold 16), so the next page starts at offset + limit, while that is below the (estimated) total.
+    static ProfilePlaylists parseProfilePlaylists(const nlohmann::json& j, int offset, int limit);
 
     // The user's personalized Spotify home feed (the web player's "home" query): shelves such as "Made For
     // <you>", "Jump back in", "Recently played", Daily Mixes, Discover Weekly, "Your top mixes"... Items are

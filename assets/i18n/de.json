@@ -928,11 +928,9 @@
   "Albümü aç": "Album öffnen",
   "Çalma listesini aç": "Playlist öffnen",
   "Sanatçıyı aç": "Künstler öffnen",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Dieser Link kann nicht geöffnet werden. Unterstützt werden Links zu Songs, Alben, Playlists und Künstlern.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Verbinde Spotify, um Spotify-Links zu öffnen",
   "Bu bağlantı açılamıyor": "Dieser Link kann nicht geöffnet werden",
   "Spotify'a bağlan": "Mit Spotify verbinden",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Unterstützt werden Links zu Songs, Alben, Playlists und Künstlern.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Verbinde dein Spotify-Konto, um es zu öffnen",
   "Görev çubuğunda ilerlemeyi göster": "Fortschritt in der Taskleiste anzeigen",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "Die Position des laufenden Songs erscheint auf der Taskleisten-Schaltfläche: grün beim Abspielen, gelb bei Pause.",
@@ -2150,5 +2148,86 @@
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Das Gerät unterstützt das Format dieses Songs im exklusiven Modus nicht: Wiedergabe im gemeinsamen Modus.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Der exklusive Modus konnte nicht geöffnet werden: Wiedergabe im gemeinsamen Modus.",
   "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Das Gerät wird bei der Wiedergabe exklusiv geöffnet und beim Pausieren freigegeben.",
-  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Eine andere App nutzt das Gerät im exklusiven Modus; die Wiedergabe geht weiter, sobald sie es freigibt."
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Eine andere App nutzt das Gerät im exklusiven Modus; die Wiedergabe geht weiter, sobald sie es freigibt.",
+  "Abone olunacak podcast yok": "Keine Podcasts zum Abonnieren",
+  "Apple Podcasts'ta ara": "In Apple Podcasts suchen",
+  "Bağlantını kontrol edip tekrar dene.": "Prüfe deine Verbindung und versuch es noch einmal.",
+  "Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış.": "Dieser Nutzer hat in seinem Profil noch keine Playlists geteilt.",
+  "Bu podcast ShadeTube'da çalınamaz": "Dieser Podcast kann in ShadeTube nicht abgespielt werden",
+  "Bu podcasti açmak için Spotify'a bağlan.": "Verbinde dich mit Spotify, um diesen Podcast zu öffnen.",
+  "Bu profil bulunamadı.": "Dieses Profil wurde nicht gefunden.",
+  "Daha fazla sonuç yüklenemedi": "Weitere Ergebnisse konnten nicht geladen werden",
+  "Dizinin önerdiği eşleşmeyi yanlış olarak işaretledin.": "Du hast den vom Verzeichnis vorgeschlagenen Treffer als falsch markiert.",
+  "Eşleşme kaldırıldı": "Zuordnung entfernt",
+  "Herkese açık besleme bulundu": "Öffentlicher Feed gefunden",
+  "Herkese açık besleme yok": "Kein öffentlicher Feed",
+  "Herkese açık bir RSS beslemesi bulunamadı; büyük olasılıkla yalnızca Spotify'da yayınlanıyor. ShadeTube Spotify'ın sesini çalamaz, podcastleri herkese açık beslemelerinden çalar.": "Es wurde kein öffentlicher RSS-Feed gefunden; der Podcast erscheint höchstwahrscheinlich nur auf Spotify. ShadeTube kann Spotifys Audio nicht abspielen und spielt Podcasts aus ihren öffentlichen Feeds.",
+  "Herkese açık çalma listeleri": "Öffentliche Playlists",
+  "Herkese açık çalma listesi yok": "Keine öffentlichen Playlists",
+  "Kontrol edilemedi": "Konnte nicht geprüft werden",
+  "Podcast dizinine ulaşılamadı": "Das Podcast-Verzeichnis ist nicht erreichbar",
+  "Podcast dizinine ulaşılamadı. Bağlantını kontrol edip tekrar dene.": "Das Podcast-Verzeichnis ist nicht erreichbar. Prüfe deine Verbindung und versuch es noch einmal.",
+  "Podcastler zaten ekleniyor": "Podcasts werden bereits hinzugefügt",
+  "Profil": "Profil",
+  "Profiller": "Profile",
+  "Profilleri görmek için Spotify hesabınla bağlan.": "Verbinde dein Spotify-Konto, um Profile zu sehen.",
+  "Seçilenlere abone ol ({})": "Auswahl abonnieren ({})",
+  "Seçimi temizle": "Auswahl aufheben",
+  "ShadeTube Spotify'ın sesini çalamaz: podcastler herkese açık RSS beslemelerinden çalar. Her podcast Apple Podcasts dizininde adı ve yayıncısıyla aranır; eşleşenlerden seçtiklerine abone olursun.": "ShadeTube kann Spotifys Audio nicht abspielen: Podcasts laufen über ihre öffentlichen RSS-Feeds. Jeder Podcast wird im Apple-Podcasts-Verzeichnis nach Name und Herausgeber gesucht; du abonnierst die Treffer, die du auswählst.",
+  "Spotify podcastlerin": "Deine Spotify-Podcasts",
+  "Spotify podcastlerin yüklenemedi.": "Deine Spotify-Podcasts konnten nicht geladen werden.",
+  "Spotify podcastlerini içe aktar": "Spotify-Podcasts importieren",
+  "Spotify'da aç": "In Spotify öffnen",
+  "Spotify'da bir podcasti takip ettiğinde burada görünür.": "Podcasts, denen du auf Spotify folgst, erscheinen hier.",
+  "Spotify'da takip ettiğin podcast yok": "Du folgst auf Spotify keinen Podcasts",
+  "Spotify'da takip ettiğin podcastleri görmek için Spotify hesabınla bağlan.": "Verbinde dein Spotify-Konto, um die Podcasts zu sehen, denen du dort folgst.",
+  "Spotify'daki podcastlerin": "Deine Podcasts auf Spotify",
+  "Tekrar ara": "Erneut suchen",
+  "Tümünü seç": "Alle auswählen",
+  "Yalnızca Spotify'da": "Nur auf Spotify",
+  "Yalnızca Spotify'da: ShadeTube çalamaz": "Nur auf Spotify: ShadeTube kann ihn nicht abspielen",
+  "Yanlış podcast mi?": "Falscher Podcast?",
+  "{} herkese açık çalma listesi": {
+    "one": "{} öffentliche Playlist",
+    "other": "{} öffentliche Playlists"
+  },
+  "{} podcast": {
+    "one": "{} Podcast",
+    "other": "{} Podcasts"
+  },
+  "{} podcast ekleniyor…": {
+    "one": "{} Podcast wird hinzugefügt…",
+    "other": "{} Podcasts werden hinzugefügt…"
+  },
+  "{} podcast'e abone olundu": {
+    "one": "{} Podcast abonniert",
+    "other": "{} Podcasts abonniert"
+  },
+  "{} podcast'e abone olundu, {} podcast eklenemedi": "{} Podcasts abonniert, {} konnten nicht hinzugefügt werden",
+  "{} abone olunabilir": {
+    "one": "{} abonnierbar",
+    "other": "{} abonnierbar"
+  },
+  "{} zaten abonelik": {
+    "one": "{} bereits abonniert",
+    "other": "{} bereits abonniert"
+  },
+  "{} herkese açık beslemesiz": {
+    "one": "{} ohne öffentlichen Feed",
+    "other": "{} ohne öffentlichen Feed"
+  },
+  "{} aranıyor": {
+    "one": "{} wird gesucht",
+    "other": "{} werden gesucht"
+  },
+  "{} kontrol edilemedi": {
+    "one": "{} nicht geprüft",
+    "other": "{} nicht geprüft"
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Dieser Link kann nicht geöffnet werden. Unterstützt werden Links zu Songs, Alben, Playlists, Künstlern, Podcasts und Profilen.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Unterstützt werden Links zu Songs, Alben, Playlists, Künstlern, Podcasts und Profilen.",
+  "Spotify podcasti": "Spotify-Podcast",
+  "Spotify profili": "Spotify-Profil",
+  "Podcasti aç": "Podcast öffnen",
+  "Profili aç": "Profil öffnen"
 }

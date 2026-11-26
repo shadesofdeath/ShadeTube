@@ -823,11 +823,9 @@
   "Albümü aç": "Buka album",
   "Çalma listesini aç": "Buka playlist",
   "Sanatçıyı aç": "Buka artis",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Tautan ini tidak dapat dibuka. Tautan lagu, album, playlist, dan artis didukung.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Hubungkan Spotify untuk membuka tautan Spotify",
   "Bu bağlantı açılamıyor": "Tautan ini tidak dapat dibuka",
   "Spotify'a bağlan": "Hubungkan Spotify",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Tautan lagu, album, playlist, dan artis didukung.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Hubungkan akun Spotify-mu untuk membukanya",
   "Görev çubuğunda ilerlemeyi göster": "Tampilkan progres di taskbar",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "Posisi lagu yang diputar tampil di tombol taskbar: hijau saat diputar, kuning saat dijeda.",
@@ -1950,5 +1948,77 @@
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Perangkat tidak mendukung format lagu ini dalam mode eksklusif: diputar dalam mode bersama.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Mode eksklusif tidak dapat dibuka: diputar dalam mode bersama.",
   "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Perangkat dibuka dalam mode eksklusif saat pemutaran dimulai dan dilepas saat dijeda.",
-  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Aplikasi lain sedang memakai perangkat dalam mode eksklusif; pemutaran berlanjut setelah perangkat dilepas."
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Aplikasi lain sedang memakai perangkat dalam mode eksklusif; pemutaran berlanjut setelah perangkat dilepas.",
+  "Abone olunacak podcast yok": "Tidak ada podcast untuk dilanggan",
+  "Apple Podcasts'ta ara": "Cari di Apple Podcasts",
+  "Bağlantını kontrol edip tekrar dene.": "Periksa koneksimu lalu coba lagi.",
+  "Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış.": "Pengguna ini belum membagikan playlist di profilnya.",
+  "Bu podcast ShadeTube'da çalınamaz": "Podcast ini tidak bisa diputar di ShadeTube",
+  "Bu podcasti açmak için Spotify'a bağlan.": "Hubungkan ke Spotify untuk membuka podcast ini.",
+  "Bu profil bulunamadı.": "Profil ini tidak ditemukan.",
+  "Daha fazla sonuç yüklenemedi": "Tidak dapat memuat hasil lainnya",
+  "Dizinin önerdiği eşleşmeyi yanlış olarak işaretledin.": "Kamu menandai kecocokan yang disarankan direktori sebagai salah.",
+  "Eşleşme kaldırıldı": "Kecocokan dihapus",
+  "Herkese açık besleme bulundu": "Feed publik ditemukan",
+  "Herkese açık besleme yok": "Tidak ada feed publik",
+  "Herkese açık bir RSS beslemesi bulunamadı; büyük olasılıkla yalnızca Spotify'da yayınlanıyor. ShadeTube Spotify'ın sesini çalamaz, podcastleri herkese açık beslemelerinden çalar.": "Tidak ditemukan feed RSS publik; kemungkinan besar podcast ini hanya terbit di Spotify. ShadeTube tidak bisa memutar audio Spotify dan memutar podcast dari feed publiknya.",
+  "Herkese açık çalma listeleri": "Playlist publik",
+  "Herkese açık çalma listesi yok": "Tidak ada playlist publik",
+  "Kontrol edilemedi": "Tidak dapat diperiksa",
+  "Podcast dizinine ulaşılamadı": "Direktori podcast tidak dapat dijangkau",
+  "Podcast dizinine ulaşılamadı. Bağlantını kontrol edip tekrar dene.": "Direktori podcast tidak dapat dijangkau. Periksa koneksimu lalu coba lagi.",
+  "Podcastler zaten ekleniyor": "Podcast sedang ditambahkan",
+  "Profil": "Profil",
+  "Profiller": "Profil",
+  "Profilleri görmek için Spotify hesabınla bağlan.": "Hubungkan akun Spotify-mu untuk melihat profil.",
+  "Seçilenlere abone ol ({})": "Langgani yang dipilih ({})",
+  "Seçimi temizle": "Hapus pilihan",
+  "ShadeTube Spotify'ın sesini çalamaz: podcastler herkese açık RSS beslemelerinden çalar. Her podcast Apple Podcasts dizininde adı ve yayıncısıyla aranır; eşleşenlerden seçtiklerine abone olursun.": "ShadeTube tidak bisa memutar audio Spotify: podcast diputar dari feed RSS publiknya. Setiap podcast dicari di direktori Apple Podcasts berdasarkan nama dan penerbitnya; kamu berlangganan kecocokan yang kamu pilih.",
+  "Spotify podcastlerin": "Podcast Spotify-mu",
+  "Spotify podcastlerin yüklenemedi.": "Podcast Spotify-mu tidak dapat dimuat.",
+  "Spotify podcastlerini içe aktar": "Impor podcast Spotify",
+  "Spotify'da aç": "Buka di Spotify",
+  "Spotify'da bir podcasti takip ettiğinde burada görünür.": "Podcast yang kamu ikuti di Spotify muncul di sini.",
+  "Spotify'da takip ettiğin podcast yok": "Kamu tidak mengikuti podcast apa pun di Spotify",
+  "Spotify'da takip ettiğin podcastleri görmek için Spotify hesabınla bağlan.": "Hubungkan akun Spotify-mu untuk melihat podcast yang kamu ikuti di sana.",
+  "Spotify'daki podcastlerin": "Podcast-mu di Spotify",
+  "Tekrar ara": "Cari lagi",
+  "Tümünü seç": "Pilih semua",
+  "Yalnızca Spotify'da": "Hanya di Spotify",
+  "Yalnızca Spotify'da: ShadeTube çalamaz": "Hanya di Spotify: ShadeTube tidak bisa memutarnya",
+  "Yanlış podcast mi?": "Podcast yang salah?",
+  "{} herkese açık çalma listesi": {
+    "other": "{} playlist publik"
+  },
+  "{} podcast": {
+    "other": "{} podcast"
+  },
+  "{} podcast ekleniyor…": {
+    "other": "Menambahkan {} podcast…"
+  },
+  "{} podcast'e abone olundu": {
+    "other": "Berlangganan {} podcast"
+  },
+  "{} podcast'e abone olundu, {} podcast eklenemedi": "Berlangganan {} podcast, {} tidak dapat ditambahkan",
+  "{} abone olunabilir": {
+    "other": "{} bisa dilanggan"
+  },
+  "{} zaten abonelik": {
+    "other": "{} sudah dilanggan"
+  },
+  "{} herkese açık beslemesiz": {
+    "other": "{} tanpa feed publik"
+  },
+  "{} aranıyor": {
+    "other": "{} sedang dicari"
+  },
+  "{} kontrol edilemedi": {
+    "other": "{} tidak dapat diperiksa"
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Tautan ini tidak dapat dibuka. Tautan lagu, album, playlist, artis, podcast, dan profil didukung.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Tautan lagu, album, playlist, artis, podcast, dan profil didukung.",
+  "Spotify podcasti": "Podcast Spotify",
+  "Spotify profili": "Profil Spotify",
+  "Podcasti aç": "Buka podcast",
+  "Profili aç": "Buka profil"
 }

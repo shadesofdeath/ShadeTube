@@ -998,11 +998,9 @@
   "Albümü aç": "Відкрити альбом",
   "Çalma listesini aç": "Відкрити плейлист",
   "Sanatçıyı aç": "Відкрити виконавця",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Це посилання не можна відкрити. Підтримуються посилання на пісні, альбоми, плейлисти й виконавців.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Підключи Spotify, щоб відкривати посилання Spotify",
   "Bu bağlantı açılamıyor": "Це посилання не можна відкрити",
   "Spotify'a bağlan": "Підключити Spotify",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Підтримуються посилання на пісні, альбоми, плейлисти й виконавців.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Щоб відкрити, підключи обліковий запис Spotify",
   "Görev çubuğunda ilerlemeyi göster": "Показувати прогрес на панелі завдань",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "Позиція поточної пісні видна на кнопці панелі завдань: зеленим під час відтворення, жовтим на паузі.",
@@ -2323,5 +2321,104 @@
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Пристрій не підтримує формат цього треку в монопольному режимі: відтворення у спільному режимі.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Не вдалося відкрити монопольний режим: відтворення у спільному режимі.",
   "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Пристрій відкривається в монопольному режимі на початку відтворення і звільняється на паузі.",
-  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Пристрій у монопольному режимі використовує інший застосунок; відтворення продовжиться, коли він його звільнить."
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Пристрій у монопольному режимі використовує інший застосунок; відтворення продовжиться, коли він його звільнить.",
+  "Abone olunacak podcast yok": "Немає подкастів для підписки",
+  "Apple Podcasts'ta ara": "Шукати в Apple Podcasts",
+  "Bağlantını kontrol edip tekrar dene.": "Перевір з'єднання і спробуй ще раз.",
+  "Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış.": "Цей користувач ще не поділився жодним плейлистом у профілі.",
+  "Bu podcast ShadeTube'da çalınamaz": "Цей подкаст не можна відтворити в ShadeTube",
+  "Bu podcasti açmak için Spotify'a bağlan.": "Підключися до Spotify, щоб відкрити цей подкаст.",
+  "Bu profil bulunamadı.": "Профіль не знайдено.",
+  "Daha fazla sonuç yüklenemedi": "Не вдалося завантажити більше результатів",
+  "Dizinin önerdiği eşleşmeyi yanlış olarak işaretledin.": "Ти позначив збіг, запропонований каталогом, як хибний.",
+  "Eşleşme kaldırıldı": "Збіг вилучено",
+  "Herkese açık besleme bulundu": "Знайдено публічну стрічку",
+  "Herkese açık besleme yok": "Немає публічної стрічки",
+  "Herkese açık bir RSS beslemesi bulunamadı; büyük olasılıkla yalnızca Spotify'da yayınlanıyor. ShadeTube Spotify'ın sesini çalamaz, podcastleri herkese açık beslemelerinden çalar.": "Публічну RSS-стрічку не знайдено; найімовірніше, подкаст виходить лише в Spotify. ShadeTube не може відтворювати звук Spotify і грає подкасти з їхніх публічних стрічок.",
+  "Herkese açık çalma listeleri": "Публічні плейлисти",
+  "Herkese açık çalma listesi yok": "Немає публічних плейлистів",
+  "Kontrol edilemedi": "Не вдалося перевірити",
+  "Podcast dizinine ulaşılamadı": "Каталог подкастів недоступний",
+  "Podcast dizinine ulaşılamadı. Bağlantını kontrol edip tekrar dene.": "Каталог подкастів недоступний. Перевір з'єднання і спробуй ще раз.",
+  "Podcastler zaten ekleniyor": "Подкасти вже додаються",
+  "Profil": "Профіль",
+  "Profiller": "Профілі",
+  "Profilleri görmek için Spotify hesabınla bağlan.": "Підключи акаунт Spotify, щоб бачити профілі.",
+  "Seçilenlere abone ol ({})": "Підписатися на вибрані ({})",
+  "Seçimi temizle": "Зняти вибір",
+  "ShadeTube Spotify'ın sesini çalamaz: podcastler herkese açık RSS beslemelerinden çalar. Her podcast Apple Podcasts dizininde adı ve yayıncısıyla aranır; eşleşenlerden seçtiklerine abone olursun.": "ShadeTube не може відтворювати звук Spotify: подкасти грають із публічних RSS-стрічок. Кожен подкаст шукається в каталозі Apple Podcasts за назвою та видавцем; ти підписуєшся на вибрані збіги.",
+  "Spotify podcastlerin": "Твої подкасти в Spotify",
+  "Spotify podcastlerin yüklenemedi.": "Не вдалося завантажити твої подкасти зі Spotify.",
+  "Spotify podcastlerini içe aktar": "Імпортувати подкасти зі Spotify",
+  "Spotify'da aç": "Відкрити в Spotify",
+  "Spotify'da bir podcasti takip ettiğinde burada görünür.": "Тут з'являться подкасти, на які ти підписаний у Spotify.",
+  "Spotify'da takip ettiğin podcast yok": "Ти не підписаний на жоден подкаст у Spotify",
+  "Spotify'da takip ettiğin podcastleri görmek için Spotify hesabınla bağlan.": "Підключи акаунт Spotify, щоб бачити подкасти, на які ти там підписаний.",
+  "Spotify'daki podcastlerin": "Подкасти з твого Spotify",
+  "Tekrar ara": "Шукати знову",
+  "Tümünü seç": "Вибрати все",
+  "Yalnızca Spotify'da": "Лише в Spotify",
+  "Yalnızca Spotify'da: ShadeTube çalamaz": "Лише в Spotify: ShadeTube не може відтворити",
+  "Yanlış podcast mi?": "Не той подкаст?",
+  "{} herkese açık çalma listesi": {
+    "one": "{} публічний плейлист",
+    "few": "{} публічні плейлисти",
+    "many": "{} публічних плейлистів",
+    "other": "{} публічного плейлиста"
+  },
+  "{} podcast": {
+    "one": "{} подкаст",
+    "few": "{} подкасти",
+    "many": "{} подкастів",
+    "other": "{} подкасту"
+  },
+  "{} podcast ekleniyor…": {
+    "one": "Додається {} подкаст…",
+    "few": "Додаються {} подкасти…",
+    "many": "Додається {} подкастів…",
+    "other": "Додається {} подкасту…"
+  },
+  "{} podcast'e abone olundu": {
+    "one": "Оформлено підписку на {} подкаст",
+    "few": "Оформлено підписку на {} подкасти",
+    "many": "Оформлено підписку на {} подкастів",
+    "other": "Оформлено підписку на {} подкасту"
+  },
+  "{} podcast'e abone olundu, {} podcast eklenemedi": "Оформлено підписку на подкасти: {}, не вдалося додати: {}",
+  "{} abone olunabilir": {
+    "one": "{} доступний для підписки",
+    "few": "{} доступні для підписки",
+    "many": "{} доступні для підписки",
+    "other": "{} доступні для підписки"
+  },
+  "{} zaten abonelik": {
+    "one": "{} вже в підписках",
+    "few": "{} вже в підписках",
+    "many": "{} вже в підписках",
+    "other": "{} вже в підписках"
+  },
+  "{} herkese açık beslemesiz": {
+    "one": "{} без публічної стрічки",
+    "few": "{} без публічної стрічки",
+    "many": "{} без публічної стрічки",
+    "other": "{} без публічної стрічки"
+  },
+  "{} aranıyor": {
+    "one": "{} шукається",
+    "few": "{} шукаються",
+    "many": "{} шукаються",
+    "other": "{} шукаються"
+  },
+  "{} kontrol edilemedi": {
+    "one": "{} не перевірено",
+    "few": "{} не перевірено",
+    "many": "{} не перевірено",
+    "other": "{} не перевірено"
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Це посилання не можна відкрити. Підтримуються посилання на пісні, альбоми, плейлисти, виконавців, подкасти й профілі.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Підтримуються посилання на пісні, альбоми, плейлисти, виконавців, подкасти й профілі.",
+  "Spotify podcasti": "Подкаст у Spotify",
+  "Spotify profili": "Профіль у Spotify",
+  "Podcasti aç": "Відкрити подкаст",
+  "Profili aç": "Відкрити профіль"
 }

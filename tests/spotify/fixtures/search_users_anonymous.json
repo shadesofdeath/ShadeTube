@@ -1,0 +1,22 @@
+{
+ "data": {
+  "searchV2": {
+   "query": "berkay",
+   "users": {
+    "items": [],
+    "pagingInfo": {
+     "limit": 0,
+     "nextOffset": null
+    },
+    "totalCount": 0
+   }
+  }
+ },
+ "extensions": {
+  "requestIds": {
+   "/searchV2": {
+    "search-api": "e154f914-a274-4e59-f1d1-2ea7fb1844cc/ONOz"
+   }
+  }
+ }
+}

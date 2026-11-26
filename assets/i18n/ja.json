@@ -823,11 +823,9 @@
   "Albümü aç": "アルバムを開く",
   "Çalma listesini aç": "プレイリストを開く",
   "Sanatçıyı aç": "アーティストを開く",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "このリンクは開けません。曲、アルバム、プレイリスト、アーティストのリンクに対応しています。",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Spotifyのリンクを開くにはSpotifyに接続してください",
   "Bu bağlantı açılamıyor": "このリンクは開けません",
   "Spotify'a bağlan": "Spotifyに接続",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "曲、アルバム、プレイリスト、アーティストのリンクに対応しています。",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · 開くにはSpotifyアカウントに接続してください",
   "Görev çubuğunda ilerlemeyi göster": "タスクバーに再生位置を表示",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "再生中の曲の位置がタスクバーのボタンに表示されます。再生中は緑、一時停止中は黄色です。",
@@ -1950,5 +1948,77 @@
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "デバイスがこの曲の形式を排他モードでサポートしていないため、共有モードで再生しています。",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "排他モードを開けなかったため、共有モードで再生しています。",
   "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "再生が始まるとデバイスは排他モードで開かれ、一時停止すると解放されます。",
-  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "別のアプリがデバイスを排他モードで使用しています。解放されると再生が続きます。"
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "別のアプリがデバイスを排他モードで使用しています。解放されると再生が続きます。",
+  "Abone olunacak podcast yok": "登録できるポッドキャストはありません",
+  "Apple Podcasts'ta ara": "Apple Podcasts で検索",
+  "Bağlantını kontrol edip tekrar dene.": "接続を確認して、もう一度お試しください。",
+  "Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış.": "このユーザーはまだプロフィールでプレイリストを公開していません。",
+  "Bu podcast ShadeTube'da çalınamaz": "このポッドキャストは ShadeTube では再生できません",
+  "Bu podcasti açmak için Spotify'a bağlan.": "このポッドキャストを開くには Spotify に接続してください。",
+  "Bu profil bulunamadı.": "このプロフィールは見つかりませんでした。",
+  "Daha fazla sonuç yüklenemedi": "これ以上の結果を読み込めませんでした",
+  "Dizinin önerdiği eşleşmeyi yanlış olarak işaretledin.": "ディレクトリが提案した一致を「間違い」としてマークしました。",
+  "Eşleşme kaldırıldı": "一致を解除しました",
+  "Herkese açık besleme bulundu": "公開フィードが見つかりました",
+  "Herkese açık besleme yok": "公開フィードなし",
+  "Herkese açık bir RSS beslemesi bulunamadı; büyük olasılıkla yalnızca Spotify'da yayınlanıyor. ShadeTube Spotify'ın sesini çalamaz, podcastleri herkese açık beslemelerinden çalar.": "公開 RSS フィードが見つかりませんでした。Spotify だけで配信されている可能性が高いです。ShadeTube は Spotify の音声を再生できず、ポッドキャストは公開フィードから再生します。",
+  "Herkese açık çalma listeleri": "公開プレイリスト",
+  "Herkese açık çalma listesi yok": "公開プレイリストはありません",
+  "Kontrol edilemedi": "確認できませんでした",
+  "Podcast dizinine ulaşılamadı": "ポッドキャストのディレクトリに接続できません",
+  "Podcast dizinine ulaşılamadı. Bağlantını kontrol edip tekrar dene.": "ポッドキャストのディレクトリに接続できません。接続を確認して、もう一度お試しください。",
+  "Podcastler zaten ekleniyor": "ポッドキャストはすでに追加中です",
+  "Profil": "プロフィール",
+  "Profiller": "プロフィール",
+  "Profilleri görmek için Spotify hesabınla bağlan.": "プロフィールを見るには Spotify アカウントに接続してください。",
+  "Seçilenlere abone ol ({})": "選択したものを登録（{}）",
+  "Seçimi temizle": "選択を解除",
+  "ShadeTube Spotify'ın sesini çalamaz: podcastler herkese açık RSS beslemelerinden çalar. Her podcast Apple Podcasts dizininde adı ve yayıncısıyla aranır; eşleşenlerden seçtiklerine abone olursun.": "ShadeTube は Spotify の音声を再生できません。ポッドキャストは公開 RSS フィードから再生します。各ポッドキャストは名前と配信者で Apple Podcasts のディレクトリから探し、一致したものの中から選んだ番組を登録します。",
+  "Spotify podcastlerin": "Spotify のポッドキャスト",
+  "Spotify podcastlerin yüklenemedi.": "Spotify のポッドキャストを読み込めませんでした。",
+  "Spotify podcastlerini içe aktar": "Spotify のポッドキャストをインポート",
+  "Spotify'da aç": "Spotify で開く",
+  "Spotify'da bir podcasti takip ettiğinde burada görünür.": "Spotify でフォローしているポッドキャストがここに表示されます。",
+  "Spotify'da takip ettiğin podcast yok": "Spotify でフォローしているポッドキャストはありません",
+  "Spotify'da takip ettiğin podcastleri görmek için Spotify hesabınla bağlan.": "Spotify でフォローしているポッドキャストを見るには、Spotify アカウントに接続してください。",
+  "Spotify'daki podcastlerin": "Spotify でフォロー中のポッドキャスト",
+  "Tekrar ara": "もう一度検索",
+  "Tümünü seç": "すべて選択",
+  "Yalnızca Spotify'da": "Spotify のみ",
+  "Yalnızca Spotify'da: ShadeTube çalamaz": "Spotify のみ：ShadeTube では再生できません",
+  "Yanlış podcast mi?": "別のポッドキャストですか？",
+  "{} herkese açık çalma listesi": {
+    "other": "公開プレイリスト {} 件"
+  },
+  "{} podcast": {
+    "other": "ポッドキャスト {} 件"
+  },
+  "{} podcast ekleniyor…": {
+    "other": "ポッドキャストを {} 件追加中…"
+  },
+  "{} podcast'e abone olundu": {
+    "other": "ポッドキャスト {} 件を登録しました"
+  },
+  "{} podcast'e abone olundu, {} podcast eklenemedi": "ポッドキャスト {} 件を登録しました。{} 件は追加できませんでした",
+  "{} abone olunabilir": {
+    "other": "登録可能 {} 件"
+  },
+  "{} zaten abonelik": {
+    "other": "登録済み {} 件"
+  },
+  "{} herkese açık beslemesiz": {
+    "other": "公開フィードなし {} 件"
+  },
+  "{} aranıyor": {
+    "other": "検索中 {} 件"
+  },
+  "{} kontrol edilemedi": {
+    "other": "未確認 {} 件"
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "このリンクは開けません。曲、アルバム、プレイリスト、アーティスト、ポッドキャスト、プロフィールのリンクに対応しています。",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "曲、アルバム、プレイリスト、アーティスト、ポッドキャスト、プロフィールのリンクに対応しています。",
+  "Spotify podcasti": "Spotifyのポッドキャスト",
+  "Spotify profili": "Spotifyのプロフィール",
+  "Podcasti aç": "ポッドキャストを開く",
+  "Profili aç": "プロフィールを開く"
 }
