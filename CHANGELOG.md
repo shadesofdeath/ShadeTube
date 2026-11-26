@@ -2,6 +2,15 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.11.0 — unreleased
+
+- **One thin icon style everywhere**: the player bar's light outline icons now run through the whole app — sidebar,
+  title bar, page headers, menus, song rows, cards, settings, toasts, the queue, Now Playing, the mini player, the
+  command palette, the taskbar buttons and the phone remote. Every icon has the same line weight and size and is drawn
+  to the pixel grid, so it stays sharp at 100 % and every interface scale. Only "on" states are filled: a liked song's
+  heart (now the same solid heart in the player bar as in the lists), a downloaded song's check disc and the
+  playing bars. The big play buttons in page headers got the player bar's outline play / pause.
+
 ## 0.10.0 — 2026-11-23
 
 - **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays
