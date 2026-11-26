@@ -2,6 +2,18 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.11.0 — unreleased
+
+- **Search finds playlists, podcasts and profiles**: with Spotify connected, search has Playlists, Podcasts and
+  Profiles tabs next to Songs, Albums and Artists, and the "All" overview shows them too. Every tab loads more with
+  "Load more". Playlists open as usual, a profile opens a page with that person's public playlists, and a podcast
+  opens in Podcasts through its public feed.
+- **Your Spotify podcasts in Podcasts**: the shows you follow on Spotify appear on the Podcasts page, each matched to
+  its public RSS feed by name and publisher. "Import Spotify podcasts" lists them all: the matches to subscribe to
+  (you pick which), the ones you already follow, and the ones with no public feed. Spotify exclusives can't play in
+  ShadeTube, so they are shown as "Only on Spotify" with a link to open them there instead of quietly disappearing. A
+  wrong match can be undone from the show's menu ("Wrong podcast?").
+
 ## 0.10.0 — 2026-11-23
 
 - **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays
