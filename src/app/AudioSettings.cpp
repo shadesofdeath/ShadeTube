@@ -394,6 +394,8 @@ private:
                 s = i18n::format(tr(L"Şu an özel modda: {} · {}"), {rateText(o.sampleRate), format});
             } else if (o.open && o.fallback == F::Busy) {
                 s = tr(L"Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.");
+            } else if (o.fallback == F::Busy) {   // held exclusively by someone else: not even shared mode opens
+                s = tr(L"Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.");
             } else if (o.open && o.fallback == F::NotAllowed) {
                 s = tr(L"Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): "
                        L"paylaşımlı modda çalıyor.");

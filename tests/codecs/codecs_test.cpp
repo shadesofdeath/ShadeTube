@@ -14,7 +14,10 @@
 //      second stream), LiveDecoder (libopus / libvorbis) decoding them with the pre-skip dropped.
 //   7. AudioEngine (needs an audio device, else skipped): a local .opus and .ogg play, seek, end, and hand over
 //      gaplessly.
-//   codecs_test [fixtures dir]
+//   --exclusive instead (takes the default device for ~15 s): exclusive mode at the file's own rate, a second engine
+//      refused (Busy, shared instead), the device released while paused, a 44.1 -> 48 kHz handoff reopening it, a
+//      crossfade keeping the rate, the preview voice, switching back to shared mode while playing.
+//   codecs_test [--exclusive] [fixtures dir]
 #include "audio/AudioEngine.h"
 #include "audio/Decoder.h"
 #include "audio/LiveDecoder.h"
@@ -664,21 +667,168 @@ void testEngine() {
     CHECK(endedNext.load() == 0 && errors.load() == 0);
 }
 
+// ---- 8. Exclusive mode (--exclusive: takes the default device for a few seconds) ---------------------------------------
+
+struct EngineProbe {
+    std::atomic<int> ended{0}, errors{0}, previewPlaying{0};
+    std::atomic<uint64_t> endedNext{0};
+    EngineEvents events() {
+        EngineEvents ev;
+        ev.onEnded = [this](uint64_t, uint64_t next) {
+            endedNext = next;
+            ++ended;
+        };
+        ev.onError = [this](ErrorKind, const std::string& m, uint64_t) {
+            std::printf("        engine error: %s\n", m.c_str());
+            ++errors;
+        };
+        ev.onPreview = [this](State s, uint64_t) {
+            if (s == State::Playing) ++previewPlaying;
+        };
+        return ev;
+    }
+};
+
+template <class F>
+bool waitMs(F pred, int ms) {
+    for (int i = 0; i < ms / 10; ++i) {
+        if (pred()) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return pred();
+}
+
+void printOutput(const char* who, const OutputInfo& o) {
+    std::printf("        %s: open %d, exclusive %d, fallback %d, %u Hz, %u ch, %u bit (%u valid)%s\n", who, o.open, o.exclusive,
+                static_cast<int>(o.fallback), o.sampleRate, o.channels, o.bits, o.validBits, o.floatFormat ? " float" : "");
+}
+
+void testExclusive() {
+    std::printf("Exclusive mode (default device)\n");
+    StreamSource opus, vorbis;
+    opus.localPath = (g_dir / "chirp.opus").wstring();
+    vorbis.localPath = (g_dir / "chirp.ogg").wstring();
+    EngineProbe pa, pb;
+    AudioEngine a(pa.events());
+    a.setVolume(0.05f);
+    a.setExclusive(true);
+    opus.tag = 1;
+    a.open(opus);
+    CHECK(waitMs([&] { return a.state() == State::Playing; }, 5000));
+    printOutput("A, Opus", a.outputInfo());
+    if (!a.outputInfo().exclusive) {
+        std::printf("        the device refused exclusive mode (fallback %d): the rest is skipped\n", static_cast<int>(a.outputInfo().fallback));
+        CHECK(a.outputInfo().fallback != OutputInfo::Fallback::None);
+        return;
+    }
+    CHECK(a.outputInfo().sampleRate == 48000 && a.outputInfo().channels == 2);
+    {   // A second engine can't take the device: it plays shared and says why.
+        AudioEngine b(pb.events());
+        b.setVolume(0.05f);
+        b.setExclusive(true);
+        vorbis.tag = 2;
+        b.open(vorbis);
+        waitMs([&] { return b.outputInfo().open || pb.errors.load() > 0; }, 4000);
+        printOutput("B, while A holds it", b.outputInfo());
+        CHECK(b.outputInfo().fallback == OutputInfo::Fallback::Busy && !b.outputInfo().exclusive);
+        b.stop();
+    }
+    // Paused: the device is released.
+    a.pause();
+    CHECK(waitMs([&] { return !a.outputInfo().open; }, 3000));
+    a.play();
+    CHECK(waitMs([&] { return a.outputInfo().open && a.outputInfo().exclusive && a.state() == State::Playing; }, 3000));
+
+    // Tracks at their own rate: 44.1 kHz Vorbis, then gaplessly preloaded 48 kHz Opus (the device reopens in between).
+    vorbis.tag = 3;
+    a.open(vorbis);
+    CHECK(waitMs([&] { return a.state() == State::Playing && a.outputInfo().sampleRate == 44100; }, 5000));
+    printOutput("A, Vorbis", a.outputInfo());
+    opus.tag = 4;
+    a.preload(opus);
+    a.seek(2500);
+    CHECK(waitMs([&] { return pa.ended.load() >= 1; }, 5000) && pa.endedNext.load() == 4);
+    CHECK(waitMs([&] { return a.state() == State::Playing && a.outputInfo().sampleRate == 48000 && a.outputInfo().exclusive; }, 3000));
+    printOutput("A, Opus after Vorbis", a.outputInfo());
+
+    // A crossfade keeps the rate that plays: Vorbis at 44.1 kHz mixes into the Opus file resampled to it.
+    vorbis.tag = 5;
+    a.open(vorbis);
+    CHECK(waitMs([&] { return a.state() == State::Playing && a.outputInfo().sampleRate == 44100; }, 5000));
+    StreamSource fadeIn = opus;
+    fadeIn.tag = 6;
+    fadeIn.crossfadeMs = 1000;
+    a.preload(fadeIn);
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    a.seek(1500);
+    CHECK(waitMs([&] { return pa.ended.load() >= 2; }, 5000) && pa.endedNext.load() == 6);
+    CHECK(a.outputInfo().sampleRate == 44100 && a.outputInfo().exclusive);
+
+    // The preview voice plays over it at the rate the device runs at.
+    StreamSource pv = opus;
+    pv.tag = 7;
+    a.openPreview(pv, 500);
+    CHECK(waitMs([&] { return pa.previewPlaying.load() == 1; }, 3000));
+    CHECK(a.outputInfo().sampleRate == 44100 && a.outputInfo().exclusive);
+    a.stopPreview();
+
+    // Off again: shared mode at once, still playing.
+    a.setExclusive(false);
+    CHECK(waitMs([&] { return a.outputInfo().open && !a.outputInfo().exclusive && a.state() == State::Playing; }, 3000));
+    printOutput("A, shared again", a.outputInfo());
+    CHECK(pa.errors.load() == 0);
+}
+
+// ---- --live <url>: a station through the engine, its state twice a second for 15 s (a look at real streams) ----------
+
+void watchLive(const std::string& url) {
+    EngineProbe p;
+    AudioEngine e(p.events());
+    e.setVolume(0.f);
+    StreamSource s;
+    s.url = url;
+    s.live = true;
+    s.tag = 1;
+    e.open(s);
+    const char* names[] = {"Idle", "Loading", "Playing", "Paused", "Ended", "Error"};
+    for (int i = 0; i < 30; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        const LiveInfo li = e.liveInfo();
+        std::printf("  %5.1f s  %-8s pos %6lld ms  %s %u kbps %u Hz %u ch  buffered %lld ms  reconnects %d\n", (i + 1) * 0.5,
+                    names[static_cast<int>(e.state())], static_cast<long long>(e.positionMs()), li.codec.c_str(), li.bitrateKbps,
+                    li.sampleRate, li.channels, static_cast<long long>(li.bufferedMs), li.reconnects);
+    }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
     SetConsoleOutputCP(CP_UTF8);
     st::log::init();
-    g_dir = argc > 1 ? fs::path(argv[1]) : fs::path(ST_CODECS_FIXTURES);
+    bool exclusive = false;
+    std::string liveUrl;
+    g_dir = fs::path(ST_CODECS_FIXTURES);
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--exclusive") exclusive = true;
+        else if (std::string(argv[i]) == "--live" && i + 1 < argc) liveUrl = argv[++i];
+        else g_dir = fs::path(argv[i]);
+    }
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     MFStartup(MF_VERSION, MFSTARTUP_LITE);
-    testRatePolicy();
-    testResampler();
-    testMatroska();
-    testDecoder();
-    testTags();
-    testLive();
-    testEngine();
+    if (!liveUrl.empty()) {
+        watchLive(liveUrl);
+    } else if (exclusive) {
+        if (AudioEngine::outputDevices().empty()) std::printf("no audio device: --exclusive skipped\n");
+        else testExclusive();
+    } else {
+        testRatePolicy();
+        testResampler();
+        testMatroska();
+        testDecoder();
+        testTags();
+        testLive();
+        testEngine();
+    }
     MFShutdown();
     std::printf("\n%d failure(s)\n", g_failures);
     st::log::shutdown();

@@ -1932,5 +1932,6 @@
   "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "This device doesn't allow exclusive use (Windows sound settings › device properties › Advanced): playing in shared mode.",
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "The device doesn't support this song's format in exclusive mode: playing in shared mode.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Exclusive mode couldn't be opened: playing in shared mode.",
-  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "The device opens in exclusive mode when playback starts and is freed when you pause."
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "The device opens in exclusive mode when playback starts and is freed when you pause.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Another app is using the device in exclusive mode; playback continues once it lets go."
 }

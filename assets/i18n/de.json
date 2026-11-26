@@ -1932,5 +1932,6 @@
   "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Dieses Gerät erlaubt keine exklusive Nutzung (Windows-Soundeinstellungen › Geräteeigenschaften › Erweitert): Wiedergabe im gemeinsamen Modus.",
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Das Gerät unterstützt das Format dieses Songs im exklusiven Modus nicht: Wiedergabe im gemeinsamen Modus.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Der exklusive Modus konnte nicht geöffnet werden: Wiedergabe im gemeinsamen Modus.",
-  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Das Gerät wird bei der Wiedergabe exklusiv geöffnet und beim Pausieren freigegeben."
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Das Gerät wird bei der Wiedergabe exklusiv geöffnet und beim Pausieren freigegeben.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Eine andere App nutzt das Gerät im exklusiven Modus; die Wiedergabe geht weiter, sobald sie es freigibt."
 }

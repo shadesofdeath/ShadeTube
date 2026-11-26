@@ -2,6 +2,16 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.11.0 — unreleased
+
+- **Opus and Ogg everywhere**: ShadeTube now decodes Opus and Vorbis itself, so YouTube's best audio (Opus, about
+  160 kbps) plays on every Windows, with no codec extension needed. Your `.ogg`, `.oga` and `.opus` files show up in
+  Local files with their tags, covers and exact lengths, and Ogg Vorbis radio stations play too. Seeking, gapless
+  playback, crossfade, volume normalization (including R128 / ReplayGain tags) and speed all work with them.
+- **Exclusive mode**: Settings › Sound › "Exclusive mode (WASAPI)" gives ShadeTube the output device to itself: songs
+  play at their own sample rate without the Windows mixer, and the settings show the format the device runs at (or
+  why it fell back to shared mode). Other apps are silent while it plays; pausing frees the device.
+
 ## 0.10.0 — 2026-11-23
 
 - **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays

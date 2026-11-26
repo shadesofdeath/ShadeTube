@@ -1753,5 +1753,6 @@
   "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "이 장치는 독점 사용을 허용하지 않습니다(Windows 소리 설정 › 장치 속성 › 고급). 공유 모드로 재생합니다.",
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "장치가 독점 모드에서 이 곡의 형식을 지원하지 않아 공유 모드로 재생합니다.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "독점 모드를 열 수 없어 공유 모드로 재생합니다.",
-  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "재생을 시작하면 장치가 독점 모드로 열리고, 일시 정지하면 해제됩니다."
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "재생을 시작하면 장치가 독점 모드로 열리고, 일시 정지하면 해제됩니다.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "다른 앱이 장치를 독점 모드로 사용하고 있습니다. 장치가 해제되면 재생이 이어집니다."
 }

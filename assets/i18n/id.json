@@ -1753,5 +1753,6 @@
   "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Perangkat ini tidak mengizinkan penggunaan eksklusif (pengaturan suara Windows › properti perangkat › Lanjutan): diputar dalam mode bersama.",
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Perangkat tidak mendukung format lagu ini dalam mode eksklusif: diputar dalam mode bersama.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Mode eksklusif tidak dapat dibuka: diputar dalam mode bersama.",
-  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Perangkat dibuka dalam mode eksklusif saat pemutaran dimulai dan dilepas saat dijeda."
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Perangkat dibuka dalam mode eksklusif saat pemutaran dimulai dan dilepas saat dijeda.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Aplikasi lain sedang memakai perangkat dalam mode eksklusif; pemutaran berlanjut setelah perangkat dilepas."
 }

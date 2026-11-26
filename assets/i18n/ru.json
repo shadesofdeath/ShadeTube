@@ -2091,5 +2091,6 @@
   "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Это устройство не разрешает монопольное использование (параметры звука Windows › свойства устройства › Дополнительно): воспроизведение в общем режиме.",
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Устройство не поддерживает формат этого трека в монопольном режиме: воспроизведение в общем режиме.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Не удалось открыть монопольный режим: воспроизведение в общем режиме.",
-  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Устройство открывается в монопольном режиме при начале воспроизведения и освобождается на паузе."
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Устройство открывается в монопольном режиме при начале воспроизведения и освобождается на паузе.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Устройство в монопольном режиме использует другое приложение; воспроизведение продолжится, когда оно его освободит."
 }

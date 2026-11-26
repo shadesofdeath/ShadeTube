@@ -1753,5 +1753,6 @@
   "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "このデバイスは排他的な使用を許可していません（Windows のサウンド設定 › デバイスのプロパティ › 詳細）。共有モードで再生しています。",
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "デバイスがこの曲の形式を排他モードでサポートしていないため、共有モードで再生しています。",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "排他モードを開けなかったため、共有モードで再生しています。",
-  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "再生が始まるとデバイスは排他モードで開かれ、一時停止すると解放されます。"
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "再生が始まるとデバイスは排他モードで開かれ、一時停止すると解放されます。",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "別のアプリがデバイスを排他モードで使用しています。解放されると再生が続きます。"
 }

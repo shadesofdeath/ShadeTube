@@ -1932,5 +1932,6 @@
   "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Ce périphérique n'autorise pas l'utilisation exclusive (paramètres audio de Windows › propriétés du périphérique › Avancé) : lecture en mode partagé.",
   "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Le périphérique ne prend pas en charge le format de ce titre en mode exclusif : lecture en mode partagé.",
   "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Impossible d'ouvrir le mode exclusif : lecture en mode partagé.",
-  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Le périphérique s'ouvre en mode exclusif au début de la lecture et se libère à la pause."
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Le périphérique s'ouvre en mode exclusif au début de la lecture et se libère à la pause.",
+  "Aygıtı başka bir uygulama özel modda kullanıyor; o bırakınca çalma sürer.": "Une autre application utilise le périphérique en mode exclusif ; la lecture reprend dès qu'elle le libère."
 }

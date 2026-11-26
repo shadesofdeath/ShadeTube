@@ -15,7 +15,7 @@
 //      Ogg / AAC+ ones), ~8 s each at volume 0, public hosts only as the app plays them, with a per-codec summary.
 //      Needs the network; stations that fail are reported, not counted as failures.
 //
-//   liveaudio_test [--offline] [--long] [live [count]]
+//   liveaudio_test [--offline] [--long] [live [count] [stream URL...]]
 // Fixtures, the sandbox profile (SHADETUBE_DATA_DIR) and the server's files live in <exe dir>\liveaudio_tmp.
 #include "audio/AudioEngine.h"
 #include "audio/LiveParsers.h"
@@ -1089,7 +1089,7 @@ void testPlayer(const MockServer& srv) {
 
 // ---- 4. real stations ----------------------------------------------------------------------------------------------
 
-void testRealStations(Harness& h, int count) {
+void testRealStations(Harness& h, int count, const std::vector<std::string>& extra) {
     std::printf("live: public stations from radio-browser.info (volume 0)\n");
     constexpr wchar_t kUa[] = L"ShadeTube-tests/0.4";
     const std::wstring api = L"https://de1.api.radio-browser.info/json/stations/";
@@ -1125,7 +1125,9 @@ void testRealStations(Harness& h, int count) {
     add(L"search?hls=true&order=clickcount&reverse=true&hidebroken=true&limit=3", 2);
     add(L"search?codec=AAC%2B&order=clickcount&reverse=true&hidebroken=true&limit=3", 2);
     add(L"search?codec=OGG&order=clickcount&reverse=true&hidebroken=true&limit=3", 2);
+    add(L"search?codec=OPUS&order=clickcount&reverse=true&hidebroken=true&limit=3", 2);
     add(L"search?codec=AAC&order=clickcount&reverse=true&hidebroken=true&limit=3", 1);
+    for (const auto& url : extra) list.push_back({url, url, "(given)", 0, false});   // stream URLs on the command line
 
     struct Tally {
         int played = 0, total = 0;
@@ -1166,6 +1168,7 @@ void testRealStations(Harness& h, int count) {
 int wmain(int argc, wchar_t** argv) {
     bool offline = false, longRun = false, liveMode = false;
     int liveCount = 8;
+    std::vector<std::string> liveUrls;
     for (int i = 1; i < argc; ++i) {
         const std::wstring a = argv[i];
         if (a == L"--offline") offline = true;
@@ -1173,6 +1176,8 @@ int wmain(int argc, wchar_t** argv) {
         else if (a == L"live") {
             liveMode = true;
             if (i + 1 < argc && iswdigit(argv[i + 1][0])) liveCount = _wtoi(argv[++i]);
+        } else if (liveMode && a.starts_with(L"http")) {
+            liveUrls.push_back(st::toUtf8(a));
         }
     }
     wchar_t exe[MAX_PATH]{};
@@ -1189,7 +1194,7 @@ int wmain(int argc, wchar_t** argv) {
     testParsers();
     if (liveMode && !offline) {
         Harness h;
-        testRealStations(h, liveCount);
+        testRealStations(h, liveCount, liveUrls);
     } else if (!offline) {
         std::printf("fixtures\n");
         const fs::path dir = tmp / L"fixtures";
