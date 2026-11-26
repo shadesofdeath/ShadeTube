@@ -2315,8 +2315,8 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   podcasts and radio; episodes of feeds added by RSS address are never shared; guests need the songs on YouTube.
   Two instances on the same profile (only possible with `--preview`) both resume a kept room and fight over it.
 - **Blend** relies on the public broker named in the invite keeping retained messages: a member offline for a while
-  finds the others' profiles only if the broker still has them (on 2026-11-27 all three public brokers returned a
-  retained record to a subscriber that came later, checked over minutes, see `blend_test retain`; how long a free
+  finds the others' profiles only if the broker still has them (on 2026-11-27 all three public brokers still returned
+  a retained record 15 minutes later — longer gaps were not measured, see `blend_test retain`; how long a free
   broker keeps them is its own policy, and a broker restart may drop them — every visit publishes the profile again).
   When the invite's broker is unreachable, members fall back to the next broker in the list, where the others' profiles
   are only found once they have visited that broker too, i.e. both must then be online for it in turn. Members share
