@@ -1922,5 +1922,43 @@
   "Video penceresi açılamadı.": "The video window couldn't be opened.",
   "Video penceresinde aç": "Open in the video window",
   "Video yükleniyor…": "Loading video…",
-  "Şu an bir şarkı çalmıyor": "Nothing is playing right now"
+  "Şu an bir şarkı çalmıyor": "Nothing is playing right now",
+  "Arama": "Search",
+  "Aylık dinleyici": "Monthly listeners",
+  "Başlangıç": "Started",
+  "Biyografi": "Biography",
+  "Derlemeler": "Compilations",
+  "Devamını göster": "Read more",
+  "Diskografi": "Discography",
+  "Doğrulanmış sanatçı": "Verified artist",
+  "Doğum yılı": "Born",
+  "Dünya sıralaması": "World rank",
+  "En eski": "Oldest",
+  "En iyi sonuç": "Top result",
+  "En yeni": "Newest",
+  "En çok dinlendiği şehirler": "Top cities",
+  "Hayranları bunları da dinliyor": "Fans also like",
+  "Kuruluş": "Formed",
+  "ListenBrainz dinlenmesi": "ListenBrainz listens",
+  "Popüler sürümler": "Popular releases",
+  "Popülerlik": "Popularity",
+  "Sanatçı seçimi": "Artist pick",
+  "Son çıkan": "Latest release",
+  "Takipçi": "Followers",
+  "Web sitesi": "Website",
+  "Yer aldığı": "Appears on",
+  "Öne çıktığı çalma listeleri": "Featured in playlists",
+  "Ülke": "Country",
+  "{} aylık dinleyici": {
+    "one": "{} monthly listener",
+    "other": "{} monthly listeners"
+  },
+  "{} dinleyici": {
+    "one": "{} listener",
+    "other": "{} listeners"
+  },
+  "{} takipçi": {
+    "one": "{} follower",
+    "other": "{} followers"
+  }
 }

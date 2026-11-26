@@ -174,6 +174,9 @@ public:
 
     std::function<void(int displayIndex)> onPlay;   // index into displayedTracks()
     std::function<void()> onNearEnd;                 // request next page
+    // Up on the first row / Down on the last (-1 / +1) is offered here first: true takes the key (a page moving the
+    // keyboard on to what is above / below the list). Unset: the cursor stays.
+    std::function<bool(int dir)> onEdge;
     // "Geliştir" (app/SmartShuffle): recommended rows get "+" (add it to the list) and "×" (hide it) in place of the
     // heart when these are set; `key` is the collection they were recommended for (the track menu's entries).
     std::function<void(const catalog::Track&)> onAddRecommended, onHideRecommended;

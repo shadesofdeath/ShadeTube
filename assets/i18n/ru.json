@@ -2081,5 +2081,49 @@
   "Video penceresi açılamadı.": "Не удалось открыть окно видео.",
   "Video penceresinde aç": "Открыть в окне видео",
   "Video yükleniyor…": "Загрузка видео…",
-  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет"
+  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет",
+  "Arama": "Поиск",
+  "Aylık dinleyici": "Слушателей в месяц",
+  "Başlangıç": "Начало",
+  "Biyografi": "Биография",
+  "Derlemeler": "Сборники",
+  "Devamını göster": "Читать дальше",
+  "Diskografi": "Дискография",
+  "Doğrulanmış sanatçı": "Подтверждённый исполнитель",
+  "Doğum yılı": "Год рождения",
+  "Dünya sıralaması": "Место в мире",
+  "En eski": "Сначала старые",
+  "En iyi sonuç": "Лучший результат",
+  "En yeni": "Сначала новые",
+  "En çok dinlendiği şehirler": "Где слушают больше всего",
+  "Hayranları bunları da dinliyor": "Поклонникам также нравится",
+  "Kuruluş": "Основание",
+  "ListenBrainz dinlenmesi": "Прослушиваний в ListenBrainz",
+  "Popüler sürümler": "Популярные релизы",
+  "Popülerlik": "По популярности",
+  "Sanatçı seçimi": "Выбор исполнителя",
+  "Son çıkan": "Последний релиз",
+  "Takipçi": "Подписчики",
+  "Web sitesi": "Сайт",
+  "Yer aldığı": "Участвует в",
+  "Öne çıktığı çalma listeleri": "В плейлистах",
+  "Ülke": "Страна",
+  "{} aylık dinleyici": {
+    "one": "{} слушатель в месяц",
+    "few": "{} слушателя в месяц",
+    "many": "{} слушателей в месяц",
+    "other": "{} слушателя в месяц"
+  },
+  "{} dinleyici": {
+    "one": "{} слушатель",
+    "few": "{} слушателя",
+    "many": "{} слушателей",
+    "other": "{} слушателя"
+  },
+  "{} takipçi": {
+    "one": "{} подписчик",
+    "few": "{} подписчика",
+    "many": "{} подписчиков",
+    "other": "{} подписчика"
+  }
 }

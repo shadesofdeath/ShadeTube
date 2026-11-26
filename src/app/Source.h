@@ -26,6 +26,10 @@ std::wstring sourceLabel();    // titlebar tag: "SPOTIFY · <name>" or "AÇIK KA
 catalog::SearchResults search(spotify::Api* api, const std::string& query, int limit, const CT& ct = {});
 catalog::Album album(spotify::Api* api, const std::string& id, const CT& ct = {});
 catalog::ArtistPage artistPage(spotify::Api* api, const std::string& id, const CT& ct = {});
+// The whole of one part of an artist's discography when artistPage gave only its first releases (its *Total > 0);
+// empty for a source whose lists are already complete.
+std::vector<catalog::Album> artistReleases(spotify::Api* api, const std::string& artistId, catalog::ReleaseGroup group,
+                                           const CT& ct = {});
 
 // True if this id belongs to Spotify (a "spotify:" URI) rather than a MusicBrainz MBID.
 bool isSpotifyId(const std::string& id);
