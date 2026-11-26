@@ -7,7 +7,7 @@
 //      drip (pre-buffer, stall, rebuffer), a format change mid-stream, junk bytes, .pls / .m3u / redirect, a finite
 //      file, HLS (MPEG-TS VOD, packed AAC live behind a master playlist, fMP4 live, a media playlist behind a redirect,
 //      a media sequence that starts over, an audio PID change), public-only streams refusing the mock server, an HTML
-//      page and a 404 / closed port (errors), pause + resume; Ogg Opus / Vorbis when ffmpeg is on PATH; with --long
+//      page and a 404 / closed port (errors), pause + resume; Ogg Opus / Vorbis (built-in decoders) when ffmpeg is on PATH; with --long
 //      the disconnect after a long pause.
 //   3. The Player with liveStreamFor: live items, titles, seek ignored, pause / resume, next / previous / error
 //      advance over a station list, onLiveFailed, repeat wrap, no onQueueLow, session restore (paused, live).
@@ -287,7 +287,8 @@ void testParsers() {
     const std::string legacy = GetACP() == 1254 ? "Şarkı ğ" : "Þarký ð";
     CHECK(live::icyStreamTitle("StreamTitle='\xDE" "ark\xFD \xF0';") == legacy);
 
-    // Ogg: Opus packets with their duration and the OpusTags title; Vorbis is refused.
+    // Ogg: Opus packets with their duration and the OpusTags title; a Vorbis stream waits for its other headers
+    // (tests/codecs plays real Vorbis streams).
     std::vector<uint8_t> head = bytes("OpusHead");
     head.insert(head.end(), {1, 2, 0x38, 0x01, 0x80, 0xBB, 0, 0, 0, 0, 0});
     std::vector<uint8_t> tags = bytes("OpusTags");
@@ -312,7 +313,7 @@ void testParsers() {
     live::OggDemuxer vorbis;
     const auto vorbisPage = oggPage({bytes(std::string("\x01vorbis\x00\x00\x00\x00\x02\x44\xAC\x00\x00", 16))}, 0x02, 0);
     vorbis.push(vorbisPage.data(), vorbisPage.size());
-    CHECK(!vorbis.next(f) && vorbis.unsupported() && vorbis.unsupportedCodec() == "Vorbis");
+    CHECK(!vorbis.next(f) && !vorbis.unsupported());
     // An "Opus packet" far larger than Opus allows (a hostile stream filling memory with huge frames) is dropped.
     {
         std::vector<uint8_t> huge(3 * 255 * 255 + 100, 0x11);   // ~190 KB over four pages
@@ -949,9 +950,11 @@ void testEngine(Harness& h, const MockServer& srv, bool haveOpus, bool haveVorbi
         h.stop();
     }
     if (haveVorbis) {
-        std::printf("engine: Ogg Vorbis (ffmpeg fixture) is refused\n");
-        CHECK(h.open(srv.url("/live/tone.ogg?id=t21"), 8000) < 0 && h.rec.errorKind() == ErrorKind::UnsupportedFormat);
-        CHECK(!AudioEngine::supportsLiveCodec("OGG"));
+        std::printf("engine: Ogg Vorbis (ffmpeg fixture, the built-in decoder)\n");
+        const int64_t t = h.open(srv.url("/live/tone.ogg?id=t21"));
+        CHECK(t >= 0 && h.engine->liveInfo().codec == "Vorbis");
+        CHECK(h.run(3000));
+        CHECK(AudioEngine::supportsLiveCodec("OGG"));
         h.stop();
     }
     CHECK(AudioEngine::supportsLiveCodec("MP3") && AudioEngine::supportsLiveCodec("AAC+") && AudioEngine::supportsLiveCodec("audio/aacp") &&

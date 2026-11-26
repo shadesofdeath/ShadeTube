@@ -416,7 +416,7 @@ LiveStream::Outcome LiveStream::pumpBody(HttpStream& http, std::string head) {
             return Outcome{End::Fatal, ErrorKind::UnsupportedFormat, std::format("Ogg {} streams are not supported", oggDemuxer.unsupportedCodec())};
         if ((ogg ? oggDemuxer.hunted() : parser.hunted()) > kMaxHunt) {
             if (anyFrame) return Outcome{End::Dropped, ErrorKind::Network, "lost the audio frames"};
-            return Outcome{End::Fatal, ErrorKind::UnsupportedFormat, "no MP3 / AAC / Opus audio in the stream"};
+            return Outcome{End::Fatal, ErrorKind::UnsupportedFormat, "no MP3 / AAC / Opus / Vorbis audio in the stream"};
         }
         if (suspendDue()) return Outcome{End::Suspended};
         return std::nullopt;

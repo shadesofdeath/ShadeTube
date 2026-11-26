@@ -11,7 +11,7 @@
 // than kMaxQueueBytes) are kept, and after kSuspendAfterMs the connection is closed; resuming then reconnects. A
 // dropped connection reconnects with exponential backoff (0.5 s .. 8 s); the stream fails with ErrorKind::Network after
 // kMaxReconnects failed attempts in a row (kMaxFirstAttempts before anything ever played), and with UnsupportedFormat
-// for what the engine can't decode (Ogg Vorbis / FLAC, AC-3 or LATM in HLS, SAMPLE-AES, an HTML page, no MPEG / AAC
+// for what the engine can't decode (Ogg FLAC / Speex, AC-3 or LATM in HLS, SAMPLE-AES, an HTML page, no MPEG / AAC
 // frames at all). Attempts that fail while paused never count (nobody hears the gap): the stream keeps retrying until
 // the resume or, after kSuspendAfterMs, closes as above; the resume then starts with a fresh count.
 //

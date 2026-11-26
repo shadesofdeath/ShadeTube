@@ -29,8 +29,8 @@ int64_t hnsToFrames(int64_t hns, uint32_t rate) {
 } // namespace
 
 Track::Track(const StreamSource& source, int64_t startMs, std::atomic<int64_t>* memCounter, void* wakeEvent,
-             uint32_t outputRate)
-    : source_(source), liveStartMs_(source.live ? std::max<int64_t>(0, startMs) : 0), outputRate_(outputRate),
+             RatePolicy rates)
+    : source_(source), liveStartMs_(source.live ? std::max<int64_t>(0, startMs) : 0), rates_(std::move(rates)),
       wakeEvent_(wakeEvent) {
     if (source.live) {   // endless: no duration, no seeking; startMs only starts the clock
         live_ = std::make_shared<LiveStream>(source.url, source.mimeType, memCounter, source.allowLocalNetwork);
@@ -203,7 +203,7 @@ bool Track::openDecoder(Decoder& decoder) {
     for (int attempt = 0;; ++attempt) {
         bool unsupported = false;
         inDecoder_.store(true);
-        const HRESULT hr = decoder.open(buffer_, source_.mimeType, unsupported, outputRate_);
+        const HRESULT hr = decoder.open(buffer_, source_.mimeType, unsupported, rates_);
         inDecoder_.store(false);
         if (SUCCEEDED(hr)) return true;
         {
@@ -235,6 +235,11 @@ void Track::decodeLoop(Decoder& decoder) {
     }
     if (!openDecoder(decoder)) return;
     if (decoder.durationHns() > 0) durationMs_.store(decoder.durationHns() / 10'000);
+    // Ogg files carry their gain in the comment header the built-in decoder just read (R128_TRACK_GAIN for Opus).
+    if (source_.replayGain && std::isnan(replayGainDb_.load()) && !std::isnan(decoder.tagGainDb())) {
+        replayGainDb_.store(decoder.tagGainDb(), std::memory_order_release);
+        ST_LOG_DEBUG("audio", "track {} ReplayGain {:+.2f} dB (stream tags)", source_.tag, decoder.tagGainDb());
+    }
 
     std::vector<float> pending;   // decoded frames not yet in the ring
     size_t pendingOff = 0;        // floats already moved out of `pending`

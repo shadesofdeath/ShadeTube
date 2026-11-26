@@ -1,10 +1,11 @@
 #pragma once
 // Low-latency, low-memory audio playback engine.
 //
-//   network (range requests) -> in-memory progressive buffer -> IMFByteStream -> Media Foundation
-//   Source Reader (AAC/MP4, Opus/WebM when the OS has the decoder) -> float PCM -> [crossfade mix] -> equalizer ->
-//   volume ramp / normalisation gain -> look-ahead limiter -> WASAPI shared-mode event-driven render (AUTOCONVERTPCM
-//   handles resampling) on the Windows default device or the one picked in the settings
+//   network (range requests) -> progressive buffer -> built-in decoder (Opus / Vorbis in WebM, Matroska or Ogg:
+//   audio/XiphDecoder) or IMFByteStream -> Media Foundation Source Reader (AAC/MP4, MP3, FLAC...) -> float PCM ->
+//   [crossfade mix] -> equalizer -> volume ramp / normalisation gain -> look-ahead limiter -> WASAPI shared-mode
+//   event-driven render (AUTOCONVERTPCM handles resampling) on the Windows default device or the one picked in the
+//   settings
 //
 // Threading: the engine owns one decode/render thread. All public methods are thread-safe and
 // non-blocking (commands are queued to the engine thread). Events are raised ON THE ENGINE THREAD;
@@ -65,8 +66,9 @@ enum class State { Idle, Loading, Playing, Paused, Ended, Error };
 enum class ErrorKind {
     Network,            // download failed after retries (URL may have expired -> caller re-resolves); live: the
                         //   station could not be reached / kept dropping after the reconnect attempts
-    UnsupportedFormat,  // no decoder (e.g. WebM/Opus on a system without the extension) -> caller retries with mp4;
-                        //   live: a codec / container the engine can't play (Ogg Vorbis, FLAC, AC-3, SAMPLE-AES...)
+    UnsupportedFormat,  // no decoder for the codec / container (another codec than Opus / Vorbis in WebM, AAC on a
+                        //   Windows N without the Media Feature Pack) -> caller retries with mp4;
+                        //   live: a codec / container the engine can't play (FLAC, AC-3, SAMPLE-AES...)
     Device,             // audio device error (engine keeps retrying on device change)
     Other,
 };
@@ -175,12 +177,12 @@ public:
     // Returns false if not playing.
     bool spectrum(float* bands, int count) const;
 
-    // True if Media Foundation on this machine can decode Opus-in-WebM.
+    // Opus-in-WebM decodes on every machine (the built-in decoder), so this is true; kept for the stream choice.
     static bool supportsWebm();
     // Whether a live stream in this codec can play here, by radio-browser codec name or MIME type ("MP3", "AAC+",
     // "OGG", "audio/aacp", "application/vnd.apple.mpegurl"...). Unknown / empty = true (the engine sniffs the
-    // stream and fails with UnsupportedFormat if it can't). Cheap; for hiding stations up front. "OGG" is false:
-    // Ogg Vorbis has no decoder here, although stations labelled OGG that actually send Opus do play.
+    // stream and fails with UnsupportedFormat if it can't). Cheap; for hiding stations up front. Ogg Opus and Ogg
+    // Vorbis ("OGG") play with the built-in decoders; FLAC, WMA and the like don't.
     static bool supportsLiveCodec(std::string_view codec);
 
     // The live stream being played (LiveInfo::active false otherwise). Any thread; takes a short lock.

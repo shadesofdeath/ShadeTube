@@ -93,9 +93,6 @@ constexpr float kPreviewOutSeconds = 0.25f;
 constexpr double kPreviewPrebufferSeconds = 0.5;   // decoded before it fades in (it never rebuffers: a short sample)
 constexpr float kHalfPiF = 1.57079632679f;
 
-// MFAudioFormat_Opus (WAVE_FORMAT_OPUS = 0x704F); defined locally for older SDKs.
-constexpr GUID kAudioFormatOpus = {0x0000704F, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
-
 // Perceptual volume curve: cubic (~ -18 dB at 50%, close to perceived loudness).
 float perceptualGain(float linear) {
     const float v = std::clamp(linear, 0.f, 1.f);
@@ -349,7 +346,7 @@ struct AudioEngine::Impl {
     }
 
     std::unique_ptr<Track> makeTrack(const StreamSource& s, int64_t startMs) {
-        return std::make_unique<Track>(s, startMs, &memBytes, wake, outputRate);
+        return std::make_unique<Track>(s, startMs, &memBytes, wake, RatePolicy{outputRate});
     }
 
     void cmdOpen(const StreamSource& s, int64_t startMs, bool autoplay) {
@@ -986,7 +983,7 @@ struct AudioEngine::Impl {
         releaseMain();   // until the new one is audible
         // Decoded straight to the rate the device runs at now (a live station may have opened it at its own).
         const uint32_t rate = out->isOpen() ? out->sampleRate() : outputRate;
-        pv.track = std::make_unique<Track>(s, std::max<int64_t>(0, startMs), &memBytes, wake, rate);
+        pv.track = std::make_unique<Track>(s, std::max<int64_t>(0, startMs), &memBytes, wake, RatePolicy{rate});
         pv.track->requestWake();
         pvPhase = PreviewPhase::Loading;
         pvTag = s.tag;
@@ -1309,30 +1306,6 @@ LiveInfo AudioEngine::liveInfo() const {
     return stream ? stream->info() : LiveInfo{};
 }
 
-namespace {
-// Whether Media Foundation has an audio decoder MFT for `subtype` (any thread; COM and MF are started for the call).
-bool hasAudioDecoder(const GUID& subtype) {
-    const HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    bool decoder = false;
-    if (SUCCEEDED(MFStartup(MF_VERSION, MFSTARTUP_LITE))) {
-        MFT_REGISTER_TYPE_INFO input{MFMediaType_Audio, subtype};
-        IMFActivate** activates = nullptr;
-        UINT32 count = 0;
-        if (SUCCEEDED(MFTEnumEx(MFT_CATEGORY_AUDIO_DECODER,
-                                MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_ASYNCMFT | MFT_ENUM_FLAG_LOCALMFT |
-                                    MFT_ENUM_FLAG_SORTANDFILTER,
-                                &input, nullptr, &activates, &count))) {
-            decoder = count > 0;
-            for (UINT32 i = 0; i < count; ++i) activates[i]->Release();
-            CoTaskMemFree(activates);
-        }
-        MFShutdown();
-    }
-    if (SUCCEEDED(co)) CoUninitialize();
-    return decoder;
-}
-} // namespace
-
 bool AudioEngine::supportsLiveCodec(std::string_view codec) {
     std::string c;
     for (const char ch : codec)
@@ -1341,30 +1314,11 @@ bool AudioEngine::supportsLiveCodec(std::string_view codec) {
     if (c.empty() || c == "unknown" || has("mpegurl") || has("m3u") || has("scpls") || c == "hls") return true;
     if (has("mp3") || has("mpeg") || has("mpga") || c == "mp2" || c == "mp1") return true;
     if (has("aac") || has("mp4a")) return true;   // AAC, AAC+, HE-AAC, audio/aacp, audio/x-aac, "AAC,H.264"...
-    if (has("opus")) {   // Ogg Opus (a plain "OGG" is usually Vorbis, which has no decoder here)
-        static const bool opus = hasAudioDecoder(kAudioFormatOpus);
-        return opus;
-    }
-    return false;   // Ogg Vorbis, FLAC, WMA, AC-3...
+    // Ogg Opus and Ogg Vorbis: the built-in decoders ("OGG" is usually Vorbis; Ogg FLAC is refused when it shows).
+    if (has("opus") || has("ogg") || has("vorbis")) return true;
+    return false;   // FLAC, WMA, AC-3...
 }
 
-bool AudioEngine::supportsWebm() {
-    static const bool supported = [] {
-        const bool decoder = hasAudioDecoder(kAudioFormatOpus);
-        bool handler = false;
-        for (const wchar_t* key : {L".webm", L"audio/webm", L"video/webm"}) {
-            const std::wstring path = std::wstring(L"SOFTWARE\\Microsoft\\Windows Media Foundation\\ByteStreamHandlers\\") + key;
-            HKEY h = nullptr;
-            if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, path.c_str(), 0, KEY_READ, &h) == ERROR_SUCCESS) {
-                RegCloseKey(h);
-                handler = true;
-                break;
-            }
-        }
-        ST_LOG_INFO("audio", "WebM/Opus support: decoder={} handler={}", decoder, handler);
-        return decoder && handler;
-    }();
-    return supported;
-}
+bool AudioEngine::supportsWebm() { return true; }
 
 } // namespace st::audio
