@@ -106,6 +106,12 @@ All notable changes to ShadeTube, newest first.
   the top lists, the year in review and smart lists. Each source can be removed on its own, and with several Spotify
   accounts every account keeps its own imports (an import running when you switch stops and continues when you're
   back on that account).
+- **Lighter again**: ShadeTube uses noticeably less memory after you have been using it for a while. Covers are kept
+  at the size they are shown, covers of pages you have left behind are let go, the graphics driver is asked to give
+  back what it no longer needs, the main window's drawing buffers are freed while it sits in the tray or behind the
+  mini player, and large libraries and imported listening histories take less room. After browsing a dozen pages it
+  now holds about 30 % less than 0.10 (and a third less graphics memory); the mini player alone needs half the
+  graphics memory it did.
 
 ## 0.10.0 — 2026-11-23
 

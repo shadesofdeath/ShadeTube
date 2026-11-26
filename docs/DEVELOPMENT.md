@@ -119,7 +119,8 @@ ShadeTube/
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
 │                                Accounts (several Spotify accounts, 3.42), SongNotification + SongNotifier (3.43)
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
-│                                JamCrypto, JamInvite, JamProtocol, JamSync)
+│                                JamCrypto, JamInvite, JamProtocol, JamSync),
+│                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, collections,
                                  downloads, headers, icons, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, browse, collections,
@@ -132,6 +133,7 @@ ShadeTube/
                                  downloads, headers, jam, library, links, lists, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  codecs, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  downloads, headers, history, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
+                                 downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, memory, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, songnotify, sponsorblock,
                                  spotify, stats, sync, tags, theme, updater, video, winshell, ytmusic, ytstreams
@@ -170,23 +172,53 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 
 - Track lists are **virtualized**: rows are painted from the model, with no per-row widgets. So are the Library page's
   grid and list (`app/LibraryView`; text layouts of a few screens are cached).
+- **GPU objects are process memory.** On an integrated GPU (the default adapter of most laptops) the driver backs
+  every texture with the process's own pages: measured on Intel UHD, a 1 MB D2D bitmap costs ~1.3 MB of private
+  commit and a window-sized render target its full size. Releasing one gives nothing back by itself: the driver keeps
+  the memory in pools at the peak until the immediate context is flushed, the GPU has finished with the objects and
+  `IDXGIDevice3::Trim` runs (`Device::trimPool()`). So every bitmap below counts in Task Manager, not as "video memory".
 - Images: `gfx::ImageCache` downloads to a disk cache (`cache\images`, pruned to 400 MB), WIC-decodes **at the
   requested pixel size** and keeps D2D bitmaps in a GPU LRU with a byte budget (64 MB; eviction stops at bitmaps
   painted in the last two frames, so a screen needing more goes over it instead of thrashing). D2D's texture cache is
   capped at 24 MB. Requests from widgets that went off-screen are skipped.
 - Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held (the built-in Opus /
   Vorbis decoders add ~0.1-0.2 MB per track, 3.42). Every download
+  requested pixel size** rounded up to a bucket (64 / 128 / 192 / 256 / 384 / 512 / 768 / 1024 / 1280 px, steps of
+  1.5-2×: a 200 DIP card at 175 % is 384 px, 0.56 MB, where the old 512 px bucket was 1 MB) and keeps D2D bitmaps in
+  an LRU with a byte budget (64 MB; eviction stops at bitmaps painted in the last two frames, so a screen needing more
+  goes over it instead of thrashing). **Expiry**: the router starts a page scope for every page it shows
+  (`ImageCache::beginScope()`), and while a window is on screen every housekeeping tick calls `expire(20 s)`, which
+  drops the bitmaps painted neither in the last frames, nor on the current or the previous page, nor in the last 20 s:
+  Back stays instant, the covers of pages further back and of a closed Now Playing go instead of staying for the rest
+  of the session (scrolling back within a page is the budget's job, as before). D2D's texture cache is capped at
+  24 MB. Requests from widgets that went off-screen are skipped.
+- Icons: one mask per pixel size up to 96 px (a 24 px icon is 2.3 KB). Larger multi-color artwork (the cover
+  placeholders at card or Now Playing size, a placeholder in a cover's flight) is drawn from the parsed SVG document
+  (`Icons::drawColored`): it used to keep a bitmap per size for the session, 4 MB for Now Playing's.
+- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held. Every download
   above 1 MB is buffered in a memory-mapped temporary file (`FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE`)
   and a local file is mapped read-only as it is, so their pages belong to the file cache, not the private commit, and
   Windows can drop them under pressure. A heap block is the fallback when no temporary file can be created. The song
   cache (3.42) copies a complete stream from that mapping to its file and plays it from a read-only mapping: it adds
   only its index (~0.3 KB a song).
 - GPU device: created with `D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS` (no driver worker threads:
-  ~20 MB less commit on Intel UHD). A window's swap chain is created by its first frame, never for a hidden window.
+  ~20 MB less commit on Intel UHD). A window's swap chain is created by its first frame, never for a hidden window,
+  and goes when the window is hidden (`WM_WINDOWPOSCHANGED` with `SWP_HIDEWINDOW`: the tray, the main window behind
+  the mini player, where the idle release below never comes): two window-sized buffers, 31 MB of GPU memory for
+  1440 × 900 DIPs at 175 %. Showing the window draws its first frame before it appears, as after the idle release. A
+  minimized window keeps its swap chain (the taskbar thumbnail shows its last frame) until the idle release.
+- **On screen, every 10 s** `App::manageMemory()` calls `Device::trimPool()`: only what was already released comes back
+  (+10-20 MB of driver pools after browsing or a few minutes of playback); live objects and Direct2D's caches stay, so
+  the next frame costs the same (measured: 2-6 ms first frames, also in the middle of a page transition).
+  `ClearResources` (`Device::trim()`) is never used on screen except once, 6 s after startup (7 MB of commit and 5 MB
+  of GPU memory on Home): it drops the glyph cache, and re-rasterizing a full Songs list took 78 ms and then frames of
+  up to 370 ms.
 - Pages are destroyed on navigation; history keeps the route and scroll offset, never widgets. Now Playing drops its
   backdrop field, lyrics, details and display-size text layouts when it closes (3.40).
 - When no one sees the main window (minimized, in the tray, mini player), `App::trimMemory()` trims the image cache
-  to 25 %, clears icon masks, calls `Device::trim()` and trims the working set; 6 s after startup the last two run once.
+  to 25 %, clears icon masks, calls `Device::trim()` (`ClearResources`, then the flush and `Trim` of `trimPool()`:
+  without the flush `Trim` found the released objects still pending and kept them) and trims the working set; 6 s
+  after startup the last two run once.
 - **Idle graphics release** (`App::manageMemory()`): when no window of ours has been on screen for 30 s,
   `Device::release()` drops the D3D/D2D device and everything created on it, and the driver hands back its memory.
   Every holder of a device-dependent object registers a release hook (`gfx::DeviceHook`, or `addReleaseHook` for the
@@ -200,8 +232,21 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   cache drops what is not painted and D2D / driver caches are trimmed.
 - Video mode (3.41): its decoder, GPU surfaces and download exist only while its picture is on screen; they go with the
   last view, on the idle release and on device loss.
+- Data: the listening history's index and plays are compacted after a read or an import (no growth slack: 2.4 MB for
+  30 000 songs); the local library keeps each file's path once (its id → path map became an id → index map);
+  MusicBrainz' in-memory response cache in front of the disk cache holds at most 100 bodies / 4 MB and none above
+  256 KB (it was 200 / 24 MB; a hit only saves reading a small cached file); DirectWrite reads the embedded fonts in
+  place instead of copying them (0.6 MB).
 - `SHADETUBE_MEMLOG=1` logs a breakdown every 2 s (`core/MemoryStats`: commit, private working set, heap, mapped,
   image, GPU segments, image cache, icons, audio buffers).
+- **Measuring** (`app/MemDemo`, 5.4): `SHADETUBE_MEM_DEMO` scripts a session (routes, scrolling, Now Playing, the
+  tray, the mini player, trims) and appends categorized reports to `logs\memreport.txt`: the private commit split into
+  heaps / thread stacks / other private allocations (the driver's), every heap, every thread's stack, the largest
+  other allocations and mapped views, the default heap by block size, the GPU segments, the image cache by bucket,
+  icons, acrylic, audio buffers, widget counts and the main window's frame times since the previous report. A
+  `-DST_MEMPROFILE=ON` build (`app/MemProfile`, never shipped) adds, with `SHADETUBE_MEMPROFILE=1`, the live
+  `operator new` bytes by allocating function and by call stack (symbols from the PDB: build with `/Z7` + `/DEBUG`).
+  The numbers of section 7 come from these scripts.
 
 ### 3.3 Rendering, theme and keyboard focus
 
@@ -3048,6 +3093,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 | `audiocache_test` | song cache (`player/AudioCache`, 3.42): profiles / formats / offline fallbacks, what is not cacheable, the index across runs (match, loudness, tracks, SponsorBlock data); `.part` leftovers, orphans, gone / short files, damaged head / tail / sampled block / truncation dropped at lookup; LRU under a small limit, a lower limit, the quarter rule, off, a nearly full disk (free-space probe); `ProgressiveBuffer`'s completion hook against an in-process ranged HTTP server (exact bytes once, after a far seek, never when cancelled); the engine storing a streamed WAV and playing the file; a real `Player` with `SHADETUBE_OFFLINE` (cached songs with their match, a gapless preload from the cache, crossfade, a preview, another quality once resolving fails, a damaged file dropped) | offline (own temp profile); needs an audio device |
 | `lists_test` | list geometry (3.42): the track table's columns at every width 300-1600 DIP in both densities (fixed right end, order, no overlap, the title minimum, columns only ever dropping in the documented order, the queue action last), `Settings::trackColumns` parsing, selection runs, the queue's sections (runs, header rows, positions, hit tests on rows and headers, drop slots, 5 000 slots), the skeleton band | offline |
+| `memory_test` | memory housekeeping (3.2) on the real graphics device: `ImageCache` buckets (a 300 px request decodes at 384, never above the picture's own size), expiry (kept when painted in the last frames, on the current or the previous page scope or within the idle time; dropped otherwise, bytes given back, loaded again when painted), `Icons::drawColored` above 96 px painting from the document with no bitmap per size, `Device::trimPool` (released bitmaps come back only through it; numbers printed), `MemoryStats::detailedReport`, `ListenStats::readFile` leaving no capacity slack | offline (own temp folder and profile) |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.32): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
 | `icons_test` | the icon set (3.42) through `gfx::Icons`: every file in every grid (viewBox = grid, path / rect / circle only, black only, the grid's stroke width, parsed by `ID2D1SvgDocument`, no `-thin` files), the grid order and legacy names, `-thin` aliases drawing the same masks, whole-pixel strokes at each grid's own size, the ink of a stroke from 9 to 36 px (≥ 1 px, then px / 16), `heart-filled` covering `heart`, the `downloaded` check cut out | offline; `--sheet <dir>` (contact sheets: all icons at 12-24 DIP × 80-175 % in dark / light / nord / pastel / sepia, each grid magnified, off / on pairs) |
 
@@ -3128,6 +3174,8 @@ apps*).
 | `SHADETUBE_LIBRARY_SCROLL` | the first Library page opens scrolled down this many DIPs |
 | `SHADETUBE_LIST_DEMO` | `<step>;<step>…` run 900 ms after the first track table of the run got rows (3.42): `select=1,3-5` (display rows), `sort=<title\|album\|added\|duration\|plays>[:desc]` (as a header click), `columns=<Settings::trackColumns>`, `next=<rows>` / `enqueue=<rows>`, `queue` (opens the queue panel), `scroll=<dips>`, `dragline=<row>` (the selection shown dragged in front of that row), `fakeplays`. E.g. `local:songs` with `SHADETUBE_PLAY_FILES` and `next=3,4;enqueue=10,11;queue` for the queue's sections |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
+| `SHADETUBE_MEM_DEMO` | `<action>@<ms>[=<arg>];…` or the path of a file of such steps (`;` or new lines, `#` comments), each run `<ms>` after startup (app/MemDemo.h): `route=<r>` (the `--route` forms), `back`, `forward`, `wheel=<n>` (n notches down, negative up), `np`, `npclose`, `next`, `tray`, `show`, `minimize`, `restore`, `mini`, `miniclose`, `trim` (App::trimMemory), `gputrim` (`Device::trimPool`), `gpuclear` (Direct2D's `ClearResources`), `d2dcache=<MB>`, `report[=<label>]` (a categorized report appended to `logs\memreport.txt`, 3.2), `frames=<label>` (only the frame times since the last report), `quit`. E.g. `route@4000=local:songs;wheel@5000=40;report@20000=songs;quit@21000` |
+| `SHADETUBE_MEMPROFILE=1` | in a `-DST_MEMPROFILE=ON` build only: tallies the live `operator new` bytes by call stack; `report` steps then list them by allocating function and stack (3.2). Absolute numbers of such a run are inflated (headers, the table, DbgHelp's symbols after the first report) |
 | `SHADETUBE_BACKDROP=force` | Mica (3.3) also with transparency effects off or high contrast on (Windows 11 22H2+, the setting still on): DWM then draws Mica's solid fallback color, which still shows the translucent rendering. With Mica on, `--screenshot` PNGs carry the translucent alpha |
 | `SHADETUBE_REMOTE_BIND` | the phone remote listens on this IPv4 address only (e.g. `127.0.0.1`: no Windows Firewall prompt while testing) and the QR code points at it |
 | `SHADETUBE_TAG_EDITOR` | `<n>` or `<first>,<n>`: opens the tag editor for n Yerel dosyalar songs (from index `first`) once the library has loaded (screenshots) |
@@ -3337,3 +3385,32 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   per-frame requests (window-synced band, but they keep moving with reduced motion). The queue panel takes no keyboard
   focus (as before). Frame-time measurements on this machine were noisy (parallel builds; the display ran at 60-240 Hz
   between runs), so the table's cost is compared in thread cycles of its paint, not in frame gaps.
+- **Memory** (0.11.0, Release, Intel UHD at 2560 × 1440 / 175 %, a 1345 × 712 DIP window, measured with the
+  `SHADETUBE_MEM_DEMO` scripts of 3.2; "populated" = 5 000 local songs in 250 folders with covers and 30 000 imported
+  plays; logged out, MusicBrainz catalog). Private commit / GPU memory (DXGI local segment) in MB, 0.10.0 → 0.11.0, the
+  two builds run back to back:
+
+  | Scenario | 0.10.0 | 0.11.0 |
+  |---|---|---|
+  | Home, empty profile, after 60 s | 62 / 49 | 58 / 49 |
+  | Home, populated, after 60 s | 94 / 50 | 87 / 50 |
+  | 17 pages browsed (albums, artist, search, the 5 000-song list, stats, settings...), back on Home | 165 / 106 | 128 / 73 |
+  | the same 40 s later | 162 / 104 | 115 / 70 |
+  | playing (local songs), Home | 128 / 59 | 121 / 54 |
+  | Now Playing with lyrics, 30 s / closed again | 128 / 73, 142 / 84 | 124 / 72, 141 / 87 |
+  | mini player only | 108 / 56 | 101 / 31 |
+  | tray, 4 s / 38 s (graphics released) / shown again | 124 / 58, 55 / 0, 115 / 60 | 96 / 23, 51 / 0, 104 / 53 |
+  | video mode on (720p DXVA) / off, 40 s later | 217 / 120, 152 / 79 | 215 / 121, 143 / 76 |
+
+  Runs of the same build differ by ±5 MB (the driver's pools depend on timing). Ten minutes of playback (30 songs)
+  stay flat. The empty profile's ~60 MB on screen is about 20 MB of heap (most of it Direct2D, DirectWrite, the D3D
+  runtime and the driver), 20-25 MB of the driver's private allocations and Direct2D's glyph cache, 1 MB of thread
+  stacks and the rest writable image pages; the GPU figure is mostly the swap chain (two window-sized buffers). WARP
+  software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. After
+  an idle release the first frame recreates the device (tens of ms) and covers reload from the disk cache.
+  Known and left: closing Now Playing keeps ~10 MB more than before it opened (Direct2D's glyph and texture caches for
+  its display-size text; only `ClearResources` frees them, which costs a full re-rasterization on screen); video mode
+  leaves ~13 MB of heap after it is turned off, all of it Media Foundation's decoder (the app's own allocations are the
+  same before and after, ±0.3 MB, by the `ST_MEMPROFILE` tally); the listening history costs ~550 bytes a song (its
+  index keys are wide strings) and the local library ~1.7 KB a file with long paths (each file keeps its folder's cover
+  path); a minimized window keeps its swap chain until the idle release (the taskbar thumbnail).

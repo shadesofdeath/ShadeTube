@@ -1076,7 +1076,6 @@ fs::path coverDir() { return paths::cacheDir() / L"local-covers"; }
 struct LocalLibrary::Snapshot {
     std::shared_ptr<const std::vector<local::Entry>> entries;
     std::vector<catalog::Track> tracks;
-    std::unordered_map<std::string, std::wstring> paths;
     std::unordered_map<std::string, size_t> positions;
     int64_t totalMs = 0;
     local::IndexMeta meta;       // of the index / of the scan that produced it
@@ -1097,9 +1096,9 @@ std::shared_ptr<LocalLibrary::Snapshot> makeSnapshot(std::vector<local::Entry> e
         }
     }
     s->tracks.reserve(entries.size());
+    s->positions.reserve(entries.size());
     for (const auto& e : entries) {
         s->tracks.push_back(local::toTrack(e));
-        s->paths.emplace(s->tracks.back().id, e.path);
         s->positions.emplace(s->tracks.back().id, s->tracks.size() - 1);
         s->totalMs += e.durationMs;
     }
@@ -1146,7 +1145,6 @@ void LocalLibrary::apply(std::shared_ptr<Snapshot> s) {
     if (!s->changed) return;
     entries_ = s->entries;
     tracks_ = std::move(s->tracks);
-    paths_ = std::move(s->paths);
     positions_ = std::move(s->positions);
     totalMs_ = s->totalMs;
     ++generation_;
@@ -1276,8 +1274,8 @@ void LocalLibrary::startScan() {
 }
 
 std::wstring LocalLibrary::pathFor(const std::string& trackId) const {
-    const auto it = paths_.find(trackId);
-    return it == paths_.end() ? std::wstring{} : local::openablePath(it->second);
+    const local::Entry* e = entry(trackId);
+    return e ? local::openablePath(e->path) : std::wstring{};
 }
 
 const local::Entry* LocalLibrary::entry(const std::string& trackId) const {

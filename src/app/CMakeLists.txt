@@ -80,6 +80,7 @@ add_executable(ShadeTube WIN32
     LyricsPicker.cpp LyricsPicker.h
     LyricsService.cpp LyricsService.h
     LyricsShare.cpp LyricsShare.h
+    MemDemo.cpp MemDemo.h MemProfile.h
     MiniLayout.cpp MiniLayout.h
     MiniPlayer.cpp MiniPlayer.h
     NowPlaying.cpp NowPlaying.h
@@ -167,3 +168,10 @@ target_compile_definitions(ShadeTube PRIVATE ST_VERSION_SHORT="${PROJECT_VERSION
 # The WebView2 static loader is built with the release static CRT; in a Debug (/MTd) build let the debug CRT win.
 target_link_options(ShadeTube PRIVATE $<$<CONFIG:Debug>:/NODEFAULTLIB:libcmt>)
 set_target_properties(ShadeTube PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+# Dev: heap profile of operator new by call stack (app/MemProfile.h, SHADETUBE_MEMPROFILE=1). Off in every normal build:
+# the shipped exe keeps the CRT's own operator new.
+option(ST_MEMPROFILE "Heap profiling build (replaces operator new; dev only)" OFF)
+if(ST_MEMPROFILE)
+    target_sources(ShadeTube PRIVATE MemProfile.cpp)
+    set_source_files_properties(MemDemo.cpp MemProfile.cpp PROPERTIES COMPILE_DEFINITIONS ST_MEMPROFILE)
+endif()

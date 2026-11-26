@@ -9,6 +9,7 @@
 #include "app/LinkOpener.h"
 #include "app/LyricsService.h"
 #include "app/LoginWindow.h"
+#include "app/MemDemo.h"
 #include "app/NowPlaying.h"
 #include "app/OverlayDemo.h"
 #include "app/PageWidgets.h"
@@ -290,6 +291,10 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     display::scheduleKeysDemo();   // SHADETUBE_KEYS_DEMO (dev)
     overlaydemo::schedule();       // SHADETUBE_OVERLAY_DEMO (dev)
     accounts::scheduleDemo();      // SHADETUBE_ACCOUNT_DEMO (dev)
+    // SHADETUBE_MEM_DEMO (dev): scripted memory measurements (app/MemDemo).
+    memdemo::schedule({[this] { hideMainToTray(); }, [this] { mini_ ? closeMini() : showMain(); }, [this] { openMini(); },
+                       [this] { closeMini(); }, [this] { trimMemory(); }, [this] { quit(); },
+                       [this] { return mini_ ? mini_->window() : nullptr; }});
     window_->onNavButton = [](ui::MouseButton b) {
         if (!ctx().router) return;
         if (b == ui::MouseButton::Back) ctx().router->back();
@@ -600,6 +605,7 @@ void App::showShell() {
     router_->onShow = [this](std::unique_ptr<Page> p) {
         // Going to a page (a link in Now Playing, the track menu, a shortcut) leaves Now Playing to show it.
         if (shell_->nowPlaying()) shell_->setNowPlaying(false);
+        gfx::ImageCache::get().beginScope();   // covers of pages two steps back may expire (manageMemory)
         shell_->pageHost()->show(std::move(p));
     };
     router_->currentPage = [this]() -> Page* { return shell_ ? shell_->pageHost()->page() : nullptr; };
@@ -1024,13 +1030,27 @@ void App::manageMemory() {
         device.trim();
         HeapCompact(GetProcessHeap(), 0);
         ST_LOG_INFO("mem", "low memory: caches trimmed");
+    } else if (onScreen && device.ready()) {
+        // On screen. Covers of pages left two steps back (and of a closed Now Playing) go once unpainted for a while;
+        // then, every kPoolTrimMs, the driver hands back what it keeps of released objects (its pools stay at the peak
+        // otherwise: +10-20 MB after browsing or a while of playback on Intel UHD). Neither touches what is painted:
+        // the frame after a trim measured the same as any other (2-6 ms), also in the middle of a page transition.
+        constexpr uint64_t kImageIdleMs = 20'000;
+        constexpr double kPoolTrimMs = 10'000;
+        gfx::ImageCache::get().expire(kImageIdleMs);
+        if (now - poolTrimmedAt_ >= kPoolTrimMs) {
+            device.trimPool();
+            poolTrimmedAt_ = now;
+        }
     }
 }
 
 void App::housekeeping() {
     logMemory();
     manageMemory();
-    // Once the first screens are up, hand back the driver's startup scratch memory (shader compiler etc.).
+    // Once the first screens are up, hand back the driver's startup scratch memory (shader compiler etc.) and what
+    // Direct2D cached while building them (7 MB of commit and 5 MB of GPU memory on Home; the periodic trimPool() alone
+    // keeps those). The only on-screen ClearResources: later ones would re-rasterize a full page of glyphs mid-use.
     if (!startupTrimmed_ && ui::frame::realNow() > startedAt_ + 6000) {
         startupTrimmed_ = true;
         gfx::Device::get().trim();
@@ -1421,6 +1441,7 @@ int App::run() {
             // Frame pacing: wait for the swap chain (vsync-aligned, 1 frame latency) then draw.
             if (HANDLE h = w->frameWaitable()) WaitForSingleObjectEx(h, 50, TRUE);
             w->render();
+            if (w == window_.get()) memdemo::noteFrame(ui::frame::realNow() - ui::frame::begunAt());   // dev timing
             drew = true;
         }
         if (drew) continue;

@@ -19,6 +19,9 @@ namespace st::gfx {
 
 namespace {
 
+// drawColored(): bigger than this (device pixels) is drawn from the SVG document instead of a cached bitmap.
+constexpr int kMaxCachedColoredPx = 96;
+
 struct Entry {
     ComPtr<ID2D1Bitmap1> bitmap;
     uint64_t generation = 0;
@@ -31,6 +34,7 @@ struct SvgEntry {
     std::vector<ComPtr<ID2D1SvgElement>> keyed;
     Color color{-1, -1, -1, -1};   // the fill they have now (none yet)
     D2D1_SIZE_F viewport{};
+    float aspect = 1;              // viewBox width / height
     uint64_t generation = 0;
 };
 std::unordered_map<std::string, SvgEntry> g_svgs;
@@ -207,9 +211,33 @@ SvgEntry* loadRecolorable(ID2D1DeviceContext5* dc, std::string_view name, const 
     }
     ComPtr<ID2D1SvgElement> root;
     e.doc->GetRoot(&root);
-    if (root) collectKeyed(root.Get(), key, e.keyed);
+    if (root) {
+        collectKeyed(root.Get(), key, e.keyed);
+        D2D1_SVG_VIEWBOX vb{0, 0, 24, 24};
+        root->GetAttributeValue(L"viewBox", D2D1_SVG_ATTRIBUTE_POD_TYPE_VIEWBOX, &vb, sizeof vb);
+        if (vb.height > 0) e.aspect = vb.width / vb.height;
+    }
     e.generation = gen;
     return &e;
+}
+
+// The document filling `r` (its viewBox scales the drawing to the viewport), origin pixel-snapped.
+void drawDocument(ID2D1DeviceContext5* dc, SvgEntry& e, const Rect& r, float scale) {
+    if (e.viewport.width != r.w || e.viewport.height != r.h) {
+        ComPtr<ID2D1SvgElement> root;
+        e.doc->GetRoot(&root);
+        if (root) {
+            root->SetAttributeValue(L"width", r.w);
+            root->SetAttributeValue(L"height", r.h);
+        }
+        e.doc->SetViewportSize(D2D1::SizeF(r.w, r.h));
+        e.viewport = D2D1::SizeF(r.w, r.h);
+    }
+    D2D1_MATRIX_3X2_F old;
+    dc->GetTransform(&old);
+    dc->SetTransform(D2D1::Matrix3x2F::Translation(std::round(r.x * scale) / scale, std::round(r.y * scale) / scale) * old);
+    dc->DrawSvgDocument(e.doc.Get());
+    dc->SetTransform(old);
 }
 
 } // namespace
@@ -227,21 +255,7 @@ void Icons::drawRecolored(ID2D1DeviceContext5* dc, std::string_view name, const 
         }
         e->color = color;
     }
-    if (e->viewport.width != r.w || e->viewport.height != r.h) {   // the viewBox scales the drawing to the viewport
-        ComPtr<ID2D1SvgElement> root;
-        e->doc->GetRoot(&root);
-        if (root) {
-            root->SetAttributeValue(L"width", r.w);
-            root->SetAttributeValue(L"height", r.h);
-        }
-        e->doc->SetViewportSize(D2D1::SizeF(r.w, r.h));
-        e->viewport = D2D1::SizeF(r.w, r.h);
-    }
-    D2D1_MATRIX_3X2_F old;
-    dc->GetTransform(&old);
-    dc->SetTransform(D2D1::Matrix3x2F::Translation(std::round(r.x * scale) / scale, std::round(r.y * scale) / scale) * old);
-    dc->DrawSvgDocument(e->doc.Get());
-    dc->SetTransform(old);
+    drawDocument(dc, *e, r, scale);
 }
 
 void Icons::draw(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, ID2D1Brush* brush, float scale) {
@@ -271,6 +285,16 @@ void Icons::draw(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, 
 void Icons::drawColored(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, float scale, float opacity) {
     const int px = static_cast<int>(std::round(r.h * scale));
     if (px <= 0) return;
+    // Large artwork (the cover placeholders at card / Now Playing size, a cover in flight between two sizes): drawn
+    // from the parsed document, not cached as a bitmap per pixel size. Each size used to stay for the session (a
+    // 1000 px placeholder is a 4 MB bitmap; a flight leaves one per frame), on an integrated GPU in the process's own
+    // memory. The placeholders are a few shapes, cheap to draw as vectors.
+    if (px > kMaxCachedColoredPx && opacity >= 0.999f) {
+        if (SvgEntry* e = loadRecolorable(dc, name, Color{-1, -1, -1, -1})) {   // no color matches: nothing recolored
+            drawDocument(dc, *e, {r.x, r.cy() - r.h * 0.5f, r.h * e->aspect, r.h}, scale);   // as the bitmap: height r.h
+            return;
+        }
+    }
     auto* bmp = lookup(dc, name, px);
     if (!bmp) return;
     const auto size = bmp->GetPixelSize();
@@ -286,5 +310,6 @@ void Icons::clear() {
 }
 
 size_t Icons::memoryBytes() { return g_bytes; }
+size_t Icons::count() { return g_cache.size() + g_svgs.size(); }
 
 } // namespace st::gfx

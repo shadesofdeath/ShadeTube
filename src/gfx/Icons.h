@@ -19,7 +19,8 @@ public:
     // Tinted icon inside `r` (square). Pixel-snapped.
     static void draw(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, const Color& color, float scale);
     static void draw(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, ID2D1Brush* brush, float scale);
-    // Multi-color SVG (logo, placeholders) drawn with its own colors.
+    // Multi-color SVG (logo, placeholders) drawn with its own colors: a cached bitmap up to 96 px, larger ones (cover
+    // placeholders) straight from the parsed document, so no bitmap per size is kept.
     static void drawColored(ID2D1DeviceContext5* dc, std::string_view name, const Rect& r, float scale,
                             float opacity = 1.f);
     // A multi-color SVG with one of its colors swapped: every element filled with `key` (e.g. the logo mark's own
@@ -30,6 +31,7 @@ public:
                               const Color& color);
     static void clear();           // drop all cached masks (device loss / DPI change)
     static size_t memoryBytes();
+    static size_t count();         // cached masks + parsed recolorable documents (dev reports)
 };
 
 } // namespace st::gfx

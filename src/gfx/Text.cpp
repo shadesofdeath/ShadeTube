@@ -40,6 +40,19 @@ struct FormatKeyHash {
 };
 std::unordered_map<FormatKey, ComPtr<IDWriteTextFormat3>, FormatKeyHash> g_formats;
 
+// "Owner" of the embedded font bytes: they are part of the exe's image and live as long as the process, so there is
+// nothing to count.
+struct ResourceOwner final : IUnknown {
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** out) override {
+        if (!out) return E_POINTER;
+        *out = riid == __uuidof(IUnknown) ? static_cast<IUnknown*>(this) : nullptr;
+        return *out ? S_OK : E_NOINTERFACE;
+    }
+    ULONG STDMETHODCALLTYPE AddRef() override { return 2; }
+    ULONG STDMETHODCALLTYPE Release() override { return 1; }
+};
+ResourceOwner g_resourceOwner;
+
 bool familyExists(IDWriteFontCollection2* c, const wchar_t* name) {
     UINT32 index = 0;
     BOOL exists = FALSE;
@@ -91,9 +104,10 @@ void Fonts::init() {
             continue;
         }
         ComPtr<IDWriteFontFile> file;
-        // No owner object: DirectWrite copies the (resource) bytes. Resources outlive the process anyway.
+        // With an owner object DirectWrite reads the resource in place (the exe's shared image pages); with none it
+        // copies the bytes into its heap (0.6 MB of private memory).
         if (SUCCEEDED(loader->CreateInMemoryFontFileReference(factory, data.data(), static_cast<UINT32>(data.size()),
-                                                              nullptr, &file)))
+                                                              &g_resourceOwner, &file)))
             builder->AddFontFile(file.Get());
     }
     ComPtr<IDWriteFontSet> set;

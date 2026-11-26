@@ -133,6 +133,7 @@ private:
     bool running_ = true;
     bool startupTrimmed_ = false;
     double offScreenSince_ = -1;         // ui::frame::realNow() since no window of ours is on screen (-1: one is)
+    double poolTrimmedAt_ = 0;           // last Device::trimPool() while on screen (manageMemory)
     HANDLE lowMemory_ = nullptr;         // CreateMemoryResourceNotification(LowMemoryResourceNotification)
     bool lowMemoryHandled_ = false;      // responded to the current low-memory period
     bool wasLoggedIn_ = false;
