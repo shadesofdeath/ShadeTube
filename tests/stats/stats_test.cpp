@@ -863,7 +863,7 @@ static void testImport() {
         const auto j = nlohmann::json::parse(readText(file));
         CHECK(j["plays"].size() == 2);
         const auto snap = ListenStats::readFile(file);
-        CHECK(snap.plays.size() == 8 && countImported(snap.plays) == 6 && !snap.importedKeepFile);
+        CHECK(snap.plays.size() == 8 && countImported(snap.plays) == 6 && !snap.importedFiles[0].keepFile);
         CHECK(std::is_sorted(snap.plays.begin(), snap.plays.end(), [](const auto& x, const auto& y) { return x.startedAt < y.startedAt; }));
         ListenStats r(file);
         r.adopt(snap);
@@ -933,12 +933,12 @@ static void testImport() {
         const auto imp = ListenStats::importedFileFor(f2);
         std::ofstream(imp, std::ios::binary | std::ios::trunc) << "{\"v\":1,\"tracks\":[";
         const auto snap = ListenStats::readFile(f2);
-        CHECK(snap.importedCorrupt && !snap.importedKeepFile && countImported(snap.plays) == 7 && snap.plays.size() == 8);
+        CHECK(snap.importedFiles[0].corrupt && !snap.importedFiles[0].keepFile && countImported(snap.plays) == 7 && snap.plays.size() == 8);
         CHECK(fs::exists(fs::path(imp).concat(L".bak")));
         HANDLE h = CreateFileW(imp.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
         const auto locked = ListenStats::readFile(f2);
         CloseHandle(h);
-        CHECK(locked.importedKeepFile && locked.plays.size() == 1);
+        CHECK(locked.importedFiles[0].keepFile && locked.plays.size() == 1);
         ListenStats l(f2);
         l.adopt(locked);
         CHECK(!l.canImport() && l.beginImport().importedFile.empty());

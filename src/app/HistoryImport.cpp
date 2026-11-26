@@ -67,13 +67,28 @@ int digits(std::string_view s, size_t at, size_t n) {
     return v;
 }
 
+} // namespace
+
+// A stable id for a song known by name only (account data, a row without a URI): "import:<FNV-1a of name + artist>".
+std::string importId(std::string_view name, std::string_view artist) {
+    uint64_t h = 14695981039346656037ull;
+    auto mix = [&h](std::string_view s) {
+        for (const char c : s) {
+            h ^= static_cast<uint64_t>(std::tolower(static_cast<unsigned char>(c)));
+            h *= 1099511628211ull;
+        }
+    };
+    mix(name);
+    mix("|");
+    mix(artist);
+    char buf[17];
+    std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(h));
+    return std::string("import:") + buf;
+}
+
 // ---- ZIP (stored / deflate, the central directory; no ZIP64, no encryption) -----------------------------------
 
-struct ZipEntry {
-    std::string name;
-    uint32_t method = 0, flags = 0, crc = 0;
-    uint64_t compressed = 0, size = 0, local = 0;
-};
+namespace {
 
 uint32_t rd16(const std::string& b, size_t at) {
     return static_cast<uint32_t>(static_cast<unsigned char>(b[at])) | static_cast<uint32_t>(static_cast<unsigned char>(b[at + 1])) << 8;
@@ -149,6 +164,22 @@ std::string zipRead(std::ifstream& f, uint64_t fileSize, const ZipEntry& e) {
     return content;
 }
 
+} // namespace
+
+std::vector<ZipEntry> zipEntries(const std::filesystem::path& file) {
+    std::ifstream f(file, std::ios::binary);
+    if (!f) throw std::runtime_error("cannot open the file");
+    return zipEntries(f, std::filesystem::file_size(file));
+}
+
+std::string zipRead(const std::filesystem::path& file, const ZipEntry& e) {
+    std::ifstream f(file, std::ios::binary);
+    if (!f) throw std::runtime_error("cannot open the file");
+    return zipRead(f, std::filesystem::file_size(file), e);
+}
+
+namespace {
+
 std::string readWhole(const std::filesystem::path& file) {
     std::ifstream f(file, std::ios::binary);
     if (!f) throw std::runtime_error("cannot open the file");
@@ -160,23 +191,6 @@ std::string readWhole(const std::filesystem::path& file) {
 }
 
 std::string displayName(const std::filesystem::path& p) { return toUtf8(p.filename().wstring()); }
-
-// A stable id for a song known by name only (account data, a row without a URI): "import:<FNV-1a of name + artist>".
-std::string importId(std::string_view name, std::string_view artist) {
-    uint64_t h = 14695981039346656037ull;
-    auto mix = [&h](std::string_view s) {
-        for (const char c : s) {
-            h ^= static_cast<uint64_t>(std::tolower(static_cast<unsigned char>(c)));
-            h *= 1099511628211ull;
-        }
-    };
-    mix(name);
-    mix("|");
-    mix(artist);
-    char buf[17];
-    std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(h));
-    return std::string("import:") + buf;
-}
 
 } // namespace
 

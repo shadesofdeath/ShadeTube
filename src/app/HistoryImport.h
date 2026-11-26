@@ -43,6 +43,20 @@ bool isHistoryEntry(std::string_view name);
 // Unix seconds of "2023-04-05T12:34:56Z" (fraction / offset allowed) or "2023-04-05 12:34" (UTC); -1 when malformed.
 int64_t parseUtc(std::string_view text);
 
+// A stable id for a song known by name only: "import:<FNV-1a of name|artist>" (shared with app/ScrobbleImport, so the same
+// song imported from Spotify's account data and from Last.fm gets the same id).
+std::string importId(std::string_view name, std::string_view artist);
+
+// The ZIP reader (stored / deflate entries, the central directory; no ZIP64, no encryption). Both throw
+// std::runtime_error on a broken / unsupported archive; zipRead returns the whole (CRC-checked) entry.
+struct ZipEntry {
+    std::string name;   // '/' separated
+    uint32_t method = 0, flags = 0, crc = 0;
+    uint64_t compressed = 0, size = 0, local = 0;
+};
+std::vector<ZipEntry> zipEntries(const std::filesystem::path& file);
+std::string zipRead(const std::filesystem::path& file, const ZipEntry& entry);
+
 using Progress = std::function<void(int done, int total)>;   // documents read / found
 // Reads the given .json / .zip files (other files are reported as errors). `cancel` stops between documents.
 Result read(const std::vector<std::filesystem::path>& files, const Progress& progress = {},
