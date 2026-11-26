@@ -215,7 +215,7 @@ LPCWSTR HeaderCover::cursor() const { return editable() ? IDC_HAND : IDC_ARROW; 
 CollapseBar::CollapseBar(ui::ScrollView* scroll) : scroll_(scroll) {
     cover_ = add<HeaderCover>(*this);
     // Thin outline controls (the player bar's style): the bar is the restrained form of the header.
-    shuffle_ = add<ui::Button>(ui::ButtonKind::IconOutline, L"", "shuffle-thin");
+    shuffle_ = add<ui::Button>(ui::ButtonKind::IconOutline, L"", "shuffle");
     shuffle_->setTooltip(tr(L"Karıştır"));
     play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
     cover_->setVisible(false);
