@@ -2120,7 +2120,6 @@
   "{} · {} yer kaplıyor.": "{} · займають {}.",
   "Şarkı önbelleği temizlendi": "Кеш треків очищено",
   "Krediler": "Автори",
-  "Krediler yükleniyor…": "Завантаження авторів…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "Не вдалося завантажити авторів. Перевірте з'єднання.",
   "Bu şarkı için kredi bilgisi yok.": "Для цієї пісні немає відомостей про авторів.",
   "Kaynak": "Джерело",
@@ -2495,5 +2494,6 @@
   "YouTube Music sanatçısı": "Виконавець YouTube Music",
   "YouTube Music bu tür için liste göstermedi.": "YouTube Music не показав плейлистів для цього жанру.",
   "YouTube Music çalma listesi": "Плейлист YouTube Music",
-  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "ПЛЕЙЛИСТ · YOUTUBE MUSIC"
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "ПЛЕЙЛИСТ · YOUTUBE MUSIC",
+  "Dinlenme sayısı": "Кількість прослуховувань"
 }

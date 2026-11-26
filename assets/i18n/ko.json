@@ -1772,7 +1772,6 @@
   "{} · {} yer kaplıyor.": "{} · {} 사용 중.",
   "Şarkı önbelleği temizlendi": "곡 캐시를 지웠어요",
   "Krediler": "크레딧",
-  "Krediler yükleniyor…": "크레딧 불러오는 중…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "크레딧을 불러오지 못했어요. 연결을 확인하세요.",
   "Bu şarkı için kredi bilgisi yok.": "이 곡의 크레딧 정보가 없어요.",
   "Kaynak": "제공",
@@ -2075,5 +2074,6 @@
   "YouTube Music sanatçısı": "YouTube Music 아티스트",
   "YouTube Music bu tür için liste göstermedi.": "YouTube Music에서 이 장르의 플레이리스트를 보여 주지 않았어요.",
   "YouTube Music çalma listesi": "YouTube Music 재생목록",
-  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "플레이리스트 · YOUTUBE MUSIC"
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "플레이리스트 · YOUTUBE MUSIC",
+  "Dinlenme sayısı": "재생 횟수"
 }

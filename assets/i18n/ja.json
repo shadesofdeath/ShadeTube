@@ -1772,7 +1772,6 @@
   "{} · {} yer kaplıyor.": "{} · {}を使用中。",
   "Şarkı önbelleği temizlendi": "曲のキャッシュをクリアしました",
   "Krediler": "クレジット",
-  "Krediler yükleniyor…": "クレジットを読み込み中…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "クレジットを読み込めませんでした。接続を確認してください。",
   "Bu şarkı için kredi bilgisi yok.": "この曲のクレジット情報はありません。",
   "Kaynak": "提供元",
@@ -2075,5 +2074,6 @@
   "YouTube Music sanatçısı": "YouTube Music のアーティスト",
   "YouTube Music bu tür için liste göstermedi.": "YouTube Music はこのジャンルのプレイリストを表示しませんでした。",
   "YouTube Music çalma listesi": "YouTube Music の再生リスト",
-  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "プレイリスト · YOUTUBE MUSIC"
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "プレイリスト · YOUTUBE MUSIC",
+  "Dinlenme sayısı": "再生回数"
 }

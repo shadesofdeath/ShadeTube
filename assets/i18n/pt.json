@@ -1957,7 +1957,6 @@
   "{} · {} yer kaplıyor.": "{} · ocupando {}.",
   "Şarkı önbelleği temizlendi": "Cache de músicas limpo",
   "Krediler": "Créditos",
-  "Krediler yükleniyor…": "Carregando créditos…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "Não foi possível carregar os créditos. Verifique sua conexão.",
   "Bu şarkı için kredi bilgisi yok.": "Não há créditos para esta música.",
   "Kaynak": "Fonte",
@@ -2296,5 +2295,6 @@
   "YouTube Music sanatçısı": "Artista do YouTube Music",
   "YouTube Music bu tür için liste göstermedi.": "O YouTube Music não mostrou playlists para este gênero.",
   "YouTube Music çalma listesi": "Playlist do YouTube Music",
-  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "PLAYLIST · YOUTUBE MUSIC"
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "PLAYLIST · YOUTUBE MUSIC",
+  "Dinlenme sayısı": "Número de reproduções"
 }

@@ -1772,7 +1772,6 @@
   "{} · {} yer kaplıyor.": "{} · memakan {}.",
   "Şarkı önbelleği temizlendi": "Cache lagu dihapus",
   "Krediler": "Kredit",
-  "Krediler yükleniyor…": "Memuat kredit…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "Kredit tidak dapat dimuat. Periksa koneksimu.",
   "Bu şarkı için kredi bilgisi yok.": "Tidak ada info kredit untuk lagu ini.",
   "Kaynak": "Sumber",
@@ -2075,5 +2074,6 @@
   "YouTube Music sanatçısı": "Artis YouTube Music",
   "YouTube Music bu tür için liste göstermedi.": "YouTube Music tidak menampilkan playlist untuk genre ini.",
   "YouTube Music çalma listesi": "Playlist YouTube Music",
-  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "PLAYLIST · YOUTUBE MUSIC"
+  "ÇALMA LİSTESİ · YOUTUBE MUSIC": "PLAYLIST · YOUTUBE MUSIC",
+  "Dinlenme sayısı": "Jumlah diputar"
 }
