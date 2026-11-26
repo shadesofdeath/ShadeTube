@@ -2081,5 +2081,107 @@
   "Video penceresi açılamadı.": "Не удалось открыть окно видео.",
   "Video penceresinde aç": "Открыть в окне видео",
   "Video yükleniyor…": "Загрузка видео…",
-  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет"
+  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет",
+  "\"{}\" için bu türde bir sonuç yok.": "Нет результатов этого типа по запросу «{}».",
+  "Abone olunacak podcast yok": "Нет подкастов для подписки",
+  "Apple Podcasts'ta ara": "Искать в Apple Podcasts",
+  "Aranıyor…": "Поиск…",
+  "Bağlantını kontrol edip tekrar dene.": "Проверь подключение и попробуй ещё раз.",
+  "Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış.": "Этот пользователь пока не поделился ни одним плейлистом в профиле.",
+  "Bu podcast ShadeTube'da çalınamaz": "Этот подкаст нельзя воспроизвести в ShadeTube",
+  "Bu podcasti açmak için Spotify'a bağlan.": "Подключись к Spotify, чтобы открыть этот подкаст.",
+  "Bu profil bulunamadı.": "Профиль не найден.",
+  "Daha fazla sonuç yüklenemedi": "Не удалось загрузить больше результатов",
+  "Dizinin önerdiği eşleşmeyi yanlış olarak işaretledin.": "Ты отметил совпадение, предложенное каталогом, как неверное.",
+  "Eşleşme kaldırıldı": "Совпадение удалено",
+  "Herkese açık besleme bulundu": "Найдена публичная лента",
+  "Herkese açık besleme yok": "Нет публичной ленты",
+  "Herkese açık bir RSS beslemesi bulunamadı; büyük olasılıkla yalnızca Spotify'da yayınlanıyor. ShadeTube Spotify'ın sesini çalamaz, podcastleri herkese açık beslemelerinden çalar.": "Публичная RSS-лента не найдена; скорее всего, подкаст выходит только в Spotify. ShadeTube не может воспроизводить звук Spotify и играет подкасты из их публичных лент.",
+  "Herkese açık çalma listeleri": "Публичные плейлисты",
+  "Herkese açık çalma listesi yok": "Нет публичных плейлистов",
+  "Kontrol edilemedi": "Не удалось проверить",
+  "Podcast dizinine ulaşılamadı": "Каталог подкастов недоступен",
+  "Podcast dizinine ulaşılamadı. Bağlantını kontrol edip tekrar dene.": "Каталог подкастов недоступен. Проверь подключение и попробуй ещё раз.",
+  "Podcastler zaten ekleniyor": "Подкасты уже добавляются",
+  "Profil": "Профиль",
+  "Profiller": "Профили",
+  "Profilleri görmek için Spotify hesabınla bağlan.": "Подключи аккаунт Spotify, чтобы видеть профили.",
+  "Seçilenlere abone ol ({})": "Подписаться на выбранные ({})",
+  "Seçimi temizle": "Снять выбор",
+  "ShadeTube Spotify'ın sesini çalamaz: podcastler herkese açık RSS beslemelerinden çalar. Her podcast Apple Podcasts dizininde adı ve yayıncısıyla aranır; eşleşenlerden seçtiklerine abone olursun.": "ShadeTube не может воспроизводить звук Spotify: подкасты играют из публичных RSS-лент. Каждый подкаст ищется в каталоге Apple Podcasts по названию и издателю; ты подписываешься на выбранные совпадения.",
+  "Spotify podcastlerin": "Твои подкасты в Spotify",
+  "Spotify podcastlerin yüklenemedi.": "Не удалось загрузить твои подкасты из Spotify.",
+  "Spotify podcastlerini içe aktar": "Импортировать подкасты из Spotify",
+  "Spotify'da aç": "Открыть в Spotify",
+  "Spotify'da bir podcasti takip ettiğinde burada görünür.": "Здесь появятся подкасты, на которые ты подписан в Spotify.",
+  "Spotify'da takip ettiğin podcast yok": "Ты не подписан ни на один подкаст в Spotify",
+  "Spotify'da takip ettiğin podcastleri görmek için Spotify hesabınla bağlan.": "Подключи аккаунт Spotify, чтобы видеть подкасты, на которые ты там подписан.",
+  "Spotify'daki podcastlerin": "Подкасты из твоего Spotify",
+  "Sırada": "В очереди",
+  "Tekrar ara": "Искать снова",
+  "Tümünü seç": "Выбрать все",
+  "Yalnızca Spotify'da": "Только в Spotify",
+  "Yalnızca Spotify'da: ShadeTube çalamaz": "Только в Spotify: ShadeTube не может воспроизвести",
+  "Yanlış podcast mi?": "Не тот подкаст?",
+  "{} herkese açık çalma listesi": {
+    "one": "{} публичный плейлист",
+    "few": "{} публичных плейлиста",
+    "many": "{} публичных плейлистов",
+    "other": "{} публичных плейлиста"
+  },
+  "{} podcast": {
+    "one": "{} подкаст",
+    "few": "{} подкаста",
+    "many": "{} подкастов",
+    "other": "{} подкаста"
+  },
+  "{} podcast ekleniyor…": {
+    "one": "Добавляется {} подкаст…",
+    "few": "Добавляются {} подкаста…",
+    "many": "Добавляются {} подкастов…",
+    "other": "Добавляются {} подкаста…"
+  },
+  "{} podcast'e abone olundu": {
+    "one": "Оформлена подписка на {} подкаст",
+    "few": "Оформлена подписка на {} подкаста",
+    "many": "Оформлена подписка на {} подкастов",
+    "other": "Оформлена подписка на {} подкаста"
+  },
+  "{} podcast'e abone olundu, {} podcast eklenemedi": "Оформлена подписка на подкасты: {}, не удалось добавить: {}",
+  "{} takipçi": {
+    "one": "{} подписчик",
+    "few": "{} подписчика",
+    "many": "{} подписчиков",
+    "other": "{} подписчика"
+  },
+  "{} abone olunabilir": {
+    "one": "{} доступен для подписки",
+    "few": "{} доступны для подписки",
+    "many": "{} доступны для подписки",
+    "other": "{} доступны для подписки"
+  },
+  "{} zaten abonelik": {
+    "one": "{} уже в подписках",
+    "few": "{} уже в подписках",
+    "many": "{} уже в подписках",
+    "other": "{} уже в подписках"
+  },
+  "{} herkese açık beslemesiz": {
+    "one": "{} без публичной ленты",
+    "few": "{} без публичной ленты",
+    "many": "{} без публичной ленты",
+    "other": "{} без публичной ленты"
+  },
+  "{} aranıyor": {
+    "one": "{} ищется",
+    "few": "{} ищутся",
+    "many": "{} ищутся",
+    "other": "{} ищутся"
+  },
+  "{} kontrol edilemedi": {
+    "one": "{} не проверен",
+    "few": "{} не проверены",
+    "many": "{} не проверены",
+    "other": "{} не проверены"
+  }
 }

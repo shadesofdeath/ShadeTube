@@ -1743,5 +1743,77 @@
   "Video penceresi açılamadı.": "동영상 창을 열 수 없습니다.",
   "Video penceresinde aç": "동영상 창에서 열기",
   "Video yükleniyor…": "동영상 불러오는 중…",
-  "Şu an bir şarkı çalmıyor": "지금 재생 중인 곡이 없습니다"
+  "Şu an bir şarkı çalmıyor": "지금 재생 중인 곡이 없습니다",
+  "\"{}\" için bu türde bir sonuç yok.": "\"{}\"에 대한 이 유형의 결과가 없어요.",
+  "Abone olunacak podcast yok": "구독할 팟캐스트가 없어요",
+  "Apple Podcasts'ta ara": "Apple Podcasts에서 검색",
+  "Aranıyor…": "검색 중…",
+  "Bağlantını kontrol edip tekrar dene.": "연결을 확인하고 다시 시도해 보세요.",
+  "Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış.": "이 사용자는 아직 프로필에 플레이리스트를 공유하지 않았어요.",
+  "Bu podcast ShadeTube'da çalınamaz": "이 팟캐스트는 ShadeTube에서 재생할 수 없어요",
+  "Bu podcasti açmak için Spotify'a bağlan.": "이 팟캐스트를 열려면 Spotify에 연결하세요.",
+  "Bu profil bulunamadı.": "이 프로필을 찾을 수 없어요.",
+  "Daha fazla sonuç yüklenemedi": "결과를 더 불러오지 못했어요",
+  "Dizinin önerdiği eşleşmeyi yanlış olarak işaretledin.": "디렉터리가 제안한 일치 항목을 잘못된 것으로 표시했어요.",
+  "Eşleşme kaldırıldı": "일치 항목을 삭제했어요",
+  "Herkese açık besleme bulundu": "공개 피드를 찾았어요",
+  "Herkese açık besleme yok": "공개 피드 없음",
+  "Herkese açık bir RSS beslemesi bulunamadı; büyük olasılıkla yalnızca Spotify'da yayınlanıyor. ShadeTube Spotify'ın sesini çalamaz, podcastleri herkese açık beslemelerinden çalar.": "공개 RSS 피드를 찾지 못했어요. Spotify에서만 공개되는 팟캐스트일 가능성이 높아요. ShadeTube는 Spotify의 오디오를 재생할 수 없고, 팟캐스트를 공개 피드에서 재생해요.",
+  "Herkese açık çalma listeleri": "공개 플레이리스트",
+  "Herkese açık çalma listesi yok": "공개 플레이리스트 없음",
+  "Kontrol edilemedi": "확인하지 못함",
+  "Podcast dizinine ulaşılamadı": "팟캐스트 디렉터리에 연결할 수 없어요",
+  "Podcast dizinine ulaşılamadı. Bağlantını kontrol edip tekrar dene.": "팟캐스트 디렉터리에 연결할 수 없어요. 연결을 확인하고 다시 시도해 보세요.",
+  "Podcastler zaten ekleniyor": "팟캐스트를 이미 추가하고 있어요",
+  "Profil": "프로필",
+  "Profiller": "프로필",
+  "Profilleri görmek için Spotify hesabınla bağlan.": "프로필을 보려면 Spotify 계정을 연결하세요.",
+  "Seçilenlere abone ol ({})": "선택한 항목 구독 ({})",
+  "Seçimi temizle": "선택 해제",
+  "ShadeTube Spotify'ın sesini çalamaz: podcastler herkese açık RSS beslemelerinden çalar. Her podcast Apple Podcasts dizininde adı ve yayıncısıyla aranır; eşleşenlerden seçtiklerine abone olursun.": "ShadeTube는 Spotify의 오디오를 재생할 수 없어요. 팟캐스트는 공개 RSS 피드에서 재생돼요. 각 팟캐스트를 이름과 게시자로 Apple Podcasts 디렉터리에서 찾고, 일치한 항목 중 선택한 것을 구독해요.",
+  "Spotify podcastlerin": "내 Spotify 팟캐스트",
+  "Spotify podcastlerin yüklenemedi.": "Spotify 팟캐스트를 불러오지 못했어요.",
+  "Spotify podcastlerini içe aktar": "Spotify 팟캐스트 가져오기",
+  "Spotify'da aç": "Spotify에서 열기",
+  "Spotify'da bir podcasti takip ettiğinde burada görünür.": "Spotify에서 팔로우하는 팟캐스트가 여기에 표시돼요.",
+  "Spotify'da takip ettiğin podcast yok": "Spotify에서 팔로우하는 팟캐스트가 없어요",
+  "Spotify'da takip ettiğin podcastleri görmek için Spotify hesabınla bağlan.": "Spotify에서 팔로우하는 팟캐스트를 보려면 Spotify 계정을 연결하세요.",
+  "Spotify'daki podcastlerin": "Spotify에서 팔로우하는 팟캐스트",
+  "Sırada": "대기 중",
+  "Tekrar ara": "다시 검색",
+  "Tümünü seç": "모두 선택",
+  "Yalnızca Spotify'da": "Spotify 전용",
+  "Yalnızca Spotify'da: ShadeTube çalamaz": "Spotify 전용: ShadeTube에서 재생할 수 없음",
+  "Yanlış podcast mi?": "다른 팟캐스트인가요?",
+  "{} herkese açık çalma listesi": {
+    "other": "공개 플레이리스트 {}개"
+  },
+  "{} podcast": {
+    "other": "팟캐스트 {}개"
+  },
+  "{} podcast ekleniyor…": {
+    "other": "팟캐스트 {}개 추가 중…"
+  },
+  "{} podcast'e abone olundu": {
+    "other": "팟캐스트 {}개를 구독했어요"
+  },
+  "{} podcast'e abone olundu, {} podcast eklenemedi": "팟캐스트 {}개를 구독했어요. {}개는 추가하지 못했어요",
+  "{} takipçi": {
+    "other": "팔로워 {}명"
+  },
+  "{} abone olunabilir": {
+    "other": "구독 가능 {}개"
+  },
+  "{} zaten abonelik": {
+    "other": "이미 구독 {}개"
+  },
+  "{} herkese açık beslemesiz": {
+    "other": "공개 피드 없음 {}개"
+  },
+  "{} aranıyor": {
+    "other": "검색 중 {}개"
+  },
+  "{} kontrol edilemedi": {
+    "other": "확인 못 함 {}개"
+  }
 }
