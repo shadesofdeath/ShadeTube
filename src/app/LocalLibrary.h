@@ -240,8 +240,8 @@ private:
 
     std::shared_ptr<const std::vector<local::Entry>> entries_ = std::make_shared<std::vector<local::Entry>>();
     std::vector<catalog::Track> tracks_;
-    std::unordered_map<std::string, std::wstring> paths_;   // track id -> file
-    std::unordered_map<std::string, size_t> positions_;     // track id -> index in entries_ / tracks_
+    // track id -> index in entries_ / tracks_ (the file is entries_[i].path: no second copy of every path)
+    std::unordered_map<std::string, size_t> positions_;
     std::shared_ptr<const local::FolderTree> tree_;
     uint64_t treeBuilding_ = 0;    // generation + 1 of the tree being built (0 = none)
     bool editedDuringScan_ = false;

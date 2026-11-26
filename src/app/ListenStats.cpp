@@ -572,6 +572,17 @@ void readImported(const std::filesystem::path& file, ListenStats::Snapshot& s) {
     s.importedKeepFile = true;
 }
 
+// A history is read (or imported) once and then grows a play at a time: its vectors give back what their growth left
+// over (up to a third of each: 2.4 MB for 30 000 songs), on the worker that built them.
+void compact(ListenStats::Snapshot& s) {
+    s.index.tracks.shrink_to_fit();
+    s.index.trackArtists.shrink_to_fit();
+    s.index.trackAlbum.shrink_to_fit();
+    s.index.artists.shrink_to_fit();
+    s.index.albums.shrink_to_fit();
+    s.plays.shrink_to_fit();
+}
+
 } // namespace
 
 std::filesystem::path ListenStats::importedFileFor(const std::filesystem::path& file) {
@@ -604,6 +615,7 @@ ListenStats::Snapshot ListenStats::readFile(const std::filesystem::path& file) {
             });
         }
     }
+    compact(s);
     return s;
 }
 
@@ -1071,6 +1083,7 @@ ListenStats::ImportResult ListenStats::buildImport(const ImportBase& base, std::
             return r;
         }
         s.importedCorrupt = false;
+        compact(s);
         r.ok = true;
         ST_LOG_INFO(kTag, "import: {} rows, {} new plays, {} already known, {} too short", r.rows, r.added, r.duplicates, r.tooShort);
         return r;

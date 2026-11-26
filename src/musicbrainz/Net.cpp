@@ -31,8 +31,12 @@ using CT = YoutubeExplode::CancellationToken;
 namespace {
 
 constexpr const char* kUserAgent = "ShadeTube/0.1 ( https://github.com/shadesofdeath/ShadeTube )";
-constexpr size_t kLruMaxEntries = 200;
-constexpr size_t kLruMaxBytes = 24u * 1024 * 1024;
+// Raw response bodies kept in memory in front of the disk cache. A hit saves only the read of a small file the OS has
+// cached anyway (the JSON is parsed again either way), so the bound is small: a few pages' worth, never a big body
+// (ListenBrainz's fresh releases are ~2 MB and Home asks for them once).
+constexpr size_t kLruMaxEntries = 100;
+constexpr size_t kLruMaxBytes = 4u * 1024 * 1024;
+constexpr size_t kLruMaxBody = 256u * 1024;
 
 std::atomic<int> g_netRequests{0}, g_memHits{0}, g_diskHits{0};
 
@@ -117,7 +121,7 @@ void lruPut(const std::string& key, std::shared_ptr<const std::string> body, Sys
         g_lru.erase(it->second);
         g_lruIndex.erase(it);
     }
-    if (body->size() > kLruMaxBytes / 4) return;   // don't let one huge body evict everything
+    if (body->size() > kLruMaxBody) return;   // the disk cache has it
     g_lruBytes += body->size();
     g_lru.push_front({key, std::move(body), storedAt});
     g_lruIndex[key] = g_lru.begin();
