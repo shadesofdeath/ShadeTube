@@ -267,7 +267,13 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 4. `AudioEngine::open()`: `ProgressiveBuffer` (ranged download) → the built-in decoder for Opus / Vorbis in WebM,
    Matroska and Ogg (3.42), else `MfByteStream` → MF Source Reader → float PCM → [crossfade mix] → equalizer → volume
    ramp / loudness gain → look-ahead limiter → WASAPI event-driven, shared (or exclusive, 3.43), on the Windows default
-   device or the one picked in *Ayarlar › Ses*.
+   device or the one picked in *Ayarlar › Ses*. A fragmented MP4 whose track has an edit list (some Art Tracks' AAC
+   140, YouTube's media time 1600 at 44.1 kHz, the encoder's priming) is one Media Foundation's MPEG-4 source presents
+   no sample of (the song "ended" at 0:00 before 0.11.0): `audio::Decoder` opens it on a view of the buffer with the
+   edts freed (`audio/Fmp4Index`, `freeFragmentedEditList`; only when there is an edit list, any other file opens as
+   before), drops the samples before the edit and shifts the time stamps and seeks by it, so the song starts on its
+   first real sample, on the presentation timeline (identical to the stream's Opus, measured). Streams, passthrough
+   downloads and the song cache's files go through the same path.
 5. The next queue item is resolved at Low priority and preloaded 25 s before the end (`Settings.preloadNext`, implied
    by a crossfade) for a gapless handoff; downloads and local files are preloaded straight from disk. The queue is
    saved to `session.json` and restored at startup.
@@ -2025,13 +2031,13 @@ relates to the song's. `app/OfficialVideo` (the decision, the picker), `app/Offi
   catalog title says so itself, and lengths outside [song − max(20 s, 12 %), song + max(3 min, 75 %)]. A non-OMV upload
   needs the artist's own or a VEVO channel or "Official (Music) Video" in its title. OMV first, then those signals,
   the length, YouTube's order; the best four. The song's own upload and the user's rejections are left out.
-- **Soundtracks** (`video::decodeSoundtrack`): the song's and each candidate's smallest audio stream in the codec the
-  engine plays (`MatchService::soundtrackStream`: Opus 249 when the engine plays Opus 251, AAC-LC 140 when it plays
-  AAC), downloaded whole (~1.2-2.3 MB) and decoded by the engine's own Source Reader to 12 kHz mono. Same codec because
-  Media Foundation leaves the decoder delay in: measured on one video, AAC-LC comes out 36 ms after Opus and HE-AAC
-  (139) 96 ms; Opus 249 and 251 of a video are sample-identical. With the codec the engine plays, the delays cancel and
-  the offset is in the engine's own timeline. An MP4 with an edit list (Art Tracks' AAC), of which Media Foundation
-  presents nothing, is read again with the edts freed (`Fmp4Index`) and the edit taken off.
+- **Soundtracks** (`video::decodeSoundtrack`): the song's and each candidate's smallest Opus stream
+  (`MatchService::soundtrackStream(id, "opus")`, itag 249, ~50 kbps), downloaded whole (~1.1-2.3 MB) and decoded by
+  the engine's own `audio::Decoder` (the built-in Opus path, pre-skip trimmed: the presentation timeline) at the
+  stream's rate, then decimated to 12 kHz mono here (the built-in windowed-sinc resampler cost 8 s against 1 s per
+  song in a Debug build). Measured 2026-11-27: the built-in Opus 249 is sample-identical to Opus 251 and to an Art
+  Track's AAC with its edit list applied (3.4), while an AAC stream without an edit list comes out 36.28 ms late (1600
+  samples of priming left in, at 44.1 kHz).
 - **Alignment** (`video::analyzeAudio`, `alignAudio`; the header has the details): 5-band onset envelopes at 100 frames/s
   (each band at unit deviation, so the kick's regular beat doesn't outweigh voices and hats); 8 s windows every 2 s
   correlated with every lag of the video (FFT at 40 ms, then the best peaks at 10 ms, parabolic), candidates passed on
@@ -2075,9 +2081,9 @@ relates to the song's. `app/OfficialVideo` (the decision, the picker), `app/Offi
   3.1-8.6 s (once 38 s: googlevideo throttled one soundtrack URL to ~52 KB/s), the picture vs the mapped clock 5-6 ms
   on average, worst 18-58 ms (3.41's figures), 1.5× 10 / 32 ms; a hold's seek to the next part 78-109 ms; Billie
   Jean's micro-edit played through without a resync.
-- **Remaining error**: the picture shows the frame of the clock's time, and the clock includes the codec delay of the
-  stream the engine plays; an official picture is therefore early by its own soundtrack's delay, the same as 3.41's
-  pictures: ~7 ms with Opus (its pre-skip), ~44 ms with AAC without an edit list.
+- **Remaining error**: the picture shows the frame of the clock's time, both on the presentation timeline: none from the
+  codecs when the engine plays Opus (the normal case) or AAC with an edit list. When it plays an AAC stream without
+  one, its clock counts the 36 ms of priming as song, and every picture (3.41's too) is 36 ms early.
 - **Dev**: `SHADETUBE_VIDEO_DEMO` steps `menu=x,y`, `picker`, `reject`, `official=0|1` (5.4); `video` log lines say the
   candidates, each alignment (verdict, coverage, r, segments) and the decision's time. `video_test official` runs the
   offline checks (synthetic songs: intros, a 0.3 % speed difference, an insert, a cut, repeated choruses, silence,
@@ -2988,7 +2994,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, seeks beyond the download, pause, gapless, crossfade, the other container, memory) | network; `[--webm] [--exclusive] [videoA] [videoB]` (`--webm`: everything on Opus / WebM, the built-in decoder; `--exclusive`: WASAPI exclusive mode) |
-| `codecs_test` | built-in Opus / Vorbis (3.42) on ffmpeg-made chirp fixtures: `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.43 on the default device, ~15 s); `--live <url>` (a station's state for 15 s); `--bench <file> [rate]` (decode speed) |
+| `codecs_test` | built-in Opus / Vorbis (3.42) on ffmpeg-made chirp fixtures: the Media Foundation path on a fragmented AAC MP4 with a YouTube-style edit list inserted (Media Foundation alone reads nothing; the Decoder reads from the edit on, chirp at lag 0, seeks on the presentation timeline); `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.43 on the default device, ~15 s); `--live <url>` (a station's state for 15 s); `--bench <file> [rate]` (decode speed) |
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, `refreshEntry` = what a scan stores, folder tree (natural order, covers, nested / drive roots, 50 000 files timed), files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
@@ -3271,21 +3277,17 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   the window just reads a shade lighter. Turning it on applies at the next start unless the window started with
   it. The 55 % / 50 % tint was chosen on simulated composites (the development machine has transparency effects
   off) and may need tuning against real wallpapers.
-- **Official music video** (3.42): the first play of an Art Track song waits for the lookup (two soundtracks of ~1.5 MB
-  and ~1 s of maths: 3-9 s, up to ~40 s when googlevideo throttles a URL; later plays use the stored decision). Only
+- **Official music video** (3.42): the first play of an Art Track song waits for the lookup (two soundtracks of ~1.5 MB,
+  ~1 s each, and ~1 s of maths: 3-9 s, up to ~40 s when googlevideo throttles a URL; later plays use the stored
+  decision; offline: the cover). Only
   YouTube Music's OMV label, the channel and the title say "official": a fan upload with "Official Video" on the
   artist's name, or an official video titled unusually (another language, no artist), can be taken / missed; the
   alignment still refuses anything that isn't the song's recording. A video much shorter than the song (an edit under
   88 % of its length) is not tried; an edit that reorders the song, or repeats a part the song doesn't, is declined
   rather than held; more than 3 holds decline too. A part held over shows the cover (no freeze frame). The anonymous
   watch-next `counterpart` (YouTube Music's own song ↔ video link, with its timing) is not available, so the timing is
-  always worked out from the sound. Codec delay: the picture is early by its own soundtrack's decoder delay, ~7 ms
-  with Opus, ~44 ms with AAC (as 3.41's pictures). **Open item found on the way**: the audio engine plays an AAC
-  (itag 140) stream with an edit list as nothing (the track "ends" at once): Media Foundation presents no sample of a
-  fragmented MP4 track with an edts, and some Art Tracks carry one (e.g. `pu9co0YRKHg`; `audio_test pu9co0YRKHg`
-  shows Playing → Ended at 0:00). Opus is preferred when its bit rate is higher, which hides it on most songs, but a
-  song whose AAC is the better stream (or Normal / data-saver quality, AAC only) is skipped. `video/Soundtrack` already
-  reads such files with the edts freed (`Fmp4Index`); the engine's `Track` / `audio::Decoder` would need the same.
+  always worked out from the sound. Codec delay: none with Opus or an edit-listed AAC; with an AAC stream without an
+  edit list the engine's clock (and so every video mode picture) is 36 ms ahead of the sound (its priming).
 - **Video mode** shows the video the song resolved to, or for an Art Track / audio upload its official video (above).
   The still-picture check is a bit-rate heuristic: a very calm real video under ~200 kbps at 720p shows as "no video", a
   still with grain or a slow zoom shows as a video. YouTube only (no backup servers); VP9 / AV1 only when H.264 is
