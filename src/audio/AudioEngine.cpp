@@ -63,6 +63,7 @@
 #include <format>
 #include <mutex>
 #include <numbers>
+#include <optional>
 #include <thread>
 #include <vector>
 
@@ -103,7 +104,8 @@ float dbToGain(float db) { return db == 0.f ? 1.f : std::pow(10.f, std::clamp(db
 
 struct Command {
     enum class Type {
-        Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek, SetDevice, SetSpeed, OpenPreview, StopPreview
+        Open, Preload, ClearPreload, Play, Pause, Toggle, Stop, Seek, SetDevice, SetSpeed, OpenPreview, StopPreview,
+        SetExclusive
     } type;
     StreamSource source;
     int64_t ms = 0;
@@ -168,6 +170,7 @@ struct AudioEngine::Impl {
     std::atomic<bool> quit{false};
 
     std::atomic<float> volume{1.f};
+    std::atomic<bool> exclusiveSetting{false};   // the last setExclusive() (read by the thread at start)
     std::atomic<State> state{State::Idle};
     std::atomic<uint64_t> tag{0};
     std::atomic<int64_t> posMs{0};
@@ -175,6 +178,8 @@ struct AudioEngine::Impl {
     mutable std::mutex clockMutex;     // clockState (AudioEngine::clock)
     AudioEngine::Clock clockState;
     std::atomic<int64_t> memBytes{0};
+    mutable std::mutex infoMutex;
+    OutputInfo outInfo;                // outputInfo()
     std::mutex eqMutex;
     EqSettings eqPending;                // guarded by eqMutex; eqVersion bumps on every change
     std::atomic<uint32_t> eqVersion{0};
@@ -198,7 +203,7 @@ struct AudioEngine::Impl {
     float fade = 0.f, vol = 0.f;
     int64_t curEndFrame = -1;         // track frame after the last one read from cur (-1: none since open / seek)
     int64_t silentRun = 0;            // frames of cur read in a row that stayed under kSilence
-    uint32_t outputRate = 0;          // the device's mix rate: every track decodes to it (0 = native rates)
+    RatePolicy rates;                 // what tracks decode to: the device's mix rate (shared), their own (exclusive)
 
     Equalizer eq;
     uint32_t eqApplied = 0, eqRate = 0, eqChannels = 0;
@@ -251,19 +256,26 @@ struct AudioEngine::Impl {
         DWORD taskIndex = 0;
         HANDLE mmcss = AvSetMmThreadCharacteristicsW(L"Audio", &taskIndex);
         out = std::make_unique<WasapiOutput>(wake);
+        out->setExclusive(exclusiveSetting.load());
         vol = perceptualGain(volume.load());
-        // Tracks decode to the device's mix rate (Decoder: the Source Reader's resampler), so songs of different
-        // rates never need a device reopen between them: gapless handoffs and crossfades always line up.
-        outputRate = out->mixRate();
+        // Shared mode: tracks decode to the device's mix rate (Decoder: the Source Reader's / built-in resampler), so
+        // songs of different rates never need a device reopen between them: gapless handoffs and crossfades always
+        // line up. Exclusive mode: their own rate (refreshRates).
+        refreshRates();
         // Warm-up: the first IAudioClient initialisation in a process can take ~0.5-1 s (audio
         // engine / APO loading). Do it now, while nothing plays, in the format tracks will have. The client stays
         // initialised but stopped (no CPU); another format simply reopens it, which is fast once warm. Failures are
-        // ignored here.
-        if (FAILED(out->open(outputRate ? outputRate : 44100, 2))) out->close();
+        // ignored here. Never in exclusive mode: that would take the device from other apps before anything plays.
+        if (!out->exclusiveWanted()) {
+            const uint32_t warm = rates.fixed ? rates.fixed : 44100;
+            if (FAILED(out->open(warm, 2))) out->close();
+        }
+        publishOutput();
 
         while (!quit.load()) {
             HANDLE handles[2] = {wake, static_cast<HANDLE>(out->event())};
-            WaitForMultipleObjects(2, handles, FALSE, waitTimeout());
+            const DWORD r = WaitForMultipleObjects(2, handles, FALSE, waitTimeout());
+            if (r == WAIT_OBJECT_0 + 1) out->signalled();   // exclusive mode: the device wants its next buffer
             if (quit.load()) break;
             step();
         }
@@ -324,10 +336,14 @@ struct AudioEngine::Impl {
         for (auto& c : batch) {
             switch (c.type) {
             case Command::Type::Open: cmdOpen(c.source, c.ms, c.autoplay); break;
-            case Command::Type::Preload:
+            case Command::Type::Preload: {
                 retire(next);
-                next = makeTrack(c.source, 0);
+                RatePolicy r = rates;
+                // Exclusive mode: a track crossfading in is resampled to the rate that plays, so the two can mix.
+                if (!r.fixed && c.source.crossfadeMs > 0 && cur && !cur->live() && cur->formatReady()) r = {cur->sampleRate()};
+                next = makeTrack(c.source, 0, std::move(r));
                 break;
+            }
             case Command::Type::ClearPreload: retire(next); break;
             case Command::Type::Play: cmdPlay(); break;
             case Command::Type::Pause: cmdPause(); break;
@@ -341,12 +357,56 @@ struct AudioEngine::Impl {
             case Command::Type::SetSpeed: curSpeed = std::clamp(c.speed, 0.5f, 3.f); break;
             case Command::Type::OpenPreview: cmdOpenPreview(c.source, c.ms, c.autoplay); break;
             case Command::Type::StopPreview: cmdStopPreview(); break;
+            case Command::Type::SetExclusive: cmdSetExclusive(c.autoplay); break;
             }
         }
     }
 
-    std::unique_ptr<Track> makeTrack(const StreamSource& s, int64_t startMs) {
-        return std::make_unique<Track>(s, startMs, &memBytes, wake, RatePolicy{outputRate});
+    std::unique_ptr<Track> makeTrack(const StreamSource& s, int64_t startMs, std::optional<RatePolicy> policy = {}) {
+        // Exclusive mode found no rate the device takes (held by another app?): ask again while nothing plays.
+        if (!policy && out->exclusiveWanted() && rates.fixed && !out->isOpen()) refreshRates();
+        return std::make_unique<Track>(s, startMs, &memBytes, wake, policy ? *policy : rates);
+    }
+
+    // The rates tracks decode to: the shared-mode mix rate, or in exclusive mode the ones the device takes (their own
+    // rate when it is one of them). Exclusive mode without any (refused) decodes like shared mode.
+    void refreshRates() {
+        rates = {};
+        if (out->exclusiveWanted()) rates.accepted = out->exclusiveRates();
+        if (rates.accepted.empty()) rates.fixed = out->mixRate();
+    }
+
+    void publishOutput() {
+        OutputInfo i;
+        i.exclusiveWanted = out->exclusiveWanted();
+        i.open = out->isOpen();
+        const WasapiOutput::Info& o = out->info();
+        i.exclusive = i.open && o.exclusive;
+        i.fallback = static_cast<OutputInfo::Fallback>(o.fallback);
+        if (!i.exclusiveWanted) i.fallback = OutputInfo::Fallback::None;
+        i.sampleRate = out->sampleRate();
+        i.channels = out->channels();
+        i.bits = i.open ? o.bits : 0;
+        i.validBits = i.open ? o.validBits : 0;
+        i.floatFormat = i.open && o.floatFormat;
+        std::lock_guard lock(infoMutex);
+        outInfo = i;
+    }
+
+    void cmdSetExclusive(bool on) {
+        if (on == out->exclusiveWanted()) return;
+        ST_LOG_INFO("audio", "exclusive mode {}", on ? "on" : "off");
+        out->setExclusive(on);
+        if (out->isOpen()) {   // reopened by maybeStartOrStop() in the new mode
+            finalizeOutput();
+            tail.clear();
+            out->close();
+            fade = 0.f;
+        }
+        deviceLost = false;
+        deviceErrorReported = false;
+        refreshRates();
+        publishOutput();
     }
 
     void cmdOpen(const StreamSource& s, int64_t startMs, bool autoplay) {
@@ -455,7 +515,8 @@ struct AudioEngine::Impl {
         tail.clear();
         out->close();
         fade = 0.f;
-        outputRate = out->mixRate();   // tracks opened from now on decode to the new device's rate
+        refreshRates();   // tracks opened from now on decode to the new device's rate(s)
+        publishOutput();
     }
 
     void publishTrack(uint64_t t, int64_t pos, int64_t dur, const Track* track) {
@@ -577,6 +638,7 @@ struct AudioEngine::Impl {
         const ULONGLONG now = GetTickCount64();
         if (deviceLost && now < deviceRetryAt) return false;
         const HRESULT hr = out->open(rate, channels);
+        publishOutput();
         if (FAILED(hr)) {
             deviceLost = true;
             deviceRetryAt = now + 1000;
@@ -602,17 +664,23 @@ struct AudioEngine::Impl {
         fade = 0.f;
         deviceLost = true;
         deviceRetryAt = GetTickCount64();  // retry right away (the default device may have changed)
+        publishOutput();
     }
 
     void handleDeviceChange() {
-        if (!out->takeDeviceChanged() || !out->isOpen()) return;
+        if (!out->takeDeviceChanged()) return;
+        if (!out->isOpen()) {   // nothing open (exclusive mode while paused): the next open uses the new device
+            refreshRates();
+            return;
+        }
         ST_LOG_INFO("audio", "audio device changed: reopening");
         finalizeOutput();
         tail.clear();
         out->close();  // reopened lazily by maybeStartOrStop() on the new default device
         fade = 0.f;
         deviceLost = false;
-        outputRate = out->mixRate();
+        refreshRates();
+        publishOutput();
     }
 
     // Treats everything written as heard (fires pending transitions) and forgets the runs.
@@ -638,7 +706,15 @@ struct AudioEngine::Impl {
             }
             if (written - pad >= lastRealEnd) {  // everything real has been heard: stop (0% CPU)
                 finalizeOutput();
-                if (const HRESULT hr = out->stop(); FAILED(hr)) deviceFailure(hr);
+                if (const HRESULT hr = out->stop(); FAILED(hr)) {
+                    deviceFailure(hr);
+                } else if (out->exclusiveWanted() && !(phase == Phase::Active && wantPlay)) {
+                    // Exclusive mode doesn't hold a device it has nothing to play on: other apps can play while we're
+                    // paused or stopped (and a refused exclusive open is tried again when we start). A seek, a stall
+                    // or the next track loading keeps it.
+                    out->close();
+                    publishOutput();
+                }
             }
         }
     }
@@ -650,7 +726,7 @@ struct AudioEngine::Impl {
         limiter.reset();   // what it still delays belongs to the previous run
         uint32_t pad = 0;
         HRESULT hr = out->padding(pad);
-        const uint32_t n = out->bufferFrames() - std::min(pad, out->bufferFrames());
+        const uint32_t n = out->writable(pad);
         float* data = nullptr;
         if (SUCCEEDED(hr) && n > 0) {
             hr = out->getBuffer(n, data);
@@ -668,7 +744,7 @@ struct AudioEngine::Impl {
         HRESULT hr = out->padding(pad);
         if (FAILED(hr)) return deviceFailure(hr);
         updateAudible(written - pad);
-        const uint32_t n = out->bufferFrames() - std::min(pad, out->bufferFrames());
+        const uint32_t n = out->writable(pad);
         if (n == 0) return;
         float* data = nullptr;
         hr = out->getBuffer(n, data);
@@ -981,9 +1057,12 @@ struct AudioEngine::Impl {
             pv = Voice{};
         }
         releaseMain();   // until the new one is audible
-        // Decoded straight to the rate the device runs at now (a live station may have opened it at its own).
-        const uint32_t rate = out->isOpen() ? out->sampleRate() : outputRate;
-        pv.track = std::make_unique<Track>(s, std::max<int64_t>(0, startMs), &memBytes, wake, RatePolicy{rate});
+        // Decoded straight to the rate the device runs at now (a live station may have opened it at its own); with
+        // nothing open, as any track would be (exclusive mode: its own rate, the device then opens in it).
+        RatePolicy policy = rates;
+        if (out->isOpen()) policy = {out->sampleRate()};
+        else if (cur && cur->formatReady() && !cur->live()) policy = {cur->sampleRate()};   // the held / paused track
+        pv.track = std::make_unique<Track>(s, std::max<int64_t>(0, startMs), &memBytes, wake, std::move(policy));
         pv.track->requestWake();
         pvPhase = PreviewPhase::Loading;
         pvTag = s.tag;
@@ -1230,6 +1309,18 @@ void AudioEngine::openPreview(const StreamSource& source, int64_t startMs, bool 
 }
 void AudioEngine::stopPreview() { impl_->post({Command::Type::StopPreview, {}}); }
 int64_t AudioEngine::previewPositionMs() const { return impl_->pvPosMs.load(std::memory_order_relaxed); }
+
+void AudioEngine::setExclusive(bool on) {
+    impl_->exclusiveSetting.store(on);
+    Command c{Command::Type::SetExclusive, {}};
+    c.autoplay = on;
+    impl_->post(std::move(c));
+}
+
+OutputInfo AudioEngine::outputInfo() const {
+    std::lock_guard lock(impl_->infoMutex);
+    return impl_->outInfo;
+}
 
 void AudioEngine::setOutputDevice(const std::wstring& id) {
     Command c{Command::Type::SetDevice, {}};

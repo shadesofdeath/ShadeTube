@@ -3,9 +3,18 @@
 //
 //   network (range requests) -> progressive buffer -> built-in decoder (Opus / Vorbis in WebM, Matroska or Ogg:
 //   audio/XiphDecoder) or IMFByteStream -> Media Foundation Source Reader (AAC/MP4, MP3, FLAC...) -> float PCM ->
-//   [crossfade mix] -> equalizer -> volume ramp / normalisation gain -> look-ahead limiter -> WASAPI shared-mode
-//   event-driven render (AUTOCONVERTPCM handles resampling) on the Windows default device or the one picked in the
-//   settings
+//   [crossfade mix] -> equalizer -> volume ramp / normalisation gain -> look-ahead limiter -> WASAPI event-driven
+//   render, shared (AUTOCONVERTPCM handles resampling) or exclusive, on the Windows default device or the one picked
+//   in the settings
+//
+// Exclusive mode (setExclusive): the engine owns the device. Tracks decode at their own rate when the device takes it
+// (else the nearest one it takes), and the device opens in that rate and the best sample format it offers; a track of
+// another rate reopens it after the previous one has played out (a short gap instead of a gapless handoff). A
+// crossfade keeps the rate that plays: the incoming track is resampled to it, so the mix still works. The device is
+// released whenever nothing sounds (paused, stopped), so other apps can play meanwhile; a device that refuses (held
+// by another app, exclusive use not allowed, no such format) is used in shared mode instead (outputInfo says why) and
+// exclusive mode is tried again at the next open. Equalizer, normalisation, limiter, crossfade, speed and the preview
+// voice work as in shared mode.
 //
 // Threading: the engine owns one decode/render thread. All public methods are thread-safe and
 // non-blocking (commands are queued to the engine thread). Events are raised ON THE ENGINE THREAD;
@@ -94,6 +103,18 @@ struct OutputDevice {
     bool isDefault = false;       // the Windows default (console) render device
 };
 
+// What the output does now (Ayarlar > Ses shows it).
+struct OutputInfo {
+    bool open = false;               // a stream is open on the device
+    bool exclusive = false;          // ... and holds the device exclusively
+    bool exclusiveWanted = false;    // setExclusive(true)
+    enum class Fallback { None, Busy, NotAllowed, Format, Other };
+    Fallback fallback = Fallback::None;   // why exclusive mode wasn't taken at the last open (shared mode instead)
+    uint32_t sampleRate = 0, channels = 0;
+    uint32_t bits = 0, validBits = 0;     // the device format in exclusive mode (shared: 32-bit float to the mixer)
+    bool floatFormat = false;
+};
+
 // What the engine knows about the live stream being played (all empty / 0 while nothing live plays).
 struct LiveInfo {
     bool active = false;
@@ -147,6 +168,10 @@ public:
     // Render device: a WASAPI endpoint id, or "" to follow the Windows default. A device that is missing (unplugged)
     // falls back to the default and is taken again when it comes back.
     void setOutputDevice(const std::wstring& id);
+    // WASAPI exclusive mode (see the header comment): applied at once (the device reopens), tracks opened from now on
+    // decode at their own rate.
+    void setExclusive(bool on);
+    OutputInfo outputInfo() const;   // any thread, a short lock
     // The active render devices. Blocking (COM enumeration, a few ms); any thread.
     static std::vector<OutputDevice> outputDevices();
 

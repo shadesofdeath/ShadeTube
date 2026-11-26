@@ -1743,5 +1743,15 @@
   "Video penceresi açılamadı.": "動画ウィンドウを開けませんでした。",
   "Video penceresinde aç": "動画ウィンドウで開く",
   "Video yükleniyor…": "動画を読み込み中…",
-  "Şu an bir şarkı çalmıyor": "現在再生中の曲はありません"
+  "Şu an bir şarkı çalmıyor": "現在再生中の曲はありません",
+  "Özel mod (WASAPI)": "排他モード (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "出力デバイスを ShadeTube だけが使います。曲は Windows のミキサーを通らず、それぞれのサンプリングレートで再生されます。その間ほかのアプリの音は聞こえません。一時停止するとデバイスは解放されます。イコライザー、音量の均一化、クロスフェード、再生速度、プレビューは引き続き使えますが、Windows のオーディオ拡張は適用されません。クロスフェードがオフのときは、サンプリングレートの異なる曲の間に短い無音が入ります。",
+  "{} bit kayan nokta": "{} ビット浮動小数点",
+  "{} bit": "{} ビット",
+  "Şu an özel modda: {} · {}": "現在は排他モード：{} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "別のアプリがデバイスを使用中のため、今は共有モードで再生しています。",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "このデバイスは排他的な使用を許可していません（Windows のサウンド設定 › デバイスのプロパティ › 詳細）。共有モードで再生しています。",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "デバイスがこの曲の形式を排他モードでサポートしていないため、共有モードで再生しています。",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "排他モードを開けなかったため、共有モードで再生しています。",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "再生が始まるとデバイスは排他モードで開かれ、一時停止すると解放されます。"
 }

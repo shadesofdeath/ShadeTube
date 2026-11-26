@@ -1922,5 +1922,15 @@
   "Video penceresi açılamadı.": "Das Videofenster konnte nicht geöffnet werden.",
   "Video penceresinde aç": "Im Videofenster öffnen",
   "Video yükleniyor…": "Video wird geladen…",
-  "Şu an bir şarkı çalmıyor": "Gerade läuft nichts"
+  "Şu an bir şarkı çalmıyor": "Gerade läuft nichts",
+  "Özel mod (WASAPI)": "Exklusiver Modus (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Nur ShadeTube nutzt das Ausgabegerät: Songs laufen mit ihrer eigenen Abtastrate am Windows-Mixer vorbei. Andere Apps sind währenddessen nicht zu hören; beim Pausieren wird das Gerät freigegeben. Equalizer, Lautstärkeangleichung, Überblendung, Geschwindigkeit und Vorschau funktionieren weiter; die Audioverbesserungen von Windows werden nicht angewendet. Ohne Überblendung entsteht zwischen zwei Songs mit unterschiedlicher Abtastrate eine kurze Pause.",
+  "{} bit kayan nokta": "{} Bit Gleitkomma",
+  "{} bit": "{} Bit",
+  "Şu an özel modda: {} · {}": "Jetzt im exklusiven Modus: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Eine andere App kontrolliert das Gerät: Wiedergabe vorerst im gemeinsamen Modus.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Dieses Gerät erlaubt keine exklusive Nutzung (Windows-Soundeinstellungen › Geräteeigenschaften › Erweitert): Wiedergabe im gemeinsamen Modus.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Das Gerät unterstützt das Format dieses Songs im exklusiven Modus nicht: Wiedergabe im gemeinsamen Modus.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Der exklusive Modus konnte nicht geöffnet werden: Wiedergabe im gemeinsamen Modus.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Das Gerät wird bei der Wiedergabe exklusiv geöffnet und beim Pausieren freigegeben."
 }

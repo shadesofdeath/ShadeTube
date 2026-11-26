@@ -479,6 +479,12 @@ void Player::applyAudioSettings() {
     for (size_t i = 0; i < eq.gainsDb.size() && i < s.eqGains.size(); ++i) eq.gainsDb[i] = s.eqGains[i];
     engine_->setEqualizer(eq);
     engine_->setOutputDevice(toWide(s.outputDeviceId));
+    // SHADETUBE_EXCLUSIVE=1 / 0 overrides the setting (the player test programs and a sandboxed app in exclusive mode).
+    static const int forced = [] {
+        wchar_t v[4] = {};
+        return GetEnvironmentVariableW(L"SHADETUBE_EXCLUSIVE", v, 4) ? (v[0] == L'1' ? 1 : 0) : -1;
+    }();
+    engine_->setExclusive(forced >= 0 ? forced == 1 : s.exclusiveAudio);
 }
 
 float Player::speedFor(const Track& t) {

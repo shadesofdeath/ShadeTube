@@ -1743,5 +1743,15 @@
   "Video penceresi açılamadı.": "Jendela video tidak dapat dibuka.",
   "Video penceresinde aç": "Buka di jendela video",
   "Video yükleniyor…": "Memuat video…",
-  "Şu an bir şarkı çalmıyor": "Tidak ada yang diputar saat ini"
+  "Şu an bir şarkı çalmıyor": "Tidak ada yang diputar saat ini",
+  "Özel mod (WASAPI)": "Mode eksklusif (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Hanya ShadeTube yang memakai perangkat output: lagu diputar pada laju sampelnya sendiri tanpa melewati mixer Windows. Selama itu suara aplikasi lain tidak terdengar; saat dijeda, perangkat dilepas. Equalizer, normalisasi volume, crossfade, kecepatan, dan pratinjau tetap berfungsi; peningkatan audio Windows tidak diterapkan. Tanpa crossfade, ada hening sejenak di antara dua lagu dengan laju sampel berbeda.",
+  "{} bit kayan nokta": "{} bit floating point",
+  "{} bit": "{} bit",
+  "Şu an özel modda: {} · {}": "Sekarang dalam mode eksklusif: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Aplikasi lain sedang mengendalikan perangkat: untuk sementara diputar dalam mode bersama.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Perangkat ini tidak mengizinkan penggunaan eksklusif (pengaturan suara Windows › properti perangkat › Lanjutan): diputar dalam mode bersama.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Perangkat tidak mendukung format lagu ini dalam mode eksklusif: diputar dalam mode bersama.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Mode eksklusif tidak dapat dibuka: diputar dalam mode bersama.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Perangkat dibuka dalam mode eksklusif saat pemutaran dimulai dan dilepas saat dijeda."
 }

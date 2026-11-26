@@ -2081,5 +2081,15 @@
   "Video penceresi açılamadı.": "Не удалось открыть окно видео.",
   "Video penceresinde aç": "Открыть в окне видео",
   "Video yükleniyor…": "Загрузка видео…",
-  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет"
+  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет",
+  "Özel mod (WASAPI)": "Монопольный режим (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Устройство вывода используется только ShadeTube: треки звучат со своей частотой дискретизации, минуя микшер Windows. Звук других приложений в это время не слышен; на паузе устройство освобождается. Эквалайзер, выравнивание громкости, плавный переход, скорость и предпросмотр продолжают работать; звуковые эффекты Windows не применяются. Без плавного перехода между треками с разной частотой дискретизации будет короткая пауза.",
+  "{} bit kayan nokta": "{} бит с плавающей точкой",
+  "{} bit": "{} бит",
+  "Şu an özel modda: {} · {}": "Сейчас в монопольном режиме: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Устройством управляет другое приложение: пока воспроизведение в общем режиме.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Это устройство не разрешает монопольное использование (параметры звука Windows › свойства устройства › Дополнительно): воспроизведение в общем режиме.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "Устройство не поддерживает формат этого трека в монопольном режиме: воспроизведение в общем режиме.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "Не удалось открыть монопольный режим: воспроизведение в общем режиме.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "Устройство открывается в монопольном режиме при начале воспроизведения и освобождается на паузе."
 }

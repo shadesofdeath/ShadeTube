@@ -1922,5 +1922,15 @@
   "Video penceresi açılamadı.": "No se pudo abrir la ventana de video.",
   "Video penceresinde aç": "Abrir en la ventana de video",
   "Video yükleniyor…": "Cargando video…",
-  "Şu an bir şarkı çalmıyor": "No se está reproduciendo nada"
+  "Şu an bir şarkı çalmıyor": "No se está reproduciendo nada",
+  "Özel mod (WASAPI)": "Modo exclusivo (WASAPI)",
+  "Çıkış aygıtını yalnızca ShadeTube kullanır: şarkılar Windows'un ses karıştırıcısına uğramadan kendi örnekleme hızlarında çalar. Bu sırada diğer uygulamaların sesi duyulmaz; duraklatınca aygıt serbest kalır. Ekolayzer, ses dengeleme, şarkılar arası geçiş, hız ve önizleme çalışmaya devam eder; Windows'un ses iyileştirmeleri uygulanmaz. Geçiş kapalıyken örnekleme hızı farklı iki şarkı arasında kısa bir sessizlik olur.": "Solo ShadeTube usa el dispositivo de salida: las canciones suenan a su propia frecuencia de muestreo, sin pasar por el mezclador de Windows. Mientras tanto no se oyen otras aplicaciones; al pausar, el dispositivo queda libre. El ecualizador, la normalización del volumen, el fundido, la velocidad y las vistas previas siguen funcionando; las mejoras de audio de Windows no se aplican. Con el fundido desactivado, hay un breve silencio entre dos canciones con distinta frecuencia de muestreo.",
+  "{} bit kayan nokta": "{} bits de coma flotante",
+  "{} bit": "{} bits",
+  "Şu an özel modda: {} · {}": "Ahora en modo exclusivo: {} · {}",
+  "Aygıt başka bir uygulamanın denetiminde: şimdilik paylaşımlı modda çalıyor.": "Otra aplicación controla el dispositivo: por ahora suena en modo compartido.",
+  "Bu aygıt özel kullanıma izin vermiyor (Windows ses ayarları › aygıt özellikleri › Gelişmiş): paylaşımlı modda çalıyor.": "Este dispositivo no permite el uso exclusivo (configuración de sonido de Windows › propiedades del dispositivo › Avanzado): suena en modo compartido.",
+  "Aygıt bu şarkının biçimini özel modda desteklemiyor: paylaşımlı modda çalıyor.": "El dispositivo no admite el formato de esta canción en modo exclusivo: suena en modo compartido.",
+  "Özel mod açılamadı: paylaşımlı modda çalıyor.": "No se pudo abrir el modo exclusivo: suena en modo compartido.",
+  "Çalmaya başlayınca aygıt özel modda açılır; duraklatınca serbest kalır.": "El dispositivo se abre en modo exclusivo al empezar a reproducir y queda libre al pausar."
 }
