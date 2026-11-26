@@ -929,11 +929,9 @@
   "Albümü aç": "Abrir álbum",
   "Çalma listesini aç": "Abrir playlist",
   "Sanatçıyı aç": "Abrir artista",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "No se puede abrir este enlace. Se admiten enlaces de canciones, álbumes, playlists y artistas.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Conecta Spotify para abrir enlaces de Spotify",
   "Bu bağlantı açılamıyor": "No se puede abrir este enlace",
   "Spotify'a bağlan": "Conectar con Spotify",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Se admiten enlaces de canciones, álbumes, playlists y artistas.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Conecta tu cuenta de Spotify para abrirlo",
   "Görev çubuğunda ilerlemeyi göster": "Mostrar el progreso en la barra de tareas",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "La posición de la canción que suena aparece en el botón de la barra de tareas: verde al reproducir, amarillo en pausa.",
@@ -1967,7 +1965,6 @@
   "Henüz şarkı yok.": "Todavía no hay canciones.",
   "{} · {} yer kaplıyor.": "{} · ocupan {}.",
   "Şarkı önbelleği temizlendi": "Caché de canciones borrada",
-  "\"{}\" için bu türde bir sonuç yok.": "No hay resultados de este tipo para «{}».",
   "Abone olunacak podcast yok": "No hay podcasts a los que suscribirse",
   "Apple Podcasts'ta ara": "Buscar en Apple Podcasts",
   "Aranıyor…": "Buscando…",
@@ -2044,5 +2041,11 @@
   "{} kontrol edilemedi": {
     "one": "{} sin comprobar",
     "other": "{} sin comprobar"
-  }
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "No se puede abrir este enlace. Se admiten enlaces de canciones, álbumes, playlists, artistas, podcasts y perfiles.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Se admiten enlaces de canciones, álbumes, playlists, artistas, podcasts y perfiles.",
+  "Spotify podcasti": "Podcast de Spotify",
+  "Spotify profili": "Perfil de Spotify",
+  "Podcasti aç": "Abrir podcast",
+  "Profili aç": "Abrir perfil"
 }

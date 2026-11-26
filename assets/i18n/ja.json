@@ -824,11 +824,9 @@
   "Albümü aç": "アルバムを開く",
   "Çalma listesini aç": "プレイリストを開く",
   "Sanatçıyı aç": "アーティストを開く",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "このリンクは開けません。曲、アルバム、プレイリスト、アーティストのリンクに対応しています。",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Spotifyのリンクを開くにはSpotifyに接続してください",
   "Bu bağlantı açılamıyor": "このリンクは開けません",
   "Spotify'a bağlan": "Spotifyに接続",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "曲、アルバム、プレイリスト、アーティストのリンクに対応しています。",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · 開くにはSpotifyアカウントに接続してください",
   "Görev çubuğunda ilerlemeyi göster": "タスクバーに再生位置を表示",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "再生中の曲の位置がタスクバーのボタンに表示されます。再生中は緑、一時停止中は黄色です。",
@@ -1779,7 +1777,6 @@
   "Henüz şarkı yok.": "まだ曲はありません。",
   "{} · {} yer kaplıyor.": "{} · {}を使用中。",
   "Şarkı önbelleği temizlendi": "曲のキャッシュをクリアしました",
-  "\"{}\" için bu türde bir sonuç yok.": "「{}」に一致するこの種類の結果はありません。",
   "Abone olunacak podcast yok": "登録できるポッドキャストはありません",
   "Apple Podcasts'ta ara": "Apple Podcasts で検索",
   "Aranıyor…": "検索中…",
@@ -1847,5 +1844,11 @@
   },
   "{} kontrol edilemedi": {
     "other": "未確認 {} 件"
-  }
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "このリンクは開けません。曲、アルバム、プレイリスト、アーティスト、ポッドキャスト、プロフィールのリンクに対応しています。",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "曲、アルバム、プレイリスト、アーティスト、ポッドキャスト、プロフィールのリンクに対応しています。",
+  "Spotify podcasti": "Spotifyのポッドキャスト",
+  "Spotify profili": "Spotifyのプロフィール",
+  "Podcasti aç": "ポッドキャストを開く",
+  "Profili aç": "プロフィールを開く"
 }

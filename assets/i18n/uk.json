@@ -999,11 +999,9 @@
   "Albümü aç": "Відкрити альбом",
   "Çalma listesini aç": "Відкрити плейлист",
   "Sanatçıyı aç": "Відкрити виконавця",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Це посилання не можна відкрити. Підтримуються посилання на пісні, альбоми, плейлисти й виконавців.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Підключи Spotify, щоб відкривати посилання Spotify",
   "Bu bağlantı açılamıyor": "Це посилання не можна відкрити",
   "Spotify'a bağlan": "Підключити Spotify",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Підтримуються посилання на пісні, альбоми, плейлисти й виконавців.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Щоб відкрити, підключи обліковий запис Spotify",
   "Görev çubuğunda ilerlemeyi göster": "Показувати прогрес на панелі завдань",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "Позиція поточної пісні видна на кнопці панелі завдань: зеленим під час відтворення, жовтим на паузі.",
@@ -2132,7 +2130,6 @@
   "Henüz şarkı yok.": "Треків поки немає.",
   "{} · {} yer kaplıyor.": "{} · займають {}.",
   "Şarkı önbelleği temizlendi": "Кеш треків очищено",
-  "\"{}\" için bu türde bir sonuç yok.": "Немає результатів цього типу за запитом «{}».",
   "Abone olunacak podcast yok": "Немає подкастів для підписки",
   "Apple Podcasts'ta ara": "Шукати в Apple Podcasts",
   "Aranıyor…": "Пошук…",
@@ -2227,5 +2224,11 @@
     "few": "{} не перевірено",
     "many": "{} не перевірено",
     "other": "{} не перевірено"
-  }
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Це посилання не можна відкрити. Підтримуються посилання на пісні, альбоми, плейлисти, виконавців, подкасти й профілі.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Підтримуються посилання на пісні, альбоми, плейлисти, виконавців, подкасти й профілі.",
+  "Spotify podcasti": "Подкаст у Spotify",
+  "Spotify profili": "Профіль у Spotify",
+  "Podcasti aç": "Відкрити подкаст",
+  "Profili aç": "Відкрити профіль"
 }

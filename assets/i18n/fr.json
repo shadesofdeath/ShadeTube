@@ -929,11 +929,9 @@
   "Albümü aç": "Ouvrir l'album",
   "Çalma listesini aç": "Ouvrir la playlist",
   "Sanatçıyı aç": "Ouvrir l'artiste",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Impossible d'ouvrir ce lien. Les liens de titres, d'albums, de playlists et d'artistes sont pris en charge.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Connecte Spotify pour ouvrir les liens Spotify",
   "Bu bağlantı açılamıyor": "Impossible d'ouvrir ce lien",
   "Spotify'a bağlan": "Connecter Spotify",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Les liens de titres, d'albums, de playlists et d'artistes sont pris en charge.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Connecte ton compte Spotify pour l'ouvrir",
   "Görev çubuğunda ilerlemeyi göster": "Afficher la progression dans la barre des tâches",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "La position du titre en cours s'affiche sur le bouton de la barre des tâches : vert pendant la lecture, jaune en pause.",
@@ -1967,7 +1965,6 @@
   "Henüz şarkı yok.": "Aucun titre pour l'instant.",
   "{} · {} yer kaplıyor.": "{} · {} utilisés.",
   "Şarkı önbelleği temizlendi": "Cache des titres vidé",
-  "\"{}\" için bu türde bir sonuç yok.": "Aucun résultat de ce type pour « {} ».",
   "Abone olunacak podcast yok": "Aucun podcast auquel s'abonner",
   "Apple Podcasts'ta ara": "Rechercher dans Apple Podcasts",
   "Aranıyor…": "Recherche…",
@@ -2044,5 +2041,11 @@
   "{} kontrol edilemedi": {
     "one": "{} non vérifié",
     "other": "{} non vérifiés"
-  }
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Impossible d'ouvrir ce lien. Les liens de titres, d'albums, de playlists, d'artistes, de podcasts et de profils sont pris en charge.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Les liens de titres, d'albums, de playlists, d'artistes, de podcasts et de profils sont pris en charge.",
+  "Spotify podcasti": "Podcast Spotify",
+  "Spotify profili": "Profil Spotify",
+  "Podcasti aç": "Ouvrir le podcast",
+  "Profili aç": "Ouvrir le profil"
 }

@@ -999,11 +999,9 @@
   "Albümü aç": "Открыть альбом",
   "Çalma listesini aç": "Открыть плейлист",
   "Sanatçıyı aç": "Открыть исполнителя",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Эту ссылку нельзя открыть. Поддерживаются ссылки на песни, альбомы, плейлисты и исполнителей.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Подключи Spotify, чтобы открывать ссылки Spotify",
   "Bu bağlantı açılamıyor": "Эту ссылку нельзя открыть",
   "Spotify'a bağlan": "Войти в Spotify",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Поддерживаются ссылки на песни, альбомы, плейлисты и исполнителей.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Чтобы открыть, подключи аккаунт Spotify",
   "Görev çubuğunda ilerlemeyi göster": "Показывать прогресс на панели задач",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "Позиция текущей песни видна на кнопке панели задач: зелёным во время воспроизведения, жёлтым на паузе.",
@@ -2132,7 +2130,6 @@
   "Henüz şarkı yok.": "Треков пока нет.",
   "{} · {} yer kaplıyor.": "{} · занимают {}.",
   "Şarkı önbelleği temizlendi": "Кэш треков очищен",
-  "\"{}\" için bu türde bir sonuç yok.": "Нет результатов этого типа по запросу «{}».",
   "Abone olunacak podcast yok": "Нет подкастов для подписки",
   "Apple Podcasts'ta ara": "Искать в Apple Podcasts",
   "Aranıyor…": "Поиск…",
@@ -2227,5 +2224,11 @@
     "few": "{} не проверены",
     "many": "{} не проверены",
     "other": "{} не проверены"
-  }
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Эту ссылку нельзя открыть. Поддерживаются ссылки на песни, альбомы, плейлисты, исполнителей, подкасты и профили.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Поддерживаются ссылки на песни, альбомы, плейлисты, исполнителей, подкасты и профили.",
+  "Spotify podcasti": "Подкаст в Spotify",
+  "Spotify profili": "Профиль в Spotify",
+  "Podcasti aç": "Открыть подкаст",
+  "Profili aç": "Открыть профиль"
 }

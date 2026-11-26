@@ -929,11 +929,9 @@
   "Albümü aç": "Open album",
   "Çalma listesini aç": "Open playlist",
   "Sanatçıyı aç": "Open artist",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "This link can't be opened. Song, album, playlist and artist links are supported.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Connect to Spotify to open Spotify links",
   "Bu bağlantı açılamıyor": "This link can't be opened",
   "Spotify'a bağlan": "Connect to Spotify",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Song, album, playlist and artist links are supported.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Connect your Spotify account to open it",
   "Görev çubuğunda ilerlemeyi göster": "Show progress on the taskbar",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "The playing song's position shows on the taskbar button: green while playing, yellow when paused.",
@@ -1967,7 +1965,6 @@
   "Henüz şarkı yok.": "No songs yet.",
   "{} · {} yer kaplıyor.": "{} · {} used.",
   "Şarkı önbelleği temizlendi": "Song cache cleared",
-  "\"{}\" için bu türde bir sonuç yok.": "No results of this kind for \"{}\".",
   "Abone olunacak podcast yok": "No podcasts to subscribe to",
   "Apple Podcasts'ta ara": "Search Apple Podcasts",
   "Aranıyor…": "Searching…",
@@ -2044,5 +2041,11 @@
   "{} kontrol edilemedi": {
     "one": "{} couldn't be checked",
     "other": "{} couldn't be checked"
-  }
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "This link can't be opened. Song, album, playlist, artist, podcast and profile links are supported.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Song, album, playlist, artist, podcast and profile links are supported.",
+  "Spotify podcasti": "Spotify podcast",
+  "Spotify profili": "Spotify profile",
+  "Podcasti aç": "Open podcast",
+  "Profili aç": "Open profile"
 }

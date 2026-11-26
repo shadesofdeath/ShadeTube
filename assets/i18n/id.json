@@ -824,11 +824,9 @@
   "Albümü aç": "Buka album",
   "Çalma listesini aç": "Buka playlist",
   "Sanatçıyı aç": "Buka artis",
-  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Tautan ini tidak dapat dibuka. Tautan lagu, album, playlist, dan artis didukung.",
   "Spotify bağlantılarını açmak için Spotify'a bağlan": "Hubungkan Spotify untuk membuka tautan Spotify",
   "Bu bağlantı açılamıyor": "Tautan ini tidak dapat dibuka",
   "Spotify'a bağlan": "Hubungkan Spotify",
-  "Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.": "Tautan lagu, album, playlist, dan artis didukung.",
   "{} · Açmak için Spotify hesabınla bağlan": "{} · Hubungkan akun Spotify-mu untuk membukanya",
   "Görev çubuğunda ilerlemeyi göster": "Tampilkan progres di taskbar",
   "Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı.": "Posisi lagu yang diputar tampil di tombol taskbar: hijau saat diputar, kuning saat dijeda.",
@@ -1779,7 +1777,6 @@
   "Henüz şarkı yok.": "Belum ada lagu.",
   "{} · {} yer kaplıyor.": "{} · memakan {}.",
   "Şarkı önbelleği temizlendi": "Cache lagu dihapus",
-  "\"{}\" için bu türde bir sonuç yok.": "Tidak ada hasil jenis ini untuk \"{}\".",
   "Abone olunacak podcast yok": "Tidak ada podcast untuk dilanggan",
   "Apple Podcasts'ta ara": "Cari di Apple Podcasts",
   "Aranıyor…": "Mencari…",
@@ -1847,5 +1844,11 @@
   },
   "{} kontrol edilemedi": {
     "other": "{} tidak dapat diperiksa"
-  }
+  },
+  "Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Tautan ini tidak dapat dibuka. Tautan lagu, album, playlist, artis, podcast, dan profil didukung.",
+  "Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.": "Tautan lagu, album, playlist, artis, podcast, dan profil didukung.",
+  "Spotify podcasti": "Podcast Spotify",
+  "Spotify profili": "Profil Spotify",
+  "Podcasti aç": "Buka podcast",
+  "Profili aç": "Buka profil"
 }

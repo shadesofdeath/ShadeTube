@@ -198,6 +198,8 @@ std::wstring linkLabel(const Link& link) {
     case Kind::SpotifyAlbum: return tr(L"Spotify albümü");
     case Kind::SpotifyPlaylist: return tr(L"Spotify çalma listesi");
     case Kind::SpotifyArtist: return tr(L"Spotify sanatçısı");
+    case Kind::SpotifyShow: return tr(L"Spotify podcasti");
+    case Kind::SpotifyUser: return tr(L"Spotify profili");
     case Kind::YouTubeVideo: return tr(L"YouTube videosu");
     case Kind::YouTubePlaylist: return tr(L"YouTube oynatma listesi");
     case Kind::MbReleaseGroup:
@@ -223,6 +225,8 @@ std::wstring linkAction(const Link& link) {
     case Kind::SpotifyArtist:
     case Kind::MbArtist: return tr(L"Sanatçıyı aç");
     case Kind::JamInvite: return tr(L"Oturuma katıl");
+    case Kind::SpotifyShow: return tr(L"Podcasti aç");
+    case Kind::SpotifyUser: return tr(L"Profili aç");
     case Kind::None:
     case Kind::Unsupported: break;
     }
@@ -256,7 +260,7 @@ bool openLink(const Link& link) {
         return true;
     }
     if (link.kind == Kind::Unsupported) {
-        toast(tr(L"Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir."), true);
+        toast(tr(L"Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir."), true);
         return true;
     }
     if (linkNeedsSpotify(link)) {
@@ -273,6 +277,12 @@ bool openLink(const Link& link) {
         break;
     case Kind::SpotifyArtist:
         if (router) router->navigate({RouteKind::Artist, link.spotifyUri()});
+        break;
+    case Kind::SpotifyShow:   // Podcastler resolves it to its public feed (app/PodcastsSpotify)
+        if (router) router->navigate({RouteKind::Podcasts, link.spotifyUri()});
+        break;
+    case Kind::SpotifyUser:
+        if (router) router->navigate({RouteKind::Profile, link.spotifyUri()});
         break;
     case Kind::SpotifyTrack: openSpotifyTrack(link.spotifyUri()); break;
     case Kind::YouTubeVideo: openYouTubeVideo(link.id); break;
