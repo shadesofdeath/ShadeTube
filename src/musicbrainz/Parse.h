@@ -38,6 +38,18 @@ std::string wikidataId(const json& artistLookup);                        // "Q48
 std::string commonsFileFromRels(const json& artistLookup);              // "image" rel to Commons, or ""
 std::string wikidataImageFile(const json& entityData);                   // claim P18, or ""
 std::vector<Image> commonsImages(const std::string& fileName);           // Special:FilePath 250/500/1000
+// The artist's own places from the lookup's url-rels (current ones only, one per kind, at most 8): the official
+// homepage ("website") and profiles on Instagram, X / Twitter ("twitter"), Facebook, YouTube, TikTok, SoundCloud,
+// Bandcamp. Streaming services, databases and the like are left out.
+std::vector<ArtistLink> parseArtistLinks(const json& artistLookup);
+// sitelinks.<wiki>.title of a Wikidata entity ("trwiki" -> "Duman (müzik grubu)"), or "".
+std::string wikipediaTitle(const json& entityData, const std::string& wiki);
+// Wikipedia's REST page summary (rest_v1/page/summary): the lead as plain text and the article's address. Empty for a
+// disambiguation page or an answer without an extract.
+struct WikiSummary {
+    std::string text, url;
+};
+WikiSummary parseWikipediaSummary(const json& summary);
 
 Album parseReleaseGroup(const json& rg);                                 // search hit / browse / lookup
 std::vector<Album> parseReleaseGroupSearch(const json& root, bool freeText, int limit);

@@ -294,6 +294,66 @@ std::vector<Image> commonsImages(const std::string& fileName) {
     return {{base + "250", 250, 0}, {base + "500", 500, 0}, {base + "1000", 1000, 0}};
 }
 
+std::vector<ArtistLink> parseArtistLinks(const json& artistLookup) {
+    // The host ("www.instagram.com" -> "instagram.com"), lower case.
+    auto hostOf = [](const std::string& url) {
+        size_t start = url.find("://");
+        start = start == std::string::npos ? 0 : start + 3;
+        const size_t end = url.find_first_of("/?#", start);
+        std::string host = asciiLower(url.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        if (host.rfind("www.", 0) == 0) host = host.substr(4);
+        if (host.rfind("m.", 0) == 0) host = host.substr(2);
+        return host;
+    };
+    auto on = [](const std::string& host, const char* domain) {
+        const std::string d = domain;
+        return host == d || (host.size() > d.size() && host.compare(host.size() - d.size(), d.size(), d) == 0 &&
+                             host[host.size() - d.size() - 1] == '.');
+    };
+    std::vector<ArtistLink> out;
+    for (const auto& rel : arr(artistLookup, "relations")) {
+        if (get(rel, "ended").is_boolean() && get(rel, "ended").get<bool>()) continue;
+        const std::string type = asciiLower(str(rel, "type"));
+        const std::string url = str(get(rel, "url"), "resource");
+        if (url.rfind("https://", 0) != 0 && url.rfind("http://", 0) != 0) continue;
+        const std::string host = hostOf(url);
+        std::string kind;
+        if (type == "official homepage") kind = "website";
+        else if (on(host, "instagram.com")) kind = "instagram";
+        else if (on(host, "twitter.com") || on(host, "x.com")) kind = "twitter";
+        else if (on(host, "facebook.com")) kind = "facebook";
+        else if (on(host, "youtube.com") || on(host, "youtu.be")) kind = "youtube";
+        else if (on(host, "tiktok.com")) kind = "tiktok";
+        else if (on(host, "soundcloud.com")) kind = "soundcloud";
+        else if (on(host, "bandcamp.com")) kind = "bandcamp";
+        if (kind.empty()) continue;
+        if (std::any_of(out.begin(), out.end(), [&](const ArtistLink& l) { return l.kind == kind; })) continue;
+        out.push_back({kind, url});
+        if (out.size() >= 8) break;
+    }
+    return out;
+}
+
+std::string wikipediaTitle(const json& entityData, const std::string& wiki) {
+    const json& entities = get(entityData, "entities");
+    if (!entities.is_object() || entities.empty()) return {};
+    return str(get(get(entities.begin().value(), "sitelinks"), wiki), "title");
+}
+
+WikiSummary parseWikipediaSummary(const json& summary) {
+    if (str(summary, "type") == "disambiguation") return {};
+    WikiSummary s;
+    s.text = str(summary, "extract");
+    s.url = str(get(get(summary, "content_urls"), "desktop"), "page");
+    // Trim, and keep paragraphs one per line.
+    while (!s.text.empty() && std::isspace(static_cast<unsigned char>(s.text.back()))) s.text.pop_back();
+    size_t lead = 0;
+    while (lead < s.text.size() && std::isspace(static_cast<unsigned char>(s.text[lead]))) ++lead;
+    s.text.erase(0, lead);
+    if (s.text.empty()) return {};
+    return s;
+}
+
 Album parseReleaseGroup(const json& rg) {
     Album a;
     a.id = str(rg, "id");

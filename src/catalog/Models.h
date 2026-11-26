@@ -111,6 +111,24 @@ struct Shelf {
     std::vector<CardItem> items;
 };
 
+// A link of an artist to elsewhere (the artist page's About block).
+struct ArtistLink {
+    std::string kind;               // "website", "wikipedia", "instagram", "twitter", "facebook", "youtube", "tiktok",
+                                    // "soundcloud", "bandcamp" or another lower-case name
+    std::string url;
+};
+
+// The artist's own pick (Spotify's "Artist pick"): a release / playlist / track pinned with a comment.
+struct ArtistPick {
+    CardItem item;                  // id = its catalog id / URI; empty id = none
+    std::string comment;
+};
+
+struct CityListeners {
+    std::string city, country;      // "Istanbul", "TR"
+    int64_t listeners = 0;
+};
+
 struct ArtistPage {
     Artist artist;
     std::vector<Track> topTracks;   // ListenBrainz top recordings
@@ -118,6 +136,24 @@ struct ArtistPage {
     std::vector<Album> singles;     // singles + EPs
     std::vector<Album> other;       // compilations, live, ...
     std::vector<Artist> similar;    // ListenBrainz similar artists
+
+    // Optional: a source fills what it has; empty / 0 = the artist page leaves that part out.
+    std::vector<Album> popular;     // the source's popular releases (any kind)
+    std::vector<Album> appearsOn;   // other artists' releases the artist is on
+    std::vector<Playlist> playlists;   // playlists featuring the artist ("This Is …")
+    Album latest;                   // the newest release (empty id: the page takes the newest album / single)
+    ArtistPick pick;
+    std::vector<Image> banner;      // a wide header image (the avatar is artist.images)
+    std::vector<Image> gallery;     // more photos
+    std::string bio;                // plain text, paragraphs separated by '\n'
+    std::string bioSource;          // where it comes from: "Spotify", "Wikipedia"
+    std::string bioUrl;             // the full text (Wikipedia article), "" = none
+    int64_t monthlyListeners = 0;
+    int64_t followers = 0;
+    int worldRank = 0;              // 0 = not ranked
+    std::vector<CityListeners> topCities;
+    std::vector<ArtistLink> links;
+    bool verified = false;
 };
 
 struct SearchResults {

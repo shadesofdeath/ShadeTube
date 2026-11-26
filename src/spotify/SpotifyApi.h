@@ -195,6 +195,11 @@ public:
     // doesn't follow. Releases without an artist list are credited to the artist. Throws ApiError.
     std::vector<Album> artistLatestReleases(const std::string& artistUri, const CT& ct = {});
     static std::vector<Album> parseArtistReleases(const nlohmann::json& data);
+    // The queryArtistOverview `data` -> the artist page (artistPage() is this on the live answer): profile, avatar and
+    // header image, verified, monthly listeners / followers / world rank / top cities, biography (plain text), external
+    // links, the pick, top tracks, discography (popular releases, latest, albums / singles / compilations newest
+    // first), appears on, featuring playlists, related artists. Missing parts stay empty.
+    static ArtistPage parseArtistOverview(const nlohmann::json& data);
 
     static constexpr const char* kLikedSongsUri = "spotify:collection:tracks";
 
