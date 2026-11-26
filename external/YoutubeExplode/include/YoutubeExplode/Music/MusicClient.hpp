@@ -35,6 +35,9 @@ public:
     /// RequestLimitExceededException on HTTP 429, YoutubeExplodeException when `body` is not a JSON object.
     std::string send(const MusicRequest& request, const CancellationToken& cancellationToken = {}) const;
 
+    /// The client's interface language ("hl" of a request without its own).
+    std::string language() const;
+
     /// The WEB_REMIX client version sent: "1.<yyyymmdd>.01.00" of a few days ago, the form the web app sends (a
     /// fixed version would age; a clock before 2025 falls back to a known one).
     static std::string clientVersion();

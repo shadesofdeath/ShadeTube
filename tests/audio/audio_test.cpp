@@ -2,7 +2,9 @@
 // You cannot hear anything from CI: the program verifies behaviour through positions, states,
 // events and memory accounting, and exits non-zero on detected failures.
 //
-//   audio_test.exe [videoA] [videoB]
+//   audio_test.exe [--webm] [--exclusive] [videoA] [videoB]
+//     --webm       the whole run on YouTube's Opus / WebM streams (the built-in decoder) instead of AAC / MP4
+//     --exclusive  WASAPI exclusive mode on the default device (falls back to shared mode when it is refused)
 #include "audio/AudioEngine.h"
 #include "core/Log.h"
 
@@ -141,10 +143,19 @@ bool playsFor(Runner& r, std::chrono::milliseconds span, int64_t minAdvanceMs) {
 int main(int argc, char** argv) {
     SetConsoleOutputCP(CP_UTF8);
     st::log::init();
-    const std::string idA = argc > 1 ? argv[1] : "dQw4w9WgXcQ";
-    const std::string idB = argc > 2 ? argv[2] : "kJQP7kiw5Fk";
+    std::vector<std::string> ids;
+    bool webm = false, exclusive = false;
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a == "--webm") webm = true;
+        else if (a == "--exclusive") exclusive = true;
+        else ids.push_back(a);
+    }
+    const std::string idA = ids.size() > 0 ? ids[0] : "dQw4w9WgXcQ";
+    const std::string idB = ids.size() > 1 ? ids[1] : "kJQP7kiw5Fk";
+    const std::string container = webm ? "webm" : "mp4";
 
-    say("supportsWebm() = {}", AudioEngine::supportsWebm());
+    say("supportsWebm() = {}, container {}, exclusive {}", AudioEngine::supportsWebm(), container, exclusive);
 
     Events ev;
     st::audio::EngineEvents callbacks;
@@ -163,11 +174,12 @@ int main(int argc, char** argv) {
     // Created first, like the app does at startup (the engine warms up the audio device while
     // the streams are being resolved).
     auto enginePtr = std::make_unique<AudioEngine>(callbacks);
+    if (exclusive) enginePtr->setExclusive(true);
 
     YoutubeExplode::YoutubeClient yt;
     say("Resolving streams...");
-    auto a = resolve(yt, idA, "mp4", 1);
-    auto b = resolve(yt, idB, "mp4", 2);
+    auto a = resolve(yt, idA, container, 1);
+    auto b = resolve(yt, idB, container, 2);
     if (!a || !b) {
         say("!! Could not resolve YouTube streams (blocked or offline?) - cannot run the engine test.");
         return 2;
@@ -191,6 +203,13 @@ int main(int argc, char** argv) {
         }
         check(playsFor(r, 2500ms, 2000), "position advances in real time");
         check(engine.durationMs() > 60'000, std::format("duration known ({})", clock(engine.durationMs())));
+        if (exclusive) {
+            const auto o = engine.outputInfo();
+            say("    output: open {} exclusive {} fallback {} {} Hz {} ch {} bit ({} valid){}", o.open, o.exclusive,
+                static_cast<int>(o.fallback), o.sampleRate, o.channels, o.bits, o.validBits, o.floatFormat ? " float" : "");
+            check(o.open && (o.exclusive || o.fallback != st::audio::OutputInfo::Fallback::None),
+                  "exclusive mode open (or a reported fallback)");
+        }
 
         // 2. seek to 70% (far beyond the download frontier right after start) -------------------
         const int64_t dur = engine.durationMs();
@@ -295,21 +314,47 @@ int main(int argc, char** argv) {
         check(engine.state() == State::Idle, "state is Idle");
         check(engine.bufferedBytes() == 0, std::format("bufferedBytes() == 0 ({})", engine.bufferedBytes()));
 
-        // 8. WebM / Opus --------------------------------------------------------------------------
-        if (AudioEngine::supportsWebm()) {
-            say("\n== 8. WebM/Opus");
-            if (auto w = resolve(yt, idA, "webm", 3)) {
-                engine.open(*w, 60'000);
-                const bool ok = r.wait(20s, [&] { return engine.state() == State::Playing; });
-                check(ok, "webm playback started (at 1:00)");
-                if (ok) check(playsFor(r, 4000ms, 3300), "webm position advances");
-                check(engine.positionMs() >= 60'000, "webm started at the requested position");
-                engine.stop();
-                r.wait(2s, [&] { return engine.bufferedBytes() == 0; });
-            }
-        } else {
-            say("\n== 8. WebM/Opus not supported on this machine - skipped");
+        // 8. the other container ------------------------------------------------------------------
+        const std::string other = webm ? "mp4" : "webm";
+        say("\n== 8. {} stream", other);
+        if (auto w = resolve(yt, idA, other, 3)) {
+            engine.open(*w, 60'000);
+            const bool ok = r.wait(20s, [&] { return engine.state() == State::Playing; });
+            check(ok, std::format("{} playback started (at 1:00)", other));
+            if (ok) check(playsFor(r, 4000ms, 3300), std::format("{} position advances", other));
+            check(engine.positionMs() >= 60'000, std::format("{} started at the requested position", other));
+            engine.stop();
+            r.wait(2s, [&] { return engine.bufferedBytes() == 0; });
         }
+
+        // 9. crossfade -----------------------------------------------------------------------------
+        say("\n== 9. crossfade {} -> {} over 4 s", idA, idB);
+        {
+            {
+                std::lock_guard lock(ev.m);
+                ev.ended.clear();
+            }
+            engine.open(*a);
+            r.wait(20s, [&] { return engine.state() == State::Playing; });
+            StreamSource bx = *b;
+            bx.tag = 4;
+            bx.crossfadeMs = 4000;
+            engine.preload(bx);
+            r.wait(5000ms, [&] { return engine.bufferedBytes() > static_cast<size_t>(a->contentLength); });
+            engine.seek(engine.durationMs() - 7000);
+            const auto seekAt = std::chrono::steady_clock::now();
+            const bool faded = r.wait(20s, [&] {
+                std::lock_guard lock(ev.m);
+                return !ev.ended.empty();
+            });
+            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - seekAt).count();
+            std::lock_guard lock(ev.m);
+            check(faded && !ev.ended.empty() && ev.ended[0].second == 4, std::format("crossfade handed over to the next track ({} ms after the seek)", ms));
+            check(ms < 6000, "the handover came before the outgoing track's end (a mix, not a gapless start)");
+        }
+        check(playsFor(r, 2000ms, 1500), "the incoming track plays on");
+        engine.stop();
+        r.wait(2s, [&] { return engine.bufferedBytes() == 0; });
 
         {
             std::lock_guard lock(ev.m);

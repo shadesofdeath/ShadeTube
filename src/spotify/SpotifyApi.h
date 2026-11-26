@@ -3,6 +3,7 @@
 // Uses a Bearer access token minted by Auth (from the sp_dc cookie). Returns source-independent
 // st::catalog models so the rest of the app doesn't care that the data came from Spotify.
 // Blocking + thread-safe: call from worker threads (st::async). Throws st::spotify::ApiError on failure.
+#include "catalog/Credits.h"
 #include "catalog/Models.h"
 #include "spotify/PlaylistTree.h"
 
@@ -80,6 +81,24 @@ struct LibraryEntry {
 // By item URI; folders as "folder:<group id>" (the rootlist id, see PlaylistTree).
 using LibraryEntries = std::unordered_map<std::string, LibraryEntry>;
 
+// The kinds of search results that page on their own (the search page's tabs: one persisted query per kind).
+enum class SearchKind { Tracks, Albums, Artists, Playlists, Shows, Profiles };
+
+// One page of one kind: only that kind's vector of `results` is filled.
+struct SearchBatch {
+    SearchResults results;
+    int total = 0;          // Spotify's count for the query (an estimate for large ones)
+    int nextOffset = -1;    // where the next page starts; -1 = no more
+    bool hasMore() const { return nextOffset >= 0; }
+};
+
+// A user's public playlists (the profile page), a page at a time.
+struct ProfilePlaylists {
+    std::vector<Playlist> playlists;
+    int total = 0;
+    int nextOffset = -1;    // -1 = no more
+};
+
 class Api {
 public:
     // Called by Session whenever the token is (re)minted. Thread-safe.
@@ -111,7 +130,34 @@ public:
 
     Album album(const std::string& uri, const CT& ct = {});           // + tracklist
     ArtistPage artistPage(const std::string& uri, const CT& ct = {}); // overview: top tracks, albums, related
+    // The overview of every kind (searchDesktop): tracks, albums, artists, playlists, podcasts (shows) and profiles.
+    // Episodes, audiobooks and genres are left out.
     SearchResults search(const std::string& query, int limit = 12, const CT& ct = {});
+    // `searchV2` of any search query -> results (the kinds it holds). Split out for tests.
+    static SearchResults parseSearch(const nlohmann::json& searchV2);
+    // One kind, from `offset` (the web player's searchTracks / searchAlbums / searchArtists / searchPlaylists /
+    // searchPodcasts / searchUsers, which page with offset + limit). Throws ApiError.
+    SearchBatch searchMore(SearchKind kind, const std::string& query, int offset, int limit = 30, const CT& ct = {});
+    static SearchBatch parseSearchBatch(SearchKind kind, const nlohmann::json& data);
+
+    // ---- Podcasts and profiles ------------------------------------------------------------------------------------
+    // The shows (podcasts) the user follows, most recently added first (libraryV3, the "Podcasts & Shows" filter).
+    // Audiobooks are left out. Throws ApiError.
+    std::vector<PodcastShow> libraryShows(const CT& ct = {});
+    // libraryV3's `data` -> the shows in it (any filter; other item types are skipped). Split out for tests.
+    static std::vector<PodcastShow> parseLibraryShows(const nlohmann::json& data, int* totalCount = nullptr);
+    // A show's details (queryShowMetadataV2): name, publisher, description, cover. Throws ApiError (404 when it is not
+    // a podcast).
+    PodcastShow show(const std::string& uri, const CT& ct = {});
+    static PodcastShow parseShow(const nlohmann::json& podcastUnionV2);
+    // A user's profile and public playlists (spclient user-profile-view/v3, JSON). `userUri` = spotify:user:<name>
+    // (or the bare username). Throws ApiError (404: no such user).
+    Profile profile(const std::string& userUri, const CT& ct = {});
+    ProfilePlaylists profilePlaylists(const std::string& userUri, int offset, int limit = 50, const CT& ct = {});
+    static Profile parseProfile(const nlohmann::json& j);
+    // The answer to a request of `limit` from `offset`. Spotify drops rows it won't show after paging (a page of 20 may
+    // hold 16), so the next page starts at offset + limit, while that is below the (estimated) total.
+    static ProfilePlaylists parseProfilePlaylists(const nlohmann::json& j, int offset, int limit);
 
     // The user's personalized Spotify home feed (the web player's "home" query): shelves such as "Made For
     // <you>", "Jump back in", "Recently played", Daily Mixes, Discover Weekly, "Your top mixes"... Items are
@@ -176,6 +222,17 @@ public:
     // `language` ("en", optional) goes out as Accept-Language, like the web player's: the translations Spotify sends
     // along ("alternatives") follow it.
     std::string trackLyrics(const std::string& trackId, const CT& ct = {}, const std::string& language = {});
+    // A track's credits (the web player's "Credits" dialog: Pathfinder queryTrackCreditsGroupedModal, up to 100
+    // contributors; when that query fails for another reason than auth / rate limiting, the older spclient
+    // track-credits-view is asked). Contributors with a spotify:artist: URI carry it as their artist id. Empty
+    // Credits when Spotify lists none. Throws ApiError.
+    Credits trackCredits(const std::string& trackUri, const CT& ct = {});
+    // The query's `data` -> Credits (provider "spotify"): trackUnion.creditsTrait.contributors.items[{name, role,
+    // roleGroup:{name}, uri | reference.uri}] and creditsTrait.sources.items[{name}]. Split out for tests.
+    static Credits parseTrackCredits(const nlohmann::json& data);
+    // The legacy track-credits-view JSON {roleCredits:[{roleTitle, artists:[{uri, name, subroles:[...]}]}],
+    // sourceNames:[...]} -> Credits.
+    static Credits parseLegacyCredits(const nlohmann::json& j);
 
     // ---- Social (spotify/Social.cpp) ------------------------------------------------------------------------
     // Friend activity: the people the user follows and what they play now / played last (spclient presence-view
@@ -195,6 +252,16 @@ public:
     // doesn't follow. Releases without an artist list are credited to the artist. Throws ApiError.
     std::vector<Album> artistLatestReleases(const std::string& artistUri, const CT& ct = {});
     static std::vector<Album> parseArtistReleases(const nlohmann::json& data);
+    // The queryArtistOverview `data` -> the artist page (artistPage() is this on the live answer): profile, avatar and
+    // header image, verified, monthly listeners / followers / world rank / top cities, biography (plain text), external
+    // links, the pick, top tracks, discography (popular releases, latest, albums / singles / compilations newest
+    // first), appears on, featuring playlists, related artists. Missing parts stay empty.
+    static ArtistPage parseArtistOverview(const nlohmann::json& data);
+    // Every release of one part of an artist's discography, newest first and the first edition of each, in pages of 50
+    // (queryArtistDiscographyAlbums / Singles / Compilations; queryArtistAppearsOn), at most `max`. Throws ApiError.
+    std::vector<Album> artistReleases(const std::string& artistUri, ReleaseGroup group, int max = 300, const CT& ct = {});
+    // One page of those answers (`data`) -> its releases; `total` (optional) receives the group's size.
+    static std::vector<Album> parseArtistReleasePage(const nlohmann::json& data, ReleaseGroup group, int* total = nullptr);
 
     static constexpr const char* kLikedSongsUri = "spotify:collection:tracks";
 

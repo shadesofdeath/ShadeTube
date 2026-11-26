@@ -1,5 +1,6 @@
 #include "audio/LiveParsers.h"
 
+#include "audio/XiphCodecs.h"
 #include "core/Utf.h"
 
 #include <windows.h>
@@ -16,6 +17,8 @@ constexpr size_t kMaxId3Parse = 256 * 1024;     // larger ID3 tags are skipped u
 constexpr size_t kMaxPlaylistEntries = 64;
 constexpr size_t kMaxId3Pes = 64 * 1024;
 constexpr size_t kMaxOpusPacket = 64 * 1024;     // RFC 6716: at most 48 frames of 1275 bytes (120 ms at 510 kbps ~ 8 KB)
+                                                 // (Vorbis audio packets: the same bound, far above 500 kbps blocks)
+constexpr size_t kMaxVorbisSetup = 1024 * 1024;  // the setup header (codebooks), a few KB in practice
 
 uint32_t be16(const uint8_t* p) { return (uint32_t(p[0]) << 8) | p[1]; }
 uint32_t be24(const uint8_t* p) { return (uint32_t(p[0]) << 16) | (uint32_t(p[1]) << 8) | p[2]; }
@@ -368,6 +371,8 @@ uint64_t frameConfigKey(const Frame& f) {
                    (uint64_t(f.channels & 0xFF) << 24) | (uint64_t(f.sampleRate) << 32);
     if (f.codec == Codec::Opus) {   // the OpusHead (channel mapping) configures the decoder
         for (const uint8_t b : f.codecPrivate) key = (key ^ b) * 1099511628211ull;
+    } else if (f.codec == Codec::Vorbis && f.vorbis) {   // the identification + setup headers
+        key = (key ^ f.vorbis->key) * 1099511628211ull;
     }
     return key;
 }
@@ -377,6 +382,7 @@ const char* codecName(const Frame& f) {
     case Codec::Mpeg: return f.layer == 3 ? "MP3" : f.layer == 2 ? "MP2" : "MP1";
     case Codec::Aac: return "AAC";
     case Codec::Opus: return "Opus";
+    case Codec::Vorbis: return "Vorbis";
     case Codec::None: break;
     }
     return "";
@@ -616,6 +622,19 @@ bool FrameParser::next(Frame& out) {
 
 // ---- OggDemuxer ---------------------------------------------------------------------------------------------------
 
+struct OggDemuxer::Vorbis {
+    std::vector<std::vector<uint8_t>> headers;     // collected so far
+    std::shared_ptr<const VorbisHeaders> ready;    // the complete headers of the current logical stream
+    xiph::VorbisPacketDecoder sizer;               // headers only: packet block sizes
+    uint32_t rate = 0;
+    int prevBlock = 0;
+};
+
+OggDemuxer::OggDemuxer() = default;
+OggDemuxer::~OggDemuxer() = default;
+OggDemuxer::OggDemuxer(OggDemuxer&&) noexcept = default;
+OggDemuxer& OggDemuxer::operator=(OggDemuxer&&) noexcept = default;
+
 void OggDemuxer::push(const uint8_t* data, size_t size) {
     if (pos_ > 0 && (pos_ >= 64 * 1024 || pos_ * 2 >= buf_.size())) {
         buf_.erase(buf_.begin(), buf_.begin() + static_cast<ptrdiff_t>(pos_));
@@ -674,6 +693,7 @@ bool OggDemuxer::readPage() {
             partial_.clear();
             head_.clear();
             headerPackets_ = 0;
+            codec_ = Codec::None;
         }
         const bool continued = (flags & 0x01) != 0;
         // A continued page whose packet start was never seen (joined mid-stream): drop that packet's tail. An
@@ -702,25 +722,10 @@ bool OggDemuxer::readPage() {
 
 void OggDemuxer::packet(std::vector<uint8_t>&& p, bool bos) {
     auto startsWith = [&](const char* s, size_t n) { return p.size() >= n && std::memcmp(p.data(), s, n) == 0; };
-    if (bos || head_.empty()) {
-        if (startsWith("OpusHead", 8) && p.size() >= 19) {
-            head_ = p;
-            channels_ = std::max<uint32_t>(1, p[9]);
-            headerPackets_ = 1;   // OpusTags follows
-        } else if (startsWith("\x01vorbis", 7)) {
-            unsupportedCodec_ = "Vorbis";
-        } else if (startsWith("\x7F" "FLAC", 5)) {
-            unsupportedCodec_ = "FLAC";
-        } else if (startsWith("Speex", 5)) {
-            unsupportedCodec_ = "Speex";
-        }
-        return;   // other streams (Skeleton...) are ignored
-    }
-    if (headerPackets_ > 0) {
-        headerPackets_ = 0;
-        if (!startsWith("OpusTags", 8) || p.size() < 16) return;
-        // Vorbis comments: vendor string, then "KEY=value" entries.
-        size_t pos = 8;
+    // Vorbis comments ("KEY=value" entries after a vendor string) at `from`: the stream title.
+    auto readTitle = [&](size_t from) {
+        if (p.size() < from + 8) return;
+        size_t pos = from;
         const uint32_t vendor = le32(p.data() + pos);
         pos += 4;
         if (vendor > p.size() - pos) return;
@@ -739,6 +744,84 @@ void OggDemuxer::packet(std::vector<uint8_t>&& p, bool bos) {
             else if (istartsWith(entry, "ARTIST=")) artist = cleanText(entry.substr(7));
         }
         if (!title.empty() || !artist.empty()) title_ = joinTitle(artist, title);
+    };
+    if (bos || codec_ == Codec::None) {
+        if (startsWith("OpusHead", 8) && p.size() >= 19) {
+            head_ = p;
+            channels_ = std::max<uint32_t>(1, p[9]);
+            headerPackets_ = 1;   // OpusTags follows
+            codec_ = Codec::Opus;
+            fresh_ = true;
+        } else if (startsWith("\x01vorbis", 7) && p.size() >= 30) {
+            if (!vorbis_) vorbis_ = std::make_unique<Vorbis>();
+            vorbis_->headers = {p};
+            vorbis_->ready.reset();
+            headerPackets_ = 2;   // the comment and setup headers follow
+            codec_ = Codec::Vorbis;
+            fresh_ = true;
+        } else if (startsWith("\x7F" "FLAC", 5)) {
+            unsupportedCodec_ = "FLAC";
+        } else if (startsWith("Speex", 5)) {
+            unsupportedCodec_ = "Speex";
+        }
+        return;   // other streams (Skeleton...) are ignored
+    }
+    if (codec_ == Codec::Vorbis) {
+        Vorbis& v = *vorbis_;
+        if (headerPackets_ == 2) {
+            if (!startsWith("\x03vorbis", 7)) {   // broken stream: wait for the next one
+                codec_ = Codec::None;
+                return;
+            }
+            readTitle(7);
+            v.headers.push_back(std::move(p));
+            headerPackets_ = 1;
+            return;
+        }
+        if (headerPackets_ == 1) {
+            headerPackets_ = 0;
+            if (!startsWith("\x05vorbis", 7) || p.size() > kMaxVorbisSetup) {
+                codec_ = Codec::None;
+                return;
+            }
+            v.headers.push_back(std::move(p));
+            if (!v.sizer.open(v.headers, false)) {
+                codec_ = Codec::None;
+                return;
+            }
+            auto h = std::make_shared<VorbisHeaders>();
+            uint64_t key = 1469598103934665603ull;
+            for (const size_t i : {size_t(0), size_t(2)})
+                for (const uint8_t b : v.headers[i]) key = (key ^ b) * 1099511628211ull;
+            h->packets = std::move(v.headers);
+            h->key = key;
+            v.headers.clear();
+            v.ready = std::move(h);
+            v.rate = v.sizer.sampleRate();
+            channels_ = v.sizer.channels();
+            v.prevBlock = 0;
+            return;
+        }
+        if (!v.ready || p.empty() || (p[0] & 1) || p.size() > kMaxOpusPacket) return;   // a header-type packet, or not audio
+        const int block = v.sizer.blockSize(p.data(), p.size());
+        if (block <= 0) return;
+        Frame f;
+        f.codec = Codec::Vorbis;
+        f.sampleRate = v.rate;
+        f.channels = channels_;
+        f.samples = v.prevBlock ? static_cast<uint32_t>((v.prevBlock + block) / 4) : 0;   // the first one only primes
+        v.prevBlock = block;
+        f.data = std::move(p);
+        f.vorbis = v.ready;
+        f.discontinuity = fresh_;
+        fresh_ = false;
+        ready_.push_back(std::move(f));
+        return;
+    }
+    if (codec_ != Codec::Opus) return;
+    if (headerPackets_ > 0) {
+        headerPackets_ = 0;
+        if (startsWith("OpusTags", 8)) readTitle(8);
         return;
     }
     Frame f;
@@ -748,7 +831,11 @@ void OggDemuxer::packet(std::vector<uint8_t>&& p, bool bos) {
     f.samples = opusSamples(p);
     f.data = std::move(p);
     f.codecPrivate = head_;
-    if (f.samples > 0 && f.data.size() <= kMaxOpusPacket) ready_.push_back(std::move(f));   // larger: not Opus audio
+    if (f.samples > 0 && f.data.size() <= kMaxOpusPacket) {   // larger: not Opus audio
+        f.discontinuity = fresh_;
+        fresh_ = false;
+        ready_.push_back(std::move(f));
+    }
 }
 
 // ---- ICY ----------------------------------------------------------------------------------------------------------

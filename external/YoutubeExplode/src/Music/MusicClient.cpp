@@ -39,6 +39,8 @@ std::string MusicClient::clientVersion() {
     return buf;
 }
 
+std::string MusicClient::language() const { return context_->options().language; }
+
 std::string MusicClient::send(const MusicRequest& request, const CancellationToken& cancellationToken) const {
     Json body = request.body.empty() ? Json::object() : parseJson(request.body);
     if (!body.is_object())

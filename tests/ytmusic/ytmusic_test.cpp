@@ -173,7 +173,14 @@ static void offlineSearch() {
         for (const auto& t : r.tracks)
             if (t.videoId == "Rgrt_8mXrK8") three = t.artists.size() == 3 && t.artists[2].name == "Nile Rodgers";
         CHECK(three);
+        CHECK(r.topResult.empty());   // a filtered answer has no top result card
         for (const auto& t : r.tracks) printTrack(t);
+        // Paging: the filtered list names its continuation; the continuation answer has the next rows (and the one after).
+        const auto page = ytm::parseSearchPage(fixture("search_songs.json"));
+        CHECK(!page.continuation.empty() && page.results.tracks.size() == 16);
+        const auto more = ytm::parseSearchPage(fixture("search_songs_cont.json"));
+        CHECK(more.results.tracks.size() == 4 && more.results.tracks[0].videoId == "F7RozpwmUIs");
+        CHECK(!more.continuation.empty());
     }
     {
         const auto r = ytm::parseSearch(fixture("search_albums.json"));
@@ -211,6 +218,9 @@ static void offlineSearch() {
         // first; videos, episodes, podcasts and profiles are not catalog rows.
         const auto r = ytm::parseSearch(fixture("search_all.json"));
         CHECK(!r.tracks.empty() && r.tracks[0].videoId == "khnokW3Mw24");
+        // The top result card: the artist Daft Punk, which is also a row of the artists.
+        CHECK(r.topResult == "ytm:artist:UCRr1xG_2WIDs18a6cIiCxeA");
+        CHECK(!r.artists.empty() && r.artists[0].id == r.topResult);
         bool ram = false, weeknd = false, presenting = false;
         for (const auto& a : r.albums) ram |= a.id == "ytm:album:MPREb_K8qWMWVqXGi";
         for (const auto& a : r.artists) weeknd |= a.name == "The Weeknd";
@@ -257,7 +267,16 @@ static void offlinePages() {
         const auto& p = r.page;
         CHECK(p.artist.name == "Daft Punk" && p.artist.id == "ytm:artist:UCRr1xG_2WIDs18a6cIiCxeA");
         CHECK(squareImages(p.artist.images));
-        CHECK(p.artist.listenCount == 65400000);
+        CHECK(p.monthlyListeners == 65400000);
+        CHECK(p.followers == 7220000);   // subscribers
+        CHECK(!p.banner.empty() && p.banner.back().width > p.banner.back().height);   // the wide header picture
+        CHECK(p.bio.rfind("Daft Punk were a French electronic music duo", 0) == 0);
+        CHECK(p.bio.find("From Wikipedia") == std::string::npos);   // the credit line is the source, not the text
+        CHECK(p.bioSource == "Wikipedia" && p.bioUrl == "https://en.wikipedia.org/wiki/Daft_Punk");
+        CHECK(!p.playlists.empty() && p.playlists[0].name == "Presenting Daft Punk");   // "Featured on"
+        CHECK(r.allAlbums.id == "MPADUCRr1xG_2WIDs18a6cIiCxeA" && r.allAlbums.params == "ggMIegYIARoCAQI%3D");
+        CHECK(r.allSingles.id == "MPADUCRr1xG_2WIDs18a6cIiCxeA" && r.allSingles.params == "ggMIegYIAhoCAQI%3D");
+        CHECK(p.appearsOn.empty());
         CHECK(p.topTracks.size() == 3);   // the fixture keeps three of the five
         if (!p.topTracks.empty()) {
             CHECK(p.topTracks[0].videoId == "khnokW3Mw24");
@@ -272,6 +291,19 @@ static void offlinePages() {
         CHECK(r.songsPlaylistId == "OLAK5uy_lNVBcjNtiCwq-n95uoxJ-Gd4vsfMkyZNs");
         std::printf("    %zu top songs, %zu albums, %zu singles, %zu related\n", p.topTracks.size(), p.albums.size(), p.singles.size(),
                     p.similar.size());
+    }
+    std::printf("== discography (an artist's \"More\" page)\n");
+    {
+        const auto r = ytm::parseReleases(fixture("releases.json"), {"ytm:artist:UCRr1xG_2WIDs18a6cIiCxeA", "Daft Punk"});
+        CHECK(r.releases.size() == 11);   // every album, not the artist page's first ten
+        if (!r.releases.empty()) {
+            const Album& a = r.releases[0];
+            CHECK(a.name == "Random Access Memories (Drumless Edition)" && a.id == "ytm:album:MPREb_OgeEnoHTsCm");
+            CHECK(a.year() == "2023" && a.primaryType == "Album");
+            CHECK(a.artists.size() == 1 && a.artists[0].name == "Daft Punk");
+            CHECK(!a.images.empty());
+        }
+        CHECK(r.continuation.empty());
     }
     std::printf("== playlist\n");
     {
@@ -422,6 +454,24 @@ static void live(const std::string& query) {
         for (size_t i = 0; i < s.tracks.size() && i < 5; ++i) printTrack(s.tracks[i]);
         const auto again = timed("search (memory cache)", [&] { return ytm::search(query, 20); });
         CHECK(again.tracks.size() == s.tracks.size());
+        std::printf("    top result %s\n", s.topResult.c_str());
+        CHECK(!s.topResult.empty());
+        {
+            // As you type: one request (the unfiltered answer), with its top result.
+            const int before = ytm::stats().requests;
+            const auto q = timed("quick search (palette)", [&] { return ytm::searchQuick(query + " ", 6); });
+            CHECK(ytm::stats().requests - before == 1);
+            CHECK(!q.topResult.empty() && !q.tracks.empty() && q.tracks.size() <= 6);
+            // Paging a kind: rows 20.. of the songs follow the first 20, none twice.
+            const auto more = timed("more songs (rows 20-49)", [&] { return ytm::searchMore(query, ytm::SearchKind::Songs, 20, 30); });
+            std::printf("    %zu more songs, more after: %s\n", more.results.tracks.size(), more.hasMore ? "yes" : "no");
+            CHECK(!more.results.tracks.empty());
+            for (const auto& t : more.results.tracks)
+                for (const auto& f : s.tracks) CHECK(t.id != f.id);
+            const auto morePl = timed("more playlists (rows 20-49)", [&] { return ytm::searchMore(query, ytm::SearchKind::Playlists, 20, 30); });
+            std::printf("    %zu more playlists (featured, then community)\n", morePl.results.playlists.size());
+            CHECK(!morePl.results.playlists.empty());
+        }
 
         if (!s.albums.empty()) {
             const auto a = timed("album", [&] { return ytm::album(s.albums[0].id); });
@@ -440,6 +490,19 @@ static void live(const std::string& query) {
             CHECK(!p.topTracks.empty() && !p.albums.empty() && !p.similar.empty());
             // The top songs come from the artist's songs list: more than the page's five, with their lengths.
             CHECK(p.topTracks.size() > 5 && p.topTracks[0].durationMs > 0);
+            CHECK(p.monthlyListeners > 0 && !p.bio.empty() && !p.banner.empty());
+            // The whole discography: the "More" pages of the albums / singles carousels.
+            const auto albums = timed("artist's albums (all)", [&] { return ytm::artistReleases(p.artist.id, ReleaseGroup::Albums); });
+            const auto singles = timed("artist's singles (all)", [&] { return ytm::artistReleases(p.artist.id, ReleaseGroup::Singles); });
+            std::printf("    page: %zu albums, %zu singles (totals %d / %d); all: %zu albums, %zu singles\n", p.albums.size(),
+                        p.singles.size(), p.albumsTotal, p.singlesTotal, albums.size(), singles.size());
+            CHECK(albums.size() >= p.albums.size() && singles.size() >= p.singles.size());
+            for (const auto& a : singles) CHECK(a.primaryType == "Single" || a.primaryType == "EP");
+            // The disk cache: the memory cache gone, the page comes back without the network.
+            ytm::clearCache();
+            const int before = ytm::stats().requests, disk = ytm::stats().diskHits;
+            timed("artist again (disk cache)", [&] { return ytm::artistPage(s.artists[0].id); });
+            CHECK(ytm::stats().requests == before && ytm::stats().diskHits >= disk + 2);
             CHECK(squareImages(p.artist.images));
             const auto radio = timed("artist radio", [&] { return ytm::radio(p.artist.id, 60); });
             CHECK(radio.size() >= 20);

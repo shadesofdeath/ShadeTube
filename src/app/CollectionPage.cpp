@@ -367,10 +367,7 @@ private:
                   table_->onNearEnd = [this] { loadMore(); };
                   if (loadedOffset_ < total_) table_->setLoadingRows(std::min(8, total_ - loadedOffset_));
                   empty_ = nullptr;
-                  if (total_ == 0 && editable_)
-                      empty_ = col_->add<MessagePanel>(
-                          "music-note", tr(L"Bu liste boş"),
-                          tr(L"Şarkılara sağ tıklayıp \"Çalma listesine ekle\" ile doldur."));
+                  if (total_ == 0 && (editable_ || liked)) addEmptyState();
                   finishLoading();
                   // A page with no tracks at all (only episodes) gives the table no rows to scroll near: keep paging.
                   if (table_->tracks().empty() && loadedOffset_ < total_) loadMore();
@@ -494,10 +491,21 @@ private:
         return {};
     }
 
+    // An empty list: what fills it, and one way to start (Search).
+    void addEmptyState() {
+        const bool liked = kind_ == Kind::Liked;
+        empty_ = emptyState(col_, liked ? "heart" : "playlist",
+                            liked ? tr(L"Henüz beğendiğin şarkı yok") : tr(L"Bu liste boş"),
+                            liked ? tr(L"Şarkıların yanındaki kalbe dokun, burada toplansınlar.")
+                                  : tr(L"Şarkılara sağ tıklayıp \"Çalma listesine ekle\" ile doldur."),
+                            tr(L"Şarkı ara"), [] { ctx().router->navigate({RouteKind::Search}); }, "search");
+    }
+
     void buildLocal() {
         if (kind_ == Kind::Playlist && !ctx().library.playlist(id_)) {
             auto* c = resetContent();
-            c->add<MessagePanel>("playlist", tr(L"Çalma listesi bulunamadı"), tr(L"Silinmiş olabilir."));
+            emptyState(c, "playlist", tr(L"Çalma listesi bulunamadı"), tr(L"Silinmiş olabilir."), tr(L"Kitaplığa dön"),
+                       [] { ctx().router->navigate({RouteKind::Library}); });
             header_ = nullptr;
             table_ = nullptr;
             return;
@@ -507,13 +515,7 @@ private:
         if (kind_ == Kind::Playlist) table_->setPlaylistId(id_);
         table_->setTracks(tracks);
         showEnhanced();
-        if (tracks.empty()) {
-            const bool liked = kind_ == Kind::Liked;
-            empty_ = col_->add<MessagePanel>(
-                liked ? "heart" : "music-note", liked ? tr(L"Henüz beğendiğin şarkı yok") : tr(L"Bu liste boş"),
-                liked ? tr(L"Şarkıların yanındaki kalbe dokun, burada toplansınlar.")
-                      : tr(L"Şarkılara sağ tıklayıp \"Çalma listesine ekle\" ile doldur."));
-        }
+        if (tracks.empty()) addEmptyState();
         finishLoading();
     }
 
@@ -682,27 +684,22 @@ private:
             scroll_->contentChanged();
         };
         header_->filterBox_->onEscape = [this] { header_->filter_->onClick(); };
+        // The sort menu and the table's column headers sort the same way: a header click lands on one of these choices
+        // (or a direction the menu doesn't list), and the button's label follows either.
         header_->sort_->onClick = [this] {
             const Rect br = header_->sort_->toWindow(header_->sort_->rect());
-            using SK = TrackTable::SortKey;
-            auto pick = [this](SK k, bool desc, std::wstring label) {
-                ui::MenuItem item{label, "", L"", [this, k, desc, label] {
+            std::vector<ui::MenuItem> items;
+            for (const auto& s : sortChoices()) {
+                ui::MenuItem item{s.label, "", L"", [this, k = s.key, desc = s.desc] {
                                       table_->setSort(k, desc);
-                                      header_->sort_->setLabel(label);
-                                      header_->requestLayout();
+                                      showSortLabel();
                                   }};
-                item.checked = table_->sortKey() == k && table_->sortDescending() == desc;
-                return item;
-            };
-            std::vector<ui::MenuItem> items{pick(SK::None, false, tr(L"Özel sıra")),
-                                            pick(SK::Title, false, tr(L"Başlık")),
-                                            pick(SK::Duration, false, tr(L"Süre"))};
-            if (kind_ != Kind::Album) {
-                items.insert(items.begin() + 1, pick(SK::Added, true, tr(L"Eklenme tarihi ↓")));
-                items.push_back(pick(SK::Album, false, tr(L"Albüm")));
+                item.checked = table_->sortKey() == s.key && table_->sortDescending() == s.desc;
+                items.push_back(std::move(item));
             }
             ui::Menu::open(ctx().window, {br.x, br.bottom() + 6}, std::move(items));
         };
+        table_->onSortChanged = [this](TrackTable::SortKey, bool) { showSortLabel(); };
         auto refreshSave = [this] {
             const bool saved = kind_ == Kind::Album && ctx().library.isSavedAlbum(id_);
             header_->save_->setIcon(saved ? "heart-filled" : "heart");
@@ -780,6 +777,43 @@ private:
         scroll_->contentChanged();
     }
 
+    // ---- Sorting ------------------------------------------------------------------------------------------------
+    struct SortChoice {
+        TrackTable::SortKey key;
+        bool desc;
+        std::wstring label;
+    };
+    // What the sort menu offers (albums: no added date / album; plays only where the songs have counts).
+    std::vector<SortChoice> sortChoices() const {
+        using SK = TrackTable::SortKey;
+        std::vector<SortChoice> out{{SK::None, false, tr(L"Özel sıra")}};
+        if (kind_ != Kind::Album) out.push_back({SK::Added, true, tr(L"Eklenme tarihi ↓")});
+        out.push_back({SK::Title, false, tr(L"Başlık")});
+        out.push_back({SK::Duration, false, tr(L"Süre")});
+        if (kind_ != Kind::Album) out.push_back({SK::Album, false, tr(L"Albüm")});
+        if (table_ && table_->hasPlays()) out.push_back({SK::Plays, true, tr(L"Dinlenme ↓")});
+        return out;
+    }
+
+    // The sort button's label for the table's sort: the menu's choice, or the column's name with its direction.
+    void showSortLabel() {
+        if (!table_ || !header_) return;
+        using SK = TrackTable::SortKey;
+        const SK k = table_->sortKey();
+        const bool desc = table_->sortDescending();
+        std::wstring label;
+        for (const auto& s : sortChoices())
+            if (s.key == k && s.desc == desc) label = s.label;
+        if (label.empty()) {
+            const std::wstring name = k == SK::Title ? tr(L"Başlık") : k == SK::Album ? tr(L"Albüm")
+                                      : k == SK::Added ? tr(L"Eklenme tarihi") : k == SK::Plays ? tr(L"Dinlenme")
+                                      : k == SK::Duration ? tr(L"Süre") : tr(L"Özel sıra");
+            label = k == SK::None ? name : name + (desc ? L" ↓" : L" ↑");
+        }
+        header_->sort_->setLabel(label);
+        header_->requestLayout();
+    }
+
     // A successful write to this Spotify playlist (UI thread). Removals are applied in place (exact, no refetch);
     // additions reload the first page (they land at the end); a rename only touches the header.
     void onEdit(const spotify::PlaylistEdit& e) {
@@ -814,8 +848,7 @@ private:
             if (table_->tracks().empty() && loadedOffset_ < total_) {
                 loadMore();   // every loaded row is gone: no row left to scroll near, fetch the rest now
             } else if (total_ == 0 && !empty_) {
-                empty_ = col_->add<MessagePanel>("music-note", tr(L"Bu liste boş"),
-                                                 tr(L"Şarkılara sağ tıklayıp \"Çalma listesine ekle\" ile doldur."));
+                addEmptyState();
             }
             scroll_->contentChanged();
         } else if (e.kind == K::Added) {

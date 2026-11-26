@@ -9,6 +9,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -16,9 +17,15 @@
 
 namespace st::audio::live {
 
-enum class Codec : uint8_t { None, Mpeg, Aac, Opus };
+enum class Codec : uint8_t { None, Mpeg, Aac, Opus, Vorbis };
 
-// One compressed frame: an MPEG audio frame, an ADTS frame (header included) or one Opus packet.
+// The identification, comment and setup headers of an Ogg Vorbis logical stream (shared by its frames).
+struct VorbisHeaders {
+    std::vector<std::vector<uint8_t>> packets;
+    uint64_t key = 0;                  // hash of the identification and setup headers (what configures the decoder)
+};
+
+// One compressed frame: an MPEG audio frame, an ADTS frame (header included), one Opus or one Vorbis packet.
 struct Frame {
     Codec codec = Codec::None;
     uint32_t sampleRate = 0;           // coded rate (HE-AAC: the core rate; the decoder may double it)
@@ -29,13 +36,14 @@ struct Frame {
     uint8_t objectType = 0;            // AAC audio object type (2 = LC)
     std::vector<uint8_t> data;
     std::vector<uint8_t> codecPrivate; // Opus: the OpusHead packet
+    std::shared_ptr<const VorbisHeaders> vorbis;   // Vorbis: the stream's headers
     std::optional<std::string> title;  // a new stream title (UTF-8) starts with this frame; "" = cleared
     bool discontinuity = false;        // audio was lost right before this frame (reconnect, dropped while paused)
 };
 int64_t frameDurationUs(const Frame& f);
 // Decoder configuration identity: frames with the same key decode with the same decoder setup.
 uint64_t frameConfigKey(const Frame& f);
-const char* codecName(const Frame& f);  // "MP3", "MP2", "MP1", "AAC", "Opus"
+const char* codecName(const Frame& f);  // "MP3", "MP2", "MP1", "AAC", "Opus", "Vorbis"
 
 // ---- elementary streams ---------------------------------------------------------------------------------------
 
@@ -98,9 +106,14 @@ private:
     std::optional<std::string> title_;
 };
 
-// Ogg pages -> Opus packets. Other Ogg codecs (Vorbis, FLAC, Speex) make it unsupported().
+// Ogg pages -> Opus or Vorbis packets (a chained stream may switch between them; every new logical stream's first
+// audio frame is a discontinuity). Other Ogg codecs (FLAC, Speex) make it unsupported().
 class OggDemuxer {
 public:
+    OggDemuxer();
+    ~OggDemuxer();
+    OggDemuxer(OggDemuxer&&) noexcept;
+    OggDemuxer& operator=(OggDemuxer&&) noexcept;
     void push(const uint8_t* data, size_t size);
     bool next(Frame& out);
     bool unsupported() const { return !unsupportedCodec_.empty(); }
@@ -119,7 +132,11 @@ private:
     size_t readyPos_ = 0;
     std::vector<uint8_t> head_;      // OpusHead of the current logical stream
     uint32_t channels_ = 0;
-    int headerPackets_ = 0;          // OpusHead / OpusTags still expected
+    int headerPackets_ = 0;          // OpusTags / Vorbis comment + setup still expected
+    Codec codec_ = Codec::None;      // of the current logical stream
+    struct Vorbis;                   // header packets being collected, block sizes of the current stream
+    std::unique_ptr<Vorbis> vorbis_;
+    bool fresh_ = false;             // the next audio frame starts a new logical stream
     std::string unsupportedCodec_;
     size_t hunted_ = 0;
     std::optional<std::string> title_;

@@ -2,7 +2,9 @@
 // of the daily mixes, the cache file, the generated covers, the Library / Home rows and the list page.
 #include "app/SmartListsPage.h"
 
+#include "app/Accounts.h"
 #include "app/Blacklist.h"
+#include "app/Blends.h"
 #include "app/CollapsingHeader.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -52,7 +54,8 @@ constexpr int kLikedPages = 5;                        // Spotify's liked songs: 
 constexpr size_t kCoverLookups = 16;                  // artwork lookups per build for the covers
 constexpr int kCacheVersion = 1;
 
-std::filesystem::path cacheFile() { return paths::appData() / L"smart-lists.json"; }
+// The active Spotify account's (app/Accounts). Read on the UI thread: workers get the path.
+std::filesystem::path cacheFile() { return accounts::file(L"smart-lists.json"); }
 
 struct State {
     bool wired = false;
@@ -75,7 +78,8 @@ struct State {
     std::string freshUser;
     bool notifyPosted = false;
     std::vector<std::pair<Lifetime::Ref, std::function<void()>>> listeners;
-    Lifetime life;
+    Lifetime life;   // subscriptions
+    Lifetime work;   // builds, cache reads / writes, artwork lookups (renewed at an account switch)
     LocalClock clock;
 };
 
@@ -145,7 +149,7 @@ void enrichCovers(size_t lookups) {
         for (size_t i = 0; i < l.tracks.size() && i < 8; ++i)
             if (l.tracks[i].album.images.empty() && seen.insert(artKey(l.tracks[i])).second) heads.push_back(l.tracks[i]);
     if (heads.empty()) return;
-    enrichTrackArtwork(heads, lookups, s.life.ref(), [] {
+    enrichTrackArtwork(heads, lookups, s.work.ref(), [] {
         enrichCovers(0);   // what landed, from the cache now
         notify();
     });
@@ -229,8 +233,7 @@ void saveCache() {
         j["likedUser"] = s.likedUser;
     }
     auto text = std::make_shared<std::string>(j.dump(-1, ' ', false, json::error_handler_t::replace));
-    async(Priority::Low, s.life.ref(), [text] {
-        const auto file = cacheFile();
+    async(Priority::Low, s.work.ref(), [text, file = cacheFile()] {
         auto tmp = file;
         tmp += L".tmp";
         {
@@ -248,9 +251,9 @@ void loadCache() {
     s.cacheTried = true;
     s.cacheLoading = true;
     async(
-        Priority::Normal, s.life.ref(),
-        [] {
-            std::ifstream f(cacheFile(), std::ios::binary);
+        Priority::Normal, s.work.ref(),
+        [file = cacheFile()] {
+            std::ifstream f(file, std::ios::binary);
             if (!f) return json();
             std::ostringstream ss;
             ss << f.rdbuf();
@@ -418,7 +421,7 @@ void startBuild() {
         if (s.likedUser == job.user) job.liked = s.liked;   // yesterday's, if today's fetch fails
     }
     if (s.freshDay == job.day && s.freshUser == job.user) job.fresh = s.fresh;
-    async(Priority::Low, s.life.ref(), [job = std::move(job)]() mutable { return runJob(std::move(job)); },
+    async(Priority::Low, s.work.ref(), [job = std::move(job)]() mutable { return runJob(std::move(job)); },
           [](Result<Built> r) {
               auto& s = state();
               s.building = false;
@@ -457,6 +460,30 @@ void wire() {
         applyBlocklist();
         enrichCovers(0);
         notify();
+    });
+    // Another Spotify account: its own lists (built from its history), from its cache file, rebuilt when due.
+    ctx().accountLeaveHooks.push_back([] {
+        auto& s = state();
+        s.work.renew();   // a build / cache read for the account that is leaving
+        s.building = s.cacheLoading = false;
+    });
+    ctx().accountEnterHooks.push_back([] {
+        auto& s = state();
+        s.raw.clear();
+        s.shown.clear();
+        s.builtOnce = false;
+        s.builtDay = -1;
+        s.builtUser.clear();
+        s.builtPlays = 0;
+        s.liked.clear();
+        s.likedDay = -1;
+        s.likedUser.clear();
+        s.fresh.clear();
+        s.freshDay = -1;
+        s.freshUser.clear();
+        s.cacheTried = false;
+        notify();
+        ensure();
     });
 }
 
@@ -763,6 +790,7 @@ public:
         : ui::Column(0), maxRows_(maxRows), makeRow_(std::move(makeRow)) {
         hitTestVisible = false;
         subscribe(life_.ref(), [this] { rebuild(); });
+        blends::subscribe(life_.ref(), [this] { rebuild(); });   // the blends' cards follow the smart lists'
         rebuild();
         ensure();
     }
@@ -771,8 +799,9 @@ private:
     void rebuild() {
         clearChildren();
         const auto& all = lists();
-        setVisible(!all.empty());
-        if (all.empty()) {
+        // Shown while there is a list or a blend (the "Blend oluştur" card comes with them).
+        setVisible(!all.empty() || blends::any());
+        if (all.empty() && !blends::any()) {
             requestLayout();
             return;
         }
@@ -787,6 +816,7 @@ private:
             row = grid;
         }
         for (const auto& l : all) row->add<SmartCard>(l);
+        blends::addCards(row);
         requestLayout();
         invalidate();
     }
@@ -1033,6 +1063,7 @@ void addSection(ui::Column* c, std::function<ui::Widget*(ui::Column*)> makeRow) 
 } // namespace smart
 
 std::unique_ptr<Page> makeSmartListPage(const std::string& rawId) {
+    if (rawId.rfind("blend:", 0) == 0) return makeBlendPage(rawId.substr(6));   // a Blend (app/BlendPage.cpp)
     std::string id = rawId;
     bool autoplay = false;
     if (const auto hash = id.find("#play"); hash != std::string::npos) {

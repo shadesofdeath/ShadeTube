@@ -1,0 +1,667 @@
+{
+ "searchV2": {
+  "tracksV2": {
+   "items": [
+    {
+     "item": {
+      "__typename": "TrackResponseWrapper",
+      "data": {
+       "__typename": "Track",
+       "albumOfTrack": {
+        "coverArt": {
+         "sources": [
+          {
+           "height": 300,
+           "url": "https://i.scdn.co/image/ab67616d00001e028c0559b991acf898adfede08",
+           "width": 300
+          },
+          {
+           "height": 64,
+           "url": "https://i.scdn.co/image/ab67616d000048518c0559b991acf898adfede08",
+           "width": 64
+          },
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab67616d0000b2738c0559b991acf898adfede08",
+           "width": 640
+          }
+         ]
+        },
+        "id": "5TQ4ZTyFM7FTDpnfSjE54l",
+        "name": "Belki Alışman Lazım",
+        "uri": "spotify:album:5TQ4ZTyFM7FTDpnfSjE54l"
+       },
+       "artists": {
+        "items": [
+         {
+          "profile": {
+           "name": "Duman"
+          },
+          "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh"
+         }
+        ]
+       },
+       "associationsV3": {
+        "audioAssociations": {
+         "totalCount": 0
+        },
+        "videoAssociations": {
+         "totalCount": 1
+        }
+       },
+       "contentRating": {
+        "label": "NONE"
+       },
+       "duration": {
+        "totalMilliseconds": 270280
+       },
+       "id": "4uqlFpMPTKO6uAsX6qvK0l",
+       "trackMediaType": "AUDIO",
+       "name": "Her Şeyi Yak",
+       "playability": {
+        "playable": true,
+        "reason": "PLAYABLE"
+       },
+       "uri": "spotify:track:4uqlFpMPTKO6uAsX6qvK0l"
+      }
+     },
+     "matchedFields": []
+    },
+    {
+     "item": {
+      "__typename": "TrackResponseWrapper",
+      "data": {
+       "__typename": "Track",
+       "albumOfTrack": {
+        "coverArt": {
+         "sources": [
+          {
+           "height": 300,
+           "url": "https://i.scdn.co/image/ab67616d00001e028c0559b991acf898adfede08",
+           "width": 300
+          },
+          {
+           "height": 64,
+           "url": "https://i.scdn.co/image/ab67616d000048518c0559b991acf898adfede08",
+           "width": 64
+          },
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab67616d0000b2738c0559b991acf898adfede08",
+           "width": 640
+          }
+         ]
+        },
+        "id": "5TQ4ZTyFM7FTDpnfSjE54l",
+        "name": "Belki Alışman Lazım",
+        "uri": "spotify:album:5TQ4ZTyFM7FTDpnfSjE54l"
+       },
+       "artists": {
+        "items": [
+         {
+          "profile": {
+           "name": "Duman"
+          },
+          "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh"
+         }
+        ]
+       },
+       "associationsV3": {
+        "audioAssociations": {
+         "totalCount": 0
+        },
+        "videoAssociations": {
+         "totalCount": 0
+        }
+       },
+       "contentRating": {
+        "label": "NONE"
+       },
+       "duration": {
+        "totalMilliseconds": 361080
+       },
+       "id": "0JVaHDV9om0itoYoYpBBPT",
+       "trackMediaType": "AUDIO",
+       "name": "Haberin Yok Ölüyorum",
+       "playability": {
+        "playable": true,
+        "reason": "PLAYABLE"
+       },
+       "uri": "spotify:track:0JVaHDV9om0itoYoYpBBPT"
+      }
+     },
+     "matchedFields": []
+    }
+   ],
+   "totalCount": 16
+  },
+  "albumsV2": {
+   "__typename": "AlbumOrPrereleasePage",
+   "items": [
+    {
+     "__typename": "AlbumResponseWrapper",
+     "data": {
+      "__typename": "Album",
+      "artists": {
+       "items": [
+        {
+         "profile": {
+          "name": "Duman"
+         },
+         "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh"
+        }
+       ]
+      },
+      "coverArt": {
+       "sources": [
+        {
+         "height": 300,
+         "url": "https://i.scdn.co/image/ab67616d00001e028c0559b991acf898adfede08",
+         "width": 300
+        },
+        {
+         "height": 64,
+         "url": "https://i.scdn.co/image/ab67616d000048518c0559b991acf898adfede08",
+         "width": 64
+        },
+        {
+         "height": 640,
+         "url": "https://i.scdn.co/image/ab67616d0000b2738c0559b991acf898adfede08",
+         "width": 640
+        }
+       ]
+      },
+      "date": {
+       "year": 2002
+      },
+      "name": "Belki Alışman Lazım",
+      "playability": {
+       "playable": true,
+       "reason": "PLAYABLE"
+      },
+      "type": "ALBUM",
+      "uri": "spotify:album:5TQ4ZTyFM7FTDpnfSjE54l"
+     }
+    },
+    {
+     "__typename": "AlbumResponseWrapper",
+     "data": {
+      "__typename": "Album",
+      "artists": {
+       "items": [
+        {
+         "profile": {
+          "name": "Duman"
+         },
+         "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh"
+        }
+       ]
+      },
+      "coverArt": {
+       "sources": [
+        {
+         "height": 300,
+         "url": "https://i.scdn.co/image/ab67616d00001e022240c0edb98124fb3491084a",
+         "width": 300
+        },
+        {
+         "height": 64,
+         "url": "https://i.scdn.co/image/ab67616d000048512240c0edb98124fb3491084a",
+         "width": 64
+        },
+        {
+         "height": 640,
+         "url": "https://i.scdn.co/image/ab67616d0000b2732240c0edb98124fb3491084a",
+         "width": 640
+        }
+       ]
+      },
+      "date": {
+       "year": 1999
+      },
+      "name": "Eski Köprünün Altında",
+      "playability": {
+       "playable": true,
+       "reason": "PLAYABLE"
+      },
+      "type": "ALBUM",
+      "uri": "spotify:album:33JifbYeK4vxnE2v11d1Xf"
+     }
+    }
+   ],
+   "totalCount": 15
+  },
+  "artists": {
+   "items": [
+    {
+     "__typename": "ArtistResponseWrapper",
+     "data": {
+      "__typename": "Artist",
+      "profile": {
+       "name": "Duman",
+       "verified": true
+      },
+      "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh",
+      "visuals": {
+       "avatarImage": {
+        "sources": [
+         {
+          "height": 640,
+          "url": "https://i.scdn.co/image/ab6761610000e5eb5eedfda3da66eb4591be4fa7",
+          "width": 640
+         },
+         {
+          "height": 160,
+          "url": "https://i.scdn.co/image/ab6761610000f1785eedfda3da66eb4591be4fa7",
+          "width": 160
+         },
+         {
+          "height": 320,
+          "url": "https://i.scdn.co/image/ab676161000051745eedfda3da66eb4591be4fa7",
+          "width": 320
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "__typename": "ArtistResponseWrapper",
+     "data": {
+      "__typename": "Artist",
+      "profile": {
+       "name": "maNga",
+       "verified": true
+      },
+      "uri": "spotify:artist:7rEIUw67hRTgievwuKQGSj",
+      "visuals": {
+       "avatarImage": {
+        "sources": [
+         {
+          "height": 640,
+          "url": "https://i.scdn.co/image/ab6761610000e5eb8cceee3942367e3490b1eb2f",
+          "width": 640
+         },
+         {
+          "height": 160,
+          "url": "https://i.scdn.co/image/ab6761610000f1788cceee3942367e3490b1eb2f",
+          "width": 160
+         },
+         {
+          "height": 320,
+          "url": "https://i.scdn.co/image/ab676161000051748cceee3942367e3490b1eb2f",
+          "width": 320
+         }
+        ]
+       }
+      }
+     }
+    }
+   ],
+   "totalCount": 18
+  },
+  "playlists": {
+   "items": [
+    {
+     "__typename": "PlaylistResponseWrapper",
+     "data": {
+      "__typename": "Playlist",
+      "attributes": [],
+      "description": "",
+      "format": "",
+      "images": {
+       "items": [
+        {
+         "sources": [
+          {
+           "height": 640,
+           "url": "https://mosaic.scdn.co/640/ab67616d00001e0219a949e3e4bd668fc41106fcab67616d00001e022240c0edb98124fb3491084aab67616d00001e028c0559b991acf898adfede08ab67616d00001e02d5a587c7de8efc3ba32bede7",
+           "width": 640
+          },
+          {
+           "height": 300,
+           "url": "https://mosaic.scdn.co/300/ab67616d00001e0219a949e3e4bd668fc41106fcab67616d00001e022240c0edb98124fb3491084aab67616d00001e028c0559b991acf898adfede08ab67616d00001e02d5a587c7de8efc3ba32bede7",
+           "width": 300
+          },
+          {
+           "height": 60,
+           "url": "https://mosaic.scdn.co/60/ab67616d00001e0219a949e3e4bd668fc41106fcab67616d00001e022240c0edb98124fb3491084aab67616d00001e028c0559b991acf898adfede08ab67616d00001e02d5a587c7de8efc3ba32bede7",
+           "width": 60
+          }
+         ]
+        }
+       ]
+      },
+      "name": "DUMAN TÜM ŞARKILAR",
+      "ownerV2": {
+       "__typename": "UserResponseWrapper",
+       "data": {
+        "__typename": "User",
+        "name": "Listener 1",
+        "uri": "spotify:user:listener1",
+        "username": "listener1"
+       }
+      },
+      "uri": "spotify:playlist:1HyDQhfHTMYScIH8qiSnH1"
+     }
+    },
+    {
+     "__typename": "PlaylistResponseWrapper",
+     "data": {
+      "__typename": "Playlist",
+      "attributes": [],
+      "description": "Geceler zehir, geceler kara...",
+      "format": "",
+      "images": {
+       "items": [
+        {
+         "sources": [
+          {
+           "height": null,
+           "url": "https://image-cdn-fa.spotifycdn.com/image/ab67706c0000da84b28e0ea227fb86567fcfcb11",
+           "width": null
+          }
+         ]
+        }
+       ]
+      },
+      "name": "Duman · En iyiler",
+      "ownerV2": {
+       "__typename": "UserResponseWrapper",
+       "data": {
+        "__typename": "User",
+        "name": "Listener 2",
+        "uri": "spotify:user:listener2",
+        "username": "listener2"
+       }
+      },
+      "uri": "spotify:playlist:2IzZXi7aS5PDXz8wlTxRr2"
+     }
+    },
+    {
+     "__typename": "NotFound",
+     "data": {
+      "__typename": "NotFound",
+      "message": "gone"
+     }
+    }
+   ],
+   "totalCount": 16
+  },
+  "podcasts": {
+   "items": [
+    {
+     "__typename": "PodcastResponseWrapper",
+     "data": {
+      "__typename": "Podcast",
+      "coverArt": {
+       "sources": [
+        {
+         "height": 64,
+         "url": "https://i.scdn.co/image/ab6765630000f68d38b841098d0c08a33231fa29",
+         "width": 64
+        },
+        {
+         "height": 300,
+         "url": "https://i.scdn.co/image/ab67656300005f1f38b841098d0c08a33231fa29",
+         "width": 300
+        },
+        {
+         "height": 640,
+         "url": "https://i.scdn.co/image/ab6765630000ba8a38b841098d0c08a33231fa29",
+         "width": 640
+        }
+       ]
+      },
+      "mediaType": "AUDIO",
+      "name": "Sample Show 1",
+      "publisher": {
+       "name": "Sample Publisher 1"
+      },
+      "topics": {
+       "items": [
+        {
+         "__typename": "PodcastTopic",
+         "title": "Music",
+         "uri": "spotify:genre:music_interviews_podcasts-page"
+        }
+       ]
+      },
+      "uri": "spotify:show:1IxHbXJGMc8hdfbT3dHPQI"
+     }
+    },
+    {
+     "__typename": "PodcastResponseWrapper",
+     "data": {
+      "__typename": "Podcast",
+      "coverArt": {
+       "sources": [
+        {
+         "height": 64,
+         "url": "https://i.scdn.co/image/ab6765630000f68d125c07a66b5b0741beb21d93",
+         "width": 64
+        },
+        {
+         "height": 300,
+         "url": "https://i.scdn.co/image/ab67656300005f1f125c07a66b5b0741beb21d93",
+         "width": 300
+        },
+        {
+         "height": 640,
+         "url": "https://i.scdn.co/image/ab6765630000ba8a125c07a66b5b0741beb21d93",
+         "width": 640
+        }
+       ]
+      },
+      "mediaType": "AUDIO",
+      "name": "Sample Show 2",
+      "publisher": {
+       "name": "Sample Publisher 2"
+      },
+      "topics": {
+       "items": []
+      },
+      "uri": "spotify:show:05wHAtYECBpAGZ4DmhT3LN"
+     }
+    }
+   ],
+   "totalCount": 10
+  },
+  "episodes": {
+   "items": [
+    {
+     "__typename": "EpisodeResponseWrapper",
+     "data": {
+      "__typename": "Episode",
+      "contentRating": {
+       "label": "EXPLICIT"
+      },
+      "coverArt": {
+       "sources": [
+        {
+         "height": 64,
+         "url": "https://i.scdn.co/image/ab6765630000f68d18883bf9bf72e0879eebbc56",
+         "width": 64
+        },
+        {
+         "height": 300,
+         "url": "https://i.scdn.co/image/ab67656300005f1f18883bf9bf72e0879eebbc56",
+         "width": 300
+        },
+        {
+         "height": 640,
+         "url": "https://i.scdn.co/image/ab6765630000ba8a18883bf9bf72e0879eebbc56",
+         "width": 640
+        }
+       ]
+      },
+      "description": "Sample notes",
+      "duration": {
+       "totalMilliseconds": 203267
+      },
+      "mediaTypes": [
+       "AUDIO"
+      ],
+      "name": "Sample Episode",
+      "playability": {
+       "reason": "PLAYABLE"
+      },
+      "playedState": {
+       "playPositionMilliseconds": 0,
+       "state": "NOT_STARTED"
+      },
+      "podcastV2": {
+       "__typename": "PodcastResponseWrapper",
+       "data": {
+        "__typename": "Podcast",
+        "coverArt": {
+         "sources": [
+          {
+           "height": 64,
+           "url": "https://i.scdn.co/image/ab6765630000f68da003a30648cd4e6b779e2294",
+           "width": 64
+          },
+          {
+           "height": 300,
+           "url": "https://i.scdn.co/image/ab67656300005f1fa003a30648cd4e6b779e2294",
+           "width": 300
+          },
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab6765630000ba8aa003a30648cd4e6b779e2294",
+           "width": 640
+          }
+         ]
+        },
+        "mediaType": "AUDIO",
+        "name": "Sample Show 3",
+        "publisher": {
+         "name": "Sample Publisher 3"
+        },
+        "uri": "spotify:show:0G0s9gofcRY4nXWRtTuvLZ"
+       }
+      },
+      "releaseDate": {
+       "isoString": "2025-11-29T06:36:00Z",
+       "precision": "MINUTE"
+      },
+      "restrictions": {
+       "paywallContent": false
+      },
+      "uri": "spotify:episode:3I1CSe1pQv4WTHlaqGAXC9"
+     }
+    }
+   ],
+   "totalCount": 10
+  },
+  "users": {
+   "items": [],
+   "totalCount": 0
+  },
+  "topResultsV2": {
+   "itemsV2": [
+    {
+     "item": {
+      "__typename": "ArtistResponseWrapper",
+      "data": {
+       "__typename": "Artist",
+       "profile": {
+        "name": "Duman",
+        "verified": true
+       },
+       "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh",
+       "visuals": {
+        "avatarImage": {
+         "sources": [
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab6761610000e5eb5eedfda3da66eb4591be4fa7",
+           "width": 640
+          },
+          {
+           "height": 160,
+           "url": "https://i.scdn.co/image/ab6761610000f1785eedfda3da66eb4591be4fa7",
+           "width": 160
+          },
+          {
+           "height": 320,
+           "url": "https://i.scdn.co/image/ab676161000051745eedfda3da66eb4591be4fa7",
+           "width": 320
+          }
+         ]
+        }
+       }
+      }
+     },
+     "matchedFields": []
+    },
+    {
+     "item": {
+      "__typename": "TrackResponseWrapper",
+      "data": {
+       "__typename": "Track",
+       "albumOfTrack": {
+        "coverArt": {
+         "sources": [
+          {
+           "height": 300,
+           "url": "https://i.scdn.co/image/ab67616d00001e028c0559b991acf898adfede08",
+           "width": 300
+          },
+          {
+           "height": 64,
+           "url": "https://i.scdn.co/image/ab67616d000048518c0559b991acf898adfede08",
+           "width": 64
+          },
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab67616d0000b2738c0559b991acf898adfede08",
+           "width": 640
+          }
+         ]
+        },
+        "id": "5TQ4ZTyFM7FTDpnfSjE54l",
+        "name": "Belki Alışman Lazım",
+        "uri": "spotify:album:5TQ4ZTyFM7FTDpnfSjE54l"
+       },
+       "artists": {
+        "items": [
+         {
+          "profile": {
+           "name": "Duman"
+          },
+          "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh"
+         }
+        ]
+       },
+       "associationsV3": {
+        "audioAssociations": {
+         "totalCount": 0
+        },
+        "videoAssociations": {
+         "totalCount": 1
+        }
+       },
+       "contentRating": {
+        "label": "NONE"
+       },
+       "duration": {
+        "totalMilliseconds": 270280
+       },
+       "id": "4uqlFpMPTKO6uAsX6qvK0l",
+       "trackMediaType": "AUDIO",
+       "name": "Her Şeyi Yak",
+       "playability": {
+        "playable": true,
+        "reason": "PLAYABLE"
+       },
+       "uri": "spotify:track:4uqlFpMPTKO6uAsX6qvK0l"
+      }
+     },
+     "matchedFields": []
+    }
+   ],
+   "featured": []
+  }
+ }
+}

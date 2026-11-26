@@ -2,6 +2,7 @@
 #include "app/JamSync.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 namespace st::app::jam {
@@ -53,7 +54,11 @@ bool hostAdvancing(const SessionState& s) { return s.playing && s.status == Host
 
 int64_t expectedPosition(const SessionState& s, int64_t hostNowMs) {
     int64_t pos = s.positionMs;
-    if (hostAdvancing(s)) pos += std::max<int64_t>(0, hostNowMs - s.atHostMs);
+    if (hostAdvancing(s)) {
+        const int64_t elapsed = std::max<int64_t>(0, hostNowMs - s.atHostMs);
+        // An episode at 1.5x advances 1.5 s of audio per second (songs are always at 1).
+        pos += std::fabs(s.speed - 1.0) > 0.001 ? static_cast<int64_t>(std::llround(static_cast<double>(elapsed) * s.speed)) : elapsed;
+    }
     if (const QueueItem* cur = s.currentItem(); cur && cur->durationMs > 0) pos = std::min(pos, cur->durationMs);
     return std::max<int64_t>(0, pos);
 }
@@ -96,6 +101,7 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
     if (mem.failed.count(cur->id)) return holdPaused(Decision::Hold::Failed);
 
     const bool advancing = hostAdvancing(host);
+    const bool live = isLive(cur->kind);   // a station: the same station is all there is to follow
     const int64_t expected = expectedPosition(host, hostNowMs);
     const int64_t duration = cur->durationMs > 0 ? cur->durationMs : local.durationMs;
     auto clampSeek = [&](int64_t ms) {
@@ -143,6 +149,11 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
             d.load = Decision::Load::Jump;
             d.jumpIndex = k;
             d.pause = !advancing && !host.playing;
+        } else if (live) {
+            d.load = Decision::Load::Queue;
+            d.autoplay = host.playing;   // a station starts live wherever it is: no position to aim at
+            d.seekMs = 0;
+            mem.lastSeekAt = guestNowMs;
         } else {
             d.load = Decision::Load::Queue;
             d.autoplay = advancing;
@@ -176,6 +187,14 @@ Decision decide(const SessionState& host, int64_t hostNowMs, int64_t guestNowMs,
     if (local.playing && mem.attemptId == cur->id) {   // it plays: earlier failures of this item are forgiven
         mem.attempts = 0;
         mem.errorSeen = false;
+    }
+    if (live) {   // the same station: only play / pause follow (resuming a station plays live again)
+        if (host.playing) {
+            if (!local.playing) wantPlay();
+        } else {
+            wantPause();
+        }
+        return d;
     }
 
     const int64_t target = advancing ? expected : host.positionMs;

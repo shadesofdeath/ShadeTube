@@ -6,6 +6,7 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <limits>
 #include <unordered_set>
 
 namespace st::mb::detail {
@@ -294,6 +295,66 @@ std::vector<Image> commonsImages(const std::string& fileName) {
     return {{base + "250", 250, 0}, {base + "500", 500, 0}, {base + "1000", 1000, 0}};
 }
 
+std::vector<ArtistLink> parseArtistLinks(const json& artistLookup) {
+    // The host ("www.instagram.com" -> "instagram.com"), lower case.
+    auto hostOf = [](const std::string& url) {
+        size_t start = url.find("://");
+        start = start == std::string::npos ? 0 : start + 3;
+        const size_t end = url.find_first_of("/?#", start);
+        std::string host = asciiLower(url.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        if (host.rfind("www.", 0) == 0) host = host.substr(4);
+        if (host.rfind("m.", 0) == 0) host = host.substr(2);
+        return host;
+    };
+    auto on = [](const std::string& host, const char* domain) {
+        const std::string d = domain;
+        return host == d || (host.size() > d.size() && host.compare(host.size() - d.size(), d.size(), d) == 0 &&
+                             host[host.size() - d.size() - 1] == '.');
+    };
+    std::vector<ArtistLink> out;
+    for (const auto& rel : arr(artistLookup, "relations")) {
+        if (get(rel, "ended").is_boolean() && get(rel, "ended").get<bool>()) continue;
+        const std::string type = asciiLower(str(rel, "type"));
+        const std::string url = str(get(rel, "url"), "resource");
+        if (url.rfind("https://", 0) != 0 && url.rfind("http://", 0) != 0) continue;
+        const std::string host = hostOf(url);
+        std::string kind;
+        if (type == "official homepage") kind = "website";
+        else if (on(host, "instagram.com")) kind = "instagram";
+        else if (on(host, "twitter.com") || on(host, "x.com")) kind = "twitter";
+        else if (on(host, "facebook.com")) kind = "facebook";
+        else if (on(host, "youtube.com") || on(host, "youtu.be")) kind = "youtube";
+        else if (on(host, "tiktok.com")) kind = "tiktok";
+        else if (on(host, "soundcloud.com")) kind = "soundcloud";
+        else if (on(host, "bandcamp.com")) kind = "bandcamp";
+        if (kind.empty()) continue;
+        if (std::any_of(out.begin(), out.end(), [&](const ArtistLink& l) { return l.kind == kind; })) continue;
+        out.push_back({kind, url});
+        if (out.size() >= 8) break;
+    }
+    return out;
+}
+
+std::string wikipediaTitle(const json& entityData, const std::string& wiki) {
+    const json& entities = get(entityData, "entities");
+    if (!entities.is_object() || entities.empty()) return {};
+    return str(get(get(entities.begin().value(), "sitelinks"), wiki), "title");
+}
+
+WikiSummary parseWikipediaSummary(const json& summary) {
+    if (str(summary, "type") == "disambiguation") return {};
+    WikiSummary s;
+    s.text = str(summary, "extract");
+    s.url = str(get(get(summary, "content_urls"), "desktop"), "page");
+    // Trim, and keep paragraphs one per line.
+    while (!s.text.empty() && std::isspace(static_cast<unsigned char>(s.text.back()))) s.text.pop_back();
+    size_t lead = 0;
+    while (lead < s.text.size() && std::isspace(static_cast<unsigned char>(s.text[lead]))) ++lead;
+    s.text.erase(0, lead);
+    if (s.text.empty()) return {};
+    return s;
+}
+
 Album parseReleaseGroup(const json& rg) {
     Album a;
     a.id = str(rg, "id");
@@ -431,6 +492,168 @@ std::vector<Track> rankRecordingSearch(std::vector<RecordingHit> hits, const std
         out.push_back(std::move(r.hit->track));
     }
     return out;
+}
+
+// ---- credits -------------------------------------------------------------------------------------------------
+namespace {
+
+// Attributes of an instrument / vocal / producer relationship that qualify it rather than name an instrument.
+bool modifierAttribute(const std::string& a) {
+    static const std::unordered_set<std::string> kModifiers = {"guest", "solo", "additional", "minor", "co",
+                                                               "executive", "assistant", "associate", "task"};
+    return kModifiers.contains(asciiLower(a));
+}
+
+bool hasAttribute(const std::vector<std::string>& attrs, std::string_view a) {
+    return std::any_of(attrs.begin(), attrs.end(), [&](const std::string& x) { return asciiLower(x) == a; });
+}
+
+// One artist relationship of the recording or of one of its works.
+void addArtistRelation(Credits& c, const json& rel) {
+    const json& artist = get(rel, "artist");
+    std::string name = str(rel, "target-credit");
+    if (name.empty()) name = str(artist, "name");
+    const std::string id = str(artist, "id");
+    const std::string type = asciiLower(str(rel, "type"));
+    const auto attrs = strArray(get(rel, "attributes"));
+    using G = CreditGroup;
+    auto named = [&](std::string_view fallback, G group) {   // the attributes that name something, else `fallback`
+        bool any = false;
+        for (const auto& a : attrs) {
+            if (modifierAttribute(a)) continue;
+            c.add(name, id, a, group);
+            any = true;
+        }
+        if (!any) c.add(name, id, fallback, group);
+    };
+    if (type == "instrument") named("instrument", G::Performers);
+    else if (type == "vocal") named("vocals", G::Performers);
+    else if (type == "performer") c.add(name, id, "performer", G::Performers);
+    else if (type == "performing orchestra") c.add(name, id, "orchestra", G::Performers);
+    else if (type == "conductor" || type == "chorus master" || type == "concertmaster") c.add(name, id, type, G::Performers);
+    else if (type == "composer" || type == "lyricist" || type == "writer" || type == "librettist" || type == "translator")
+        c.add(name, id, type, G::Writers);
+    else if (type == "arranger" || type == "instrument arranger" || type == "vocal arranger" || type == "orchestrator")
+        c.add(name, id, "arranger", G::Writers);
+    else if (type == "producer") {
+        const char* role = hasAttribute(attrs, "executive") ? "executive producer"
+                           : hasAttribute(attrs, "co")      ? "co-producer"
+                           : hasAttribute(attrs, "additional") ? "additional producer"
+                                                              : "producer";
+        c.add(name, id, role, G::Producers);
+    } else if (type == "programming" || type == "remixer") c.add(name, id, type, G::Producers);
+    else if (type == "engineer") c.add(name, id, hasAttribute(attrs, "assistant") ? "assistant engineer" : "engineer", G::Engineers);
+    else if (type == "mix") c.add(name, id, "mixing engineer", G::Engineers);
+    else if (type == "mastering") c.add(name, id, "mastering engineer", G::Engineers);
+    else if (type == "recording") c.add(name, id, "recording engineer", G::Engineers);
+    else if (type == "sound" || type == "audio" || type == "balance") c.add(name, id, type + " engineer", G::Engineers);
+    else if (type == "editor") c.add(name, id, "editor", G::Engineers);
+    else if (type == "misc" || type.empty()) return;   // "miscellaneous support": too vague to list
+    else c.add(name, id, type);
+}
+
+// Title comparison key: ASCII lower-cased, letters and digits only (other UTF-8 bytes kept as they are).
+std::string titleKey(std::string_view s) {
+    std::string out;
+    for (char ch : s) {
+        const unsigned char u = static_cast<unsigned char>(ch);
+        if (u >= 0x80) out.push_back(ch);
+        else if (std::isalnum(u)) out.push_back(static_cast<char>(std::tolower(u)));
+    }
+    return out;
+}
+
+} // namespace
+
+Credits parseRecordingCredits(const json& rec) {
+    Credits c;
+    c.provider = "musicbrainz";
+    for (const auto& a : parseArtistCredit(get(rec, "artist-credit"))) c.add(a.name, a.id, "main artist", CreditGroup::Performers);
+    for (const auto& rel : arr(rec, "relations")) {
+        const std::string target = str(rel, "target-type");
+        if (target == "artist") {
+            addArtistRelation(c, rel);
+        } else if (target == "work") {
+            for (const auto& wr : arr(get(rel, "work"), "relations"))
+                if (str(wr, "target-type") == "artist") addArtistRelation(c, wr);
+        } else if (target == "label") {
+            c.addSource(str(get(rel, "label"), "name"));
+        }
+    }
+    return c;
+}
+
+std::string searchableTitle(std::string_view title) {
+    std::string s(title);
+    // "(feat. X)", "[with X]", "(ft. X)", "(featuring X)".
+    for (size_t open = s.find_first_of("(["); open != std::string::npos; open = s.find_first_of("([", open)) {
+        const char close = s[open] == '(' ? ')' : ']';
+        const size_t end = s.find(close, open + 1);
+        if (end == std::string::npos) break;
+        const std::string inner = asciiLower(trim(std::string_view(s).substr(open + 1, end - open - 1)));
+        if (inner.rfind("feat", 0) == 0 || inner.rfind("ft.", 0) == 0 || inner.rfind("with ", 0) == 0) {
+            s.erase(open, end - open + 1);
+            continue;
+        }
+        open = end + 1;
+    }
+    // " - 2011 Remaster", " - Radio Edit", " - Single Version", " - Mono".
+    if (const size_t dash = s.rfind(" - "); dash != std::string::npos) {
+        const std::string tail = asciiLower(s.substr(dash + 3));
+        for (std::string_view m : {"remaster", "edit", "version", "mono", "stereo"})
+            if (tail.find(m) != std::string::npos) {
+                s.erase(dash);
+                break;
+            }
+    }
+    std::string out = trim(s);
+    // Spaces left behind by a removed part.
+    for (size_t i = out.find("  "); i != std::string::npos; i = out.find("  ")) out.erase(i, 1);
+    return out;
+}
+
+std::vector<std::string> rankRecordings(const json& root, std::string_view title, std::string_view artist, int durationMs) {
+    const std::string want = titleKey(searchableTitle(title));
+    const std::string wantArtist = titleKey(artist);
+    if (want.empty()) return {};
+    struct Candidate {
+        std::string id;
+        int tier;          // 0: within 2 s, 1: within 5 s (or no length known), 2: within 10 s
+        int64_t releases;  // the song's main recording is on many releases; its duplicates on few
+        int64_t diff, score;
+    };
+    std::vector<Candidate> found;
+    for (const auto& r : arr(root, "recordings")) {
+        const std::string id = str(r, "id");
+        if (id.empty() || titleKey(searchableTitle(str(r, "title"))) != want) continue;
+        if (!wantArtist.empty()) {
+            const auto credit = parseArtistCredit(get(r, "artist-credit"));
+            std::string joined;
+            for (const auto& a : credit) joined += titleKey(a.name);
+            const bool named = std::any_of(credit.begin(), credit.end(), [&](const ArtistRef& a) { return titleKey(a.name) == wantArtist; });
+            if (!named && joined.find(wantArtist) == std::string::npos) continue;
+        }
+        const int64_t length = num(r, "length");
+        const bool known = durationMs > 0 && length > 0;
+        const int64_t diff = known ? std::llabs(length - durationMs) : 5000;
+        if (known && diff > 10000) continue;
+        const int tier = diff <= 2000 ? 0 : diff <= 5000 ? 1 : 2;
+        found.push_back({id, tier, static_cast<int64_t>(arr(r, "releases").size()), diff, num(r, "score")});
+    }
+    std::stable_sort(found.begin(), found.end(), [](const Candidate& a, const Candidate& b) {
+        if (a.tier != b.tier) return a.tier < b.tier;
+        if (a.releases != b.releases) return a.releases > b.releases;
+        if (a.diff != b.diff) return a.diff < b.diff;
+        return a.score > b.score;
+    });
+    std::vector<std::string> out;
+    for (auto& c : found) out.push_back(std::move(c.id));
+    return out;
+}
+
+std::string pickRecording(const json& root, std::string_view title, std::string_view artist, int durationMs) {
+    auto ranked = rankRecordings(root, title, artist, durationMs);
+    return ranked.empty() ? std::string() : std::move(ranked.front());
 }
 
 std::unordered_map<std::string, int64_t> parsePopularity(const json& root) {

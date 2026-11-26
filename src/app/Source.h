@@ -34,8 +34,16 @@ void applyOpenCatalog(bool reopen = false);
 // Worker-thread dispatchers. `api` is the value captured by the page (nullptr = logged out => the open catalog,
 // read from the mirror applyOpenCatalog() keeps).
 catalog::SearchResults search(spotify::Api* api, const std::string& query, int limit, const CT& ct = {});
+// Search as you type (the command palette): the same, except that YouTube Music asks one request instead of five.
+catalog::SearchResults quickSearch(spotify::Api* api, const std::string& query, int limit, const CT& ct = {});
+// Whether the open catalog is YouTube Music, for worker threads (the mirror applyOpenCatalog() keeps).
+bool ytmCatalog();
 catalog::Album album(spotify::Api* api, const std::string& id, const CT& ct = {});
 catalog::ArtistPage artistPage(spotify::Api* api, const std::string& id, const CT& ct = {});
+// The whole of one part of an artist's discography when artistPage gave only its first releases (its *Total > 0);
+// empty for a source whose lists are already complete.
+std::vector<catalog::Album> artistReleases(spotify::Api* api, const std::string& artistId, catalog::ReleaseGroup group,
+                                           const CT& ct = {});
 
 // True if this id belongs to Spotify (a "spotify:" URI) rather than an open catalog.
 bool isSpotifyId(const std::string& id);

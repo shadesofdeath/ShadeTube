@@ -1,10 +1,20 @@
 #pragma once
 // Low-latency, low-memory audio playback engine.
 //
-//   network (range requests) -> in-memory progressive buffer -> IMFByteStream -> Media Foundation
-//   Source Reader (AAC/MP4, Opus/WebM when the OS has the decoder) -> float PCM -> [crossfade mix] -> equalizer ->
-//   volume ramp / normalisation gain -> look-ahead limiter -> WASAPI shared-mode event-driven render (AUTOCONVERTPCM
-//   handles resampling) on the Windows default device or the one picked in the settings
+//   network (range requests) -> progressive buffer -> built-in decoder (Opus / Vorbis in WebM, Matroska or Ogg:
+//   audio/XiphDecoder) or IMFByteStream -> Media Foundation Source Reader (AAC/MP4, MP3, FLAC...) -> float PCM ->
+//   [crossfade mix] -> equalizer -> volume ramp / normalisation gain -> look-ahead limiter -> WASAPI event-driven
+//   render, shared (AUTOCONVERTPCM handles resampling) or exclusive, on the Windows default device or the one picked
+//   in the settings
+//
+// Exclusive mode (setExclusive): the engine owns the device. Tracks decode at their own rate when the device takes it
+// (else the nearest one it takes), and the device opens in that rate and the best sample format it offers; a track of
+// another rate reopens it after the previous one has played out (a short gap instead of a gapless handoff). A
+// crossfade keeps the rate that plays: the incoming track is resampled to it, so the mix still works. The device is
+// released whenever nothing sounds (paused, stopped), so other apps can play meanwhile; a device that refuses (held
+// by another app, exclusive use not allowed, no such format) is used in shared mode instead (outputInfo says why) and
+// exclusive mode is tried again at the next open. Equalizer, normalisation, limiter, crossfade, speed and the preview
+// voice work as in shared mode.
 //
 // Threading: the engine owns one decode/render thread. All public methods are thread-safe and
 // non-blocking (commands are queued to the engine thread). Events are raised ON THE ENGINE THREAD;
@@ -58,6 +68,9 @@ struct StreamSource {
     uint64_t tag = 0;             // opaque caller id, echoed back in events
     bool live = false;            // endless internet-radio stream (url = station / playlist / HLS URL)
     bool allowLocalNetwork = false;   // live: may reach this machine / its network (a test server); else public only
+    // A download (url) that arrived completely: called once on its download thread with the whole stream, valid only
+    // during the call (the song cache keeps a copy, player/AudioCache). Not for local files or live streams.
+    std::function<void(const uint8_t* data, int64_t length)> onComplete;
 };
 
 enum class State { Idle, Loading, Playing, Paused, Ended, Error };
@@ -65,8 +78,9 @@ enum class State { Idle, Loading, Playing, Paused, Ended, Error };
 enum class ErrorKind {
     Network,            // download failed after retries (URL may have expired -> caller re-resolves); live: the
                         //   station could not be reached / kept dropping after the reconnect attempts
-    UnsupportedFormat,  // no decoder (e.g. WebM/Opus on a system without the extension) -> caller retries with mp4;
-                        //   live: a codec / container the engine can't play (Ogg Vorbis, FLAC, AC-3, SAMPLE-AES...)
+    UnsupportedFormat,  // no decoder for the codec / container (another codec than Opus / Vorbis in WebM, AAC on a
+                        //   Windows N without the Media Feature Pack) -> caller retries with mp4;
+                        //   live: a codec / container the engine can't play (FLAC, AC-3, SAMPLE-AES...)
     Device,             // audio device error (engine keeps retrying on device change)
     Other,
 };
@@ -90,6 +104,18 @@ struct OutputDevice {
     std::wstring id;              // WASAPI endpoint id (StreamSource-independent; persisted by the caller)
     std::wstring name;            // friendly name ("Hoparlör (Realtek(R) Audio)")
     bool isDefault = false;       // the Windows default (console) render device
+};
+
+// What the output does now (Ayarlar > Ses shows it).
+struct OutputInfo {
+    bool open = false;               // a stream is open on the device
+    bool exclusive = false;          // ... and holds the device exclusively
+    bool exclusiveWanted = false;    // setExclusive(true)
+    enum class Fallback { None, Busy, NotAllowed, Format, Other };
+    Fallback fallback = Fallback::None;   // why exclusive mode wasn't taken at the last open (shared mode instead)
+    uint32_t sampleRate = 0, channels = 0;
+    uint32_t bits = 0, validBits = 0;     // the device format in exclusive mode (shared: 32-bit float to the mixer)
+    bool floatFormat = false;
 };
 
 // What the engine knows about the live stream being played (all empty / 0 while nothing live plays).
@@ -145,6 +171,10 @@ public:
     // Render device: a WASAPI endpoint id, or "" to follow the Windows default. A device that is missing (unplugged)
     // falls back to the default and is taken again when it comes back.
     void setOutputDevice(const std::wstring& id);
+    // WASAPI exclusive mode (see the header comment): applied at once (the device reopens), tracks opened from now on
+    // decode at their own rate.
+    void setExclusive(bool on);
+    OutputInfo outputInfo() const;   // any thread, a short lock
     // The active render devices. Blocking (COM enumeration, a few ms); any thread.
     static std::vector<OutputDevice> outputDevices();
 
@@ -175,12 +205,12 @@ public:
     // Returns false if not playing.
     bool spectrum(float* bands, int count) const;
 
-    // True if Media Foundation on this machine can decode Opus-in-WebM.
+    // Opus-in-WebM decodes on every machine (the built-in decoder), so this is true; kept for the stream choice.
     static bool supportsWebm();
     // Whether a live stream in this codec can play here, by radio-browser codec name or MIME type ("MP3", "AAC+",
     // "OGG", "audio/aacp", "application/vnd.apple.mpegurl"...). Unknown / empty = true (the engine sniffs the
-    // stream and fails with UnsupportedFormat if it can't). Cheap; for hiding stations up front. "OGG" is false:
-    // Ogg Vorbis has no decoder here, although stations labelled OGG that actually send Opus do play.
+    // stream and fails with UnsupportedFormat if it can't). Cheap; for hiding stations up front. Ogg Opus and Ogg
+    // Vorbis ("OGG") play with the built-in decoders; FLAC, WMA and the like don't.
     static bool supportsLiveCodec(std::string_view codec);
 
     // The live stream being played (LiveInfo::active false otherwise). Any thread; takes a short lock.

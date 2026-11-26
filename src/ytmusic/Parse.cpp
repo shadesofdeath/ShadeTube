@@ -763,8 +763,10 @@ catalog::SearchResults parseSearch(const Json& response) {
     std::vector<std::pair<const char*, const Json*>> hits;
     findAll(response, {"musicResponsiveListItemRenderer", "musicCardShelfRenderer"}, hits);
     std::vector<Item> items;
+    size_t topCard = SIZE_MAX;   // the index of the top result card's own item
     for (const auto& [key, node] : hits) {
         if (std::string_view(key) == "musicCardShelfRenderer") {
+            if (topCard == SIZE_MAX) topCard = items.size();
             items.push_back(cardItem(*node));
             // The card's own rows (songs of the top result) come after it.
             std::vector<std::pair<const char*, const Json*>> inner;
@@ -774,22 +776,68 @@ catalog::SearchResults parseSearch(const Json& response) {
             items.push_back(listItem(*node));
         }
     }
-    for (const auto& it : items) {
+    for (size_t i = 0; i < items.size(); ++i) {
+        const Item& it = items[i];
+        std::string id;
         switch (it.kind) {
         case Kind::Song:
-            if (auto t = toTrack(it); t && seen.insert(t->id).second) out.tracks.push_back(std::move(*t));
+            if (auto t = toTrack(it)) {
+                id = t->id;
+                if (seen.insert(t->id).second) out.tracks.push_back(std::move(*t));
+            }
             break;
         case Kind::Album:
-            if (auto a = toAlbum(it); seen.insert(a.id).second) out.albums.push_back(std::move(a));
+            if (auto a = toAlbum(it); !it.to.browseId.empty()) {
+                id = a.id;
+                if (seen.insert(a.id).second) out.albums.push_back(std::move(a));
+            }
             break;
         case Kind::Artist:
-            if (auto a = toArtist(it); seen.insert(a.id).second) out.artists.push_back(std::move(a));
+            if (auto a = toArtist(it); !it.to.browseId.empty()) {
+                id = a.id;
+                if (seen.insert(a.id).second) out.artists.push_back(std::move(a));
+            }
             break;
         case Kind::Playlist:
-            if (auto p = toPlaylist(it); seen.insert(p.id).second) out.playlists.push_back(std::move(p));
+            if (auto p = toPlaylist(it); !it.to.browseId.empty()) {
+                id = p.id;
+                if (seen.insert(p.id).second) out.playlists.push_back(std::move(p));
+            }
             break;
         default: break;
         }
+        if (i == topCard) out.topResult = id;   // "" when the card is something the lists leave out (a video)
+    }
+    return out;
+}
+
+SearchPage parseSearchPage(const Json& response) {
+    SearchPage out;
+    out.results = parseSearch(response);
+    bool inUrl = true;
+    if (const Json* c = findFirst(response, "musicShelfContinuation")) continuationOf(step(c, "continuations"), out.continuation, inUrl);
+    if (out.continuation.empty())
+        for (const Json* shelf : findAll(response, "musicShelfRenderer")) {
+            continuationOf(step(shelf, "continuations"), out.continuation, inUrl);
+            if (!out.continuation.empty()) break;
+        }
+    return out;
+}
+
+ReleasesPage parseReleases(const Json& response, const catalog::ArtistRef& artist) {
+    ReleasesPage out;
+    const std::vector<ArtistRef> self{artist};
+    std::unordered_set<std::string> seen;
+    std::vector<std::pair<const char*, const Json*>> hits;
+    findAll(response, {"gridRenderer", "gridContinuation", "musicCarouselShelfRenderer"}, hits);
+    for (const auto& [key, node] : hits) {
+        const Json* list = step(node, "items");
+        if (!list) list = step(node, "contents");
+        for (const auto& it : rowsOf(list))
+            if (it.kind == Kind::Album)
+                if (Album a = toAlbum(it, &self); seen.insert(a.id).second) out.releases.push_back(std::move(a));
+        bool inUrl = true;
+        if (out.continuation.empty()) continuationOf(step(node, "continuations"), out.continuation, inUrl);
     }
     return out;
 }
@@ -839,7 +887,24 @@ ArtistResult parseArtist(const Json& response, std::string_view channelId) {
         artist.name = trim(text(step(header, "title")));
         artist.images = images(step(header, "thumbnail"), true);
         if (artist.images.empty()) artist.images = images(step(header, "foregroundThumbnail"), true);
-        artist.listenCount = parseCount(text(step(header, "monthlyListenerCount")));
+        // The header picture is a wide banner (1080 x 450): the page's banner as it is, the avatar a square crop of it.
+        if (auto wide = images(step(header, "thumbnail")); !wide.empty() && wide.back().width > wide.back().height * 13 / 10)
+            page.banner = std::move(wide);
+        page.monthlyListeners = parseCount(text(step(header, "monthlyListenerCount")));
+        page.followers = parseCount(text(dig(header, "subscriptionButton", "subscribeButtonRenderer", "subscriberCountText")));
+        // The description: Wikipedia's summary (its credit line names the article) or the artist's own text.
+        const auto descRuns = runsOf(step(header, "description"));
+        std::string bio;
+        for (const auto& r : descRuns) bio += r.text;
+        if (const size_t wiki = bio.find("\n\nFrom Wikipedia"); wiki != std::string::npos) {
+            page.bioSource = "Wikipedia";
+            for (const auto& r : descRuns)
+                if (r.text.rfind("https://", 0) == 0 && r.text.find("wikipedia.org") != std::string::npos) page.bioUrl = r.text;
+            bio.resize(wiki);
+        } else if (!bio.empty()) {
+            page.bioSource = "YouTube Music";
+        }
+        page.bio = trim(bio);
         const Target radio = target(dig(header, "startRadioButton", "buttonRenderer", "navigationEndpoint"));
         out.radioVideoId = radio.videoId;
         out.radioPlaylistId = radio.playlistId;
@@ -855,34 +920,50 @@ ArtistResult parseArtist(const Json& response, std::string_view channelId) {
             if (auto t = toTrack(it, nullptr, &self)) page.topTracks.push_back(std::move(*t));
     }
 
-    // Carousels: albums, singles & EPs, related artists (the titles are English: hl=en).
+    // Carousels: albums, singles & EPs, appears on, related artists, playlists (the titles are English: hl=en).
     int albumShelves = 0;
+    std::unordered_set<std::string> playlistsSeen;
     for (const Json* shelf : findAll(response, "musicCarouselShelfRenderer")) {
-        const std::string title = lower(text(dig(shelf, "header", "musicCarouselShelfBasicHeaderRenderer", "title")));
+        const Json* head = dig(shelf, "header", "musicCarouselShelfBasicHeaderRenderer");
+        const std::string title = lower(text(step(head, "title")));
+        // "More" (or the title itself) opens the whole group: the artist's discography page.
+        Target more = target(dig(head, "moreContentButton", "buttonRenderer", "navigationEndpoint"));
+        if (more.browseId.empty())
+            if (const auto t = runsOf(step(head, "title")); !t.empty()) more = t[0].to;
+        const bool discography = more.pageType == "MUSIC_PAGE_TYPE_ARTIST_DISCOGRAPHY" || more.browseId.rfind("MPAD", 0) == 0;
         const auto rows = rowsOf(step(shelf, "contents"));
-        size_t albums = 0, artists = 0, singles = 0;
+        size_t albums = 0, artists = 0, singles = 0, playlists = 0;
         for (const auto& it : rows) {
             if (it.kind == Kind::Album) ++albums;
             if (it.kind == Kind::Artist) ++artists;
+            if (it.kind == Kind::Playlist) ++playlists;
             if (it.type == "Single" || it.type == "EP") ++singles;
         }
         if (albums > 0 && albums >= rows.size() / 2) {
             std::vector<Album>* into = nullptr;
             const bool singleTitle = title.find("single") != std::string::npos || title == "eps";
-            if (singleTitle) into = &page.singles;
-            else if (title.find("album") != std::string::npos && title.find("appears") == std::string::npos) into = &page.albums;
+            const bool appears = title.find("appears") != std::string::npos;
+            if (appears) into = &page.appearsOn;
+            else if (singleTitle) into = &page.singles;
+            else if (title.find("album") != std::string::npos) into = &page.albums;
             else if (title.empty() || albumShelves < 2) into = singles == albums ? &page.singles : &page.albums;   // unknown words
             else into = &page.other;
-            ++albumShelves;
+            if (!appears) ++albumShelves;
+            if (discography && into == &page.albums) out.allAlbums = {more.browseId, more.params};
+            if (discography && into == &page.singles) out.allSingles = {more.browseId, more.params};
             for (const auto& it : rows) {
                 if (it.kind != Kind::Album) continue;
-                Album a = toAlbum(it, &self);
+                Album a = toAlbum(it, appears ? nullptr : &self);   // appears on: other artists' releases
                 if (into == &page.singles && a.primaryType == "Album") a.primaryType = "Single";
                 into->push_back(std::move(a));
             }
         } else if (artists > 0 && artists >= rows.size() / 2 && page.similar.empty()) {
             for (const auto& it : rows)
                 if (it.kind == Kind::Artist) page.similar.push_back(toArtist(it));
+        } else if (playlists > 0 && playlists >= rows.size() / 2) {   // "Featured on", "Playlists by <artist>"
+            for (const auto& it : rows)
+                if (it.kind == Kind::Playlist)
+                    if (Playlist p = toPlaylist(it); playlistsSeen.insert(p.id).second) page.playlists.push_back(std::move(p));
         }
     }
     return out;

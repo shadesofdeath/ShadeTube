@@ -3,6 +3,7 @@
 // in the week they listen (hour x weekday heatmap). The data comes from app/ListenStats, which initListenStats()
 // feeds from the player through the AppContext hooks (every source: Spotify, MusicBrainz, downloads, local files; not
 // internet radio stations), plus the history the user imports from Spotify's data download (app/HistoryImport).
+#include "app/Accounts.h"
 #include "app/AppContext.h"
 #include "app/HistoryImport.h"
 #include "app/InternetRadio.h"
@@ -54,7 +55,8 @@ namespace type = gfx::type;
 namespace {
 
 ListenStats& store() {
-    static ListenStats s;   // %LOCALAPPDATA%\ShadeTube\listening.json (+ listening-imported.json)
+    // The active Spotify account's listening.json (+ listening-imported.json); the profile's own without an account.
+    static ListenStats s(accounts::file(L"listening.json"));
     return s;
 }
 
@@ -1106,7 +1108,7 @@ private:
         auto& s = store();
         banner_ = nullptr;
         if (!s.loaded()) {   // the history is still being read (the store notifies when it lands)
-            showSkeleton(3);
+            showLoading(Loading::Shelves);
             return;
         }
         built_ = true;
@@ -1121,7 +1123,7 @@ private:
             c->setSpacingBefore(banner_, 20);
         }
         if (!anything) {
-            c->add<MessagePanel>("stats", tr(L"Henüz dinleme geçmişi yok"),
+            emptyState(c, "stats", tr(L"Henüz dinleme geçmişi yok"),
                                  tr(L"Şarkı dinledikçe en çok dinlediklerin, toplam süren ve son çalınanlar burada "
                                     L"birikir."));
             if (!g_import.active && s.canImport()) c->add<ImportCard>();
@@ -1564,15 +1566,35 @@ std::vector<std::string> statsArtistGenres(const ArtistRef& a) {
     return it != g_artistTags.end() ? it->second : std::vector<std::string>{};
 }
 
-void initListenStats() {
-    auto& c = ctx();
-    // The history is parsed on a worker (a big file takes a moment); plays recorded meanwhile are merged on top.
+namespace {
+// The history is parsed on a worker (a big file takes a moment); plays recorded meanwhile are merged on top. A read
+// of a history that is no longer the store's (an account switch while it ran) is dropped.
+void loadHistory(std::function<void()> then = {}) {
     static Lifetime life;   // the store lives as long as the process
     async(
-        Priority::Normal, life.ref(), [file = store().file()] { return ListenStats::readFile(file); },
-        [](Result<ListenStats::Snapshot> r) {
+        Priority::Normal, life.ref(), [file = store().file()] { return std::pair{file, ListenStats::readFile(file)}; },
+        [then = std::move(then)](Result<std::pair<std::filesystem::path, ListenStats::Snapshot>> r) {
+            if (r && r->first != store().file()) return;
             if (!r) ST_LOG_WARN("stats", "reading listening.json failed: {}", r.errorMessage());
-            store().adopt(r ? std::move(*r) : ListenStats::Snapshot{});
+            store().adopt(r ? std::move(r->second) : ListenStats::Snapshot{});
+            if (then) then();
+        });
+}
+} // namespace
+
+void initListenStats() {
+    auto& c = ctx();
+    // Another Spotify account: its own history (app/Accounts). The play in progress carries over.
+    c.accountLeaveHooks.push_back([] {
+        sample();
+        store().detach();
+        g_lastSaveMs = steadyMs();
+    });
+    c.accountEnterHooks.push_back([] {
+        store().attach(accounts::file(L"listening.json"));
+        loadHistory();
+    });
+    loadHistory([] {
             // SHADETUBE_IMPORT_HISTORY = <file>[;<file>...] (dev / tests): import these once the history is loaded.
             wchar_t buf[4096];
             const DWORD n = GetEnvironmentVariableW(L"SHADETUBE_IMPORT_HISTORY", buf, 4096);

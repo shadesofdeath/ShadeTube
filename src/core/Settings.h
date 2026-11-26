@@ -38,6 +38,7 @@ struct Settings {
     int crossfadeSec = 0;                // 0 = gapless handoff, 1..12 = crossfade between tracks
     std::string outputDeviceId;          // WASAPI endpoint id; "" = follow the Windows default device
     std::string outputDeviceName;        // its friendly name when it was picked (shown without enumerating devices)
+    bool exclusiveAudio = false;         // WASAPI exclusive mode (the device to ourselves, tracks at their own rate)
     float musicSpeed = 1.f;              // playback speed of songs (0.5 .. 3, pitch kept)
     float podcastSpeed = 1.f;            // ... and of podcast episodes (remembered separately)
 
@@ -133,6 +134,9 @@ struct Settings {
     bool miniOnTop = true;
     std::map<std::string, std::vector<int>> miniPlaces;
     bool taskbarProgress = true;         // the playing song's position on the taskbar button
+    // A Windows notification (cover, title, artist, Sonraki / Beğen) when a song starts while no ShadeTube window is in
+    // view (app/SongNotification). Off by default.
+    bool songNotifications = false;
     // Song preview (app/Preview): "hold" (press and hold a row / cover, the menu item, the key), "menu" (menu + key
     // only), "off".
     std::string previewMode = "hold";
@@ -143,6 +147,11 @@ struct Settings {
     bool videoOnTop = false;             // the video window stays above other windows
     int videoX = -1, videoY = -1;        // the video window's position (screen px; -1 = next to the main window)
     int videoW = 640, videoH = 360;      // ... and size (DIPs)
+    // Song cache (player/AudioCache): played streams kept on disk up to this many MB; 0 = off.
+    int audioCacheMb = 1024;
+    // Track lists' optional columns the user picked in a column header's menu (app/TrackColumns): "album", "added",
+    // "plays", comma separated; "" = the default (all three, where a list has them; plays only with play counts).
+    std::string trackColumns;
 
     static Settings& get();
     void load();

@@ -38,6 +38,11 @@ const std::vector<std::pair<const char*, const char*>> kBuiltins = {
     {"fetchPlaylist", "243c0ba2736f16da721e3a227004bbcdb8df6c846f198bd478172e00aa1faf42"},
     {"fetchLibraryTracks", "087278b20b743578a6262c2b0b4bcd20d879c503cc359a2285baf083ef944240"},
     {"getAlbum", "6a74b456cd1735c9193d9e8ec8cc5184cad7ce13572210315229db3975964361"},
+    // An artist's whole discography (xpui-routes-artist chunk, 2026-11-27): one document for the three groups.
+    {"queryArtistDiscographyAlbums", "5e07d323febb57b4a56a42abbf781490e58764aa45feb6e3dc0591564fc56599"},
+    {"queryArtistDiscographySingles", "5e07d323febb57b4a56a42abbf781490e58764aa45feb6e3dc0591564fc56599"},
+    {"queryArtistDiscographyCompilations", "5e07d323febb57b4a56a42abbf781490e58764aa45feb6e3dc0591564fc56599"},
+    {"queryArtistAppearsOn", "9a4bb7a20d6720fe52d7b47bc001cfa91940ddf5e7113761460b4a288d18a4c1"},
     {"queryArtistOverview", "7f86ff63e38c24973a2842b672abe44c910c1973978dc8a4a0cb648edef34527"},
     {"searchDesktop", "d9f785900f0710b31c07818d617f4f7600c1e21217e80f5b043d1e78d74e6026"},
     {"home", "76243c78b0e20ecdbe41b794dec8cbe73f75e585b0a7201b8d2e84578412847a"},
@@ -50,6 +55,18 @@ const std::vector<std::pair<const char*, const char*>> kBuiltins = {
     // with its badge query (whatsNewFeedNewItems) and the seen-state mutation.
     {"queryWhatsNewFeed", "d889c8c936ab192af8ced595427f5ba2acdf63478fdc0a181c8d477f8322630e"},
     {"moveItemsInPlaylist", "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990"},
+    // The "Credits" dialog of a track (the lazily loaded xpui-root-dialogs.74170731.js chunk of web-player.4c608093.js,
+    // 2026-11-26): {trackUri, contributorsLimit, contributorsOffset} -> trackUnion.creditsTrait.
+    {"queryTrackCreditsGroupedModal", "5c109593bca8ea4cb28104e178820ff035418fb4694d34d10c89cc755fe64694"},
+    // The search page's per-kind tabs (xpui-routes-search chunk) and a show's details (main bundle);
+    // web-player.4c608093.js, 2026-11-26.
+    {"searchTracks", "b02683192a98dde7966b5e6655a79eeb62713eab703eda9902c932818dd52751"},
+    {"searchAlbums", "202cb3305e31e5a0767ba7925f28bd728cf8f8b0217e6da43909056071cd70e9"},
+    {"searchArtists", "7bf95d754fdbe32c8b161fbbe54d1ae50974900df4dce4c8f1afcbcad153224d"},
+    {"searchPlaylists", "d520014e748f9ea44f7707d8df1819867ac1205e8b7f3e28f22fe5fc858921b1"},
+    {"searchPodcasts", "0195d9f61b43606d490bca64c3456e3593528cea6cc05c7e822c7c42beed0f4e"},
+    {"searchUsers", "8f358dd82e62f61dd4ceaa9f8cd0889e644c9b707f1b724fbfb356a757cb7e5a"},
+    {"queryShowMetadataV2", "b475447846f37cc426add800b995a7859c169c53c72b62de6338c0c40a5dacea"},
 };
 
 bool isHex64(std::string_view s) {
@@ -145,8 +162,10 @@ std::vector<std::string> nameWords(const std::string& op) {
 }
 
 // How likely chunk `name` defines one of the ops `words` came from. Per name segment ("xpui-routes-search"):
-// equal to a word +3, overlapping one +1, unrelated -1 (a specific name beats a broad one: "desktop" alone must not
-// pull in xpui-desktop-modals), "routes" +1 (route pages own their queries). Numbered chunks come last.
+// equal to a word +3 (a "...Modal" op and a "dialogs" segment count as equal: the web player's modals live in
+// xpui-root-dialogs), overlapping one +1, unrelated -1 (a specific name beats a broad one: "desktop" alone must not
+// pull in xpui-desktop-modals), "routes" +1 (route pages own their queries), "xpui" / "dwp" / "root" 0. Numbered
+// chunks come last.
 int chunkScore(const std::string& name, const std::vector<std::string>& words) {
     if (name.find_first_not_of("0123456789") == std::string::npos) return -1000;
     int score = 0;
@@ -156,7 +175,7 @@ int chunkScore(const std::string& name, const std::vector<std::string>& words) {
         if (e == std::string::npos) e = name.size();
         const std::string seg = name.substr(i, e - i);
         i = e + 1;
-        if (seg.empty() || seg == "xpui" || seg == "dwp") continue;
+        if (seg.empty() || seg == "xpui" || seg == "dwp" || seg == "root") continue;   // structural, like "routes"
         if (seg == "routes") {
             ++score;
             continue;
@@ -164,6 +183,8 @@ int chunkScore(const std::string& name, const std::vector<std::string>& words) {
         int best = -1;
         for (const auto& w : words) {
             if (seg == w) best = 3;
+            // The web player's modals live in its dialog chunks (queryTrackCreditsGroupedModal: xpui-root-dialogs).
+            else if (w == "modal" && (seg == "dialogs" || seg == "dialog")) best = 3;
             else if (best < 1 && seg.size() >= 4 && (seg.find(w) != std::string::npos || w.find(seg) != std::string::npos))
                 best = 1;
         }

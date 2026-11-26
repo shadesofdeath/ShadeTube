@@ -424,8 +424,8 @@ bool PlayButton::onActivate() {
 void PlayButton::setPlaying(bool playing) {
     if (playing_ == playing) return;
     playing_ = playing;
-    // The filled look steps through 9 frames (linear); the outline glyph morphs continuously (eased).
-    morph_.to(playing ? 1.f : 0.f, motion::medium, look_ == Look::Outline ? Ease::Standard : Ease::Linear);
+    // Both looks draw the outline glyph, which morphs continuously (eased).
+    morph_.to(playing ? 1.f : 0.f, motion::medium, Ease::Standard);
     invalidate();
 }
 
@@ -530,11 +530,10 @@ void PlayButton::paint(Canvas& c) {
         c.arc({r.cx(), r.cy()}, is * 0.55f, t * 360.f, 270.f, fg, 1.75f);
         frame::requestNext();
     } else {
-        // 9 frames: 0 = play, 8 = pause.
-        const int f = std::clamp(static_cast<int>(std::round(morph_.value() * 8)), 0, 8);
-        char name[64];
-        snprintf(name, sizeof name, "animations/play-pause-morph/frame-%02d", f);
-        c.icon(name, r.center(is, is), fg);
+        // The thin outline glyph of the whole icon set (the player bar's, in the accent's ink), a little larger than
+        // the filled glyph was (an outline reads smaller), its stroke in the player bar button's proportion.
+        const float glyph = std::round(is * 1.15f);
+        paintOutlineGlyph(c, {r.cx(), r.cy()}, glyph, fg, std::max(1.f, glyph * 0.075f));
     }
     c.popTransform();
 }

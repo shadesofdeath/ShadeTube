@@ -3,6 +3,8 @@
 
 #include "app/AppContext.h"
 #include "app/CommandPalette.h"
+#include "app/CreditsUi.h"
+#include "app/LyricsPicker.h"
 #include "app/Shortcuts.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -77,6 +79,10 @@ void run(const Step& s) {
         ui::Toasts::show(w, toWide(s.arg), ui::ToastKind::Success, tr(L"Geri al"), [] {});
     } else if (s.action == "palette") {
         openCommandPalette(toWide(s.arg));
+    } else if (s.action == "credits") {
+        showCredits(sampleTrack());          // the "Krediler" dialog (app/CreditsUi)
+    } else if (s.action == "lyricspicker") {
+        showLyricsPicker(sampleTrack());     // "Yanlış sözler mi?" (app/LyricsPicker)
     } else if (s.action == "stats") {
         ST_LOG_INFO("overlaydemo", "acrylic captures {}, bytes held {}", ui::Acrylic::captureCount(), ui::Acrylic::liveBytes());
     } else {

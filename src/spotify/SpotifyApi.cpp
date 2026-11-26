@@ -942,6 +942,114 @@ Album Api::album(const std::string& uri, const CT& ct) {
     return albumFrom(a, true);
 }
 
+// ---- Search ------------------------------------------------------------------------------------------------------
+// searchDesktop (the overview) and the per-kind queries all answer data.searchV2 with one page per kind:
+//   tracksV2:{totalCount, pagingInfo:{limit, nextOffset|null}, items:[{item:{__typename:"TrackResponseWrapper",
+//             data:{...Track}}, matchedFields}]}
+//   albumsV2 / artists / playlists / podcasts / users: {totalCount, pagingInfo, items:[{__typename:"<T>ResponseWrapper",
+//             data:{__typename:"<T>", ...}}]}
+// podcasts: data {uri, name, publisher:{name}, coverArt:{sources}, mediaType, topics}; users: data {uri, id, username,
+// displayName, avatar:{sources}} (the web player's search mapper: name = displayName || username). An anonymous token
+// finds only well-known accounts (a person's name: an empty page with limit 0). Wrappers of other types ("NotFound",
+// restricted content) are skipped.
+namespace {
+
+const char* searchOperation(SearchKind k) {
+    switch (k) {
+    case SearchKind::Tracks: return "searchTracks";
+    case SearchKind::Albums: return "searchAlbums";
+    case SearchKind::Artists: return "searchArtists";
+    case SearchKind::Playlists: return "searchPlaylists";
+    case SearchKind::Shows: return "searchPodcasts";
+    case SearchKind::Profiles: return "searchUsers";
+    }
+    return "searchTracks";
+}
+const char* searchKey(SearchKind k) {
+    switch (k) {
+    case SearchKind::Tracks: return "tracksV2";
+    case SearchKind::Albums: return "albumsV2";
+    case SearchKind::Artists: return "artists";
+    case SearchKind::Playlists: return "playlists";
+    case SearchKind::Shows: return "podcasts";
+    case SearchKind::Profiles: return "users";
+    }
+    return "tracksV2";
+}
+
+// A wrapper's data object when it is of `typeName` ("" = any with a uri).
+const json* searchItem(const json& it, const char* typeName) {
+    const json& inner = at(it, "item").is_object() ? at(it, "item") : it;
+    const json& d = at(inner, "data");
+    if (!d.is_object()) return nullptr;
+    const std::string tn = str(d, "__typename");
+    if (*typeName && !tn.empty() && tn != typeName) return nullptr;
+    return str(d, "uri").empty() ? nullptr : &d;
+}
+
+Profile profileFrom(const json& d) {
+    Profile p;
+    p.id = str(d, "uri");
+    if (p.id.empty() && !str(d, "username").empty()) p.id = "spotify:user:" + str(d, "username");
+    p.name = str(d, "displayName");
+    if (p.name.empty()) p.name = str(d, "name");
+    if (p.name.empty()) p.name = str(d, "username");
+    if (p.name.empty() && p.id.rfind("spotify:user:", 0) == 0) p.name = p.id.substr(13);
+    p.images = imagesFrom(at(at(d, "avatar"), "sources"));
+    return p;
+}
+
+// Search results carry the playlist's description as HTML and no track count.
+Playlist searchPlaylistFrom(const json& d) {
+    Playlist p = playlistFrom(d);
+    p.description = plainText(p.description);
+    p.countKnown = false;
+    return p;
+}
+
+template <class T, class Parse>
+void collect(const json& page, const char* typeName, std::vector<T>& out, Parse parse) {
+    const json& items = at(page, "items");
+    if (!items.is_array()) return;
+    for (const auto& it : items)
+        if (const json* d = searchItem(it, typeName)) {
+            T v = parse(*d);
+            if (!v.id.empty()) out.push_back(std::move(v));
+        }
+}
+
+void collectKind(SearchKind kind, const json& page, SearchResults& out) {
+    switch (kind) {
+    case SearchKind::Tracks: collect(page, "Track", out.tracks, [](const json& d) { return trackFrom(d); }); break;
+    case SearchKind::Albums: collect(page, "Album", out.albums, [](const json& d) { return albumFrom(d, false); }); break;
+    case SearchKind::Artists: collect(page, "Artist", out.artists, artistFrom); break;
+    case SearchKind::Playlists: collect(page, "Playlist", out.playlists, searchPlaylistFrom); break;
+    case SearchKind::Shows: collect(page, "Podcast", out.shows, Api::parseShow); break;
+    case SearchKind::Profiles: collect(page, "User", out.profiles, profileFrom); break;
+    }
+}
+
+constexpr SearchKind kSearchKinds[] = {SearchKind::Tracks,    SearchKind::Albums, SearchKind::Artists,
+                                       SearchKind::Playlists, SearchKind::Shows,  SearchKind::Profiles};
+
+} // namespace
+
+// topResultsV2: {itemsV2:[{item:{__typename:"<T>ResponseWrapper", data:{__typename:"<T>", uri, ...}}, matchedFields}],
+// featured:[...]} — the first item is what the web player shows as "Top result". Only a kind the lists hold counts
+// (an episode or a genre on top leaves it empty: the page then picks one itself).
+SearchResults Api::parseSearch(const json& s) {
+    SearchResults out;
+    for (const SearchKind k : kSearchKinds) collectKind(k, at(s, searchKey(k)), out);
+    const json& top = at(at(s, "topResultsV2"), "itemsV2");
+    if (top.is_array() && !top.empty()) {
+        const json& d = at(at(top[0], "item"), "data");
+        const std::string tn = str(d, "__typename");
+        if (tn == "Artist" || tn == "Track" || tn == "Album" || tn == "Playlist" || tn == "Podcast" || tn == "User")
+            out.topResult = str(d, "uri");
+    }
+    return out;
+}
+
 SearchResults Api::search(const std::string& q, int limit, const CT& ct) {
     const json vars{
         {"searchTerm", q},         {"offset", 0},
@@ -951,60 +1059,240 @@ SearchResults Api::search(const std::string& q, int limit, const CT& ct) {
         {"includeAuthors", false},
     };
     const json data = query("searchDesktop", vars, ct);
-    const json& s = at(data, "searchV2");
-    SearchResults out;
+    return parseSearch(at(data, "searchV2"));
+}
 
-    const json& artists = at(at(s, "artists"), "items");
-    if (artists.is_array())
-        for (const auto& it : artists)
-            if (at(it, "data").is_object()) out.artists.push_back(artistFrom(at(it, "data")));
+SearchBatch Api::parseSearchBatch(SearchKind kind, const json& data) {
+    SearchBatch b;
+    const json& page = at(at(data, "searchV2"), searchKey(kind));
+    collectKind(kind, page, b.results);
+    b.total = integer(page, "totalCount");
+    const json& next = at(at(page, "pagingInfo"), "nextOffset");
+    const json& items = at(page, "items");
+    const bool rows = items.is_array() && !items.empty();
+    if (next.is_number_integer()) b.nextOffset = rows ? next.get<int>() : -1;
+    return b;
+}
 
-    const json& albums = at(at(s, "albumsV2"), "items");
-    if (albums.is_array())
-        for (const auto& it : albums)
-            if (at(it, "data").is_object()) out.albums.push_back(albumFrom(at(it, "data"), false));
+SearchBatch Api::searchMore(SearchKind kind, const std::string& q, int offset, int limit, const CT& ct) {
+    // What the web player's search tabs send (xpui-routes-search, getSearchCategoryResults).
+    const json vars{
+        {"searchTerm", q},
+        {"offset", offset},
+        {"limit", limit},
+        {"numberOfTopResults", limit},
+        {"includeAudiobooks", true},
+        {"includePreReleases", false},
+        {"includeAlbumPreReleases", false},
+        {"includeAuthors", false},
+        {"includeEpisodeContentRatingsV2", false},
+    };
+    SearchBatch b = parseSearchBatch(kind, query(searchOperation(kind), vars, ct));
+    if (b.nextOffset >= 0 && b.nextOffset <= offset) b.nextOffset = -1;   // never page in place
+    return b;
+}
 
-    const json& tracks = at(at(s, "tracksV2"), "items");
-    if (tracks.is_array())
-        for (const auto& it : tracks) {
-            const json& d = at(at(it, "item"), "data");
-            if (d.is_object()) out.tracks.push_back(trackFrom(d));
+// ---- Podcasts (shows) --------------------------------------------------------------------------------------------
+// A show as search, libraryV3 and queryShowMetadataV2 give it: {__typename:"Podcast", uri, name, publisher:{name},
+// coverArt:{sources}, mediaType, description (plain), htmlDescription}. Audiobooks share the wrapper: skipped.
+PodcastShow Api::parseShow(const json& d) {
+    PodcastShow s;
+    const std::string tn = str(d, "__typename");
+    if (!tn.empty() && tn != "Podcast") return s;
+    s.id = str(d, "uri");
+    if (s.id.rfind("spotify:show:", 0) != 0) {
+        s.id.clear();
+        return s;
+    }
+    s.name = str(d, "name");
+    s.publisher = str(at(d, "publisher"), "name");
+    s.description = str(d, "description");
+    if (s.description.empty()) s.description = plainText(str(d, "htmlDescription"));
+    s.images = imagesFrom(at(at(d, "coverArt"), "sources"));
+    s.mediaType = str(d, "mediaType");
+    if (s.name.empty()) s.id.clear();
+    return s;
+}
+
+std::vector<PodcastShow> Api::parseLibraryShows(const json& data, int* totalCount) {
+    std::vector<PodcastShow> out;
+    const json& lib = at(at(data, "me"), "libraryV3");
+    if (totalCount) *totalCount = integer(lib, "totalCount");
+    const json& items = at(lib, "items");
+    if (!items.is_array()) return out;
+    for (const auto& entry : items) {
+        const json& wrap = at(entry, "item");
+        const json& d = at(wrap, "data");
+        if (!d.is_object()) continue;
+        json copy;
+        const json* src = &d;
+        if (str(d, "uri").empty() && str(wrap, "_uri").rfind("spotify:show:", 0) == 0) {   // the uri on the wrapper only
+            copy = d;
+            copy["uri"] = str(wrap, "_uri");
+            src = &copy;
         }
+        PodcastShow s = parseShow(*src);
+        if (!s.id.empty()) out.push_back(std::move(s));
+    }
     return out;
+}
+
+std::vector<PodcastShow> Api::libraryShows(const CT& ct) {
+    std::vector<PodcastShow> out;
+    std::unordered_set<std::string> seen;
+    // The web player's filter id for shows ("Podcasts & Shows"). Should Spotify rename it (libraryV3 then answers
+    // LibraryInvalidFilterIdError), the whole library is walked instead and its shows kept.
+    bool filtered = true;
+    for (int offset = 0, page = 0; page < 20; ++page) {
+        json vars = libraryVariables("Podcasts & Shows", offset);
+        if (!filtered) vars["filters"] = json::array();
+        json data;
+        try {
+            data = query("libraryV3", vars, ct);
+        } catch (const std::exception& e) {
+            if (page == 0) throw;
+            ST_LOG_WARN("spotify", "libraryV3 shows page at {} failed: {}", offset, e.what());
+            break;
+        }
+        const json& lib = at(at(data, "me"), "libraryV3");
+        if (filtered && str(lib, "__typename") == "LibraryInvalidFilterIdError") {
+            ST_LOG_WARN("spotify", "libraryV3: the shows filter was refused ({}); walking the whole library",
+                        str(lib, "invalidFilterId"));
+            filtered = false;
+            offset = 0;
+            page = -1;
+            continue;
+        }
+        int total = 0;
+        for (auto& s : parseLibraryShows(data, &total))
+            if (seen.insert(s.id).second) out.push_back(std::move(s));
+        const json& items = at(lib, "items");
+        if (!items.is_array() || items.empty()) break;
+        offset += static_cast<int>(items.size());
+        if (offset >= total) break;
+    }
+    ST_LOG_INFO("spotify", "library shows: {}{}", out.size(), filtered ? "" : " (unfiltered walk)");
+    return out;
+}
+
+PodcastShow Api::show(const std::string& uri, const CT& ct) {
+    if (uri.rfind("spotify:show:", 0) != 0) throw ApiError(0, "Spotify show: invalid uri " + uri);
+    const json vars{{"uri", uri}, {"includeContentCapabilityTrait", false}, {"includeEpisodeContentRatingsV2", false}};
+    const json data = query("queryShowMetadataV2", vars, ct);
+    PodcastShow s = parseShow(at(data, "podcastUnionV2"));
+    if (s.id.empty()) throw ApiError(404, "Spotify show not found: " + uri);
+    return s;
+}
+
+// ---- Profiles (spclient user-profile-view/v3, JSON) ----------------------------------------------------------------
+//   /profile/<username>?playlist_limit=0&artist_limit=0&episode_limit=0 -> {uri, name, image_url, followers_count,
+//                                                                          following_count, is_verified, ...}
+//   /profile/<username>/playlists?offset&limit -> {public_playlists:[{uri, name, image_url, followers_count,
+//                                                  owner_name, owner_uri}], total_public_playlists_count}
+// (the web player asks for the protobuf form of the same messages). The total is an estimate (1519 on the first page,
+// 1515 on the second), and rows Spotify won't show are dropped after paging: see parseProfilePlaylists.
+namespace {
+
+std::string percentDecode(std::string_view s) {
+    std::string out;
+    for (size_t i = 0; i < s.size(); ++i) {
+        auto hex = [](char c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1; };
+        if (s[i] == '%' && i + 2 < s.size() && hex(s[i + 1]) >= 0 && hex(s[i + 2]) >= 0) {
+            out.push_back(static_cast<char>(hex(s[i + 1]) * 16 + hex(s[i + 2])));
+            i += 2;
+        } else {
+            out.push_back(s[i]);
+        }
+    }
+    return out;
+}
+
+std::string usernameOf(const std::string& userUri) {
+    const std::string raw = userUri.rfind("spotify:user:", 0) == 0 ? userUri.substr(13) : userUri;
+    return percentDecode(raw);
+}
+
+// image_url is an https URL, or a spotify:image:<hex> / spotify:mosaic:<hex>:<hex>... URI (playlist mosaics).
+std::vector<Image> imageFromUrl(const std::string& u) {
+    if (u.rfind("https://", 0) == 0) return {Image{u, 0, 0}};
+    if (u.rfind("spotify:image:", 0) == 0) return {Image{"https://i.scdn.co/image/" + u.substr(14), 0, 0}};
+    if (u.rfind("spotify:mosaic:", 0) == 0) {
+        std::string ids = u.substr(15);
+        std::erase(ids, ':');
+        return {Image{"https://mosaic.scdn.co/640/" + ids, 640, 640}, Image{"https://mosaic.scdn.co/300/" + ids, 300, 300}};
+    }
+    return {};
+}
+
+int64_t integer64(const json& j, const char* key, int64_t def) {
+    const json& v = at(j, key);
+    return v.is_number_integer() ? v.get<int64_t>() : def;
+}
+
+} // namespace
+
+Profile Api::parseProfile(const json& j) {
+    Profile p;
+    p.id = str(j, "uri");
+    p.name = str(j, "name");
+    p.images = imageFromUrl(str(j, "image_url"));
+    p.followers = integer64(j, "followers_count", -1);
+    p.publicPlaylists = static_cast<int>(integer64(j, "total_public_playlists_count", -1));
+    if (p.name.empty() && p.id.rfind("spotify:user:", 0) == 0) p.name = usernameOf(p.id);
+    return p;
+}
+
+ProfilePlaylists Api::parseProfilePlaylists(const json& j, int offset, int limit) {
+    ProfilePlaylists out;
+    out.total = integer(j, "total_public_playlists_count");
+    const json& items = at(j, "public_playlists");
+    int raw = 0;
+    if (items.is_array()) {
+        raw = static_cast<int>(items.size());
+        for (const auto& it : items) {
+            Playlist p;
+            p.id = str(it, "uri");
+            if (p.id.rfind("spotify:playlist:", 0) != 0) continue;
+            p.name = str(it, "name");
+            p.images = imageFromUrl(str(it, "image_url"));
+            p.ownerName = str(it, "owner_name");
+            const std::string owner = str(it, "owner_uri");
+            if (owner.rfind("spotify:user:", 0) == 0) p.ownerId = usernameOf(owner);
+            p.countKnown = false;
+            out.playlists.push_back(std::move(p));
+        }
+    }
+    // A page covers `limit` positions even when it holds fewer rows (offset 20 limit 20 -> 16 rows; offset 36 repeats
+    // three of them). No total: on until a page comes back empty.
+    if (raw > 0 && (out.total <= 0 || offset + limit < out.total)) out.nextOffset = offset + limit;
+    return out;
+}
+
+Profile Api::profile(const std::string& userUri, const CT& ct) {
+    const std::string user = usernameOf(userUri);
+    if (user.empty()) throw ApiError(0, "Spotify profile: no username");
+    const std::string url = "https://spclient.wg.spotify.com/user-profile-view/v3/profile/" + http::urlEncode(user) +
+                            "?playlist_limit=0&artist_limit=0&episode_limit=0&market=from_token";
+    Profile p = parseProfile(spclient("GET", url, nullptr, ct, 404));
+    if (p.id.empty()) p.id = "spotify:user:" + http::urlEncode(user);
+    return p;
+}
+
+ProfilePlaylists Api::profilePlaylists(const std::string& userUri, int offset, int limit, const CT& ct) {
+    const std::string user = usernameOf(userUri);
+    if (user.empty()) throw ApiError(0, "Spotify profile: no username");
+    const std::string url = "https://spclient.wg.spotify.com/user-profile-view/v3/profile/" + http::urlEncode(user) +
+                            "/playlists?offset=" + std::to_string(offset) + "&limit=" + std::to_string(limit) +
+                            "&market=from_token";
+    return parseProfilePlaylists(spclient("GET", url, nullptr, ct, 404), offset, limit);
 }
 
 ArtistPage Api::artistPage(const std::string& uri, const CT& ct) {
     const json vars{{"uri", uri}, {"locale", ""}, {"preReleaseV2", false}};
     const json data = query("queryArtistOverview", vars, ct);
-    const json& a = at(data, "artistUnion");
-    ArtistPage page;
-    page.artist.id = str(a, "uri");
-    page.artist.name = str(at(a, "profile"), "name");
-    const json& avatar = at(at(at(a, "visuals"), "avatarImage"), "sources");
-    page.artist.images = imagesFrom(avatar);
-    if (at(a, "stats").is_object()) page.artist.listenCount = integer(at(a, "stats"), "monthlyListeners");
-
-    // Top tracks
-    const json& top = at(at(at(a, "discography"), "topTracks"), "items");
-    if (top.is_array())
-        for (const auto& it : top) {
-            const json& d = at(it, "track").is_object() ? at(it, "track") : at(it, "data");
-            if (d.is_object() && !str(d, "uri").empty()) page.topTracks.push_back(trackFrom(d));
-        }
-
-    // Albums (popular releases)
-    const json& albums = at(at(at(a, "discography"), "popularReleasesAlbums"), "items");
-    if (albums.is_array())
-        for (const auto& it : albums)
-            if (!str(it, "uri").empty()) page.albums.push_back(albumFrom(it, false));
-
-    // Related artists
-    const json& related = at(at(at(a, "relatedContent"), "relatedArtists"), "items");
-    if (related.is_array())
-        for (const auto& it : related) {
-            const json& d = at(it, "data").is_object() ? at(it, "data") : it;
-            if (!str(d, "uri").empty()) page.similar.push_back(artistFrom(d));
-        }
+    if (str(at(data, "artistUnion"), "__typename") == "NotFound") throw ApiError(404, "artist not found");
+    ArtistPage page = parseArtistOverview(data);
+    if (page.artist.id.empty()) page.artist.id = uri;
     return page;
 }
 
@@ -1423,6 +1711,350 @@ std::string Api::trackLyrics(const std::string& trackId, const CT& ct, const std
     } catch (const ApiError& e) {
         if (e.status == 404) return {};
         throw;
+    }
+}
+
+// ---- Artist overview (queryArtistOverview) ------------------------------------------------------------------
+// data.artistUnion (2026-11): profile {name, biography {text}, externalLinks {items [{name, url}]}, pinnedItem {type,
+// uri, title, subtitle, comment, itemV2 {data}, thumbnailImage {data {sources}}}}, visuals {avatarImage, gallery},
+// headerImage {data {sources [{url, maxWidth, maxHeight}]}}, stats {monthlyListeners, followers, worldRank, topCities},
+// onPlatformReputationTrait {verification {isVerified}}, discography {latest, popularReleasesAlbums {items [release]},
+// albums / singles / compilations {items [{releases {items [release]}}]}, topTracks {items [{track}]}},
+// relatedContent {relatedArtists, appearsOn, featuringV2, discoveredOnV2}. A release's date is {year, month, day,
+// precision} (or {isoString}).
+namespace {
+
+std::string releaseKind(const std::string& type) {
+    if (type == "SINGLE") return "Single";
+    if (type == "EP") return "EP";
+    if (type == "COMPILATION") return "Compilation";
+    if (type == "ALBUM") return "Album";
+    return type;
+}
+
+// The release date as precise as the source gives it: "2026-06-26", "2026-06" or "2026".
+std::string releaseDateOf(const json& date) {
+    if (!date.is_object()) return {};
+    const std::string precision = str(date, "precision");
+    if (const std::string iso = str(date, "isoString"); iso.size() >= 10)
+        return precision == "YEAR" ? iso.substr(0, 4) : precision == "MONTH" ? iso.substr(0, 7) : iso.substr(0, 10);
+    const int y = integer(date, "year"), m = integer(date, "month"), d = integer(date, "day");
+    if (y <= 0) return {};
+    char buf[16];
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && precision != "YEAR" && precision != "MONTH")
+        std::snprintf(buf, sizeof buf, "%04d-%02d-%02d", y, m, d);
+    else if (m >= 1 && m <= 12 && precision != "YEAR")
+        std::snprintf(buf, sizeof buf, "%04d-%02d", y, m);
+    else
+        std::snprintf(buf, sizeof buf, "%04d", y);
+    return buf;
+}
+
+Album overviewRelease(const json& d, const ArtistRef& owner) {
+    Album a = albumFrom(d, false);
+    a.primaryType = releaseKind(a.primaryType);
+    if (const std::string date = releaseDateOf(at(d, "date")); !date.empty()) a.firstReleaseDate = date;
+    a.totalTracks = integer(at(d, "tracks"), "totalCount");
+    if (a.artists.empty() && !owner.name.empty()) a.artists.push_back(owner);
+    return a;
+}
+
+// A discography group: {items [{releases {items [release, its other editions...]}}]} (the first edition of each) or a
+// flat {items [release]}. Returns the group's totalCount (0 when it has none).
+int overviewReleases(const json& group, const ArtistRef& owner, std::vector<Album>& out) {
+    const json& items = at(group, "items");
+    if (!items.is_array()) return 0;
+    auto add = [&](const json& d) {
+        if (!d.is_object() || str(d, "uri").rfind("spotify:album:", 0) != 0) return;
+        Album a = overviewRelease(d, owner);
+        if (!a.name.empty() && std::none_of(out.begin(), out.end(), [&](const Album& x) { return x.id == a.id; }))
+            out.push_back(std::move(a));
+    };
+    for (const auto& it : items) {
+        const json& releases = at(at(it, "releases"), "items");
+        if (releases.is_array()) {
+            if (!releases.empty()) add(releases[0]);
+        } else {
+            add(it);
+        }
+    }
+    return integer(group, "totalCount");
+}
+
+// The overview's first part of a group: its full size when there is more of it (else 0).
+int moreThan(int total, size_t shown) { return total > static_cast<int>(shown) ? total : 0; }
+
+// Image sources that carry maxWidth / maxHeight instead of width / height (header images).
+std::vector<Image> sizedImages(const json& sources) {
+    std::vector<Image> out = imagesFrom(sources);
+    if (!sources.is_array()) return out;
+    size_t k = 0;
+    for (const auto& s : sources) {
+        if (str(s, "url").empty()) continue;
+        if (k < out.size() && out[k].width == 0) {
+            out[k].width = integer(s, "maxWidth");
+            out[k].height = integer(s, "maxHeight");
+        }
+        ++k;
+    }
+    return out;
+}
+
+// A biography as plain text: tags and entities out, one paragraph per line.
+std::string biographyText(const std::string& raw) {
+    std::string out;
+    size_t start = 0;
+    while (start <= raw.size()) {
+        size_t end = raw.find('\n', start);
+        if (end == std::string::npos) end = raw.size();
+        if (const std::string para = plainText(raw.substr(start, end - start)); !para.empty()) {
+            if (!out.empty()) out += '\n';
+            out += para;
+        }
+        start = end + 1;
+    }
+    return out;
+}
+
+int64_t integer64(const json& j, const char* key) {
+    const json& v = at(j, key);
+    if (v.is_number_integer()) return v.get<int64_t>();
+    if (v.is_number()) return static_cast<int64_t>(v.get<double>());
+    return 0;
+}
+
+} // namespace
+
+ArtistPage Api::parseArtistOverview(const json& data) {
+    const json& a = at(data, "artistUnion");
+    ArtistPage page;
+    if (!a.is_object()) return page;
+    const json& profile = at(a, "profile");
+    page.artist.id = str(a, "uri");
+    page.artist.name = str(profile, "name");
+    page.artist.images = imagesFrom(at(at(at(a, "visuals"), "avatarImage"), "sources"));
+    const ArtistRef owner{page.artist.id, page.artist.name};
+
+    // Facts and figures.
+    const json& stats = at(a, "stats");
+    page.monthlyListeners = integer64(stats, "monthlyListeners");
+    page.followers = integer64(stats, "followers");
+    page.worldRank = integer(stats, "worldRank");
+    page.artist.listenCount = page.monthlyListeners;   // what older readers of artist.listenCount got
+    if (const json& cities = at(at(stats, "topCities"), "items"); cities.is_array())
+        for (const auto& c : cities) {
+            CityListeners cl{str(c, "city"), str(c, "country"), integer64(c, "numberOfListeners")};
+            if (!cl.city.empty()) page.topCities.push_back(std::move(cl));
+        }
+    const json& verified = at(at(at(a, "onPlatformReputationTrait"), "verification"), "isVerified");
+    page.verified = verified.is_boolean() ? verified.get<bool>() : at(profile, "verified").is_boolean() && at(profile, "verified").get<bool>();
+
+    // Pictures: the wide header (newer and older shapes) and the gallery (one image per photo, the largest source).
+    page.banner = sizedImages(at(at(at(a, "headerImage"), "data"), "sources"));
+    if (page.banner.empty()) page.banner = sizedImages(at(at(at(a, "visuals"), "headerImage"), "sources"));
+    if (const json& gallery = at(at(at(a, "visuals"), "gallery"), "items"); gallery.is_array())
+        for (const auto& g : gallery) {
+            auto imgs = imagesFrom(at(g, "sources"));
+            if (imgs.empty()) continue;
+            page.gallery.push_back(*std::max_element(imgs.begin(), imgs.end(),
+                                                     [](const Image& x, const Image& y) { return x.width < y.width; }));
+        }
+
+    // Biography and links.
+    page.bio = biographyText(str(at(profile, "biography"), "text"));
+    if (!page.bio.empty()) page.bioSource = "Spotify";
+    if (const json& links = at(at(profile, "externalLinks"), "items"); links.is_array())
+        for (const auto& l : links) {
+            ArtistLink link{str(l, "name"), str(l, "url")};
+            if (link.url.rfind("https://", 0) != 0 && link.url.rfind("http://", 0) != 0) continue;
+            std::transform(link.kind.begin(), link.kind.end(), link.kind.begin(),
+                           [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+            if (link.kind.empty()) link.kind = "website";
+            page.links.push_back(std::move(link));
+        }
+
+    // The pick: an album / playlist / track / artist pinned with a comment (concerts and the like are skipped).
+    if (const json& pin = at(profile, "pinnedItem"); pin.is_object()) {
+        const json& d = at(at(pin, "itemV2"), "data");
+        const std::string uri = str(pin, "uri").empty() ? str(d, "uri") : str(pin, "uri");
+        CardItem item;
+        item.id = uri;
+        item.title = str(pin, "title").empty() ? str(d, "name") : str(pin, "title");
+        item.subtitle = str(pin, "subtitle");
+        item.images = imagesFrom(at(at(d, "coverArt"), "sources"));
+        if (item.images.empty()) {
+            const json& imgs = at(at(d, "images"), "items");
+            if (imgs.is_array() && !imgs.empty()) item.images = imagesFrom(at(imgs[0], "sources"));
+        }
+        if (item.images.empty()) item.images = imagesFrom(at(at(at(pin, "thumbnailImage"), "data"), "sources"));
+        bool known = true;
+        if (uri.rfind("spotify:album:", 0) == 0) item.kind = CardItem::Kind::Album;
+        else if (uri.rfind("spotify:playlist:", 0) == 0) item.kind = CardItem::Kind::Playlist;
+        else if (uri.rfind("spotify:artist:", 0) == 0) item.kind = CardItem::Kind::Artist;
+        else if (uri.rfind("spotify:track:", 0) == 0) {
+            item.kind = CardItem::Kind::Track;
+            item.track = trackFrom(d);
+            if (item.track.id.empty()) item.track.id = uri;
+            if (item.track.name.empty()) item.track.name = item.title;
+            if (item.track.artists.empty()) item.track.artists.push_back(owner);
+        } else {
+            known = false;
+        }
+        if (known && !item.title.empty()) page.pick = {std::move(item), str(pin, "comment")};
+    }
+
+    // Discography.
+    const json& disc = at(a, "discography");
+    if (const json& top = at(at(disc, "topTracks"), "items"); top.is_array())
+        for (const auto& it : top) {
+            const json& d = at(it, "track").is_object() ? at(it, "track") : at(it, "data");
+            if (d.is_object() && !str(d, "uri").empty()) page.topTracks.push_back(trackFrom(d));
+        }
+    overviewReleases(at(disc, "popularReleasesAlbums"), owner, page.popular);
+    page.albumsTotal = moreThan(overviewReleases(at(disc, "albums"), owner, page.albums), page.albums.size());
+    page.singlesTotal = moreThan(overviewReleases(at(disc, "singles"), owner, page.singles), page.singles.size());
+    page.otherTotal = moreThan(overviewReleases(at(disc, "compilations"), owner, page.other), page.other.size());
+    if (const json& latest = at(disc, "latest"); latest.is_object() && !str(latest, "uri").empty())
+        page.latest = overviewRelease(latest, owner);
+    // An older answer without the grouped discography: its popular releases are the albums.
+    if (page.albums.empty() && page.singles.empty() && page.other.empty())
+        for (const auto& r : page.popular)
+            (r.primaryType == "Single" || r.primaryType == "EP" ? page.singles : r.primaryType == "Compilation" ? page.other : page.albums)
+                .push_back(r);
+
+    // Related content.
+    const json& related = at(a, "relatedContent");
+    if (const json& artists = at(at(related, "relatedArtists"), "items"); artists.is_array())
+        for (const auto& it : artists) {
+            const json& d = at(it, "data").is_object() ? at(it, "data") : it;
+            if (!str(d, "uri").empty()) page.similar.push_back(artistFrom(d));
+        }
+    page.appearsOnTotal = moreThan(overviewReleases(at(related, "appearsOn"), {}, page.appearsOn), page.appearsOn.size());
+    for (const char* group : {"featuringV2", "discoveredOnV2"}) {
+        const json& items = at(at(related, group), "items");
+        if (!items.is_array()) continue;
+        for (const auto& it : items) {
+            const json& d = at(it, "data");
+            if (str(d, "__typename") != "Playlist" || str(d, "uri").empty()) continue;   // GenericError entries
+            Playlist p = playlistFrom(d);
+            p.description = plainText(p.description);
+            p.countKnown = false;
+            if (std::none_of(page.playlists.begin(), page.playlists.end(), [&](const Playlist& x) { return x.id == p.id; }))
+                page.playlists.push_back(std::move(p));
+        }
+    }
+    return page;
+}
+
+// data.artistUnion.discography.<albums|singles|compilations> (queryArtistDiscography*, variables {uri, offset, limit,
+// order: "DATE_DESC"}) or data.artistUnion.relatedContent.appearsOn (queryArtistAppearsOn, {uri, offset, limit}), each
+// {totalCount, items [{releases {items [the release, its other editions]}}]}.
+std::vector<Album> Api::parseArtistReleasePage(const json& data, ReleaseGroup group, int* total) {
+    const json& a = at(data, "artistUnion");
+    const ArtistRef owner{str(a, "uri"), str(at(a, "profile"), "name")};
+    const json& list = group == ReleaseGroup::AppearsOn ? at(at(a, "relatedContent"), "appearsOn")
+                       : group == ReleaseGroup::Singles ? at(at(a, "discography"), "singles")
+                       : group == ReleaseGroup::Albums  ? at(at(a, "discography"), "albums")
+                                                        : at(at(a, "discography"), "compilations");
+    std::vector<Album> out;
+    const int n = overviewReleases(list, group == ReleaseGroup::AppearsOn ? ArtistRef{} : owner, out);
+    if (total) *total = n;
+    return out;
+}
+
+std::vector<Album> Api::artistReleases(const std::string& artistUri, ReleaseGroup group, int max, const CT& ct) {
+    const char* op = group == ReleaseGroup::AppearsOn ? "queryArtistAppearsOn"
+                     : group == ReleaseGroup::Singles ? "queryArtistDiscographySingles"
+                     : group == ReleaseGroup::Albums  ? "queryArtistDiscographyAlbums"
+                                                      : "queryArtistDiscographyCompilations";
+    constexpr int kPage = 50;
+    std::vector<Album> out;
+    for (int offset = 0; offset < max; offset += kPage) {
+        json vars{{"uri", artistUri}, {"offset", offset}, {"limit", kPage}};
+        if (group != ReleaseGroup::AppearsOn) vars["order"] = "DATE_DESC";
+        int total = 0;
+        auto page = parseArtistReleasePage(query(op, vars, ct), group, &total);
+        const bool last = page.empty() || offset + kPage >= total;
+        for (auto& r : page)
+            if (std::none_of(out.begin(), out.end(), [&](const Album& x) { return x.id == r.id; })) out.push_back(std::move(r));
+        if (last) break;
+    }
+    if (static_cast<int>(out.size()) > max) out.resize(static_cast<size_t>(max));
+    return out;
+}
+
+// ---- Credits (Pathfinder queryTrackCreditsGroupedModal; legacy spclient track-credits-view) -----------------------
+// The web player's "Credits" dialog (xpui-root-dialogs chunk, 2026-11-26): {trackUri, contributorsLimit: 100,
+// contributorsOffset: 0} -> data.trackUnion{__typename: "Track", name, artists, creditsTrait{contributors{items[{name,
+// role, roleGroup{name}, uri | reference{uri, url}, aiAttribution}]}, sources{items[{name}]}}}. The dialog groups the
+// items by roleGroup.name and merges one person's roles; so does Credits::add (by our own groups).
+
+namespace {
+std::string artistUriOf(const json& item) {
+    std::string uri = str(item, "uri");
+    if (uri.empty()) uri = str(at(item, "reference"), "uri");
+    if (uri.empty()) uri = str(item, "creatorUri");
+    return uri.rfind("spotify:artist:", 0) == 0 ? uri : std::string();
+}
+} // namespace
+
+Credits Api::parseTrackCredits(const json& data) {
+    Credits c;
+    c.provider = "spotify";
+    const json& trait = at(at(data, "trackUnion"), "creditsTrait");
+    for (const auto& item : at(at(trait, "contributors"), "items")) {
+        const std::string name = str(item, "name");
+        if (name.empty()) continue;
+        const std::string role = str(item, "role");
+        const std::string group = str(at(item, "roleGroup"), "name");
+        c.add(name, artistUriOf(item), role, roleGroup(role, group));
+    }
+    for (const auto& s : at(at(trait, "sources"), "items")) c.addSource(str(s, "name"));
+    return c;
+}
+
+Credits Api::parseLegacyCredits(const json& j) {
+    Credits c;
+    c.provider = "spotify";
+    for (const auto& rc : at(j, "roleCredits")) {
+        const std::string title = str(rc, "roleTitle");
+        for (const auto& a : at(rc, "artists")) {
+            const std::string name = str(a, "name");
+            if (name.empty()) continue;
+            const std::string id = artistUriOf(a);
+            bool any = false;
+            for (const auto& sub : at(a, "subroles")) {
+                if (!sub.is_string()) continue;
+                const std::string role = sub.get<std::string>();
+                c.add(name, id, role, roleGroup(role, title));
+                any = true;
+            }
+            if (!any) c.add(name, id, {}, roleGroup({}, title));
+        }
+    }
+    for (const auto& s : at(j, "sourceNames"))
+        if (s.is_string()) c.addSource(s.get<std::string>());
+    return c;
+}
+
+Credits Api::trackCredits(const std::string& trackUri, const CT& ct) {
+    const std::string id = trackUri.rfind("spotify:track:", 0) == 0 ? trackUri.substr(14) : trackUri;
+    if (id.empty() || id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") != std::string::npos)
+        throw ApiError(0, "Spotify credits: invalid track id " + trackUri);
+    try {
+        return parseTrackCredits(query("queryTrackCreditsGroupedModal",
+                                       json{{"trackUri", "spotify:track:" + id}, {"contributorsLimit", 100}, {"contributorsOffset", 0}},
+                                       ct));
+    } catch (const ApiError& e) {
+        if (e.status == 401 || e.status == 429 || ct.isCancellationRequested()) throw;
+        ST_LOG_INFO("spotify", "credits query failed ({}): asking the track-credits view", e.what());
+        try {
+            const json j = spclient("GET", "https://spclient.wg.spotify.com/track-credits-view/v0/experimental/" + id + "/credits",
+                                    nullptr, ct, 404);
+            return parseLegacyCredits(j);
+        } catch (const ApiError&) {
+            throw e;   // the query's failure is the one worth reporting
+        }
     }
 }
 

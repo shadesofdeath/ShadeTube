@@ -713,14 +713,14 @@ bool writeFlushed(const std::filesystem::path& tmp, const std::string& text) {
 
 } // namespace
 
-ListenStats::SaveJob ListenStats::makeSaveJob() {
+ListenStats::SaveJob ListenStats::makeSaveJob(bool includeCurrent) {
     SaveJob job;
     if (!loaded_ || readOnly_) return job;   // empty file = nothing to write
     job.file = file_;
     job.generation = ++g_generation;
     job.rotate = !mainBroken_;
     // The newest kMaxPlays plays of this PC, the current one (so far) included; only the tracks they use, renumbered.
-    const bool withCurrent = currentCounts();
+    const bool withCurrent = includeCurrent && currentCounts();
     const size_t keep = std::min(nativeCount_, listen::kMaxPlays - (withCurrent ? 1 : 0));
     job.plays.reserve(keep + 1);
     if (importedCount_ == 0) {
@@ -795,6 +795,26 @@ bool ListenStats::save() {
     }
     dirty_ = true;
     return false;
+}
+
+void ListenStats::detach() {
+    if (importing_) cancelImport();
+    if (!loaded_) return;   // only what was recorded since the start: it goes along to the next history
+    const SaveJob imported = makeImportedSaveJob();
+    if (!imported.file.empty() && !write(imported)) ST_LOG_WARN(kTag, "account switch: listening-imported.json not saved");
+    const SaveJob job = makeSaveJob(false);
+    if (!job.file.empty() && !write(job)) ST_LOG_WARN(kTag, "account switch: listening.json not saved");
+    life_.renew();   // a background save of this history still in flight is older than the one above
+    Track current = cur_.active ? idx_.tracks[cur_.track] : Track{};
+    idx_ = {};
+    plays_ = {};
+    if (cur_.active) cur_.track = idx_.intern(std::move(current));
+    nativeCount_ = importedCount_ = 0;
+    loaded_ = readOnly_ = mainBroken_ = dirty_ = false;
+    importedDirty_ = importedReadOnly_ = importedBroken_ = false;
+    recordedDuringImport_.clear();
+    ST_LOG_INFO(kTag, "listening history saved for the account switch");
+    notify();
 }
 
 void ListenStats::saveAsync() {

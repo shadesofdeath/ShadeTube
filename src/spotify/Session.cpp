@@ -4,14 +4,9 @@
 #include "core/Paths.h"
 #include "spotify/Auth.h"
 
-#include <windows.h>
-// <windows.h> must precede <wincrypt.h>
-#include <wincrypt.h>
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
-#include <fstream>
 
 namespace st::spotify {
 namespace {
@@ -19,47 +14,41 @@ int64_t nowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
         .count();
 }
-std::filesystem::path cookieFile() { return paths::appData() / L"spotify.dat"; }
+int64_t nowSec() { return nowMs() / 1000; }
 } // namespace
 
 namespace store {
-
-void saveCookie(const std::string& spDc) {
-    DATA_BLOB in{static_cast<DWORD>(spDc.size()), reinterpret_cast<BYTE*>(const_cast<char*>(spDc.data()))};
-    DATA_BLOB out{};
-    if (!CryptProtectData(&in, L"ShadeTube sp_dc", nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out)) {
-        ST_LOG_WARN("spotify", "CryptProtectData failed: {}", GetLastError());
-        return;
-    }
-    std::ofstream f(cookieFile(), std::ios::binary | std::ios::trunc);
-    if (f) f.write(reinterpret_cast<const char*>(out.pbData), out.cbData);
-    LocalFree(out.pbData);
-}
-
-std::string loadCookie() {
-    std::ifstream f(cookieFile(), std::ios::binary);
-    if (!f) return {};
-    std::string enc((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    if (enc.empty()) return {};
-    DATA_BLOB in{static_cast<DWORD>(enc.size()), reinterpret_cast<BYTE*>(enc.data())};
-    DATA_BLOB out{};
-    if (!CryptUnprotectData(&in, nullptr, nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out)) {
-        ST_LOG_WARN("spotify", "CryptUnprotectData failed: {}", GetLastError());
-        return {};
-    }
-    std::string spDc(reinterpret_cast<const char*>(out.pbData), out.cbData);
-    LocalFree(out.pbData);
-    return spDc;
-}
-
-void clearCookie() {
-    std::error_code ec;
-    std::filesystem::remove(cookieFile(), ec);
-}
-
+std::string loadCookie() { return AccountStore::activeCookie(paths::appData()); }
 } // namespace store
 
-Session::Session() = default;
+Session::Connected connectAccount(const std::string& spDc, const CT& ct) {
+    Session::Connected c;
+    c.token = fetchAccessToken(spDc, ct);
+    // A throwaway Api: the session's own keeps serving the current account until the switch commits.
+    Api api;
+    api.setCredentials(c.token.accessToken, spDc);
+    try {
+        c.profile = api.me(ct);
+    } catch (const std::exception& e) {
+        ST_LOG_WARN("spotify", "profile fetch failed: {}", e.what());
+    }
+    return c;
+}
+
+Session::Session(std::filesystem::path dataRoot) : accounts_(dataRoot.empty() ? paths::appData() : std::move(dataRoot)) {}
+
+std::function<Session::Connected()> Session::connectJob(std::string spDc) const {
+    if (connector) return [fn = connector, spDc = std::move(spDc)] { return fn(spDc); };
+    return [spDc = std::move(spDc)] { return connectAccount(spDc); };
+}
+
+void Session::loadAccounts(std::vector<std::wstring> perAccountFiles) {
+    accounts_.setPerAccountFiles(std::move(perAccountFiles));
+    accounts_.load();
+    if (const auto* a = accounts_.active())
+        ST_LOG_INFO("spotify", "{} account(s), {} signed in; active {}{}", accounts_.accounts().size(),
+                    accounts_.signedIn().size(), a->id, accounts_.signedIn(a->id) ? "" : " (signed out)");
+}
 
 void Session::notify() {
     // A listener may (re)subscribe while we notify — logging in rebuilds Home, whose ctor calls subscribe(),
@@ -71,27 +60,27 @@ void Session::notify() {
 }
 
 void Session::restore() {
-    spDc_ = store::loadCookie();
-    if (spDc_.empty()) return;
+    const std::string id = accounts_.activeId();
+    if (id.empty()) return;
+    std::string cookie = accounts_.loadCookie(id);
+    if (cookie.empty()) {
+        // Signed out (its data stays on screen in MusicBrainz mode), unless another account is still signed in (a
+        // sign out whose hand-over could not connect last time): that one takes over.
+        const Account* next = nullptr;
+        for (const auto& a : accounts_.signedIn())
+            if (const Account* p = accounts_.find(a.id); !next || p->usedAt > next->usedAt) next = p;
+        if (!next) return;
+        state_ = SessionState::Connecting;
+        notify();
+        switchTo(next->id);
+        return;
+    }
     state_ = SessionState::Connecting;
     notify();
-    beginTokenFetch(Priority::High, /*alsoProfile=*/true);
-}
-
-void Session::loginWithCookie(std::string spDc) {
-    if (spDc.empty()) return;
-    spDc_ = std::move(spDc);
-    store::saveCookie(spDc_);
-    state_ = SessionState::Connecting;
-    notify();
-    beginTokenFetch(Priority::High, /*alsoProfile=*/true);
-}
-
-void Session::beginTokenFetch(Priority priority, bool alsoProfile) {
-    const std::string cookie = spDc_;
+    connectLife_.renew();
     async(
-        priority, life_.ref(), [cookie] { return fetchAccessToken(cookie); },
-        [this, cookie, alsoProfile](Result<TokenBundle> r) {
+        Priority::High, connectLife_.ref(), connectJob(cookie),
+        [this, id, cookie](Result<Connected> r) {
             if (!r) {
                 ST_LOG_WARN("spotify", "token fetch failed: {}", r.errorMessage());
                 if (state_ == SessionState::Connecting) {
@@ -100,25 +89,169 @@ void Session::beginTokenFetch(Priority priority, bool alsoProfile) {
                 }
                 return;
             }
-            token_ = *r;
-            api_.setCredentials(token_.accessToken, cookie);
-            if (!alsoProfile) {
-                if (state_ != SessionState::LoggedIn) {
-                    state_ = SessionState::LoggedIn;
-                    notify();
-                }
-                return;
-            }
-            async(
-                Priority::High, life_.ref(), [this] { return api_.me(); },
-                [this](Result<UserProfile> pr) {
-                    if (pr && pr->valid()) profile_ = *pr;
-                    state_ = SessionState::LoggedIn;
-                    notify();
-                    reloadLibrary();
-                });
+            commit(id, cookie, std::move(*r), false);
         });
 }
+
+Session::LoginSlot Session::beginLogin() {
+    LoginSlot slot;
+    slot.id = accounts_.newLoginFolder();
+    if (!slot.id.empty()) slot.webViewDir = accounts_.webViewDir(slot.id);
+    return slot;
+}
+
+void Session::finishLogin(const LoginSlot& slot, std::string spDc, std::function<void(bool)> done) {
+    if (slot.id.empty() || spDc.empty()) {
+        discardLogin(slot.id);
+        if (done) done(false);
+        return;
+    }
+    const bool wasLoggedIn = loggedIn();
+    if (!wasLoggedIn) {
+        state_ = SessionState::Connecting;
+        notify();
+    }
+    connectLife_.renew();
+    switchingTo_.clear();
+    async(
+        Priority::High, connectLife_.ref(), connectJob(spDc),
+        [this, slot, spDc, done, wasLoggedIn](Result<Connected> r) {
+            if (!r) {
+                ST_LOG_WARN("spotify", "login: token fetch failed: {}", r.errorMessage());
+                discardLogin(slot.id);
+                if (!wasLoggedIn && state_ == SessionState::Connecting) {
+                    state_ = SessionState::LoggedOut;
+                    notify();
+                }
+                if (done) done(false);
+                return;
+            }
+            // The same Spotify user as an account already here: that account signs in again (its folder, its data);
+            // this login's folder goes.
+            std::string id = slot.id;
+            bool add = true;
+            if (const Account* known = accounts_.findByUser(r->profile.id)) {
+                id = known->id;
+                add = false;
+                discardLogin(slot.id);
+            }
+            if (!accounts_.saveCookie(id, spDc)) ST_LOG_WARN("spotify", "login: the cookie could not be saved");
+            commit(id, spDc, std::move(*r), add);
+            if (done) done(true);
+        });
+}
+
+void Session::switchTo(const std::string& accountId, std::function<void(bool)> done) {
+    if (accountId == accounts_.activeId() && loggedIn()) {
+        if (done) done(true);
+        return;
+    }
+    std::string cookie = accounts_.loadCookie(accountId);
+    if (!accounts_.find(accountId) || cookie.empty()) {
+        if (done) done(false);
+        return;
+    }
+    connectLife_.renew();   // a switch still connecting is superseded
+    switchingTo_ = accountId;
+    notify();
+    async(
+        Priority::High, connectLife_.ref(), connectJob(cookie),
+        [this, accountId, cookie, done](Result<Connected> r) {
+            switchingTo_.clear();
+            if (!r) {
+                ST_LOG_WARN("spotify", "switch to account {} failed: {}", accountId, r.errorMessage());
+                if (state_ == SessionState::Connecting) state_ = SessionState::LoggedOut;
+                notify();
+                if (done) done(false);
+                return;
+            }
+            commit(accountId, cookie, std::move(*r), false);
+            if (done) done(true);
+        });
+}
+
+void Session::clearAccountState() {
+    life_.renew();   // drop in-flight library loads, edits and refreshes of the account that is leaving
+    refreshing_ = false;
+    spDc_.clear();
+    token_ = {};
+    profile_ = {};
+    library_ = {};
+    api_.setCredentials("", "");
+    api_.setUsername({});
+}
+
+void Session::commit(const std::string& id, const std::string& cookie, Connected c, bool add) {
+    const bool changes = id != accounts_.activeId();
+    const std::string leaving = accounts_.activeId();
+    if (changes && onAccountLeaving) onAccountLeaving();
+    if (changes && !leaving.empty() && library_.loaded) parked_[leaving] = std::move(library_);
+    clearAccountState();
+    if (add) {
+        Account a;
+        a.id = id;
+        accounts_.add(std::move(a), nowSec());   // the very first account takes over the profile's files here
+    }
+    accounts_.updateProfile(id, c.profile.id, c.profile.username, c.profile.name, c.profile.imageUrl);
+    accounts_.setActive(id, nowSec());
+    accounts_.save();
+
+    spDc_ = cookie;
+    token_ = std::move(c.token);
+    api_.setCredentials(token_.accessToken, cookie);
+    if (c.profile.valid()) {
+        profile_ = std::move(c.profile);
+        api_.setUsername(profile_.username);
+    } else if (const Account* a = accounts_.find(id)) {   // the profile failed: what the list remembers
+        profile_.id = a->user;
+        profile_.name = a->name;
+        profile_.username = a->username;
+        profile_.imageUrl = a->image;
+        api_.setUsername(a->username);
+    }
+    if (auto it = parked_.find(id); it != parked_.end()) {   // switching back: its library at once, then a reload
+        library_ = std::move(it->second);
+        parked_.erase(it);
+    }
+    state_ = SessionState::LoggedIn;
+    ST_LOG_INFO("spotify", "account {} active{}", id, changes ? " (switched)" : "");
+    if (changes && onAccountEntered) onAccountEntered();
+    notify();
+    if (!connector) reloadLibrary();
+}
+
+void Session::signOut(const std::string& accountId) {
+    if (accountId.empty() || !accounts_.find(accountId)) return;
+    if (accountId != accounts_.activeId()) {
+        accounts_.signOut(accountId);
+        parked_.erase(accountId);
+        if (switchingTo_ == accountId) {
+            connectLife_.renew();
+            switchingTo_.clear();
+        }
+        notify();
+        return;
+    }
+    connectLife_.renew();
+    switchingTo_.clear();
+    clearAccountState();
+    accounts_.signOut(accountId);
+    parked_.erase(accountId);
+    // Another signed-in account takes over (the most recently used one); else logged out, the data of this one stays.
+    const Account* next = nullptr;
+    for (const auto& a : accounts_.signedIn())
+        if (const Account* p = accounts_.find(a.id); !next || p->usedAt > next->usedAt) next = p;
+    if (!next) {
+        state_ = SessionState::LoggedOut;
+        notify();
+        return;
+    }
+    state_ = SessionState::Connecting;
+    notify();
+    switchTo(next->id);
+}
+
+void Session::logout() { signOut(accounts_.activeId()); }
 
 bool Session::isSavedAlbum(const std::string& id) const {
     return std::any_of(library_.albums.begin(), library_.albums.end(), [&](const catalog::Album& a) { return a.id == id; });
@@ -472,7 +605,13 @@ void Session::deletePlaylist(const std::string& uri, std::function<void(bool)> d
         });
 }
 
+void Session::discardLogin(const std::string& id) {
+    if (!accounts_.discard(id)) pendingDiscards_.push_back(id);   // WebView2 may hold it a moment longer
+}
+
 void Session::maybeRefresh() {
+    // Login folders that did not become accounts: retried while WebView2's browser process lets go of them.
+    std::erase_if(pendingDiscards_, [this](const std::string& id) { return accounts_.discard(id); });
     if (spDc_.empty() || refreshing_) return;
     if (state_ != SessionState::LoggedIn && state_ != SessionState::Connecting) return;
     if (!token_.expired(nowMs())) return;
@@ -489,19 +628,6 @@ void Session::maybeRefresh() {
                 ST_LOG_WARN("spotify", "token refresh failed: {}", r.errorMessage());
             }
         });
-}
-
-void Session::logout() {
-    life_.renew(); // drop any in-flight continuations
-    store::clearCookie();
-    spDc_.clear();
-    token_ = {};
-    profile_ = {};
-    library_ = {};
-    api_.setCredentials("", "");
-    api_.setUsername({});
-    state_ = SessionState::LoggedOut;
-    notify();
 }
 
 } // namespace st::spotify

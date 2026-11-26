@@ -6,12 +6,97 @@ All notable changes to ShadeTube, newest first.
 
 - **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or
   Settings › Spotify account) and search, albums, artists, playlists and Home come from YouTube Music, no Google
-  account needed. Search finds songs, albums, artists and playlists; artist pages have top songs, albums, singles and
-  related artists; Home brings YouTube Music's mixes, new releases, trending songs, charts and top artists, and the
-  Search page its moods & genres. Every song plays exactly the recording YouTube Music lists, never a guessed match.
-  Radio and endless playback use YouTube Music's own mixes, so the music keeps going. Likes, local playlists,
-  downloads, offline sync and stats work as before; a YouTube Music playlist can be copied into a local one, and pasted
-  music.youtube.com album and artist links open their pages.
+  account needed. Search finds songs, albums, artists and playlists with a top result and more of each kind on
+  request; artist pages have top songs, the complete discography, fans also like, featured playlists and an About
+  with the artist's story; Home brings YouTube Music's mixes, new releases, trending songs, charts and top artists, and
+  the Search page its moods & genres. Every song plays exactly the recording YouTube Music lists, never a guessed match
+  (and plays from the song cache offline). Radio and endless playback use YouTube Music's own mixes, so the music keeps
+  going. Likes, local playlists, downloads, offline sync, credits, Blend and stats work as before; a YouTube Music
+  playlist can be copied into a local one, and pasted music.youtube.com album and artist links open their pages.
+- **One thin icon style everywhere**: the player bar's light outline icons now run through the whole app — sidebar,
+  title bar, page headers, menus, song rows, cards, settings, toasts, the queue, Now Playing, the mini player, the
+  command palette, the taskbar buttons and the phone remote. Every icon has the same line weight and size and is drawn
+  to the pixel grid, so it stays sharp at 100 % and every interface scale. Only "on" states are filled: a liked song's
+  heart (now the same solid heart in the player bar as in the lists), a downloaded song's check disc and the
+  playing bars. The big play buttons in page headers got the player bar's outline play / pause.
+- **A new artist page**: the artist's wide header photo behind the name, verified badge, monthly listeners and
+  followers, and play, shuffle, follow, radio and block side by side. Popular songs (five, or ten with "Show more") sit
+  next to the artist's own pick and the newest release. The discography switches between popular releases, albums,
+  singles and EPs, compilations and "appears on" with chips, and "See all" opens the whole group as a grid you can sort
+  by newest, oldest or name. Below: fans also like, playlists featuring the artist, and an About card with the
+  biography (from Wikipedia without Spotify), top cities, genres and links to the artist's website and social profiles.
+- **A new search**: a top result card in the artwork's colors beside the top songs, then a row per kind of result, with
+  chips to show one kind. Results update as you type without flashing empty (the previous results stay dimmed until the
+  new ones arrive), and typing back shows earlier answers at once. Move through the results with the arrow keys, Enter
+  plays or opens, Ctrl+Tab switches the chips. Recent searches now remember the artists, albums and songs you opened,
+  with their covers.
+- **Song cache**: songs you have played are kept on this PC, so playing them again starts instantly, downloads
+  nothing and works without internet, with the same loudness and SponsorBlock skips. Up to 1 GB by default (500 MB to
+  5 GB, or off) in Settings › Library and storage, where you also see how much it holds and can clear it; the songs
+  you haven't played for the longest make room first, and it never fills a nearly full disk. Downloading a song you
+  have played converts the copy on disk, even offline, and the cached copy then goes away.
+- **Song credits**: see who made a song (performers and the instruments they played, writers, producers, engineers)
+  and the label it came from, in Now Playing's About tab and through "Credits" in any song's menu. They come from
+  Spotify when you're connected and from MusicBrainz otherwise (also for your own files); every credited artist opens
+  their artist page.
+- **Wrong lyrics? Pick the right ones**: when the lyrics shown don't belong to the song, "Wrong lyrics?" in Now
+  Playing (or the search button in full-screen lyrics) lists what LRCLIB has for it, with each version's length
+  against the song's, synced or plain, and a preview, under a search you can edit. Or use Spotify's lyrics, load your
+  own .lrc / .txt file, or turn lyrics off for that song. ShadeTube remembers your pick for the song, and you can go
+  back to the automatic choice at any time.
+- **Redesigned song lists**: hovering a song slides in "add to queue" and "more" next to the heart without moving
+  anything; click a column header to sort (the sort menu follows), right-click it to show or hide the album, date added
+  and play count columns; columns give way gracefully as the window narrows; the header stays at the top while you
+  scroll. Selecting several songs shows one clean block with check boxes and a count, Shift + arrows extend it and
+  Escape clears it. The playing song is easier to spot, and the explicit, downloaded, recommended, blocked and local
+  marks share one look everywhere. Dragging songs shows a small card with the cover and how many songs come along.
+- **A clearer queue**: "Now playing" with its progress, then the songs you queued yourself ("Next in queue") apart from
+  what plays next from the album or playlist. Remove a song with the × that appears on hover, drag a song and it
+  follows the pointer, and save or clear the queue from its header.
+- **A tidier Library**: one toolbar with the search, how many items show, the sort and a grid / list switch; list rows
+  follow the compact density.
+- **Loading, empty and error states everywhere**: soft placeholder shapes that shimmer together while pages load (still
+  with reduced motion), friendly empty pages with one useful action, and clear error and offline messages with a retry
+  button.
+- **Several Spotify accounts**: add more accounts and switch between them from the account menu in the title bar (click
+  "SPOTIFY · your name"), Settings › Spotify account or the command palette, without logging in again. The music and
+  the queue keep playing. Each account keeps its own library, playlists, friend activity, new releases, listening stats,
+  smart lists and blocklist; settings, themes, downloads and local files are shared. Signing in to another account
+  never signs the others out, and "Log out" leaves only that account (another one takes over). Your current account
+  moves over on its own, with all its history.
+- **Song notifications**: turn on Settings › Window and system › "Notify when the song changes" to get a Windows
+  notification with the cover, title and artist, plus Next and Like buttons, when a new song starts while ShadeTube is
+  out of sight. Each song replaces the last one; nothing shows while the mini player is on screen, when you skip with
+  the media keys (Windows shows the song itself) or in full-screen apps.
+- **Blend**: one shared playlist made from your taste and a friend's (or several friends'), like Spotify's Blend but
+  with no accounts and no server. Create a Blend from "Made for you", send the invite link, and when your friend opens
+  it in ShadeTube you both get the same list: the songs you both love first, then one pick from each of you in turn,
+  every song marked with whose taste it is, plus a taste match percentage. You see exactly which songs and artists
+  will be shared before anything is sent (your top 50 songs and 30 artists of the last six months, nothing else), and
+  it is end-to-end encrypted. You don't need to be online at the same time. Refresh it, save it as a playlist or leave
+  it whenever you like.
+- **Listen together with podcasts and radio**: podcast episodes (at the host's speed) and internet radio stations are
+  now shared with your guests, not just songs. Guests on ShadeTube 0.10.0 keep working; they just sit out podcasts
+  and radio.
+- **Listen together survives a restart**: if the host closes or restarts ShadeTube (an update, a crash), the session
+  continues when the app is back within 10 minutes; guests wait and follow again by themselves. A guest whose app
+  restarts rejoins on its own too.
+- **Opus and Ogg everywhere**: ShadeTube now decodes Opus and Vorbis itself, so YouTube's best audio (Opus, about
+  160 kbps) plays on every Windows, with no codec extension needed. Your `.ogg`, `.oga` and `.opus` files show up in
+  Local files with their tags, covers and exact lengths, and Ogg Vorbis radio stations play too. Seeking, gapless
+  playback, crossfade, volume normalization (including R128 / ReplayGain tags) and speed all work with them.
+- **Exclusive mode**: Settings › Sound › "Exclusive mode (WASAPI)" gives ShadeTube the output device to itself: songs
+  play at their own sample rate without the Windows mixer, and the settings show the format the device runs at (or
+  why it fell back to shared mode). Other apps are silent while it plays; pausing frees the device.
+- **Search finds playlists, podcasts and profiles**: with Spotify connected, the new search also has Playlists,
+  Podcasts and Profiles chips and rows, and the top result is the one Spotify itself puts first. A kind's own chip loads
+  more with "Load more". Playlists open as usual, a profile opens a page with that person's public playlists, and a
+  podcast opens in Podcasts through its public feed. Pasted Spotify podcast and profile links open them too.
+- **Your Spotify podcasts in Podcasts**: the shows you follow on Spotify appear on the Podcasts page, each matched to
+  its public RSS feed by name and publisher. "Import Spotify podcasts" lists them all: the matches to subscribe to
+  (you pick which), the ones you already follow, and the ones with no public feed. Spotify exclusives can't play in
+  ShadeTube, so they are shown as "Only on Spotify" with a link to open them there instead of quietly disappearing. A
+  wrong match can be undone from the show's menu ("Wrong podcast?").
 
 ## 0.10.0 — 2026-11-23
 

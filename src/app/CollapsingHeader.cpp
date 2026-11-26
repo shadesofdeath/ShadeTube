@@ -215,7 +215,7 @@ LPCWSTR HeaderCover::cursor() const { return editable() ? IDC_HAND : IDC_ARROW; 
 CollapseBar::CollapseBar(ui::ScrollView* scroll) : scroll_(scroll) {
     cover_ = add<HeaderCover>(*this);
     // Thin outline controls (the player bar's style): the bar is the restrained form of the header.
-    shuffle_ = add<ui::Button>(ui::ButtonKind::IconOutline, L"", "shuffle-thin");
+    shuffle_ = add<ui::Button>(ui::ButtonKind::IconOutline, L"", "shuffle");
     shuffle_->setTooltip(tr(L"Karıştır"));
     play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
     cover_->setVisible(false);
@@ -238,6 +238,7 @@ void CollapseBar::attach(HeroHeader* header, ui::Widget* dock, TrackTable* colum
     header_ = header;
     dock_ = dock;
     columns_ = columns;
+    if (columns_) columns_->setHeaderDocked(true);   // the bar paints its column header; the table doesn't stick one
     if (header_) header_->bar_ = this;
     valid_ = false;
     titleHover_ = false;
@@ -413,6 +414,11 @@ ui::Widget* CollapseBar::hitTest(gfx::Point p) {
 bool CollapseBar::onWheel(float dy, float dx, const ui::MouseEvent& e) { return scroll_ && scroll_->onWheel(dy, dx, e); }
 
 bool CollapseBar::onMouseDown(const ui::MouseEvent& e) {
+    // The docked column header sorts the table (left) or opens its columns menu (right), as the table's own header.
+    if (inColumns(e.pos) && (e.button == ui::MouseButton::Left || e.button == ui::MouseButton::Right)) {
+        columns_->headerPress(e.windowPos, e.button == ui::MouseButton::Right);
+        return false;
+    }
     return e.button == ui::MouseButton::Left && header_ && header_->onEditDetails && titleHit_.contains(e.pos);
 }
 
@@ -428,11 +434,24 @@ void CollapseBar::onMouseMove(const ui::MouseEvent& e) {
         titleHover_ = hot;
         invalidate();
     }
+    if (columns_) {   // the docked column header: its sortable labels light up like the table's own
+        if (inColumns(e.pos)) columns_->headerHover(e.windowPos);
+        else columns_->headerLeave();
+    }
 }
 
-void CollapseBar::onMouseLeave() { titleHover_ = false; }
+void CollapseBar::onMouseLeave() {
+    titleHover_ = false;
+    if (columns_) columns_->headerLeave();
+}
 
-LPCWSTR CollapseBar::cursor() const { return titleHover_ ? IDC_HAND : IDC_ARROW; }
+LPCWSTR CollapseBar::cursor() const { return titleHover_ || (columns_ && columns_->headerHot()) ? IDC_HAND : IDC_ARROW; }
+
+bool CollapseBar::inColumns(gfx::Point p) const {
+    if (!columns_ || !valid_ || !frame_.docked || spec_.columnHeaderH <= 0) return false;
+    const float y = p.y - pageRect().y;
+    return y >= kBarH && y < kBarH + TrackTable::kHeaderH;
+}
 
 HeaderCover* findHeaderCover(ui::Widget* page) {
     if (!page) return nullptr;

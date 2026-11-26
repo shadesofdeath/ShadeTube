@@ -1,7 +1,10 @@
 #include "app/LibraryView.h"
 
+#include "app/Display.h"
+#include "app/Accounts.h"
 #include "app/DownloadSync.h"
 #include "core/Dispatcher.h"
+#include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Paths.h"
 #include "gfx/Theme.h"
@@ -72,6 +75,9 @@ void LibraryView::setMode(Mode mode) {
 
 // ---- Geometry ----------------------------------------------------------------------------------------------------------
 
+float LibraryView::rowH() { return display::compactLists() ? 48.f : kRowH; }
+float LibraryView::listArt() { return display::compactLists() ? 36.f : 48.f; }
+
 int LibraryView::columns(float width) const {
     if (mode_ == Mode::List) return 1;
     return std::max(1, static_cast<int>((width + kGap) / (minCell_ + kGap)));
@@ -83,12 +89,12 @@ float LibraryView::cellWidth(float width) const {
 }
 
 // A grid cell is a MediaCard: the square artwork, then the title and the subtitle.
-float LibraryView::cellHeight(float width) const { return mode_ == Mode::List ? kRowH : cellWidth(width) + 10 + 18 + 4 + 16; }
+float LibraryView::cellHeight(float width) const { return mode_ == Mode::List ? rowH() : cellWidth(width) + 10 + 18 + 4 + 16; }
 
 float LibraryView::preferredHeight(float width) {
     const int n = static_cast<int>(order_.size());
     if (n == 0) return 0;
-    if (mode_ == Mode::List) return n * kRowH;
+    if (mode_ == Mode::List) return n * rowH();
     const int cols = columns(width);
     const int rows = (n + cols - 1) / cols;
     return rows * cellHeight(width) + static_cast<float>(rows - 1) * kGap;
@@ -96,7 +102,7 @@ float LibraryView::preferredHeight(float width) {
 
 Rect LibraryView::cellRect(int d) const {
     const Rect r = rect();
-    if (mode_ == Mode::List) return {r.x, r.y + d * kRowH, r.w, kRowH};
+    if (mode_ == Mode::List) return {r.x, r.y + d * rowH(), r.w, rowH()};
     const int cols = columns(r.w);
     const float cw = cellWidth(r.w), ch = cellHeight(r.w);
     const int row = d / cols, col = d % cols;
@@ -105,13 +111,13 @@ Rect LibraryView::cellRect(int d) const {
 
 Rect LibraryView::artRect(int d) const {
     const Rect c = cellRect(d);
-    if (mode_ == Mode::List) return {c.x + 8, c.cy() - 24, 48, 48};
+    if (mode_ == Mode::List) return {c.x + 8, c.cy() - listArt() * 0.5f, listArt(), listArt()};
     return {c.x, c.y, c.w, c.w};
 }
 
 Rect LibraryView::playRect(int d) const {
     const Rect a = artRect(d);
-    if (mode_ == Mode::List) return a.center(32, 32);
+    if (mode_ == Mode::List) return a.center(std::min(32.f, a.w - 4), std::min(32.f, a.w - 4));
     return {a.right() - 12 - 48, a.bottom() - 12 - 48, 48, 48};   // MediaCard's
 }
 
@@ -120,7 +126,7 @@ int LibraryView::cellAt(gfx::Point p) const {
     const int n = static_cast<int>(order_.size());
     if (n == 0 || !r.contains(p)) return -1;
     if (mode_ == Mode::List) {
-        const int d = static_cast<int>((p.y - r.y) / kRowH);
+        const int d = static_cast<int>((p.y - r.y) / rowH());
         return d < n ? d : -1;
     }
     const int cols = columns(r.w);
@@ -199,16 +205,15 @@ void LibraryView::paintArt(Canvas& c, const LibraryCell& cell, const Rect& art, 
     }
 }
 
+// The marks before a cell's subtitle: pinned (the pin in the accent), kept offline by the download sync (the track
+// table's "downloaded" disc, badge::drawDownloaded).
 float LibraryView::paintMarks(Canvas& c, const LibraryCell& cell, float x, float cy) {
-    const Color mark = accent().base;
     if (cell.pinned) {
-        c.icon("pin", {x, cy - 6, 12, 12}, mark);
-        x += 12 + 6;
+        c.icon("pin", {x, cy - 6, 12, 12}, accent().base);
+        x += badge::kMark + badge::kGap;
     }
-    if (!cell.syncId.empty() && sync::isSynced(cell.syncId)) {   // "Çevrimdışı kullanılabilir"
-        c.icon("downloaded", {x, cy - 6, 12, 12}, mark);
-        x += 12 + 6;
-    }
+    if (!cell.syncId.empty() && sync::isSynced(cell.syncId))   // "Çevrimdışı kullanılabilir"
+        x += badge::drawDownloaded(c, x, cy) + badge::kGap;
     return x;
 }
 
@@ -303,8 +308,8 @@ void LibraryView::paint(Canvas& c) {
     const Rect r = rect();
     const Rect vis = c.clip();   // only what intersects the visible clip is painted
     if (mode_ == Mode::List) {
-        const int first = std::max(0, static_cast<int>((vis.y - r.y) / kRowH));
-        const int last = std::min(n - 1, static_cast<int>((vis.bottom() - r.y) / kRowH));
+        const int first = std::max(0, static_cast<int>((vis.y - r.y) / rowH()));
+        const int last = std::min(n - 1, static_cast<int>((vis.bottom() - r.y) / rowH()));
         for (int d = first; d <= last; ++d) paintRow(c, d, cellRect(d));
         return;
     }
@@ -454,7 +459,7 @@ bool LibraryView::onKeyDown(const ui::KeyEvent& e) {
     // A page of rows: what fits in the scrolling viewport.
     int page = grid ? 3 : 10;
     if (const auto* sv = scrollViewOf(this))
-        page = std::max(1, static_cast<int>(sv->rect().h / (grid ? cellHeight(rect().w) + kGap : kRowH)) - 1);
+        page = std::max(1, static_cast<int>(sv->rect().h / (grid ? cellHeight(rect().w) + kGap : rowH())) - 1);
     switch (e.vk) {
     case VK_LEFT:
         if (!grid) return false;
@@ -536,6 +541,99 @@ void LibraryView::autoScroll(gfx::Point windowPos) {
     sv->scrollTo(std::clamp(sv->scrollY() + v * 900.f * dt, 0.f, sv->maxScroll()), false);
 }
 
+// ---- ViewToggle ---------------------------------------------------------------------------------------------------------
+
+namespace {
+constexpr float kSegW = (ViewToggle::kW - 4) * 0.5f;   // 2 DIP inside the outline on each side
+}
+
+void ViewToggle::setList(bool list) {
+    if (list == list_) return;
+    list_ = list;
+    invalidate();
+}
+
+int ViewToggle::segmentAt(float x) const {
+    const Rect b = box();
+    if (x < b.x || x >= b.right()) return -1;
+    return x < b.x + 2 + kSegW ? 0 : 1;
+}
+
+void ViewToggle::pick(bool list) {
+    if (list == list_) return;
+    list_ = list;
+    invalidate();
+    if (onChange) {
+        const auto fn = onChange;
+        fn(list);
+    }
+}
+
+bool ViewToggle::onMouseDown(const ui::MouseEvent& e) {
+    if (e.button != ui::MouseButton::Left) return false;
+    const int i = segmentAt(e.pos.x);
+    if (i < 0) return false;
+    pick(i == 1);
+    return true;
+}
+
+void ViewToggle::onMouseMove(const ui::MouseEvent& e) {
+    const int i = segmentAt(e.pos.x);
+    if (i != hover_.index()) {
+        hover_.set(i);
+        invalidate();
+    }
+}
+
+void ViewToggle::onMouseLeave() {
+    hover_.set(-1);
+    invalidate();
+}
+
+bool ViewToggle::onActivate() {
+    pick(!list_);
+    return true;
+}
+
+bool ViewToggle::onKeyDown(const ui::KeyEvent& e) {
+    if (e.ctrl || e.alt) return false;
+    if (e.vk == VK_LEFT) pick(false);
+    else if (e.vk == VK_RIGHT) pick(true);
+    else return false;
+    return true;
+}
+
+std::wstring ViewToggle::tooltip() const {
+    const int i = hover_.index();
+    return i == 0 ? std::wstring(tr(L"Izgara")) : i == 1 ? std::wstring(tr(L"Liste")) : std::wstring();
+}
+
+void ViewToggle::paint(Canvas& c) {
+    const auto& col = colors();
+    const Rect b = box();
+    c.strokePill(b, col.hairDefault);
+    const float x = list_ ? kSegW : 0.f;
+    if (!slideInit_) {
+        slideInit_ = true;
+        slide_.snap(x);
+    } else if (slide_.target() != x) {
+        slide_.to(x, ui::motion::microMs(ui::motion::normal));
+    }
+    const float px = b.x + 2 + slide_.value();
+    for (int i = 0; i < 2; ++i) {
+        const Rect seg{b.x + 2 + i * kSegW, b.y + 2, kSegW, b.h - 4};
+        if (const float hv = (i == 1) == list_ ? 0.f : hover_.of(i); hv > 0.001f) c.fillPill(seg, col.overlayHover.mulAlpha(hv));
+    }
+    c.fillPill({px, b.y + 2, kSegW, b.h - 4}, col.fgPrimary);
+    for (int i = 0; i < 2; ++i) {
+        const Rect seg{b.x + 2 + i * kSegW, b.y + 2, kSegW, b.h - 4};
+        // How much of this segment the pill covers: its glyph goes from fg.secondary to fg.inverse with it.
+        const float cover = std::clamp(1.f - std::abs(px - seg.x) / kSegW, 0.f, 1.f);
+        const Color ink = Color::lerp(Color::lerp(col.fgSecondary, col.fgPrimary, hover_.of(i)), col.fgInverse, cover);
+        c.icon(i == 0 ? "grid" : "list", seg.center(16, 16), ink);
+    }
+}
+
 // ---- Recently played collections ----------------------------------------------------------------------------------------
 
 namespace {
@@ -553,7 +651,7 @@ std::mutex& saveMutex() {   // the exit save and a background one never write th
     static std::mutex m;
     return m;
 }
-std::filesystem::path recentsFile() { return paths::appData() / L"library-recents.json"; }
+std::filesystem::path recentsFile() { return accounts::file(L"library-recents.json"); }   // per account (app/Accounts)
 
 // Housekeeping: at most every 30 s, written on a worker; on exit (`now`) at once.
 void saveRecents(bool now) {
@@ -600,6 +698,12 @@ void initLibraryViews() {
     });
     ctx().housekeepingHooks.push_back([] { saveRecents(false); });
     ctx().persistHooks.push_back([] { saveRecents(true); });
+    // Another Spotify account: what this one played goes to its folder, the other one's comes back.
+    ctx().accountLeaveHooks.push_back([] { saveRecents(true); });
+    ctx().accountEnterHooks.push_back([] {
+        recentsState().recents = libview::Recents::load(recentsFile());
+        recentsState().dirty = false;
+    });
 }
 
 } // namespace st::app

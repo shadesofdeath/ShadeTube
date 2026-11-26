@@ -163,6 +163,7 @@ private:
     void update();
     void paintTitle(Canvas& c);
     Rect pageRect() const;
+    bool inColumns(gfx::Point p) const;   // p (page coordinates) is on the docked column header
 
     ui::ScrollView* scroll_;
     HeroHeader* header_ = nullptr;

@@ -17,8 +17,14 @@
 // the estimated host clock (pings), re-seeking past 1 s of drift. The player's commands go through
 // Player::commandFilter: songs a guest plays or queues become "add" requests, transport becomes requests or is
 // refused (with a toast), queue edits are refused; volume stays local.
-// Podcast episodes and radio stations are not shared (guests pause and the panel says why); items the host plays from
-// its disk are looked up by the guest (the host's video when it knows one, else by title / artist / length).
+// Podcast episodes (feed + guid + audio URL, the host's speed) and radio stations (the stream; live: the same station,
+// no seeking) are shared with guests of feature level 2 (0.11.0+); older guests hold on them, as before. Episodes of
+// feeds the host added by RSS address stay private. Items the host plays from its disk are looked up by the guest
+// (the host's video when it knows one, else by title / artist / length).
+// Restarts: closing the app keeps a host's room (jam-host.dat, DPAPI) — guests get a last paused state marked "away"
+// and wait; the next start within jam::kResumeWindowSec resumes the same room and key, and the guests follow again by
+// themselves. A guest's app that closes keeps the invite (jam-guest.dat) and joins again on its next start within the
+// same window.
 //
 // Presence: hello / heartbeats every 10 s / last will ("bye"); 35 s of silence = offline. At most 10 people. Removing
 // someone bans the device (the host ignores it, the state lists it, guests drop it); "Yeni davet bağlantısı" moves the

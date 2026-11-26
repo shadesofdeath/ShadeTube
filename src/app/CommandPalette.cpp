@@ -1,7 +1,9 @@
 // Komut paleti (Ctrl+K). See CommandPalette.h.
 #include "app/CommandPalette.h"
 
+#include "app/Accounts.h"
 #include "app/AppContext.h"
+#include "app/Blends.h"
 #include "app/Commands.h"
 #include "app/Router.h"
 #include "app/Shortcuts.h"
@@ -250,8 +252,21 @@ std::vector<Item> staticItems() {
     if (!source::loggedIn() && ctx().startSpotifyLogin)
         items.push_back(commandItem("cmd:spotify-login", tr(L"Spotify ile bağlan"), L"Spotify", "spotify-link",
                                     [] { ctx().startSpotifyLogin(); }));
+    // Several Spotify accounts (app/Accounts): "Hesaba geç: <name>" for each other signed-in one, "Spotify hesabı ekle".
+    if (auto* s = ctx().session) {
+        for (const auto& a : s->signedInAccounts()) {
+            if (s->loggedIn() && a.id == s->activeAccountId()) continue;
+            items.push_back(commandItem("account:" + a.id, i18n::format(tr(L"Hesaba geç: {}"), {toWide(a.label())}),
+                                        L"Spotify", "users", [id = a.id] { accounts::switchTo(id); }));
+        }
+        if (source::loggedIn() && ctx().startSpotifyLogin)
+            items.push_back(commandItem("cmd:spotify-add-account", tr(L"Spotify hesabı ekle"), L"Spotify", "plus",
+                                        [] { accounts::add(); }));
+    }
     for (auto& jc : together::paletteCommands())   // "Birlikte dinle": start / join / copy the link / leave
         items.push_back(commandItem(jc.key, jc.title, tr(L"Birlikte dinle"), jc.icon, std::move(jc.run)));
+    for (auto& bc : blends::paletteCommands())     // Blend: create / join / each blend
+        items.push_back(commandItem(bc.key, bc.title, bc.subtitle, bc.icon, std::move(bc.run)));
     items.push_back(commandItem("cmd:year-review", tr(L"Yılın özeti hikâyesi"), tr(L"İstatistikler"), "sparkle", [] { review::open(); }));
     if (ctx().quitApp)
         items.push_back(commandItem("cmd:quit", tr(L"ShadeTube'dan çık"), tr(L"Uygulama"), "logout", [] { ctx().quitApp(); }));
@@ -479,7 +494,7 @@ private:
         spotify::Api* api = source::activeApi();
         const std::string query = toUtf8(q);
         life_.renew();
-        async(Priority::High, life_.ref(), [api, query, token] { return source::search(api, query, 6, token); },
+        async(Priority::High, life_.ref(), [api, query, token] { return source::quickSearch(api, query, 6, token); },
               [this, q](Result<catalog::SearchResults> r) {
                   if (box_->text() != q) return;   // typed on meanwhile: a newer search follows
                   searching_ = false;

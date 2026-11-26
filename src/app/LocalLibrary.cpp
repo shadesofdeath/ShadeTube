@@ -1,5 +1,6 @@
 #include "app/LocalLibrary.h"
 
+#include "audio/XiphTags.h"
 #include "core/Dispatcher.h"
 #include "core/Log.h"
 #include "core/Paths.h"
@@ -389,18 +390,46 @@ private:
 
 bool canceled(const ScanOptions& o) { return o.cancel && o.cancel->requested(); }
 
-bool extraHandler(const wchar_t* ext) {
-    // Formats beyond the Windows defaults (Ogg / Opus) need a Media Foundation byte-stream handler (e.g. from a
-    // codec extension); without one the files wouldn't play, so they aren't listed.
-    const std::wstring key = std::wstring(L"SOFTWARE\\Microsoft\\Windows Media Foundation\\ByteStreamHandlers\\") + ext;
-    for (HKEY root : {HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER}) {
-        HKEY h = nullptr;
-        if (RegOpenKeyExW(root, key.c_str(), 0, KEY_READ, &h) == ERROR_SUCCESS) {
-            RegCloseKey(h);
-            return true;
+bool isOggFile(const std::wstring& path) {
+    const std::wstring ext = lower(fs::path(path).extension().wstring());
+    return ext == L".ogg" || ext == L".oga" || ext == L".opus";
+}
+
+// "A; B" values split, duplicates dropped (as the property store's multi-valued artists).
+std::vector<std::string> splitValues(const std::vector<std::string>& raw) {
+    std::vector<std::string> out;
+    for (const auto& r : raw) {
+        size_t start = 0;
+        while (start <= r.size()) {
+            const size_t semi = r.find(';', start);
+            std::string part = trim(r.substr(start, semi == std::string::npos ? std::string::npos : semi - start));
+            if (!part.empty() && std::find(out.begin(), out.end(), part) == out.end()) out.push_back(std::move(part));
+            if (semi == std::string::npos) break;
+            start = semi + 1;
         }
     }
-    return false;
+    return out;
+}
+
+// Ogg Opus / Vorbis: no property handler in Windows, so the comments, duration and cover come from the built-in reader
+// (TITLE, ARTIST..., ALBUMARTIST / ALBUM ARTIST, ALBUM, DISCNUMBER, TRACKNUMBER, DATE / YEAR, METADATA_BLOCK_PICTURE).
+bool readOggTags(Entry& e, bool withPicture, std::string& picture) {
+    const auto info = audio::xiph::readOggFile(fs::path(openablePath(e.path)), withPicture);
+    if (!info) return false;
+    e.title = trim(info->tag("TITLE"));
+    e.artists = splitValues(info->tagValues("ARTIST"));
+    e.albumArtist = trim(info->tag("ALBUMARTIST"));
+    if (e.albumArtist.empty()) e.albumArtist = trim(info->tag("ALBUM ARTIST"));
+    e.album = trim(info->tag("ALBUM"));
+    e.discNumber = std::min(999, leadingNumber(toWide(info->tag("DISCNUMBER"))));
+    e.trackNumber = std::min(9999, leadingNumber(toWide(info->tag("TRACKNUMBER"))));
+    std::string date = info->tag("DATE");
+    if (date.empty()) date = info->tag("YEAR");
+    e.year = std::min(9999, leadingNumber(toWide(date)));
+    e.durationMs = static_cast<int>(std::min<int64_t>(info->durationMs, INT32_MAX));
+    e.tagged = !e.title.empty();
+    picture = info->picture;
+    return true;
 }
 
 int64_t unixNow() {
@@ -413,10 +442,8 @@ int64_t unixNow() {
 
 const std::vector<std::wstring>& audioExtensions() {
     static const std::vector<std::wstring> exts = [] {
-        std::vector<std::wstring> v{L".mp3", L".m4a", L".aac", L".flac", L".wav", L".wma"};
-        for (const wchar_t* e : {L".ogg", L".oga", L".opus"})
-            if (extraHandler(e)) v.push_back(e);
-        return v;
+        // Ogg Opus / Vorbis play and scan with the built-in decoders on every Windows.
+        return std::vector<std::wstring>{L".mp3", L".m4a", L".aac", L".flac", L".wav", L".wma", L".ogg", L".oga", L".opus"};
     }();
     return exts;
 }
@@ -532,8 +559,12 @@ bool readFile(Entry& e, const fs::path& coverDir, const ScanCancel* cancel) {
 
     ComPtr<IPropertyStore> ps;
     std::string picture;
-    HRESULT hr = SHGetPropertyStoreFromParsingName(e.path.c_str(), nullptr, GPS_DEFAULT, IID_PPV_ARGS(&ps));
-    if (FAILED(hr) && open != e.path) hr = SHGetPropertyStoreFromParsingName(open.c_str(), nullptr, GPS_DEFAULT, IID_PPV_ARGS(&ps));
+    const bool ogg = isOggFile(e.path) && readOggTags(e, !coverDir.empty(), picture);
+    HRESULT hr = E_FAIL;
+    if (!ogg) {
+        hr = SHGetPropertyStoreFromParsingName(e.path.c_str(), nullptr, GPS_DEFAULT, IID_PPV_ARGS(&ps));
+        if (FAILED(hr) && open != e.path) hr = SHGetPropertyStoreFromParsingName(open.c_str(), nullptr, GPS_DEFAULT, IID_PPV_ARGS(&ps));
+    }
     if (SUCCEEDED(hr)) {
         e.title = propString(ps.Get(), PKEY_Title);
         e.artists = propStrings(ps.Get(), PKEY_Music_Artist);

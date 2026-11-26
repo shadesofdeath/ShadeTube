@@ -79,6 +79,8 @@ lyrics::Query lyricsQueryFor(const catalog::Track& t) {
     q.album = t.album.name;
     q.durationSec = t.durationMs / 1000;
     q.audioPath = audioPathFor(t);
+    q.choice = lyricsChoice(t.id);   // keyed like the offset
+    if (q.choice.kind == lyrics::Choice::Kind::File) q.choiceFile = lyrics::Offsets::get().fileDir() / q.choice.file;
     // Spotify's own lyrics (Musixmatch and others) for its tracks while logged in, when LRCLIB has no synced ones.
     if (auto* api = source::activeApi(); api && t.id.rfind("spotify:track:", 0) == 0) {
         q.fallbackName = lyrics::kSourceSpotify;
@@ -133,7 +135,31 @@ std::wstring lyricsSourceLabel(const std::string& source) {
     if (source == lyrics::kSourceSpotify) return L"SPOTIFY";
     if (source == lyrics::kSourceFile) return toUpperTr(tr(L".lrc dosyası"));
     if (source == lyrics::kSourceTag) return toUpperTr(tr(L"Dosya etiketi"));
+    if (source == lyrics::kSourceUserFile) return toUpperTr(tr(L"Seçilen dosya"));
     return L"LRCLIB";
+}
+
+namespace {
+std::vector<std::pair<Lifetime::Ref, std::function<void(const std::string&)>>> g_choiceListeners;
+} // namespace
+
+lyrics::Choice lyricsChoice(const std::string& trackId) {
+    return trackId.empty() ? lyrics::Choice{} : lyrics::Offsets::get().choice(trackId);
+}
+
+void setLyricsChoice(const std::string& trackId, const lyrics::Choice& c) {
+    if (trackId.empty()) return;
+    lyrics::Offsets::get().setChoice(trackId, c);
+    lyrics::Offsets::get().set(trackId, 0);   // the offset was tuned for the lyrics shown before
+    std::erase_if(g_choiceListeners, [](const auto& l) { return l.first.expired(); });
+    const auto listeners = g_choiceListeners;   // a listener may subscribe / go away meanwhile
+    for (const auto& [owner, fn] : listeners)
+        if (!owner.expired() && fn) fn(trackId);
+    if (ctx().window) ctx().window->invalidate();
+}
+
+void onLyricsChoiceChanged(Lifetime::Ref owner, std::function<void(const std::string& trackId)> fn) {
+    g_choiceListeners.emplace_back(std::move(owner), std::move(fn));
 }
 
 // ---- Translation -------------------------------------------------------------------------------------------------

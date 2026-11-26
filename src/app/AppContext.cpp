@@ -2,6 +2,7 @@
 
 #include "app/Blacklist.h"
 #include "app/Commands.h"
+#include "app/CreditsUi.h"
 #include "app/DownloadSync.h"
 #include "app/InternetRadio.h"
 #include "app/LocalLibrary.h"
@@ -1028,6 +1029,8 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
         // has no seed).
         if (radioAvailable() && (track.id.rfind("spotify:track:", 0) == 0 || ytm::isTrackId(track.id)) && !radioSeed(track.id).empty())
             items.push_back({tr(L"Şarkı radyosu"), "wifi", L"", [track] { startRadio(track.id, toWide(track.name)); }});
+        // Who made it (app/CreditsUi): performers, writers, producers and the label.
+        if (auto credits = creditsMenuItem(track)) items.push_back(std::move(*credits));
         items.push_back(ui::MenuItem::sep());
         if (!isLocal(track))
             items.push_back({tr(L"YouTube kaynağını değiştir"), "swap-match", L"", [track] {

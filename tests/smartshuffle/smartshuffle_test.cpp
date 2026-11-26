@@ -306,6 +306,28 @@ void testPlayer(const fs::path& tmp) {
         CHECK(p.items().size() == own.size() + 1 && p.order().size() == own.size() + 1);
         CHECK(p.dropRecommendations() == 0);
         p.setShuffle(false);
+        // The queue panel's sections (Track::queued): recommendations are no user picks, the context isn't either;
+        // Sonra çal / Sıraya ekle / a drop into the queue are, and the session keeps them.
+        auto queuedOf = [&](const std::string& id) {
+            for (const auto& t : p.items())
+                if (t.id == id) return t.queued;
+            return false;
+        };
+        CHECK(!queuedOf("own3") && !queuedOf("rec0"));
+        p.playNext(T("next1", "Next 1", "Z"));
+        p.enqueue({T("end1", "End 1", "Z")});
+        CHECK(p.insertAt(p.currentOrderIndex() + 2, {T("drop1", "Drop 1", "Z")}) == 1);
+        CHECK(p.insertAt(p.currentOrderIndex() + 3, {T("rec9", "Rec 9", "Y", true)}) == 1);
+        CHECK(queuedOf("next1") && queuedOf("end1") && queuedOf("drop1") && !queuedOf("rec9"));
+        CHECK(upcomingIds(p).front() == "next1");
+        p.saveSession();
+        {
+            st::player::Player restored(matcher);
+            restored.restoreSession();
+            int q = 0;
+            for (const auto& t : restored.items()) q += t.queued ? 1 : 0;
+            CHECK(q == 3);
+        }
         pumpUntil([] { return false; }, 200);
     }
     st::Dispatcher::shutdown();

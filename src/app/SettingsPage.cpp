@@ -1,4 +1,5 @@
 // Settings page and the page factory.
+#include "app/Accounts.h"
 #include "app/LyricsService.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -14,10 +15,12 @@
 #include "core/Utf.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
+#include "player/AudioCache.h"
 #include "spotify/Session.h"
 #include "ui/Popups.h"
 #include "ui/TextBox.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <shellapi.h>
 
@@ -40,6 +43,7 @@ std::unique_ptr<Page> makeLocalFilesPage(const std::string& id);
 std::unique_ptr<Page> makeRadioPage(const std::string& id);
 std::unique_ptr<Page> makePodcastsPage(const std::string& id);
 std::unique_ptr<Page> makeSmartListPage(const std::string& id);
+std::unique_ptr<Page> makeProfilePage(const std::string& id);
 
 using gfx::accent;
 using gfx::colors;
@@ -267,6 +271,8 @@ private:
                     if (ctx().startSpotifyLogin) ctx().startSpotifyLogin();
                 };
             }
+            // The other accounts on this PC (Geç / Çıkış yap) and "Hesap ekle" (app/Accounts).
+            accounts::buildSettingsRows(c, rebuilder());
             // The open catalog: what search, albums, artists and Home read while no Spotify account is connected.
             auto* row = c->add<SettingRow>(
                 tr(L"Spotify olmadan katalog"),
@@ -318,7 +324,7 @@ private:
         }
 
         // Equalizer, crossfade, output device.
-        c = card("audio", "equalizer", tr(L"Ses"), tr(L"Ses dengeleme, şarkı geçişi, ekolayzer, çıkış aygıtı"));
+        c = card("audio", "sliders", tr(L"Ses"), tr(L"Ses dengeleme, şarkı geçişi, ekolayzer, çıkış aygıtı"));
         buildAudioRows(c, rebuilder());
 
         c = card("appearance", "palette", tr(L"Görünüm"),
@@ -397,6 +403,7 @@ private:
             toggle(c, tr(L"Görev çubuğunda ilerlemeyi göster"),
                    tr(L"Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı."),
                    s.taskbarProgress, [](bool v) { Settings::get().taskbarProgress = v; });
+            buildSongNotificationRow(c, rebuilder());   // app/SongNotifier.cpp
             buildStartupRows(c, rebuilder());
         }
 
@@ -455,7 +462,7 @@ private:
             open->onClick = [] { openPath(paths::appData().wstring()); };
 
             const auto images = folderSize(paths::imageCacheDir());
-            const auto catalogCache = folderSize(paths::cacheDir() / L"mb");
+            const auto catalogCache = folderSize(paths::cacheDir() / L"mb") + ytm::diskCacheBytes();   // + YouTube Music's pages
             const auto memory = gfx::ImageCache::get().memoryBytes();
             // Three sizes: "Kapaklar 12,3 MB, katalog 1,5 MB. Bellekte 30,1 MB görsel." (disk: covers, catalog; RAM)
             auto* row2 = c->add<SettingRow>(tr(L"Önbellek"),
@@ -477,11 +484,14 @@ private:
                 std::error_code ec;
                 for (const auto& e : std::filesystem::directory_iterator(paths::imageCacheDir(), ec)) std::filesystem::remove(e.path(), ec);
                 gfx::ImageCache::get().clear();
+                ytm::clearDiskCache();   // YouTube Music's saved pages go with the covers
+                ytm::clearCache();
                 toast(tr(L"Görsel önbelleği temizlendi"));
                 Dispatcher::post([this, ref = life_.ref()] {
                     if (!ref.expired()) build();
                 });
             };
+            buildSongCacheRows(c);
         }
 
         c = card("remote", "wifi", tr(L"Telefondan kumanda"), tr(L"Aynı ağdaki telefonundan ShadeTube'u yönet"));
@@ -499,6 +509,48 @@ private:
         updateAllLink();
         if (filtering()) applyFilter();
         contentReady();
+    }
+
+    // Song cache (player/AudioCache): its size limit, what it holds and "Temizle". File work runs on a worker; the page
+    // is built again once it is done.
+    void buildSongCacheRows(ui::Column* c) {
+        auto* cache = ctx().audioCache;
+        if (!cache) return;
+        if (!cache->loaded())   // opened right at startup: the counts once the index is read
+            async(Priority::Low, life_.ref(), [cache] { cache->load(); }, [this](Result<Unit>) { build(); });
+        auto* row = c->add<SettingRow>(
+            tr(L"Şarkı önbelleği"),
+            tr(L"Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan "
+               L"başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz."));
+        static const int kLimits[] = {0, 500, 1024, 2048, 5120};
+        const int mbNow = Settings::get().audioCacheMb;
+        int cur = 0;   // a hand-edited limit shows as the nearest step
+        for (int i = 1; i < 5; ++i)
+            if (std::abs(kLimits[i] - mbNow) < std::abs(kLimits[cur] - mbNow)) cur = i;
+        auto gb = [](int n) { return i18n::format(tr(L"{} GB"), {std::to_wstring(n)}); };
+        auto* seg = row->control<Segmented>(
+            300.f, std::vector<std::wstring>{tr(L"Kapalı"), i18n::format(tr(L"{} MB"), {L"500"}), gb(1), gb(2), gb(5)}, cur);
+        seg->onChange = [this, cache](int i) {
+            const int mb = kLimits[std::clamp(i, 0, 4)];
+            Settings::get().audioCacheMb = mb;
+            Settings::get().markDirty();
+            cache->setLimit(int64_t{mb} << 20);
+            // A lower limit evicts at once; "Kapalı" empties the cache.
+            async(Priority::Low, life_.ref(), [cache] { cache->trim(); }, [this](Result<Unit>) { build(); });
+        };
+        const auto st = cache->stats();
+        auto* row2 = c->add<SettingRow>(
+            tr(L"Önbellekteki şarkılar"),
+            st.count == 0 ? std::wstring(tr(L"Henüz şarkı yok."))
+                          : i18n::format(tr(L"{} · {} yer kaplıyor."), {i18n::plural(L"{} şarkı", st.count), mb(static_cast<uintmax_t>(st.bytes))}));
+        auto* clr = row2->control<Button>(120.f, ButtonKind::Secondary, tr(L"Temizle"), "trash");
+        clr->setEnabled(st.count > 0);
+        clr->onClick = [this, cache] {
+            async(Priority::Low, life_.ref(), [cache] { cache->clear(); }, [this](Result<Unit>) {
+                toast(tr(L"Şarkı önbelleği temizlendi"));
+                build();
+            });
+        };
     }
 
     // ---- Cards --------------------------------------------------------------------------------------------------
@@ -860,6 +912,7 @@ std::unique_ptr<Page> createPage(const Route& route) {
     case RouteKind::Podcasts: return makePodcastsPage(route.id);
     case RouteKind::SmartList: return makeSmartListPage(route.id);
     case RouteKind::NewReleases: return makeNewReleasesPage();
+    case RouteKind::Profile: return makeProfilePage(route.id);
     }
     return makeHomePage();
 }

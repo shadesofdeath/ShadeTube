@@ -60,6 +60,13 @@ catalog::SearchResults search(spotify::Api* api, const std::string& query, int l
     return mb::search(query, limit, ct);
 }
 
+catalog::SearchResults quickSearch(spotify::Api* api, const std::string& query, int limit, const CT& ct) {
+    if (!api && g_ytm) return ytm::searchQuick(query, limit, ct);
+    return search(api, query, limit, ct);
+}
+
+bool ytmCatalog() { return g_ytm; }
+
 catalog::Album album(spotify::Api* api, const std::string& id, const CT& ct) {
     if (isYtmId(id)) return ytm::album(id, ct);
     if (api && isSpotifyId(id)) return api->album(id, ct);
@@ -89,6 +96,13 @@ std::wstring copyLinkLabel(const std::string& id) {
     if (isSpotifyId(id)) return tr(L"Spotify bağlantısını kopyala");
     if (isYtmId(id) || ytm::isTrackId(id)) return tr(L"YouTube Music bağlantısını kopyala");
     return tr(L"MusicBrainz bağlantısını kopyala");
+}
+
+std::vector<catalog::Album> artistReleases(spotify::Api* api, const std::string& artistId, catalog::ReleaseGroup group,
+                                           const CT& ct) {
+    if (isYtmId(artistId)) return ytm::artistReleases(artistId, group, ct);   // its discography pages
+    if (api && isSpotifyId(artistId)) return api->artistReleases(artistId, group, 300, ct);
+    return {};   // MusicBrainz' artistPage lists every release group already
 }
 
 } // namespace st::app::source

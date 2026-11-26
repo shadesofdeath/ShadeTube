@@ -50,10 +50,26 @@ struct PlaylistPage {
     bool continuationInUrl = false;       // old-style token: sent as ctoken= URL parameters, else in the body
 };
 
+struct BrowseRef {                      // a page to browse (browseId + params): an artist's "see all" lists
+    std::string id, params;
+    bool empty() const { return id.empty(); }
+};
+
 struct ArtistResult {
     catalog::ArtistPage page;
     std::string radioVideoId, radioPlaylistId;   // the header's "Mix" (an artist radio: RDEM...)
     std::string songsPlaylistId;                 // "Top songs" opens this playlist (all songs by popularity)
+    BrowseRef allAlbums, allSingles;             // the albums / singles carousels' "More": the whole discography group
+};
+
+struct SearchPage {                      // one answer of a search (or of its continuation)
+    catalog::SearchResults results;
+    std::string continuation;            // more rows of a filtered search (URL ctoken); "" = the last page
+};
+
+struct ReleasesPage {                    // an artist's discography page (all albums, or all singles & EPs)
+    std::vector<catalog::Album> releases;
+    std::string continuation;
 };
 
 struct WatchPage {                       // "next": the queue YouTube Music builds (radio / automix)
@@ -74,9 +90,13 @@ struct ShelvesPage {
 };
 
 // ---- Parsers -----------------------------------------------------------------------------------------------------
-// Any search answer (unfiltered, or one filter): every song / album / artist / playlist row found, de-duplicated, in
-// order. Videos, episodes, podcasts and profiles are left out.
+// Any search answer (unfiltered, one filter, or a filter's continuation): every song / album / artist / playlist row
+// found, de-duplicated, in order. Videos, episodes, podcasts and profiles are left out. The unfiltered answer's top
+// result card names SearchResults::topResult (the id of a row in one of the lists).
 catalog::SearchResults parseSearch(const Json& response);
+SearchPage parseSearchPage(const Json& response);   // + the continuation of a filtered list
+// browse MPAD<channel> + params (an artist's "see all" albums or singles): the grid of releases.
+ReleasesPage parseReleases(const Json& response, const catalog::ArtistRef& artist);
 // browse MPREb_...: header + tracklist. Album::releaseId holds the album's audio playlist (OLAK5uy_...).
 catalog::Album parseAlbum(const Json& response, std::string_view browseId);
 // browse UC...: header, top songs, albums, singles & EPs, related artists.
