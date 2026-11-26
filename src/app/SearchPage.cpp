@@ -1153,7 +1153,7 @@ void SearchPage::addTopRow(ui::Column* c) {
         left->setSpacingBefore(card, 16);
         nav(card);
         // MusicBrainz' search hits carry no photos: the top artist's comes from its lookup (cached after the first).
-        if (const auto& e = card->entry(); e.circle && e.images.empty() && !e.recent.id.empty() && !source::isSpotifyId(e.recent.id))
+        if (const auto& e = card->entry(); e.circle && e.images.empty() && browse::isMbid(e.recent.id))
             async(Priority::Normal, card->ref(), [id = e.recent.id] { return mb::artist(id).images; },
                   [card](Result<std::vector<Image>> r) {
                       if (r && !r->empty()) card->setImages(std::move(*r));
@@ -1167,7 +1167,7 @@ void SearchPage::addTopRow(ui::Column* c) {
     // Side by side from 760 DIP (the card 40 % of the width, 300..460), else stacked.
     auto place = [left, right](float w, bool apply) {
         const bool wide = w >= 760 && left && right;
-        const float lw = !left ? 0.f : !right ? std::min(w, 520.f) : wide ? std::clamp(w * 0.4f, 300.f, 460.f) : w;
+        const float lw = !left ? 0.f : wide ? std::clamp(w * 0.4f, 300.f, 460.f) : std::min(w, 520.f);
         const float lh = left ? left->preferredHeight(lw) : 0.f;
         const float rx = wide ? lw + 24 : 0.f, rw = wide ? w - rx : w;
         const float ry = wide || !left ? 0.f : lh + metrics::sectionGap;

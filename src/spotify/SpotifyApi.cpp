@@ -1445,10 +1445,11 @@ Album overviewRelease(const json& d, const ArtistRef& owner) {
     return a;
 }
 
-// A discography group: {items [{releases {items [release]}}]} or a flat {items [release]}.
-void overviewReleases(const json& group, const ArtistRef& owner, std::vector<Album>& out) {
+// A discography group: {items [{releases {items [release, its other editions...]}}]} (the first edition of each) or a
+// flat {items [release]}. Returns the group's totalCount (0 when it has none).
+int overviewReleases(const json& group, const ArtistRef& owner, std::vector<Album>& out) {
     const json& items = at(group, "items");
-    if (!items.is_array()) return;
+    if (!items.is_array()) return 0;
     auto add = [&](const json& d) {
         if (!d.is_object() || str(d, "uri").rfind("spotify:album:", 0) != 0) return;
         Album a = overviewRelease(d, owner);
@@ -1458,12 +1459,16 @@ void overviewReleases(const json& group, const ArtistRef& owner, std::vector<Alb
     for (const auto& it : items) {
         const json& releases = at(at(it, "releases"), "items");
         if (releases.is_array()) {
-            for (const auto& r : releases) add(r);
+            if (!releases.empty()) add(releases[0]);
         } else {
             add(it);
         }
     }
+    return integer(group, "totalCount");
 }
+
+// The overview's first part of a group: its full size when there is more of it (else 0).
+int moreThan(int total, size_t shown) { return total > static_cast<int>(shown) ? total : 0; }
 
 // Image sources that carry maxWidth / maxHeight instead of width / height (header images).
 std::vector<Image> sizedImages(const json& sources) {
@@ -1592,9 +1597,9 @@ ArtistPage Api::parseArtistOverview(const json& data) {
             if (d.is_object() && !str(d, "uri").empty()) page.topTracks.push_back(trackFrom(d));
         }
     overviewReleases(at(disc, "popularReleasesAlbums"), owner, page.popular);
-    overviewReleases(at(disc, "albums"), owner, page.albums);
-    overviewReleases(at(disc, "singles"), owner, page.singles);
-    overviewReleases(at(disc, "compilations"), owner, page.other);
+    page.albumsTotal = moreThan(overviewReleases(at(disc, "albums"), owner, page.albums), page.albums.size());
+    page.singlesTotal = moreThan(overviewReleases(at(disc, "singles"), owner, page.singles), page.singles.size());
+    page.otherTotal = moreThan(overviewReleases(at(disc, "compilations"), owner, page.other), page.other.size());
     if (const json& latest = at(disc, "latest"); latest.is_object() && !str(latest, "uri").empty())
         page.latest = overviewRelease(latest, owner);
     // An older answer without the grouped discography: its popular releases are the albums.
@@ -1610,7 +1615,7 @@ ArtistPage Api::parseArtistOverview(const json& data) {
             const json& d = at(it, "data").is_object() ? at(it, "data") : it;
             if (!str(d, "uri").empty()) page.similar.push_back(artistFrom(d));
         }
-    overviewReleases(at(related, "appearsOn"), {}, page.appearsOn);
+    page.appearsOnTotal = moreThan(overviewReleases(at(related, "appearsOn"), {}, page.appearsOn), page.appearsOn.size());
     for (const char* group : {"featuringV2", "discoveredOnV2"}) {
         const json& items = at(at(related, group), "items");
         if (!items.is_array()) continue;
@@ -1625,6 +1630,43 @@ ArtistPage Api::parseArtistOverview(const json& data) {
         }
     }
     return page;
+}
+
+// data.artistUnion.discography.<albums|singles|compilations> (queryArtistDiscography*, variables {uri, offset, limit,
+// order: "DATE_DESC"}) or data.artistUnion.relatedContent.appearsOn (queryArtistAppearsOn, {uri, offset, limit}), each
+// {totalCount, items [{releases {items [the release, its other editions]}}]}.
+std::vector<Album> Api::parseArtistReleasePage(const json& data, ReleaseGroup group, int* total) {
+    const json& a = at(data, "artistUnion");
+    const ArtistRef owner{str(a, "uri"), str(at(a, "profile"), "name")};
+    const json& list = group == ReleaseGroup::AppearsOn ? at(at(a, "relatedContent"), "appearsOn")
+                       : group == ReleaseGroup::Singles ? at(at(a, "discography"), "singles")
+                       : group == ReleaseGroup::Albums  ? at(at(a, "discography"), "albums")
+                                                        : at(at(a, "discography"), "compilations");
+    std::vector<Album> out;
+    const int n = overviewReleases(list, group == ReleaseGroup::AppearsOn ? ArtistRef{} : owner, out);
+    if (total) *total = n;
+    return out;
+}
+
+std::vector<Album> Api::artistReleases(const std::string& artistUri, ReleaseGroup group, int max, const CT& ct) {
+    const char* op = group == ReleaseGroup::AppearsOn ? "queryArtistAppearsOn"
+                     : group == ReleaseGroup::Singles ? "queryArtistDiscographySingles"
+                     : group == ReleaseGroup::Albums  ? "queryArtistDiscographyAlbums"
+                                                      : "queryArtistDiscographyCompilations";
+    constexpr int kPage = 50;
+    std::vector<Album> out;
+    for (int offset = 0; offset < max; offset += kPage) {
+        json vars{{"uri", artistUri}, {"offset", offset}, {"limit", kPage}};
+        if (group != ReleaseGroup::AppearsOn) vars["order"] = "DATE_DESC";
+        int total = 0;
+        auto page = parseArtistReleasePage(query(op, vars, ct), group, &total);
+        const bool last = page.empty() || offset + kPage >= total;
+        for (auto& r : page)
+            if (std::none_of(out.begin(), out.end(), [&](const Album& x) { return x.id == r.id; })) out.push_back(std::move(r));
+        if (last) break;
+    }
+    if (static_cast<int>(out.size()) > max) out.resize(static_cast<size_t>(max));
+    return out;
 }
 
 } // namespace st::spotify

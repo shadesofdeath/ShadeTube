@@ -279,6 +279,26 @@ static void testArtistOverviewFixture() {
     CHECK(p.playlists.size() == 2 && p.playlists[0].name == "This Is Coldplay" && p.playlists[1].name == "Christmas Hits");
     CHECK(p.playlists.size() == 2 && p.playlists[0].ownerName == "Spotify" && !p.playlists[0].images.empty());
     CHECK(p.similar.size() == 2 && p.similar[0].name == "Keane" && !p.similar[0].images.empty());
+    // The overview's groups are their first part: the full sizes say how many there are.
+    CHECK(p.albumsTotal == 17 && p.singlesTotal == 103 && p.otherTotal == 0 && p.appearsOnTotal == 1657);
+
+    // The whole group (queryArtistDiscographyAlbums / queryArtistAppearsOn pages): the first edition of each release.
+    const auto pages = loadFixture("artist_releases.json");
+    int total = 0;
+    const auto albums = Api::parseArtistReleasePage(pages.value("albums", nlohmann::json::object())["data"], ReleaseGroup::Albums, &total);
+    CHECK(total == 34 && albums.size() == 3);
+    if (albums.size() == 3) {
+        CHECK(albums[0].id == "spotify:album:4hF2gTGuPYlykYuphDxi8J" && albums[0].firstReleaseDate == "2026-09-25" &&
+              albums[0].primaryType == "Album");
+        CHECK(albums[2].name == "The Life of a Showgirl" && albums[2].id == "spotify:album:4a6NzYL1YHRUgx9e3YZI6I");
+    }
+    const auto appears =
+        Api::parseArtistReleasePage(pages.value("appearsOn", nlohmann::json::object())["data"], ReleaseGroup::AppearsOn, &total);
+    CHECK(total == 1657 && appears.size() == 2);
+    CHECK(appears.size() == 2 && appears[0].name == "Memories...Do Not Open" && appears[0].artists.size() == 1 &&
+          appears[0].artists[0].name == "The Chainsmokers");
+    CHECK(Api::parseArtistReleasePage(nlohmann::json::object(), ReleaseGroup::Singles, &total).empty() && total == 0);
+
     // Nothing there: an empty page, no crash.
     const ArtistPage none = Api::parseArtistOverview(nlohmann::json::object());
     CHECK(none.artist.id.empty() && none.albums.empty() && none.bio.empty() && none.pick.item.id.empty());

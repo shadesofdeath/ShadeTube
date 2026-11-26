@@ -154,7 +154,13 @@ struct ArtistPage {
     std::vector<CityListeners> topCities;
     std::vector<ArtistLink> links;
     bool verified = false;
+    // How many releases a group really has when its list above is only the first part of it (0 = the list is all of
+    // them); the rest comes from source::artistReleases.
+    int albumsTotal = 0, singlesTotal = 0, otherTotal = 0, appearsOnTotal = 0;
 };
+
+// A part of an artist's discography (source::artistReleases).
+enum class ReleaseGroup { Albums, Singles, Compilations, AppearsOn };
 
 struct SearchResults {
     std::vector<Artist> artists;

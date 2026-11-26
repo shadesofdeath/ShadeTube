@@ -222,6 +222,9 @@ static void testDiscography() {
     n = newestRelease(p);
     CHECK(n && n->name == "Latest");
 
+    CHECK(isMbid("f8a9a911-47de-49fe-ba96-7e5b5f08b7d0") && isMbid("F8A9A911-47DE-49FE-BA96-7E5B5F08B7D0"));
+    CHECK(!isMbid("spotify:artist:6RTC1abMgBC7Krg6qJQHJh") && !isMbid("") && !isMbid("f8a9a911x47de-49fe-ba96-7e5b5f08b7d0") &&
+          !isMbid("g8a9a911-47de-49fe-ba96-7e5b5f08b7d0") && !isMbid("UCq19-LqvG35A-30oyAiPiqA"));
     CHECK(releaseKind("SINGLE") == "Single" && releaseKind("Single") == "Single" && releaseKind("ep") == "EP" &&
           releaseKind("COMPILATION") == "Compilation" && releaseKind("") == "Album" && releaseKind("Broadcast") == "Album");
 }

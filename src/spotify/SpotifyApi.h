@@ -200,6 +200,11 @@ public:
     // links, the pick, top tracks, discography (popular releases, latest, albums / singles / compilations newest
     // first), appears on, featuring playlists, related artists. Missing parts stay empty.
     static ArtistPage parseArtistOverview(const nlohmann::json& data);
+    // Every release of one part of an artist's discography, newest first and the first edition of each, in pages of 50
+    // (queryArtistDiscographyAlbums / Singles / Compilations; queryArtistAppearsOn), at most `max`. Throws ApiError.
+    std::vector<Album> artistReleases(const std::string& artistUri, ReleaseGroup group, int max = 300, const CT& ct = {});
+    // One page of those answers (`data`) -> its releases; `total` (optional) receives the group's size.
+    static std::vector<Album> parseArtistReleasePage(const nlohmann::json& data, ReleaseGroup group, int* total = nullptr);
 
     static constexpr const char* kLikedSongsUri = "spotify:collection:tracks";
 

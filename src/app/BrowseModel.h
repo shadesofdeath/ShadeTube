@@ -86,6 +86,8 @@ void sortReleases(std::vector<catalog::Album>& releases, Order order);
 int compareDates(const std::string& a, const std::string& b);
 // The source's latest release when it gave one, else the newest dated album / single / EP; nullopt when none.
 std::optional<catalog::Album> newestRelease(const catalog::ArtistPage& page);
+// A MusicBrainz id (an UUID: 8-4-4-4-12 hex digits). Other catalogs' ids (spotify:..., ...) are not.
+bool isMbid(const std::string& id);
 // "Single" / "SINGLE" -> "Single" etc.: the catalog kinds of a release whatever the source's casing ("" -> "Album").
 std::string releaseKind(const std::string& primaryType);
 

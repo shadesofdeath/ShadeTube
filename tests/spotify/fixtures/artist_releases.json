@@ -1,0 +1,300 @@
+{
+ "albums": {
+  "data": {
+   "artistUnion": {
+    "__typename": "Artist",
+    "discography": {
+     "albums": {
+      "items": [
+       {
+        "releases": {
+         "items": [
+          {
+           "coverArt": {
+            "sources": [
+             {
+              "height": 300,
+              "url": "https://i.scdn.co/image/ab67616d00001e02cf3de6b538d8b1ed73a4d5d1",
+              "width": 300
+             },
+             {
+              "height": 64,
+              "url": "https://i.scdn.co/image/ab67616d00004851cf3de6b538d8b1ed73a4d5d1",
+              "width": 64
+             },
+             {
+              "height": 640,
+              "url": "https://i.scdn.co/image/ab67616d0000b273cf3de6b538d8b1ed73a4d5d1",
+              "width": 640
+             }
+            ]
+           },
+           "date": {
+            "isoString": "2026-09-25T00:00:00Z",
+            "precision": "DAY",
+            "year": 2026
+           },
+           "id": "4hF2gTGuPYlykYuphDxi8J",
+           "name": "The Life of a Showgirl: The Encore",
+           "tracks": {
+            "totalCount": 16
+           },
+           "type": "ALBUM",
+           "uri": "spotify:album:4hF2gTGuPYlykYuphDxi8J"
+          },
+          {
+           "coverArt": {
+            "sources": [
+             {
+              "height": 300,
+              "url": "https://i.scdn.co/image/ab67616d00001e0271561dea66c59a93ed4c9884",
+              "width": 300
+             },
+             {
+              "height": 64,
+              "url": "https://i.scdn.co/image/ab67616d0000485171561dea66c59a93ed4c9884",
+              "width": 64
+             },
+             {
+              "height": 640,
+              "url": "https://i.scdn.co/image/ab67616d0000b27371561dea66c59a93ed4c9884",
+              "width": 640
+             }
+            ]
+           },
+           "date": {
+            "isoString": "2026-09-25T00:00:00Z",
+            "precision": "DAY",
+            "year": 2026
+           },
+           "id": "44ITL8BlMeJfZusaLso3mh",
+           "name": "The Life of a Showgirl: The Encore",
+           "tracks": {
+            "totalCount": 16
+           },
+           "type": "ALBUM",
+           "uri": "spotify:album:44ITL8BlMeJfZusaLso3mh"
+          }
+         ]
+        }
+       },
+       {
+        "releases": {
+         "items": [
+          {
+           "coverArt": {
+            "sources": [
+             {
+              "height": 300,
+              "url": "https://i.scdn.co/image/ab67616d00001e02f756bdc2c11a985dc0c06d94",
+              "width": 300
+             },
+             {
+              "height": 64,
+              "url": "https://i.scdn.co/image/ab67616d00004851f756bdc2c11a985dc0c06d94",
+              "width": 64
+             },
+             {
+              "height": 640,
+              "url": "https://i.scdn.co/image/ab67616d0000b273f756bdc2c11a985dc0c06d94",
+              "width": 640
+             }
+            ]
+           },
+           "date": {
+            "isoString": "2025-11-07T00:00:00Z",
+            "precision": "DAY",
+            "year": 2025
+           },
+           "id": "6QNMhoV8V0u7cFuhhUBOn7",
+           "name": "The Life of a Showgirl + Acoustic Collection",
+           "tracks": {
+            "totalCount": 19
+           },
+           "type": "ALBUM",
+           "uri": "spotify:album:6QNMhoV8V0u7cFuhhUBOn7"
+          }
+         ]
+        }
+       },
+       {
+        "releases": {
+         "items": [
+          {
+           "coverArt": {
+            "sources": [
+             {
+              "height": 300,
+              "url": "https://i.scdn.co/image/ab67616d00001e02d7812467811a7da6e6a44902",
+              "width": 300
+             },
+             {
+              "height": 64,
+              "url": "https://i.scdn.co/image/ab67616d00004851d7812467811a7da6e6a44902",
+              "width": 64
+             },
+             {
+              "height": 640,
+              "url": "https://i.scdn.co/image/ab67616d0000b273d7812467811a7da6e6a44902",
+              "width": 640
+             }
+            ]
+           },
+           "date": {
+            "isoString": "2025-10-03T00:00:00Z",
+            "precision": "DAY",
+            "year": 2025
+           },
+           "id": "4a6NzYL1YHRUgx9e3YZI6I",
+           "name": "The Life of a Showgirl",
+           "tracks": {
+            "totalCount": 12
+           },
+           "type": "ALBUM",
+           "uri": "spotify:album:4a6NzYL1YHRUgx9e3YZI6I"
+          },
+          {
+           "coverArt": {
+            "sources": [
+             {
+              "height": 300,
+              "url": "https://i.scdn.co/image/ab67616d00001e02b034f9cdf12ae14c603daa99",
+              "width": 300
+             },
+             {
+              "height": 64,
+              "url": "https://i.scdn.co/image/ab67616d00004851b034f9cdf12ae14c603daa99",
+              "width": 64
+             },
+             {
+              "height": 640,
+              "url": "https://i.scdn.co/image/ab67616d0000b273b034f9cdf12ae14c603daa99",
+              "width": 640
+             }
+            ]
+           },
+           "date": {
+            "isoString": "2025-10-03T00:00:00Z",
+            "precision": "DAY",
+            "year": 2025
+           },
+           "id": "1W57oNaAkGObOQKBTxg4e9",
+           "name": "The Life of a Showgirl",
+           "tracks": {
+            "totalCount": 12
+           },
+           "type": "ALBUM",
+           "uri": "spotify:album:1W57oNaAkGObOQKBTxg4e9"
+          }
+         ]
+        }
+       }
+      ],
+      "totalCount": 34
+     }
+    }
+   }
+  }
+ },
+ "appearsOn": {
+  "data": {
+   "artistUnion": {
+    "__typename": "Artist",
+    "id": "4gzpq5DPGxSnKTe4SA8HAU",
+    "profile": {
+     "name": "Coldplay"
+    },
+    "relatedContent": {
+     "appearsOn": {
+      "items": [
+       {
+        "releases": {
+         "items": [
+          {
+           "artists": {
+            "items": [
+             {
+              "profile": {
+               "name": "The Chainsmokers"
+              },
+              "uri": "spotify:artist:69GGBxA162lTqCwzJG5jLp"
+             }
+            ]
+           },
+           "coverArt": {
+            "sources": [
+             {
+              "height": 300,
+              "url": "https://i.scdn.co/image/ab67616d00001e020c13d3d5a503c84fcc60ae94",
+              "width": 300
+             },
+             {
+              "height": 64,
+              "url": "https://i.scdn.co/image/ab67616d000048510c13d3d5a503c84fcc60ae94",
+              "width": 64
+             },
+             {
+              "height": 640,
+              "url": "https://i.scdn.co/image/ab67616d0000b2730c13d3d5a503c84fcc60ae94",
+              "width": 640
+             }
+            ]
+           },
+           "id": "4JPguzRps3kuWDD5GS6oXr",
+           "name": "Memories...Do Not Open",
+           "uri": "spotify:album:4JPguzRps3kuWDD5GS6oXr"
+          }
+         ],
+         "totalCount": 1
+        }
+       },
+       {
+        "releases": {
+         "items": [
+          {
+           "artists": {
+            "items": [
+             {
+              "profile": {
+               "name": "TINI"
+              },
+              "uri": "spotify:artist:7vXDAI8JwjW531ouMGbfcp"
+             }
+            ]
+           },
+           "coverArt": {
+            "sources": [
+             {
+              "height": 300,
+              "url": "https://i.scdn.co/image/ab67616d00001e020deb144be5a5243610dc572e",
+              "width": 300
+             },
+             {
+              "height": 64,
+              "url": "https://i.scdn.co/image/ab67616d000048510deb144be5a5243610dc572e",
+              "width": 64
+             },
+             {
+              "height": 640,
+              "url": "https://i.scdn.co/image/ab67616d0000b2730deb144be5a5243610dc572e",
+              "width": 640
+             }
+            ]
+           },
+           "id": "2mtbTvzjwh4Dokr8igvQBZ",
+           "name": "Futttura Live",
+           "uri": "spotify:album:2mtbTvzjwh4Dokr8igvQBZ"
+          }
+         ],
+         "totalCount": 1
+        }
+       }
+      ],
+      "totalCount": 1657
+     }
+    },
+    "uri": "spotify:artist:4gzpq5DPGxSnKTe4SA8HAU"
+   }
+  }
+ }
+}

@@ -92,7 +92,7 @@ ShadeTube/
 │                                overlay surface and material, 3.36), Anim,
 │                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO)
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
-│                                pages: Home, BrowsePages (search/library/artist), Collection, NowPlaying, Downloads,
+│                                pages: Home, Search, Artist, BrowsePages (library), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
 │                                ConnectScreen, MiniPlayer (+ MiniLayout, its geometry)
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats, LibrarySort +
@@ -106,7 +106,7 @@ ShadeTube/
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
-└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, collections,
+└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, browse, collections,
                                  downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, sponsorblock,
@@ -1607,7 +1607,7 @@ the palette command, the dev hooks).
   above the bar's line. The bar has its own play (`PlayButton::Look::Outline`) and shuffle (`IconOutline`,
   `shuffle-thin`), which come in while the header's buttons dissolve and mirror their handlers and playing state (the
   header's play now shows pause too while the page's collection plays). Lists without a column header (podcast,
-  artist) get a hairline under the bar once they dock. Artist and podcast bars have no shuffle.
+  artist) get a hairline under the bar once they dock. Podcast bars have no shuffle (artist bars have one since 3.42).
 - **Driven by the offset**: `collapse::compute(spec, s)` is a pure function of the ScrollView's offset of the frame
   (`scrollY()`, advanced to the frame time by the smooth-scroll engine, 3.28): no timers, no relayout while scrolling,
   the same frame for the same offset whichever way the page goes. Pinned elements settle with `collapse::soft()`: they
@@ -1946,6 +1946,113 @@ while nothing shows a video opens Now Playing.
   when a picture is dropped (frames shown / dropped, resyncs, frame vs. audio average / worst, frames more than a frame
   off, slot memory, DXVA or software). `video_test` (5.2) covers the pure parts and the decoder.
 
+### 3.42 Artist and Search pages
+
+`app/ArtistPage.cpp` and `app/SearchPage.cpp` (the Library stays in `app/BrowsePages.cpp`), on `app/BrowseWidgets` (filter
+chips, a fading column, the album / artist / playlist cards and menus shared with the Library) and `app/BrowseModel`
+(standalone logic: recent searches, the top result, the discography's groups and orders; `browse_test`). Both read the
+catalog only through `source::search` / `source::artistPage` (Source.h); what a source does not give is left out of the
+page, never shown as an empty box.
+
+**Artist data** (`catalog::ArtistPage`, optional parts after the original lists): `popular`, `appearsOn`, `playlists`,
+`latest`, `pick` (`ArtistPick`: a `CardItem` + comment), `banner`, `gallery`, `bio` / `bioSource` / `bioUrl`,
+`monthlyListeners`, `followers`, `worldRank`, `topCities`, `links` (`ArtistLink {kind, url}`), `verified`.
+
+- Spotify: `Api::parseArtistOverview` (static, `spotify_test` with `fixtures/artist_page.json`) reads the whole
+  `queryArtistOverview` answer: the header image (`headerImage.data.sources`, sizes as `maxWidth` / `maxHeight`), the
+  gallery, verified (`onPlatformReputationTrait`), the stats and top cities, the biography (HTML tags and entities out,
+  one paragraph per line), external links (http(s) only, kinds lower-cased), the pinned item (album / playlist / artist /
+  track; concerts skipped), top tracks, `popularReleasesAlbums`, the grouped `albums` / `singles` / `compilations`
+  (`items[].releases.items[]`, newest first) with full dates and the catalog's kinds (`Album` / `Single` / `EP` /
+  `Compilation`; they were Spotify's upper-case types before), `latest`, related artists, `appearsOn` and the featuring /
+  discovered-on playlists (error entries and duplicates dropped). `artist.listenCount` keeps the monthly listeners for
+  older readers. The overview gives only the first 10 releases of a group (20 appears-on): their `totalCount` goes to
+  `albumsTotal` / `singlesTotal` / `otherTotal` / `appearsOnTotal`, and `source::artistReleases(api, id, ReleaseGroup)`
+  -> `Api::artistReleases` pages the whole group (`queryArtistDiscographyAlbums` / `Singles` / `Compilations`, one
+  document, `{uri, offset, limit: 50, order: "DATE_DESC"}`; `queryArtistAppearsOn`, `{uri, offset, limit}`; at most
+  300; the first edition of each release; hashes from the web player's `xpui-routes-artist` chunk in the built-in
+  table). The page asks for it when "Tümünü gör" opens such a group (placeholders where the rest will be).
+- MusicBrainz: `links` from the lookup's url-rels (`detail::parseArtistLinks`: the homepage and Instagram, X / Twitter,
+  Facebook, YouTube, TikTok, SoundCloud, Bandcamp; current relations only, one per kind, at most 8), the biography from
+  Wikipedia: the Wikidata entity (fetched once for its photo anyway) also caches its article titles (`wikidata-sitelinks
+  Q…`, 30 days), then `<lang>.wikipedia.org/api/rest_v1/page/summary/<title>` in the UI language, else English
+  (`detail::parseWikipediaSummary`; a disambiguation page gives nothing); the article becomes a "wikipedia" link.
+  `popular`, `appearsOn`, `pick`, the stats and the banner stay empty; the newest album / single stands in for `latest`.
+
+**Artist page**:
+
+- **Hero** (`ArtistHero`, a `HeroHeader`, 3.38): a wide header image runs across the page under the name (bg.base left
+  under the text: 88 % dark / 93 % light, faded further on pages under 900 DIP), else the photo at the right as before,
+  else the accent rings; parallax and the collapse are unchanged. The mono line is "✓ DOĞRULANMIŞ SANATÇI" (Spotify) or
+  type · country · year · genre; under the name monthly listeners · followers (Spotify) or ListenBrainz listens. Actions:
+  play (accent 56), shuffle (`shuffle-thin` outline; the bar mirrors it, so artist bars now have one too), Takip et
+  (pill, a check while following), radio (outline icon, Spotify artists with a session), more (queue the popular songs,
+  copy the link, block) and, while the artist is on the kara liste, an "Engelli" pill that lifts it. `artist:<id>#play`
+  starts the popular songs once loaded (the top result's and cards' play buttons).
+- **Popular** (`PopularBlock`): five rows of the shared `TrackTable`; "Daha fazla göster" unrolls up to ten (the clip
+  height eases over `motion::medium`; folded rows leave the table afterwards so the keyboard never lands on hidden ones).
+  Beside it from 900 DIP (under it on narrower pages): `FeatureCard`s for the artist's pick (its comment in quotes) and
+  the newest release ("SON ÇIKAN · 22 AĞU 2025", a "YENİ" pill within 30 days), raised cards with a gradient of the
+  cover's color, the accent play button rising in on hover / focus; Enter opens, Shift+Enter plays.
+- **Diskografi** (`Discography`): the groups the source has as `ChipTabs` (Popüler sürümler, Albümler, Tekliler ve
+  EP'ler, Derlemeler (and live recordings, MusicBrainz), Yer aldığı) over one shelf (`home::shelfRow`, 3.34); "Tümünü
+  gör" shows the whole group as a grid with a sort button (En yeni / En eski / Alfabetik, and Popülerlik = the source's
+  order for the popular releases; `browse::sortReleases`: partial dates sort before precise ones of the same period,
+  undated last, names in the user's locale with digits as numbers). A new group or order fades the cards in
+  (`FadeColumn`, `motion::normal`).
+- Then "Hayranları bunları da dinliyor" (circle cards), "Öne çıktığı çalma listeleri" (Spotify), and **Hakkında**
+  (`AboutCard`): a gallery photo when there is one (the hero already shows the avatar), the numbers (monthly listeners,
+  followers, world rank; or ListenBrainz listens, founded / born, country), the biography clamped to five lines that fade
+  into the card ("Devamını göster" unrolls the rest over `motion::medium`), the five cities that listen most, genres as
+  outlined pills and the links as outline pills that open the browser.
+
+**Search page**:
+
+- **Result kinds are data** (`resultKinds()`): `{id, title (tab / section), one (the top result's label), count, entry
+  (one item -> ResultEntry: card lines, artwork, round or square, open / play / menu / preview, its recent-search
+  record), custom (non-card content, e.g. the songs' rows), besideTop, route (how its recent items open) | reopen}`.
+  `cardKind(id, title, one, &SearchResults::list, entryFn, route)` makes a card kind: a shelf with "Tümünü gör" in Tümü,
+  a grid in its own tab, top-result candidates, recent-search cards. **Adding a kind is one entry there** (plus its
+  `entryFn`). The chip order is the table's order after "Tümü"; chips only for kinds with results.
+- **Tümü**: the top result beside four songs (stacked under 760 DIP, the card at most 520 wide), then a shelf per card
+  kind. The top result (`browse::pickTopResult`): every kind's first items scored by name against the query (folded like
+  the command palette: case, accents, Turkish ı / İ): equal 100, starts with it 70, holds every word 45, the start of a
+  longer query 30; +35 for an artist who sings one of the top three songs (searching an artist's name; also tells
+  MusicBrainz homonyms apart), +6 artist, +3 song, minus the rank in its list; nothing matching: the first candidate. Its
+  card (`TopResultCard`) is a raised card with a gradient of the artwork's color, the artwork (round for artists), the
+  name in display type, a hairline kind pill and line, and the accent play button rising in on hover / focus.
+  MusicBrainz search hits carry no photos: the top artist's comes from its lookup (`mb::artist`, MBIDs only).
+- **Type-ahead**: 220 ms after the last key with a Spotify session, 380 ms on MusicBrainz (one request a second, a search
+  is three). The request in flight is cancelled (`CancellationTokenSource` into `source::search`) and its continuation
+  dropped (`searchLife_`). While the next results load the shown ones stay, dimmed to 55 % (`FadeColumn`, 240 ms), and
+  an indeterminate accent line runs along the header's edge (fading in after 150 ms; a still line with reduce motion);
+  the new results come up from that opacity. The first results show placeholders in their shape (`TopRowSkeleton` + a
+  shelf). Answers are kept for the run (16 queries, per catalog), so typing back or Back shows them at once; the route
+  is retargeted to `search:<query>` (only while the page is the one shown).
+- **Keyboard**: Tab order box -> chips (one stop; Left / Right switch) -> results. Down in the box enters the results
+  (the top result or the first recent search); arrows move between result stops spatially (`neighbor()`: the nearest
+  item of the next row closest to the current center, or the next item on the same row); a song list takes Up / Down
+  itself and hands the edges back (`TrackTable::onEdge`); Up from the first row goes to the chips / box, Escape to the
+  box (text selected). Enter plays a song / opens anything else, Shift+Enter plays the top result. Ctrl+Tab /
+  Ctrl+Shift+Tab cycle the tabs from anywhere on the page.
+- **Empty box**: "Son aramalar" as cards (`RecentCard`: artwork or the search glyph, name, kind · artists, "×" or Delete
+  removes, "Temizle" clears) in 4 / 3 / 2 / 1 columns, then the genre tiles (Spotify: a search for the genre's name;
+  logged out: the MusicBrainz tag search as before). Recent searches (`browse::RecentSearches`,
+  `recent-searches.json` v2: `{k, id, t, s, img, track}`; v1's plain queries are read): a query sent with Enter, and
+  what is opened / played from the results (the item, not the query), newest first, 12 at most; kinds this build cannot
+  open are kept but not shown.
+- **Links** pasted into the box keep their row (`LinkHint`: what the link is, Enter opens it).
+
+**Cost**: both pages hold no bitmaps of their own (artwork through `ImageCache` at the painted size; 3.2) and are
+destroyed on navigation. Idle (Debug, 1440 × 900 DIP at 175 %, 10 s after loading): artist page 0 ms CPU; search
+results 47 ms and the empty view ~80 ms in 10 s (the focused box's caret). `SHADETUBE_SCROLL_DEMO=notch,touch,keys`
+(Debug): MusicBrainz artist page 313 frames, frame CPU median 2.7 / max 6.9 ms; a full Spotify artist page median 2.9,
+p90 10 ms, the heavy frames on first view of a shelf of new covers (bitmap uploads). The About card fades its
+biography with a gradient over its opaque fill instead of a layer (14 -> 7 ms frames there).
+
+**Dev**: `SHADETUBE_SPOTIFY_DEMO=<folder>` with an `artist.json` (a raw `queryArtistOverview` answer) shows it for any
+`artist:spotify:artist:<id>` route without a session (5.4).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -1994,8 +2101,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 
 | Program | Covers | Modes |
 |---|---|---|
-| `spotify_test` | TOTP / base32 vectors, home parser and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
-| `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing, cold vs warm cache | `--offline`, `--keep-cache` |
+| `spotify_test` | TOTP / base32 vectors, home parser, artist page parser (`parseArtistOverview`) and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
+| `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing (artist links from url-rels, Wikipedia titles and summaries), cold vs warm cache | `--offline`, `--keep-cache` |
 | `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, memory) | network; `[videoA] [videoB]` |
@@ -2025,6 +2132,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json` (and its newest entries, Home's hero), history recency, timing with 10 000 items | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
+| `browse_test` | Search and Artist page logic (`app/BrowseModel`, 3.42): recent searches (queries and items, equality by case / Turkish İ / spacing or kind + id, order, the cap, remove / clear, persistence, the v1 file, broken files, unknown kinds), the top result (exact / prefix / word matches, the top songs' artist, MusicBrainz homonyms, ranks, folding), the discography (groups, date and name orders, the newest release, release kinds, MBIDs) | offline (own temp folder) |
 | `preview_test` | song preview: the press-and-hold gesture (`ui/HoldGesture`: due time, slop, early release, swallowed release, Esc), `preview::startPoint` (short / unknown songs, 35 %, SponsorBlock segments, the end), `preview::Session` with a fake player and clock (modes, release before the audio, the limit, Esc, the key's toggle, the song that plays, collections + cache, failures, timeouts, rapid repeated holds, stale ids), a real `Player` on generated WAVs (the current track holds its position and state and resumes from it, paused stays paused, nothing playing stays so, stopped before its audio = never held, rapid previews, a command ends it first, its own end hands back, `keepMainRunning`, 1.5x speed, stations refused, queue untouched) | offline; needs an audio device |
 | `theme_test` | theme studio core (`gfx/ThemeSpec`, `app/ThemeStore`): strict color syntax, the tokens files as themes, every bundled preset (no warnings, strict parse, keys match the palette, write / read round trip, the full contrast table), key-color derivation and `setKey`, accent adaptation and ink / paper, import validation (every refusal kind, too large, keys-only files, base guessing, names), the theme folder (save / reload / numbered names / remove / import / export / broken files left out), slugs | offline (own temp folder; reads the source tree's `assets/`) |
 | `header_collapse_test` | collapsing page headers (`app/HeaderCollapse`) on real header geometries (album, two-line playlist with a description, podcast, artist): at offset 0 everything is where the expanded header draws it, no element jumps between offsets 1/4 DIP apart, scrolling down only collapses, content never shows through the cover / title (it has dissolved where it passes under them), the docked frame (thumbnail, compact title on the bar's line, buttons, inset, hairline), the settling function, the tint's contrast on dark and light paper | offline |
@@ -2121,6 +2229,7 @@ apps*).
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 | `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.32), instead of `SPI_GETCLIENTAREAANIMATION` |
 | `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
+| `SHADETUBE_SPOTIFY_DEMO` | `<folder>`: friend activity and new releases without a session from `buddylist.json` / `whatsnew.json` there (app/Social.h); a `home.json` gives the logged-out Home Spotify's shelves (3.34); an `artist.json` (a raw `queryArtistOverview` answer) stands in for any `artist:spotify:artist:<id>` route while logged out (3.42) |
 | `SHADETUBE_THEME_PRESET` | `<theme id>` (`nord`, `pastel`, `user:<file>`...): that theme for this run, whatever the mode; nothing is saved (3.35) |
 | `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |

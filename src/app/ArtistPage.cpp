@@ -554,6 +554,21 @@ private:
     Lifetime life_;
 };
 
+// A card's place while it loads (the rest of a discography group): the artwork and two lines, shimmering.
+class CardSkeleton : public ui::Widget {
+public:
+    CardSkeleton() { hitTestVisible = false; }
+    float preferredHeight(float width) override { return width + 10 + 18 + 4 + 16; }
+    void paint(Canvas& c) override {
+        const Rect r = rect();
+        const double now = ui::frame::now();
+        c.skeleton({r.x, r.y, r.w, r.w}, gfx::radii().art, now);
+        c.skeleton({r.x, r.y + r.w + 14, std::round(r.w * 0.7f), 12}, gfx::radii().badge, now);
+        c.skeleton({r.x, r.y + r.w + 34, std::round(r.w * 0.4f), 10}, gfx::radii().badge, now);
+        ui::frame::requestNext();
+    }
+};
+
 // =====================================================================================================================
 // Diskografi: the groups the source has as chips (Popüler sürümler, Albümler, Tekliler ve EP'ler, Derlemeler, Yer
 // aldığı). One shelf of the group; "Tümünü gör" shows the whole group as a grid with a sort order (En yeni, En eski,
@@ -567,6 +582,12 @@ public:
         data_.singles = p.singles;
         data_.other = p.other;
         data_.appearsOn = p.appearsOn;
+        data_.albumsTotal = p.albumsTotal;
+        data_.singlesTotal = p.singlesTotal;
+        data_.otherTotal = p.otherTotal;
+        data_.appearsOnTotal = p.appearsOnTotal;
+        artistId_ = p.artist.id;
+        owner_ = {p.artist.id, p.artist.name};
         groups_ = browse::groupsOf(data_);
         // Spotify leads with the popular releases; the albums are the default where there is no such list.
         live_ = std::any_of(p.other.begin(), p.other.end(), [](const Album& a) {
@@ -670,14 +691,18 @@ private:
         const bool keepSourceOrder = g == browse::Group::Popular && !orderChosen_;
         if (grid_ && !keepSourceOrder) browse::sortReleases(list, order_);
         sort_->setLabel(orderLabel());
+        const bool partial = total(g) > static_cast<int>(list.size());
         sort_->setVisible(grid_ && list.size() > 1);
-        all_->setVisible(grid_ || list.size() > 3);
+        all_->setVisible(grid_ || list.size() > 3 || partial);
+        if (grid_ && partial) fetchAll(g);
         head_->requestLayout();
         body_->clearChildren();
         const bool withArtist = g == browse::Group::AppearsOn;
         ui::Widget* parent = grid_ ? static_cast<ui::Widget*>(addCardRow(body_, home::kMinCard, 0)) : home::shelfRow(body_);
         if (grid_) body_->setSpacingBefore(parent, 16);
         for (const auto& a : list) addAlbumCard(parent, a, albumSubtitle(a, withArtist));
+        if (grid_ && partial)   // the rest is on its way: placeholders where it will be
+            for (int i = 0; i < 4; ++i) parent->add<CardSkeleton>();
         if (fade) {
             body_->snapOpacity(0);
             body_->fadeTo(1, ui::motion::microMs(ui::motion::normal));
@@ -685,7 +710,52 @@ private:
         requestLayout();
     }
 
+    // The size of a group when its list is only the first part of it (0: the list is all of it).
+    int total(browse::Group g) const {
+        switch (g) {
+        case browse::Group::Albums: return data_.albumsTotal;
+        case browse::Group::Singles: return data_.singlesTotal;
+        case browse::Group::Compilations: return data_.otherTotal;
+        case browse::Group::AppearsOn: return data_.appearsOnTotal;
+        default: return 0;
+        }
+    }
+    // The whole group for the grid (source::artistReleases), once; what it gives replaces the first part.
+    void fetchAll(browse::Group g) {
+        if (std::find(fetching_.begin(), fetching_.end(), g) != fetching_.end()) return;
+        fetching_.push_back(g);
+        const ReleaseGroup rg = g == browse::Group::Singles        ? ReleaseGroup::Singles
+                                : g == browse::Group::Compilations ? ReleaseGroup::Compilations
+                                : g == browse::Group::AppearsOn    ? ReleaseGroup::AppearsOn
+                                                                   : ReleaseGroup::Albums;
+        spotify::Api* api = source::activeApi();
+        async(Priority::High, life_.ref(), [api, id = artistId_, rg] { return source::artistReleases(api, id, rg); },
+              [this, g](Result<std::vector<Album>> r) {
+                  std::vector<Album>& list = g == browse::Group::Singles        ? data_.singles
+                                             : g == browse::Group::Compilations ? data_.other
+                                             : g == browse::Group::AppearsOn    ? data_.appearsOn
+                                                                                : data_.albums;
+                  if (r && r->size() > list.size()) {
+                      list = std::move(*r);
+                      if (g != browse::Group::AppearsOn)   // the artist's own releases: credited to the artist
+                          for (auto& a : list)
+                              if (a.artists.empty()) a.artists.push_back(owner_);
+                  }
+                  switch (g) {   // complete now (or as complete as it gets: no second try)
+                  case browse::Group::Albums: data_.albumsTotal = 0; break;
+                  case browse::Group::Singles: data_.singlesTotal = 0; break;
+                  case browse::Group::Compilations: data_.otherTotal = 0; break;
+                  case browse::Group::AppearsOn: data_.appearsOnTotal = 0; break;
+                  default: break;
+                  }
+                  if (grid_ && currentGroup() == g) rebuild(false);
+              });
+    }
+
     ArtistPage data_;   // the release lists
+    std::string artistId_;
+    ArtistRef owner_;
+    std::vector<browse::Group> fetching_;
     std::vector<browse::Group> groups_;
     int group_ = 0;
     bool grid_ = false, orderChosen_ = false, live_ = false;
@@ -776,11 +846,13 @@ public:
             c.text(bioHead_, {b.x, b.y, b.w, 14}, col.fgTertiary);
             const Rect t{b.x, b.y + 24, b.w, b.h - 24};
             c.pushClip(t);
-            const bool fading = bioFullH_ > t.h + 1;   // more below: the last line fades out
-            if (fading) c.pushFade(t, {0, t.bottom() - 44}, {0, t.bottom()}, 1.f, 0.f);
             c.text(bio_, {t.x, t.y, t.w, bioFullH_}, col.fgSecondary);
-            if (fading) c.popLayer();
             c.popClip();
+            // More below: the last line fades out into the card (it is opaque, so a gradient of its fill; no layer).
+            if (bioFullH_ > t.h + 1) {
+                const Rect f{t.x, t.bottom() - 44, t.w, 44};
+                c.fillLinearGradient(f, {0, f.y}, {0, f.bottom()}, col.bgRaised.withAlpha(0), col.bgRaised);
+            }
         }
         if (!cities_.empty()) {
             const Rect cr = citiesR_.offset(r.x, r.y);
@@ -1085,7 +1157,8 @@ private:
         // Popular songs + the featured releases.
         auto feats = features(d);
         if (!top.empty() || !feats.empty()) {
-            const std::wstring meta = source::isSpotifyId(d.artist.id) ? std::wstring() : std::wstring(L"LISTENBRAINZ");
+            // MusicBrainz artists' popular songs and similar artists come from ListenBrainz: it says so.
+            const std::wstring meta = browse::isMbid(d.artist.id) ? std::wstring(L"LISTENBRAINZ") : std::wstring();
             c->add<PopularBlock>(top, meta, ctxUri, ctxName, std::move(feats));
         }
         // Discography.
@@ -1093,7 +1166,7 @@ private:
         // Fans also like.
         if (!d.similar.empty()) {
             auto* row = home::addShelf(c, tr(L"Hayranları bunları da dinliyor"),
-                                       source::isSpotifyId(d.artist.id) ? std::wstring() : std::wstring(L"LISTENBRAINZ"));
+                                       browse::isMbid(d.artist.id) ? std::wstring(L"LISTENBRAINZ") : std::wstring());
             for (const auto& a : d.similar) addArtistCard(row, a);
         }
         // Playlists featuring the artist.

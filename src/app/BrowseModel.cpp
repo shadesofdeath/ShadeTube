@@ -249,6 +249,19 @@ int pickTopResult(const std::wstring& query, const std::vector<TopCandidate>& ca
 // =====================================================================================================================
 // Discography
 
+bool isMbid(const std::string& id) {
+    if (id.size() != 36) return false;
+    for (size_t i = 0; i < id.size(); ++i) {
+        const char ch = id[i];
+        if (i == 8 || i == 13 || i == 18 || i == 23) {
+            if (ch != '-') return false;
+        } else if (!std::isxdigit(static_cast<unsigned char>(ch))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::string releaseKind(const std::string& t) {
     std::string l = t;
     std::transform(l.begin(), l.end(), l.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
