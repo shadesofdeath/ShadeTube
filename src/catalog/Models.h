@@ -124,6 +124,7 @@ struct SearchResults {
     std::vector<Artist> artists;
     std::vector<Album> albums;
     std::vector<Track> tracks;
+    std::vector<Playlist> playlists;   // YouTube Music only (Spotify / MusicBrainz searches leave it empty)
 };
 
 template <class T>

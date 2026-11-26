@@ -6,7 +6,7 @@ namespace YoutubeExplode {
 
 YoutubeClient::YoutubeClient(YoutubeClientOptions options)
     : context_(std::make_shared<detail::ClientContext>(std::move(options))), videos_(context_), playlists_(context_),
-      channels_(context_), search_(context_) {}
+      channels_(context_), search_(context_), music_(context_) {}
 
 YoutubeClient::YoutubeClient() : YoutubeClient(YoutubeClientOptions{}) {}
 

@@ -3,6 +3,7 @@
 #include <YoutubeExplode/Channels/ChannelClient.hpp>
 #include <YoutubeExplode/Http/HttpClient.hpp>
 #include <YoutubeExplode/JavaScript/IJsEngine.hpp>
+#include <YoutubeExplode/Music/MusicClient.hpp>
 #include <YoutubeExplode/Playlists/PlaylistClient.hpp>
 #include <YoutubeExplode/Search/SearchClient.hpp>
 #include <YoutubeExplode/Videos/VideoClient.hpp>
@@ -60,6 +61,8 @@ public:
     const Channels::ChannelClient& channels() const noexcept { return channels_; }
     /// Operations related to YouTube search.
     const Search::SearchClient& search() const noexcept { return search_; }
+    /// Raw YouTube Music (music.youtube.com) requests in this client's session.
+    const Music::MusicClient& music() const noexcept { return music_; }
 
     // ---- Convenience shortcuts ------------------------------------------------------------
 
@@ -90,6 +93,7 @@ private:
     Playlists::PlaylistClient playlists_;
     Channels::ChannelClient channels_;
     Search::SearchClient search_;
+    Music::MusicClient music_;
 };
 
 /// Short alias.
