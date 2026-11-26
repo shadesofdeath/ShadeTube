@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 namespace st::app {
 
@@ -587,6 +588,14 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
     if (t.explicitContent) titleTextW -= 22;
     if (tx.blocked) titleTextW -= blockedW + 8;
     if (t.recommended) titleTextW -= smartshuffle::badgeWidth() + 8;
+    std::optional<gfx::Text> chip;   // chipFor's label (a blend's "whose taste")
+    float chipW = 0;
+    if (chipFor)
+        if (const std::wstring label = chipFor(t); !label.empty()) {
+            chip.emplace(label, type::monoBadge);
+            chipW = std::ceil(std::min(110.f, chip->measure().w)) + 12;
+            titleTextW -= chipW + 8;
+        }
     c.text(tx.title, {tx0, r.y + m.titleY, titleTextW, m.titleH}, (isCurrent ? acc.base : col.fgPrimary).mulAlpha(alpha),
            gfx::VAlign::Center);
     float badgeX = tx0 + std::min(titleTextW, std::ceil(tx.title.measure().w)) + 8;
@@ -602,7 +611,15 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Columns& cl) {
         c.text(blockedBadge_, badge.inset(5, 0), col.fgSecondary, gfx::VAlign::Center);
         badgeX += blockedW + 6;
     }
-    if (t.recommended) smartshuffle::drawBadge(c, badgeX, titleCy);
+    if (t.recommended) {
+        smartshuffle::drawBadge(c, badgeX, titleCy);
+        badgeX += smartshuffle::badgeWidth() + 6;
+    }
+    if (chip) {
+        const Rect r2{badgeX, std::round(titleCy - 7), chipW, 14};
+        c.fillRounded(r2, gfx::radii().badge, acc.tint12);
+        c.text(*chip, {r2.x + 6, r2.y, chipW - 12, r2.h}, acc.base.mulAlpha(alpha), gfx::VAlign::Center);
+    }
     const Color artistCol = (hot && hoverArtist_) ? col.fgPrimary : col.fgSecondary;
     c.text(tx.artist, {tx0, r.y + m.artistY, titleW, m.artistH}, artistCol.mulAlpha(alpha), gfx::VAlign::Center);
     if (!t.playable)

@@ -1421,6 +1421,25 @@ void initInternetRadio() {
         ST_LOG_WARN("iradio", "unknown station {}", t.id);
         return player::Player::LiveStream{};
     };
+    // Dev: SHADETUBE_PLAY_STATION=<name> plays the most clicked playable station of that name at startup (listen
+    // together with a station, docs/DEVELOPMENT.md 5.4).
+    if (wchar_t env[256]; GetEnvironmentVariableW(L"SHADETUBE_PLAY_STATION", env, 256) > 0) {
+        static Lifetime devLife;
+        radio::Query q;
+        q.name = toUtf8(env);
+        q.limit = 10;
+        async(
+            Priority::High, devLife.ref(), [q] { return radio::Client::shared().search(q).stations; },
+            [](Result<std::vector<Station>> r) {
+                if (!r || r->empty() || !ctx().player) {
+                    ST_LOG_WARN("iradio", "dev: no station for SHADETUBE_PLAY_STATION ({})", r ? std::string("none") : r.errorMessage());
+                    return;
+                }
+                ST_LOG_INFO("iradio", "dev: playing station {}", (*r)[0].name);
+                radio::store().rememberQueue(*r, 0);
+                ctx().player->playContext(radio::toTracks(*r), 0, {"radio:dev", tr(L"Radyo")});
+            });
+    }
     ctx().playerChangedHooks.push_back([] { onPlayerChanged(); });
     ctx().housekeepingHooks.push_back([] { radio::store().saveIfDirty(); });
     ctx().persistHooks.push_back([] { radio::store().saveIfDirty(); });

@@ -116,6 +116,9 @@ add_executable(ShadeTube WIN32
     SmartShuffle.cpp SmartShuffle.h
     SmartLists.cpp SmartLists.h
     SmartListsPage.cpp SmartListsPage.h
+    Blend.cpp Blend.h
+    Blends.cpp Blends.h
+    BlendPage.cpp
     Smtc.cpp Smtc.h
     Source.cpp Source.h
     Tray.cpp Tray.h

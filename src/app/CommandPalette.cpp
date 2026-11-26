@@ -2,6 +2,7 @@
 #include "app/CommandPalette.h"
 
 #include "app/AppContext.h"
+#include "app/Blends.h"
 #include "app/Commands.h"
 #include "app/Router.h"
 #include "app/Shortcuts.h"
@@ -252,6 +253,8 @@ std::vector<Item> staticItems() {
                                     [] { ctx().startSpotifyLogin(); }));
     for (auto& jc : together::paletteCommands())   // "Birlikte dinle": start / join / copy the link / leave
         items.push_back(commandItem(jc.key, jc.title, tr(L"Birlikte dinle"), jc.icon, std::move(jc.run)));
+    for (auto& bc : blends::paletteCommands())     // Blend: create / join / each blend
+        items.push_back(commandItem(bc.key, bc.title, bc.subtitle, bc.icon, std::move(bc.run)));
     items.push_back(commandItem("cmd:year-review", tr(L"Yılın özeti hikâyesi"), tr(L"İstatistikler"), "sparkle", [] { review::open(); }));
     if (ctx().quitApp)
         items.push_back(commandItem("cmd:quit", tr(L"ShadeTube'dan çık"), tr(L"Uygulama"), "logout", [] { ctx().quitApp(); }));
