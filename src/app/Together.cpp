@@ -1628,7 +1628,9 @@ View view() {
             v.guestsControl = g.state->guestsControl;
             for (const auto& m : g.state->members) {
                 const bool me = m.device == deviceId();
-                v.members.push_back({m.device, me ? toWide(myName()) : toWide(m.name), me || m.online, m.host, me});
+                // The host away for a restart (or lost) shows offline, whatever its last state said.
+                const bool online = me || (m.host ? m.online && !g.hostAway && !g.hostLost : m.online);
+                v.members.push_back({m.device, me ? toWide(myName()) : toWide(m.name), online, m.host, me});
             }
         }
     }
