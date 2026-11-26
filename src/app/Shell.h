@@ -4,6 +4,7 @@
 #include "app/Components.h"
 #include "app/DragDrop.h"
 #include "app/PageTransition.h"
+#include "app/PageWidgets.h"
 #include "app/Router.h"
 #include "ui/Controls.h"
 #include "ui/Layout.h"
@@ -177,11 +178,16 @@ public:
     std::wstring tooltip() const override;
 };
 
+// The queue: "Şimdi çalıyor" (the playing song, its progress), then the upcoming songs in sections: the songs the user
+// queued ("Sırada") and the rest of what plays ("Sıradaki · <kaynak>"), each run with its own label
+// (app/TrackColumns queuelist::Sections). Rows can be dragged into a new place (the row follows the pointer, a line shows
+// where it lands), hovered rows offer "Sıradan kaldır", the header has "Kuyruğu kaydet" and "Sırayı temizle". The
+// recommended and listen-together marks are the track table's badges (app/Components badge::).
 class QueuePanel : public ui::Widget, public DropTarget, public PreviewSource {
 public:
     QueuePanel();
     void sync();
-    // Now Playing's Sıradaki tab: no panel background or title row; the count and "Kuyruğu kaydet" share the "ŞİMDİ"
+    // Now Playing's Sıradaki tab: no panel background or title row; the count and the actions share the "ŞİMDİ ÇALIYOR"
     // row at the top.
     void setEmbedded(bool on) { embedded_ = on; }
     float preferredHeight(float) override { return rect().h; }
@@ -191,7 +197,7 @@ public:
     bool onMouseDown(const ui::MouseEvent& e) override;
     void onMouseMove(const ui::MouseEvent& e) override;
     void onMouseUp(const ui::MouseEvent& e) override;
-    void onMouseLeave() override { hover_ = -1; hoverFade_.set(-1); invalidate(); }
+    void onMouseLeave() override;
     LPCWSTR cursor() const override { return hover_ >= 0 ? IDC_HAND : IDC_ARROW; }
     // Drag and drop: songs (or files from Explorer) go into the queue where they are dropped.
     bool dragOver(const DragPayload& payload, gfx::Point windowPos) override;
@@ -204,17 +210,26 @@ private:
     int dropIndexAt(gfx::Point windowPos) const;   // order index the dropped songs go in front of
     int rowAt(gfx::Point p) const;       // order index or -1
     Rect rowRect(int orderIndex) const;
+    Rect removeRect(const Rect& row) const;   // the hovered row's "Sıradan kaldır"
     float listTop() const;
     float maxScroll() const;             // the upcoming rows below the current one
+    void rebuildSections();              // sections_ from the player's order (cheap: one pass over the upcoming slots)
     void saveAsPlaylist();               // "Kuyruğu kaydet": current + upcoming, in play order
-    gfx::Text title_, meta_, blockedBadge_;
-    ui::Button* save_;
+    std::wstring sectionLabel(bool queued) const;
+    gfx::Text title_, meta_, nowLabel_;
+    ui::Button *save_, *clear_;
+    MessagePanel* empty_;                // the empty queue (compact empty state)
+    queuelist::Sections sections_;
+    int secPos_ = -2, secSize_ = -1;     // the player's slot / order size sections_ were built for
+    uint64_t secGen_ = 0;
     ui::SmoothScroll scroll_;            // the upcoming rows (ui/ScrollPhysics: wheel glide, touchpad 1:1)
     int hover_ = -1;
+    bool hoverRemove_ = false;
     ui::HoverFade hoverFade_;            // upcoming rows' hover fades in / out (ui/Micro)
-    int dragFrom_ = -1, dragTo_ = -1;
-    float dragStartY_ = 0;
+    int dragFrom_ = -1, dragTo_ = -1;    // order indices: the row being moved and the slot it goes to
+    float dragStartY_ = 0, dragY_ = 0;   // the press and the pointer (local y)
     bool dragging_ = false;
+    ui::Anim dragLineY_;                 // the insertion line glides between slots
     int dropAt_ = -1;                    // songs dragged in from elsewhere: order index of the insertion line
     double lastScrollTick_ = 0;
     bool embedded_ = false;
