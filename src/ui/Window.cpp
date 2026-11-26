@@ -1377,6 +1377,14 @@ LRESULT Window::handleMessage(UINT msg, WPARAM wp, LPARAM lp) {
             render();
         }
         break;
+    case WM_WINDOWPOSCHANGED:
+        // Hidden (the tray, the main window behind the mini player): its swap chain goes once the window is off screen,
+        // not with the idle release 30 s after the last window left the screen, which never comes while the mini player
+        // is up. The two buffers are window-sized (31 MB of GPU memory for 1440 x 900 DIPs at 175 %); showing the
+        // window again draws its first frame before it appears (WM_SHOWWINDOW above).
+        if ((reinterpret_cast<const WINDOWPOS*>(lp)->flags & SWP_HIDEWINDOW) && target_ && target_->hasSwapChain())
+            target_->release();
+        break;
     case WM_SETTINGCHANGE:
         // Transparency effects ("ImmersiveColorSet") or high contrast (SPI_SETHIGHCONTRAST) changed: Mica follows.
         if (backdropWanted_) updateBackdrop();

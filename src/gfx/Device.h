@@ -37,7 +37,12 @@ public:
     void release();        // idle: drop the device and every device-dependent object (release hooks)
     void ensure();         // (re)create the device after release(); no-op while it exists
     bool ready() const { return d3d_ != nullptr; }
-    void trim();           // release driver/D2D caches (window minimized)
+    void trim();           // release driver/D2D caches (window minimized): ClearResources + trimPool()
+    // Hands back what the driver keeps of GPU objects already released. Its pools grow to the peak use and stay there
+    // (on an integrated GPU they are the process's own memory: a 1 MB bitmap costs ~1.3 MB of private commit, and
+    // releasing it gives nothing back) until the immediate context is flushed (released resources are destroyed only
+    // then) and IDXGIDevice3::Trim runs. Live resources and D2D's caches are untouched, so frames after it cost the same.
+    void trimPool();
 
     // Runs on the UI thread right before the device goes (release() or device loss). Returns a token for
     // removeReleaseHook(); objects that live shorter than the process use DeviceHook instead.
@@ -120,6 +125,9 @@ public:
     bool composition() const { return composition_; }
 
     bool hasSwapChain() const { return swapChain_ != nullptr; }
+    // Drops the swap chain and the window's context (a hidden window: two window-sized buffers of GPU memory); the next
+    // begin() creates them again.
+    void release() { releaseDeviceResources(); }
     float dpi() const { return dpi_; }
     float scale() const { return dpi_ / 96.f; }
     UINT widthPx() const { return width_; }

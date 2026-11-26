@@ -91,6 +91,16 @@ Device::GpuMemory Device::gpuMemory() const {
 
 void Device::trim() {
     if (d2dDevice_) d2dDevice_->ClearResources(0);
+    trimPool();
+}
+
+void Device::trimPool() {
+    if (!d3d_) return;
+    // Without the flush, Trim finds the released resources still pending destruction and keeps their memory (measured on
+    // Intel UHD: 37 MB of released bitmaps came back only with Flush + Trim, not with Trim alone).
+    ComPtr<ID3D11DeviceContext> immediate;
+    d3d_->GetImmediateContext(&immediate);
+    if (immediate) immediate->Flush();
     ComPtr<IDXGIDevice3> dxgi3;
     if (dxgi_ && SUCCEEDED(dxgi_.As(&dxgi3))) dxgi3->Trim();
 }

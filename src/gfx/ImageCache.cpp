@@ -31,7 +31,7 @@ constexpr auto kDownloadTimeout = std::chrono::seconds(45);
 constexpr uint64_t kMaxPixels = 64ull * 1024 * 1024;   // decoded size limit (a small file can claim 30000 x 30000)
 
 int bucketFor(int px) {
-    for (int b : {64, 128, 256, 512, 1024})
+    for (int b : ImageCache::kBuckets)
         if (px <= b) return b;
     return 1280;
 }
@@ -165,6 +165,7 @@ struct ImageCache::Impl {
         ComPtr<ID2D1Bitmap1> bitmap;
         uint64_t generation = 0;
         size_t bytes = 0;
+        uint64_t scope = 0, paintedAt = 0;   // page scope / GetTickCount64() of the last request (expire())
         std::shared_ptr<std::atomic<uint64_t>> stamp = std::make_shared<std::atomic<uint64_t>>(0);
         std::list<std::string>::iterator lruIt;
         bool inLru = false;
@@ -179,6 +180,8 @@ struct ImageCache::Impl {
     // On an integrated GPU these bitmaps are system memory charged to the process.
     size_t budget = 64ull * 1024 * 1024;
     size_t used = 0;
+    uint64_t scope = 1;   // beginScope()
+    uint64_t tick = 0;    // GetTickCount64() at beginFrame()
 
     // Bitmaps die with the device (idle release / device loss); pending loads carry on and, while the device is
     // released, only deliver their accent color.
@@ -265,6 +268,7 @@ struct ImageCache::Impl {
                     }
                     e.state = State::Ready;
                     e.generation = Device::get().generation();
+                    e.paintedAt = std::max(e.paintedAt, GetTickCount64());   // its grace period starts when it is ready
                     e.bytes = decoded->pixels.size();
                     used += e.bytes;
                     touch(key, e);
@@ -287,7 +291,33 @@ ImageCache::Impl& ImageCache::impl() const {
     return instance;
 }
 
-void ImageCache::beginFrame() { impl().frame->fetch_add(1); }
+void ImageCache::beginFrame() {
+    auto& im = impl();
+    im.frame->fetch_add(1);
+    im.tick = GetTickCount64();
+}
+
+void ImageCache::beginScope() { ++impl().scope; }
+
+size_t ImageCache::expire(uint64_t idleMs) {
+    auto& im = impl();
+    const uint64_t frameNow = im.frame->load(), tick = GetTickCount64();
+    size_t freed = 0;
+    for (auto it = im.lru.end(); it != im.lru.begin();) {
+        --it;
+        auto found = im.entries.find(*it);
+        if (found == im.entries.end()) continue;
+        const Impl::Entry& e = found->second;
+        const uint64_t painted = e.stamp->load();   // an accent fetch stamps the future: not painted
+        if ((painted <= frameNow && frameNow - painted <= 2) || e.scope + 1 >= im.scope || e.paintedAt + idleMs > tick)
+            continue;
+        freed += e.bytes;
+        im.used -= e.bytes;
+        im.entries.erase(found);
+        it = im.lru.erase(it);
+    }
+    return freed;
+}
 
 ID2D1Bitmap1* ImageCache::request(const std::string& url, int px, Priority priority) {
     if (url.empty()) return nullptr;
@@ -301,11 +331,15 @@ ID2D1Bitmap1* ImageCache::request(const std::string& url, int px, Priority prior
     if (it == im.entries.end()) {
         auto& e = im.entries[key];
         e.stamp->store(im.frame->load());
+        e.scope = im.scope;
+        e.paintedAt = im.tick;
         im.load(key, url, bucket, priority);
         return nullptr;
     }
     auto& e = it->second;
     e.stamp->store(im.frame->load());
+    e.scope = im.scope;
+    e.paintedAt = im.tick;
     if (e.state != Impl::State::Ready) return nullptr;
     if (e.generation != Device::get().generation()) {   // device lost: reload
         im.used -= e.bytes;
@@ -366,6 +400,27 @@ void ImageCache::clear() {
 }
 
 size_t ImageCache::memoryBytes() const { return impl().used; }
+
+ImageCache::Stats ImageCache::stats() const {
+    auto& im = impl();
+    Stats s;
+    s.bytes = im.used;
+    s.budget = im.budget;
+    s.accents = im.accents.size();
+    for (const auto& [key, e] : im.entries) {
+        if (e.state == Impl::State::Pending) ++s.pending;
+        else if (e.state == Impl::State::Failed) ++s.failed;
+        if (e.state != Impl::State::Ready) continue;
+        ++s.ready;
+        const int bucket = std::atoi(key.c_str() + key.rfind('#') + 1);
+        size_t b = 0;
+        for (int size : kBuckets)
+            if (bucket > size) ++b;
+        ++s.bucketCount[b];
+        s.bucketBytes[b] += e.bytes;
+    }
+    return s;
+}
 
 void ImageCache::pruneDisk(size_t maxBytes) {
     std::error_code ec;
