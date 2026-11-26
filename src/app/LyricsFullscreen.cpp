@@ -2,6 +2,7 @@
 
 #include "app/AppContext.h"
 #include "app/InternetRadio.h"
+#include "app/LyricsPicker.h"
 #include "app/LyricsService.h"
 #include "app/LyricsShare.h"
 #include "catalog/TrackKind.h"
@@ -117,6 +118,15 @@ LyricsFullscreen::LyricsFullscreen()
     share_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "share");
     share_->setTooltip(tr(L"Sözleri paylaş"));
     share_->onClick = [this] { openLyricsShare(lyrics_, active_, translation_); };
+    // "Yanlış sözler mi?": the picker over this view; a new pick loads here and in Now Playing.
+    picker_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "search");
+    picker_->setTooltip(tr(L"Yanlış sözler mi?"));
+    picker_->onClick = [this] {
+        if (const auto* t = ctx().player ? ctx().player->current() : nullptr) showLyricsPicker(*t, lyrics_.lrclibId);
+    };
+    onLyricsChoiceChanged(subs_.ref(), [this](const std::string& id) {
+        if (id == trackId_) load();
+    });
     open_.to(1, ui::motion::medium, ui::Ease::Decelerate);
     controls_.snap(1);
     lastMove_ = ui::frame::realNow();
@@ -137,6 +147,7 @@ void LyricsFullscreen::close() {
 
 void LyricsFullscreen::load() {
     life_.renew();
+    pick_ = {};
     lyrics_ = {};
     lines_.clear();
     lineH_.clear();
@@ -168,6 +179,8 @@ void LyricsFullscreen::load() {
     }
     state_ = State::Loading;
     const lyrics::Query q = lyricsQueryFor(*t);
+    pick_ = q.choice;
+    syncControls();
     async(Priority::High, life_.ref(), [q] { return lyrics::fetch(q); },
           [this](Result<std::optional<lyrics::Lyrics>> r) {
               if (!r || !*r) {
@@ -228,6 +241,8 @@ void LyricsFullscreen::syncControls() {
     offset_->setVisible(synced);
     later_->setVisible(synced);
     share_->setVisible(synced || state_ == State::Plain);
+    picker_->setVisible(Settings::get().lyricsEnabled && (synced || state_ == State::Plain || state_ == State::Instrumental ||
+                                                          state_ == State::Missing));
     offset_->setLabel(formatLyricsOffset(trackId_.empty() ? 0 : lyricsOffset(trackId_)));
     requestLayout();
 }
@@ -289,6 +304,11 @@ void LyricsFullscreen::layout() {
         const float tw = std::ceil(translate_->naturalWidth());
         x -= tw;
         translate_->setRect({x, cy - 14, tw, 28});
+        x -= 12;
+    }
+    if (picker_->visible()) {
+        x -= bs;
+        picker_->setRect({x, cy - bs / 2, bs, bs});
     }
     drag_->setRect({0, 0, std::max(0.f, x - 16), kTopH});   // the controls keep getting mouse moves
 }
@@ -385,8 +405,11 @@ void LyricsFullscreen::paintLyrics(Canvas& c, const Rect& area) {
         ui::frame::requestNext();
         return;
     case State::Missing:
-        centered(tr(L"Bu şarkı için söz bulunamadı."),
-                 Settings::get().lyricsEnabled ? std::wstring() : toUpperTr(tr(L"Şarkı sözleri Ayarlar'da kapalı")));
+        if (pick_.kind == lyrics::Choice::Kind::None && Settings::get().lyricsEnabled)
+            centered(tr(L"Bu şarkıda sözleri kapattın."), toUpperTr(tr(L"Senin seçimin")));
+        else
+            centered(tr(L"Bu şarkı için söz bulunamadı."),
+                     Settings::get().lyricsEnabled ? std::wstring() : toUpperTr(tr(L"Şarkı sözleri Ayarlar'da kapalı")));
         return;
     case State::Instrumental: centered(tr(L"♪  Enstrümantal"), tr(L"SÖZ YOK · SADECE MÜZİK")); return;
     case State::Live: centered(tr(L"Canlı radyo yayınlarında şarkı sözü gösterilmez"), {}); return;
@@ -488,9 +511,14 @@ void LyricsFullscreen::paintTop(Canvas& c, const Rect& r) {
     if ((state_ == State::Synced || state_ == State::Plain) && !lyrics_.source.empty())
         label += L" · " + lyricsSourceLabel(lyrics_.source);
     if (state_ == State::Plain) label += L" · " + toUpperTr(tr(L"Senkronize değil"));
+    if (pick_.kind != lyrics::Choice::Kind::Auto && pick_.kind != lyrics::Choice::Kind::None &&
+        (state_ == State::Synced || state_ == State::Plain || state_ == State::Instrumental))
+        label += L" · " + toUpperTr(tr(L"Senin seçimin"));
     label_.setText(label);
     const float pad = std::max(48.f, r.w * 0.08f);
-    const float controlsX = translate_->visible() ? translate_->rect().x : earlier_->visible() ? earlier_->rect().x : close_->rect().x;
+    float controlsX = close_->rect().x;   // the leftmost control shown
+    for (auto* b : {share_, later_, offset_, earlier_, translate_, picker_})
+        if (b->visible()) controlsX = std::min(controlsX, b->rect().x);
     const float lw = std::max(40.f, std::min(r.w - pad - 260, controlsX - 16 - pad));
     c.text(label_, {pad, 24, lw, 16}, backdrop_.labelColor(), gfx::VAlign::Center);
     // The translation's state under it: "ÇEVRİLİYOR…", "ÇEVİRİ ALINAMADI", what is shown.

@@ -34,15 +34,16 @@ std::string takeUtf8(LPWSTR s) {
 // One live login session. Self-owning: frees itself (deferred) once finished.
 class Impl {
 public:
-    static void open(HWND parent, std::function<void(std::string)> onDone) {
-        auto* self = new Impl(parent, std::move(onDone));
+    static void open(HWND parent, std::wstring userDataDir, std::function<void(std::string)> onDone) {
+        auto* self = new Impl(parent, std::move(userDataDir), std::move(onDone));
         if (!self->createWindow()) {
             self->finish({}); // finish() defers deletion
         }
     }
 
 private:
-    Impl(HWND parent, std::function<void(std::string)> onDone) : parent_(parent), onDone_(std::move(onDone)) {}
+    Impl(HWND parent, std::wstring userDataDir, std::function<void(std::string)> onDone)
+        : parent_(parent), userDataDir_(std::move(userDataDir)), onDone_(std::move(onDone)) {}
 
     bool createWindow() {
         static const ATOM atom = [] {
@@ -80,9 +81,10 @@ private:
     }
 
     void createWebView() {
-        const std::wstring udf = (paths::appData() / L"webview2").wstring();
+        // The login's own profile folder (one per account, app/Accounts): a second account signs in with an empty
+        // cookie jar, so the accounts already saved are neither signed out nor captured again.
         const HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(
-            nullptr, udf.c_str(), nullptr,
+            nullptr, userDataDir_.c_str(), nullptr,
             Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
                 [this](HRESULT r, ICoreWebView2Environment* env) -> HRESULT {
                     if (FAILED(r) || !env) {
@@ -233,6 +235,7 @@ private:
     }
 
     HWND parent_ = nullptr;
+    std::wstring userDataDir_;
     HWND hwnd_ = nullptr;
     ComPtr<ICoreWebView2Controller> controller_;
     ComPtr<ICoreWebView2> webview_;
@@ -243,8 +246,8 @@ private:
 
 } // namespace
 
-void LoginWindow::open(void* parentHwnd, std::function<void(std::string)> onDone) {
-    Impl::open(reinterpret_cast<HWND>(parentHwnd), std::move(onDone));
+void LoginWindow::open(void* parentHwnd, std::wstring userDataDir, std::function<void(std::string)> onDone) {
+    Impl::open(reinterpret_cast<HWND>(parentHwnd), std::move(userDataDir), std::move(onDone));
 }
 
 } // namespace st::app

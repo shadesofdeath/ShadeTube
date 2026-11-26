@@ -29,6 +29,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -56,6 +57,10 @@ public:
     // With a window, the download stays at most `bytes` ahead of the last read (or of a read that waits), so a paused
     // or slow reader holds the network back; a read elsewhere (a seek) moves the window there. Set before start().
     void setReadAhead(int64_t bytes) { readAhead_.store(bytes, std::memory_order_release); }
+    // Called once, on the download thread, when every byte of a download (not a local file) has arrived: the complete
+    // stream, valid only during the call (the song cache copies it to disk, player/AudioCache). Never for a download
+    // that was cancelled or failed first. Set before start().
+    void setOnComplete(std::function<void(const uint8_t* data, int64_t length)> fn) { onComplete_ = std::move(fn); }
 
     void start();    // spawns the download thread
     void cancel();   // permanent, non-blocking, any thread: aborts the network and fails all reads
@@ -128,6 +133,7 @@ private:
     int64_t readPos_ = 0;                  // end of the last read, or where a waiting read starts (read-ahead window)
     bool windowWait_ = false;              // the download thread waits for the reader to move the window
     std::atomic<int64_t> readAhead_{0};
+    std::function<void(const uint8_t*, int64_t)> onComplete_;
     std::string error_;
 
     std::atomic<int64_t> length_{-1};

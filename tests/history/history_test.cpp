@@ -836,6 +836,124 @@ static void testResume() {
 }
 
 // ---------------------------------------------------------------------------------------------------------
+// Several Spotify accounts (app/Accounts): every imported file and its cursors follow the store's listening.json.
+
+static size_t importedIn(const fs::path& mainFile, ImportSource source) {
+    size_t n = 0;
+    for (const auto& p : ListenStats::readFile(mainFile).plays) n += p.imported && p.source == source ? 1 : 0;
+    return n;
+}
+
+static void testAccounts() {
+    std::printf("accounts (imported files, cursors and a running import across a switch):\n");
+    const auto fa = g_dir / L"acct" / L"a" / L"listening.json";
+    const auto fb = g_dir / L"acct" / L"b" / L"listening.json";
+    fs::create_directories(fa.parent_path());
+    fs::create_directories(fb.parent_path());
+    // Every source's file sits next to the account's listening.json (the root's without an account).
+    CHECK(ListenStats::importedFileFor(fa, ImportSource::LastFm) == fa.parent_path() / L"listening-lastfm.json");
+    CHECK(ListenStats::importedFileFor(fa, ImportSource::ListenBrainz) == fa.parent_path() / L"listening-listenbrainz.json");
+    CHECK(ListenStats::importedFileFor(fa) == fa.parent_path() / L"listening-imported.json");
+    const int64_t t0 = utc(2023, 1, 1);
+    FakeLastfm lfm;   // A's Last.fm: 900 scrobbles (5 pages)
+    for (int i = 0; i < 900; ++i)
+        lfm.all.push_back({t0 + i * 3600, "Sanatçı " + std::to_string(i % 5), "Şarkı " + std::to_string(i % 60), "", "", ""});
+    FakeLb lbB;       // B's ListenBrainz
+    for (int i = 0; i < 40; ++i) lbB.all.push_back({t0 + i * 7200, "Grup", "Parça " + std::to_string(i), "", "", {}, 0});
+    const int64_t now = t0 + 900 * 3600 + 60;
+    {   // B imported its own ListenBrainz history earlier (the fake server's account is "tester").
+        ListenStats b(fb);
+        b.load();
+        importFrom(b, sc::Service::ListenBrainz, fakeTransport(lbB, nullptr), "tester", now);
+        CHECK(b.importedCount(ImportSource::ListenBrainz) == 40);
+    }
+
+    ListenStats s(fa);   // A is active
+    s.load();
+    {   // A's Spotify files and the same ListenBrainz listens (another device of the same person, say).
+        std::vector<ListenStats::ImportRow> rows(2);
+        for (int i = 0; i < 2; ++i) {
+            rows[i].track.name = "Spotify " + std::to_string(i);
+            rows[i].track.artists.push_back({"", "Biri"});
+            rows[i].endedAt = t0 - 86400 * (i + 1);
+            rows[i].listenedMs = 200'000;
+        }
+        auto base = s.beginImport();
+        CHECK(s.finishImport(ListenStats::buildImport(base, std::move(rows))));
+        importFrom(s, sc::Service::ListenBrainz, fakeTransport(lbB, nullptr), "tester", now);
+        CHECK(s.importedCount(ImportSource::ListenBrainz) == 40);
+    }
+    // A's Last.fm import is under way when the switch comes: the app stops the job (its cancel) and waits for it, then
+    // detach(). The job committed its batches and cursor into A's files.
+    CancellationTokenSource cts;
+    std::atomic<bool> flag{false};
+    lfm.onRequest = [&](int n) {
+        if (n == 3) {   // page 1 (count), pages 5 and 4 delivered; cancelled during page 3
+            cts.cancel();
+            flag = true;
+        }
+    };
+    auto out = importFrom(s, sc::Service::LastFm, fakeTransport(lfm, nullptr), "a-user", now, 200, &flag, cts.token(), false);
+    lfm.onRequest = {};
+    CHECK(out.cancelled && out.added == 100 + 200);   // page 5 holds 100, page 4 200
+    s.detach();
+    CHECK(!s.loaded() && s.playCount() == 0 && s.importedCount() == 0 && s.importCursors(ImportSource::LastFm).empty() &&
+          s.importCursor(ImportSource::LastFm, "a-user") == 0 && !s.importing());
+    CHECK(importedIn(fa, ImportSource::LastFm) == 300 && importedIn(fa, ImportSource::Spotify) == 2 &&
+          importedIn(fa, ImportSource::ListenBrainz) == 40);
+    CHECK(ListenStats::readFile(fa).importedFiles[1].cursors.size() == 1);
+
+    // B: its own files only. The stopped import's result lands now: dropped, and B's files stay untouched.
+    s.attach(fb);
+    s.adopt(ListenStats::readFile(fb));
+    CHECK(s.loaded() && s.importedCount() == 40 && s.importedCount(ImportSource::ListenBrainz) == 40 &&
+          s.importedCount(ImportSource::LastFm) == 0 && s.importCursor(ImportSource::ListenBrainz, "tester") > 0 &&
+          s.importCursors(ImportSource::LastFm).empty());
+    const auto bLastfm = ListenStats::importedFileFor(fb, ImportSource::LastFm);
+    const auto bLb = ListenStats::importedFileFor(fb, ImportSource::ListenBrainz);
+    const auto bLbTime = fs::last_write_time(bLb);
+    CHECK(!s.finishImport(std::move(out.result)) && !s.dirty());
+    CHECK(s.save());
+    CHECK(!fs::exists(bLastfm) && fs::last_write_time(bLb) == bLbTime && importedIn(fb, ImportSource::ListenBrainz) == 40);
+    // An import in B goes into B's files.
+    FakeLastfm lfmB;
+    lfmB.all.push_back({t0 + 10, "B Sanatçı", "B Şarkı", "", "", ""});
+    importFrom(s, sc::Service::LastFm, fakeTransport(lfmB, nullptr), "b-lastfm", now);
+    CHECK(s.importedCount(ImportSource::LastFm) == 1 && importedIn(fb, ImportSource::LastFm) == 1 &&
+          importedIn(fa, ImportSource::LastFm) == 300);
+
+    // Back to A: its plays and cursor return, and the import resumes from the cursor (only the rest is fetched).
+    s.detach();
+    s.attach(fa);
+    s.adopt(ListenStats::readFile(fa));
+    CHECK(s.importedCount(ImportSource::LastFm) == 300 && s.importedCount(ImportSource::Spotify) == 2 &&
+          s.importedCount(ImportSource::ListenBrainz) == 40 && s.importCursor(ImportSource::ListenBrainz, "tester") > 0);
+    const int64_t cursor = s.importCursor(ImportSource::LastFm, "a-user");
+    CHECK(cursor == t0 + 299 * 3600);
+    lfm.requests.clear();
+    out = importFrom(s, sc::Service::LastFm, fakeTransport(lfm, nullptr), "a-user", now);
+    CHECK(!lfm.requests.empty() && lfm.requests[0].params["from"] == std::to_string(cursor - sc::kResumeOverlapS));
+    CHECK(out.added == 600 && s.importedCount(ImportSource::LastFm) == 900 && s.importCursor(ImportSource::LastFm, "a-user") == t0 + 899 * 3600);
+    CHECK(importedIn(fb, ImportSource::LastFm) == 1);
+    // The dialog's pre-filled name is the account this history imported from last (kept in its own files).
+    out = importFrom(s, sc::Service::LastFm, fakeTransport(lfmB, nullptr), "a-other", now);
+    CHECK(s.importCursors(ImportSource::LastFm).size() == 2 && s.importCursors(ImportSource::LastFm).back().account == "a-other");
+    out = importFrom(s, sc::Service::LastFm, fakeTransport(lfm, nullptr), "a-user", now);
+    CHECK(s.importCursors(ImportSource::LastFm).back().account == "a-user");   // moved last although nothing was new
+    CHECK(ListenStats::readFile(fa).importedFiles[1].cursors.back().account == "a-user");
+    // A removal not saved yet when the switch comes is written by detach() (with the other sources' reset cursors).
+    s.removeImported(ImportSource::Spotify);
+    s.detach();
+    {
+        const auto snap = ListenStats::readFile(fa);
+        size_t spotify = 0, lastfm = 0;
+        for (const auto& p : snap.plays) {
+            spotify += p.imported && p.source == ImportSource::Spotify ? 1 : 0;
+            lastfm += p.imported && p.source == ImportSource::LastFm ? 1 : 0;
+        }
+        CHECK(spotify == 0 && lastfm == 901 && snap.importedFiles[1].cursors.empty() && snap.importedFiles[2].cursors.empty());
+    }
+}
 
 static void testMemoryAndTiming() {
     std::printf("memory and timing (100 000 scrobbles):\n");
@@ -1000,7 +1118,7 @@ int main(int argc, char** argv) {
     if (argc > 1 && std::string(argv[1]) == "live") {
         rc = live(argc, argv);
     } else {
-        // Sections by name (default: all): timing dates records files lastfm lb merge resume.
+        // Sections by name (default: all): timing dates records files lastfm lb merge resume accounts.
         std::set<std::string> only(argv + 1, argv + argc);
         auto run = [&only](const char* name, void (*fn)()) {
             if (only.empty() || only.count(name)) fn();
@@ -1013,6 +1131,7 @@ int main(int argc, char** argv) {
         run("lb", testFetchListenbrainz);
         run("merge", testMerge);
         run("resume", testResume);
+        run("accounts", testAccounts);
         rc = g_failures ? 1 : 0;
     }
 

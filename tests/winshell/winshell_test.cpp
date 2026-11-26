@@ -157,7 +157,8 @@ void testForwarding() {
 
 void testIcons() {
     std::printf("\n-- glyph icons\n");
-    // play.svg is the triangle (7,4.5) (7,19.5) (19,12) in a 24x24 viewBox: 90 / 576 = 15.6 % of the square.
+    // play.svg is the outlined triangle (7.5,5.5) (18.5,12) (7.5,18.5) of the 24 grid, stroked px / 16 (1 px at 16):
+    // a 38.5-unit outline x 1.5 units = 58 / 576, about 10 % of the square at every size.
     for (int px : {16, 20, 24, 32, 48}) {
         const auto argb = ws::renderGlyph("play", px, 0xFFFFFF);
         const bool sized = argb.size() == static_cast<size_t>(px) * px;
@@ -171,7 +172,7 @@ void testIcons() {
             colored = colored && (a == 0 ? p == 0 : (p & 0xFFFFFF) == 0xFFFFFF);
         }
         coverage /= std::max<size_t>(1, argb.size());
-        check(sized && coverage > 0.13 && coverage < 0.18 && opaque > 0 && colored,
+        check(sized && coverage > 0.085 && coverage < 0.12 && opaque > 0 && colored,
               std::format("renderGlyph(play, {} px): {:.1f} % coverage, {} opaque pixels, tinted white", px, coverage * 100, opaque));
     }
     {   // what the taskbar gets at 100 %: the 16 px glyph

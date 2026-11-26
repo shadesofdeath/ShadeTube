@@ -138,52 +138,240 @@ void Tile::paint(Canvas& c) {
 // ---------------------------------------------------------------------------------------------------
 // MessagePanel
 
+namespace {
+MessagePanel::Tone toneFor(const std::string& icon) {
+    if (icon == "offline") return MessagePanel::Tone::Offline;
+    if (icon == "error" || icon == "warning") return MessagePanel::Tone::Error;
+    return MessagePanel::Tone::Empty;
+}
+} // namespace
+
 MessagePanel::MessagePanel(std::string icon, std::wstring title, std::wstring body, std::wstring action,
                            std::function<void()> onAction)
     : icon_(std::move(icon)), title_(std::move(title), type::title), body_(std::move(body), type::bodyRegular) {
     gfx::TextOptions center;
     center.align = gfx::TextAlign::Center;
     center.wrap = true;
+    center.maxLines = 2;
     title_.setOptions(center);
+    center.maxLines = 4;
     body_.setOptions(center);
+    tone_ = toneFor(icon_);
     if (!action.empty()) {
-        action_ = add<ui::Button>(ui::ButtonKind::Secondary, std::move(action), "refresh");
+        // A retry carries the refresh glyph; other actions (connect, add a folder, go back) are plain text unless the
+        // page gives them an icon (setActionIcon).
+        action_ = add<ui::Button>(ui::ButtonKind::Secondary, std::move(action), tone_ == Tone::Empty ? "" : "refresh");
         action_->onClick = std::move(onAction);
     }
+}
+
+MessagePanel& MessagePanel::setTone(Tone tone) {
+    tone_ = tone;
+    invalidate();
+    return *this;
+}
+
+MessagePanel& MessagePanel::setCompact(bool on) {
+    compact_ = on;
+    title_.setStyle(on ? type::body.withSize(15).withWeight(700) : type::title);
+    body_.setStyle(on ? type::secondary : type::bodyRegular);
+    requestLayout();
+    return *this;
+}
+
+MessagePanel& MessagePanel::setActionIcon(std::string icon) {
+    if (action_) action_->setIcon(std::move(icon));
+    return *this;
+}
+
+// Top pad, the illustration, gap, title, gap, body, gap, action, bottom pad.
+float MessagePanel::preferredHeight(float width) {
+    const float tw = textW(width);
+    const float th = title_.empty() ? 0.f : std::ceil(title_.measure(tw).h);
+    const float bh = body_.empty() ? 0.f : std::ceil(body_.measure(tw).h);
+    const float pad = compact_ ? 24.f : 40.f;
+    float h = pad + illoSize() + (compact_ ? 14.f : 20.f) + th;
+    if (bh > 0) h += (compact_ ? 4.f : 8.f) + bh;
+    if (action_) h += (compact_ ? 16.f : 24.f) + 40;
+    return h + pad;
 }
 
 void MessagePanel::layout() {
     if (!action_) return;
     const float w = action_->naturalWidth();
-    action_->setRect({rect().w * 0.5f - w * 0.5f, 220, w, 40});
+    action_->setRect({rect().w * 0.5f - w * 0.5f, preferredHeight(rect().w) - (compact_ ? 24.f : 40.f) - 40, w, 40});
 }
 
 void MessagePanel::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
-    c.icon(icon_, {r.cx() - 16, r.y + 60, 32, 32}, col.fgTertiary);
-    c.text(title_, {r.cx() - 240, r.y + 112, 480, 30}, col.fgPrimary);
-    c.text(body_, {r.cx() - 240, r.y + 150, 480, 48}, col.fgSecondary);
+    // The first paint fades the panel in, rising 6 DIP (no motion with micro-interactions off).
+    if (!shown_) {
+        shown_ = true;
+        in_.snap(0);
+        in_.to(1, ui::motion::microMs(ui::motion::medium), ui::Ease::Decelerate);
+    }
+    const float a = in_.value();
+    const bool fading = a < 0.999f;
+    if (fading) {
+        c.pushOpacity(a);
+        c.pushTransform(D2D1::Matrix3x2F::Translation(0, (1 - a) * 6));
+    }
+    const float pad = compact_ ? 24.f : 40.f;
+    const float s = illoSize();
+    const gfx::Point o{std::round(r.cx()), r.y + pad + s * 0.5f};
+    // The illustration: a hairline ring with the icon, inside a dial of 1 px ticks (the design's hi-fi cue).
+    const float ring = s * 0.36f;
+    c.strokeCircle(o, ring, col.hairStrong, 1.f);
+    if (!compact_) {
+        const float r0 = s * 0.44f, r1 = s * 0.5f;
+        for (int k = 0; k < 36; ++k) {
+            const float ang = static_cast<float>(k) * (6.2831853f / 36.f);
+            const float dx = std::sin(ang), dy = -std::cos(ang);
+            const float inner = (k % 9 == 0) ? r0 - 3 : r0;   // a longer tick every quarter
+            c.line({o.x + dx * inner, o.y + dy * inner}, {o.x + dx * r1, o.y + dy * r1},
+                   (k % 9 == 0 ? col.hairStrong : col.hairDefault), 1.f, false);
+        }
+    }
+    const float ic = compact_ ? 20.f : 24.f;
+    c.icon(tone_ == Tone::Offline ? std::string("offline") : icon_, {o.x - ic * 0.5f, o.y - ic * 0.5f, ic, ic},
+           col.fgSecondary);
+    if (tone_ != Tone::Empty)   // a small status dot on the ring: something went wrong
+        c.fillCircle({o.x + ring * 0.7071f, o.y - ring * 0.7071f}, compact_ ? 3.f : 4.f,
+                     tone_ == Tone::Offline ? col.warning : col.error);
+    const float tw = textW(r.w);
+    float y = r.y + pad + s + (compact_ ? 14.f : 20.f);
+    if (!title_.empty()) {
+        const float th = std::ceil(title_.measure(tw).h);
+        c.text(title_, {r.cx() - tw * 0.5f, y, tw, th}, col.fgPrimary);
+        y += th;
+    }
+    if (!body_.empty()) {
+        y += compact_ ? 4.f : 8.f;
+        const float bh = std::ceil(body_.measure(tw).h);
+        c.text(body_, {r.cx() - tw * 0.5f, y, tw, bh}, col.fgSecondary);
+    }
     paintChildren(c);
+    if (fading) {
+        c.popTransform();
+        c.popLayer();
+    }
+}
+
+MessagePanel* emptyState(ui::Widget* parent, std::string icon, std::wstring title, std::wstring line, std::wstring action,
+                         std::function<void()> onAction, std::string actionIcon) {
+    auto* p = parent->add<MessagePanel>(std::move(icon), std::move(title), std::move(line), std::move(action),
+                                        std::move(onAction));
+    p->setTone(MessagePanel::Tone::Empty);
+    if (!actionIcon.empty()) p->setActionIcon(std::move(actionIcon));
+    return p;
+}
+
+MessagePanel* errorState(ui::Widget* parent, const std::wstring& rawMessage, std::function<void()> retry) {
+    bool offline = false;
+    std::wstring line = friendlyError(rawMessage, &offline);
+    auto* p = parent->add<MessagePanel>(offline ? "offline" : "error",
+                                        offline ? tr(L"Çevrimdışısın") : tr(L"Bir şeyler ters gitti"), std::move(line),
+                                        retry ? std::wstring(tr(L"Tekrar dene")) : std::wstring(), std::move(retry));
+    p->setTone(offline ? MessagePanel::Tone::Offline : MessagePanel::Tone::Error);
+    return p;
+}
+
+MessagePanel* noResultsState(ui::Widget* parent, std::wstring line) {
+    auto* p = parent->add<MessagePanel>("search", std::move(line), std::wstring());
+    p->setCompact(true);
+    return p;
 }
 
 // ---------------------------------------------------------------------------------------------------
+// Skeletons
+
+float SkeletonRows::preferredHeight(float) {
+    return (header_ ? TrackTable::kHeaderH + 8 : 0.f) + rows_ * TrackTable::rowMetrics().h + 8;
+}
+
+void SkeletonRows::paint(Canvas& c) {
+    Rect r = rect();
+    if (header_) {   // the column header's hairline and two label bars
+        ui::paintSkeleton(c, this, {r.x + 12, r.y + 10, 10, 8}, gfx::radii().badge);
+        ui::paintSkeleton(c, this, {r.x + 68, r.y + 10, 56, 8}, gfx::radii().badge);
+        c.hline(r.x, r.right(), r.y + TrackTable::kHeaderH, colors().hairSubtle);
+        r.y += TrackTable::kHeaderH + 8;
+    }
+    TrackTable::paintSkeletonRows(c, this, {r.x, r.y, r.w, rows_ * TrackTable::rowMetrics().h}, rows_, 0, art_);
+}
+
+namespace {
+int cardColumns(float width, float minCell) {
+    return std::max(1, static_cast<int>((width + gfx::metrics::cardGap) / (minCell + gfx::metrics::cardGap)));
+}
+} // namespace
+
+float SkeletonCards::gridHeight(float width, int rows, float minCell) {
+    const int cols = cardColumns(width, minCell);
+    const float cw = (width - gfx::metrics::cardGap * (cols - 1)) / cols;
+    return rows * (cw + 10 + 18 + 4 + 16) + (rows - 1) * gfx::metrics::cardGap;
+}
+
+// MediaCard's geometry: the square (or round) artwork, a title bar and a shorter subtitle bar under it.
+void SkeletonCards::paintGrid(Canvas& c, ui::Widget* owner, const Rect& r, int rows, float minCell, bool round) {
+    const int cols = cardColumns(r.w, minCell);
+    const float gap = gfx::metrics::cardGap;
+    const float cw = (r.w - gap * (cols - 1)) / cols, ch = cw + 10 + 18 + 4 + 16;
+    const Rect vis = c.clip();
+    for (int row = 0; row < rows; ++row)
+        for (int k = 0; k < cols; ++k) {
+            const float x = r.x + k * (cw + gap), y = r.y + row * (ch + gap);
+            if (!Rect{x, y, cw, ch}.intersects(vis)) continue;
+            const int v = (row * cols + k) * 5 % 4;
+            ui::paintSkeleton(c, owner, {x, y, cw, cw}, round ? cw * 0.5f : gfx::radii().art);
+            const float tw = std::round(cw * (0.72f - 0.1f * v));
+            const float sw = std::round(cw * (0.42f + 0.06f * v));
+            const float tx = round ? x + (cw - tw) * 0.5f : x, sx = round ? x + (cw - sw) * 0.5f : x;
+            ui::paintSkeleton(c, owner, {tx, y + cw + 14, tw, 10}, gfx::radii().badge);
+            ui::paintSkeleton(c, owner, {sx, y + cw + 34, sw, 8}, gfx::radii().badge);
+        }
+}
+
+void SkeletonShelf::paint(Canvas& c) {
+    const Rect r = rect();
+    ui::paintSkeleton(c, this, {r.x, r.y + 12, 180, 16}, gfx::radii().badge);
+    c.hline(r.x, r.right(), r.y + 44, colors().hairSubtle);
+    SkeletonCards::paintGrid(c, this, {r.x, r.y + 48, r.w, r.h - 48}, 1, minCell_, round_);
+}
+
+void SkeletonHeader::paintAt(Canvas& c, ui::Widget* owner, const Rect& r) {
+    // A cover flying into this (loading) page lands where its header's cover will be: no block under it.
+    if (!pagetx::coverIncoming()) ui::paintSkeleton(c, owner, {r.x, r.y, 232, 232}, gfx::radii().art);
+    const float tx = r.x + 264, tw = std::max(0.f, r.w - 264);
+    ui::paintSkeleton(c, owner, {tx, r.y + 118, std::min(tw, 150.f), 10}, gfx::radii().badge);
+    ui::paintSkeleton(c, owner, {tx, r.y + 140, std::min(tw, 460.f), 48}, gfx::radii().badge);
+    ui::paintSkeleton(c, owner, {tx, r.y + 204, std::min(tw, 210.f), 12}, gfx::radii().badge);
+    // The action row: the play button, shuffle, a few round buttons (pills and circles).
+    const float ay = r.y + 260;
+    ui::paintSkeleton(c, owner, {r.x, ay, 56, 56}, 28);
+    ui::paintSkeleton(c, owner, {r.x + 72, ay + 8, 112, 40}, 20);
+    for (int k = 0; k < 3; ++k) ui::paintSkeleton(c, owner, {r.x + 198 + k * 54.f, ay + 8, 40, 40}, 20);
+}
+
+void SkeletonTitle::paint(Canvas& c) {
+    const Rect r = rect();
+    ui::paintSkeleton(c, this, {r.x, r.y + 8, std::min(r.w, 300.f), 48}, gfx::radii().badge);
+    ui::paintSkeleton(c, this, {r.x, r.y + 70, std::min(r.w, 180.f), 10}, gfx::radii().badge);
+}
+
+// The collection page's own geometry (DetailHeader 340 + the column's 28 gap + the table's header).
+float SkeletonBlock::preferredHeight(float) {
+    return SkeletonHeader::kHeight + 24 + 28 + TrackTable::kHeaderH + 8 + rows_ * TrackTable::rowMetrics().h;
+}
 
 void SkeletonBlock::paint(Canvas& c) {
     const Rect r = rect();
-    const double now = ui::frame::now();
-    // A cover flying into this (loading) page lands where its header's cover will be: no hero block under it.
-    if (!pagetx::coverIncoming()) c.skeleton({r.x, r.y + 20, 232, 232}, gfx::radii().art, now);
-    c.skeleton({r.x + 264, r.y + 110, 180, 12}, gfx::radii().badge, now);
-    c.skeleton({r.x + 264, r.y + 136, std::min(520.f, r.w - 300), 56}, gfx::radii().badge, now);
-    c.skeleton({r.x + 264, r.y + 208, 220, 14}, gfx::radii().badge, now);
-    for (int i = 0; i < rows_; ++i) {
-        const float y = r.y + 290 + i * 56.f;
-        c.skeleton({r.x + 12, y + 8, 40, 40}, gfx::radii().art, now);
-        c.skeleton({r.x + 64, y + 14, 220 - (i % 3) * 40.f, 12}, gfx::radii().badge, now);
-        c.skeleton({r.x + 64, y + 32, 120, 10}, gfx::radii().badge, now);
-    }
-    ui::frame::requestNext();
+    SkeletonHeader::paintAt(c, this, r);
+    const float y0 = r.y + SkeletonHeader::kHeight + 24 + 28;
+    c.hline(r.x, r.right(), y0 + TrackTable::kHeaderH, colors().hairSubtle);
+    TrackTable::paintSkeletonRows(c, this, {r.x, y0 + TrackTable::kHeaderH + 8, r.w, rows_ * TrackTable::rowMetrics().h},
+                                  rows_, 0, true);
 }
 
 ui::Grid* addCardRow(ui::Column* col, float minCell, int maxRows) {
@@ -272,24 +460,28 @@ void ScrollPage::applyPendingScroll() {
     });
 }
 
-// Maps service exceptions to short explanations (UI language) for the error panel.
-static std::wstring friendlyError(const std::wstring& raw) {
+// Maps service exceptions to short explanations (UI language) for the error states.
+std::wstring friendlyError(const std::wstring& raw, bool* offline) {
     auto has = [&](const wchar_t* s) { return raw.find(s) != std::wstring::npos; };
+    if (offline) *offline = false;
     if (has(L"Not signed in") || has(L"refresh token") || has(L"invalid_grant"))
         return tr(L"Spotify oturumu yok ya da süresi doldu. Ayarlar'dan yeniden bağlan.");
-    if (has(L"WinHTTP") || has(L"HTTP request"))
+    if (has(L"WinHTTP") || has(L"HTTP request") || has(L"12007") || has(L"12029") || has(L"12002")) {
+        if (offline) *offline = true;   // no route / name / timeout: the offline state
         return tr(L"İnternet bağlantısı kurulamadı. Bağlantını kontrol edip tekrar dene.");
+    }
     if (has(L"429")) return tr(L"Spotify çok fazla istek aldı. Birkaç saniye sonra tekrar dene.");
     if (has(L"403")) return tr(L"Spotify bu içeriğe erişime izin vermiyor (geliştirici modu kısıtlaması olabilir).");
-    if (has(L"404")) return tr(L"İçerik bulunamadı. Silinmiş ya da gizli olabilir.");
+    if (has(L"404") || has(L"Invalid mbid") || has(L"HTTP 400")) return tr(L"İçerik bulunamadı. Silinmiş ya da gizli olabilir.");
+    // Anything else technical (a URL, a status line): one plain sentence instead of the raw text.
+    if (has(L"://") || has(L"HTTP ")) return tr(L"Sunucu beklenmeyen bir yanıt verdi. Birazdan tekrar dene.");
     return raw;
 }
 
 void ScrollPage::showError(const std::wstring& message, std::function<void()> retry) {
     built_ = false;
     auto* c = resetContent();
-    c->add<MessagePanel>("offline", tr(L"Bir şeyler ters gitti"), friendlyError(message), tr(L"Tekrar dene"),
-                         std::move(retry));
+    errorState(c, message, std::move(retry));
     scroll_->contentChanged();
 }
 
@@ -310,6 +502,20 @@ void ScrollPage::showSkeleton(int rows) {
     built_ = false;
     auto* c = resetContent();
     c->add<SkeletonBlock>(rows);
+    scroll_->contentChanged();
+}
+
+void ScrollPage::showLoading(Loading shape) {
+    built_ = false;
+    auto* c = resetContent();
+    c->add<SkeletonTitle>();
+    switch (shape) {
+    case Loading::Cards: c->add<SkeletonCards>(3, 170.f); break;
+    case Loading::Shelves:
+        for (int k = 0; k < 3; ++k) c->add<SkeletonShelf>(170.f, k == 1);
+        break;
+    case Loading::Rows: c->add<SkeletonRows>(10, true, true); break;
+    }
     scroll_->contentChanged();
 }
 

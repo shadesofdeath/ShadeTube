@@ -366,6 +366,64 @@ static void testAggregation() {
     CHECK(e.periodStart == 0 && e.streams == 0 && e.listenedMs == 0 && e.topTracks.empty() && e.recent.empty());
 }
 
+// Several Spotify accounts (app/Accounts): each has its own listening.json; the store moves from one to the other.
+static void testAccountSwitch() {
+    std::printf("account switch (detach / attach):\n");
+    const auto fa = g_dir / L"acct-a" / L"listening.json";
+    const auto fb = g_dir / L"acct-b" / L"listening.json";
+    fs::create_directories(fa.parent_path());
+    fs::create_directories(fb.parent_path());
+    const int64_t now = 1'760'000'000;
+    const auto a = track("spotify:track:sa", "Kuzu Kuzu", "Tarkan", "Karma", 230'000);
+    const auto b = track("spotify:track:sb", "Kır Zincirlerini", "Sezen Aksu", "Deliveren", 250'000);
+    {   // B's own history
+        ListenStats sb(fb);
+        sb.load();
+        sb.addPlay(b, now - 1000, 100'000);
+        CHECK(sb.save());
+    }
+    ListenStats s(fa);
+    s.load();
+    s.addPlay(a, now - 500, 200'000);
+    Sim sim{s};
+    s.trackStarted(b, 0, now - 20, sim.wall);   // a song plays through the switch
+    sim.play(20);
+    s.detach();
+    CHECK(!s.loaded());
+    CHECK(s.playCount() == 0);
+    CHECK(!s.dirty());
+    CHECK(s.active() && s.currentListenedMs() == 20'000);   // the play in progress carries over
+    CHECK(!s.save());                                         // nothing is written while unloaded
+    CHECK(ListenStats::readFile(fa).plays.size() == 1);       // A kept what was stored, not the play in progress
+    s.attach(fb);
+    CHECK(s.file() == fb);
+    s.adopt(ListenStats::readFile(fb));
+    CHECK(s.loaded() && s.playCount() == 1);
+    CHECK(s.active() && s.currentListenedMs() == 20'000);
+    sim.play(20);
+    s.trackStarted(a, 0, now + 30, sim.wall);   // the next song: the carried play lands in B's history, whole
+    CHECK(s.playCount() == 2);
+    CHECK(s.save());
+    {
+        const auto snap = ListenStats::readFile(fb);
+        CHECK(snap.plays.size() == 2);
+        int64_t carried = 0;
+        for (const auto& p : snap.plays)
+            if (snap.index.tracks[p.track].id == "spotify:track:sb" && p.startedAt == now - 20) carried = p.listenedMs;
+        CHECK(carried >= 40'000);
+    }
+    CHECK(ListenStats::readFile(fa).plays.size() == 1);
+    // A switch before the history was read: what was recorded meanwhile goes along to the next one.
+    ListenStats early(fa);
+    early.addPlay(b, now + 100, 60'000);
+    early.detach();
+    CHECK(early.playCount() == 1);
+    early.attach(fb);
+    early.adopt(ListenStats::readFile(fb));
+    CHECK(early.playCount() == 3);
+    CHECK(early.dirty());
+}
+
 static void testPersistence() {
     std::printf("persistence:\n");
     const auto file = g_dir / L"listening.json";
@@ -1054,6 +1112,7 @@ int main() {
     testSeeks();
     testAggregation();
     testPersistence();
+    testAccountSwitch();
     testTiming();
     testLocalTime();
     testHeatmapAndYears();

@@ -1,7 +1,7 @@
 // spotify_test: offline verification of the TOTP core (base32 + RFC 6238 vectors) plus an optional live run
 // against Spotify using an sp_dc cookie supplied via the environment.
 //
-//   spotify_test                   offline checks (TOTP + base32 vectors, home / buddylist / new-releases parsers and rootlist
+//   spotify_test                   offline checks (TOTP + base32 vectors, home / buddylist / new-releases / artist page parsers and rootlist
 //                                  folder fixtures), then the full
 //                                  live run when a sp_dc is available (SHADETUBE_SPDC or the app's saved cookie)
 //   spotify_test offline           offline checks only (no network besides the nuance gist)
@@ -223,6 +223,87 @@ static void testReleasesFixtures() {
     CHECK(parseRetryAfter("Wed, 21 Oct 2026 07:28:00 GMT") == 0);
     CHECK(parseRetryAfter("999999") == 86400);
     CHECK(parseRetryAfter("-5") == 0);
+#else
+    std::printf("  skipped (SPOTIFY_FIXTURE_DIR not defined)\n");
+#endif
+}
+
+// Offline: the artist page from a queryArtistOverview answer (a real one, trimmed, with an HTML biography, a duplicate
+// featuring playlist, error entries and a link that is not http(s) added).
+static void testArtistOverviewFixture() {
+    std::printf("artist overview parser (fixture):\n");
+#ifdef SPOTIFY_FIXTURE_DIR
+    const auto j = loadFixture("artist_page.json");
+    const ArtistPage p = Api::parseArtistOverview(j.is_object() && j.contains("data") ? j["data"] : j);
+    std::printf("  %s %s | %lld listeners, %lld followers, #%d | %zu top, %zu popular, %zu albums, %zu singles, %zu other, "
+                "%zu appears on, %zu playlists, %zu related, %zu links, %zu cities\n",
+                p.artist.id.c_str(), p.artist.name.c_str(), static_cast<long long>(p.monthlyListeners),
+                static_cast<long long>(p.followers), p.worldRank, p.topTracks.size(), p.popular.size(), p.albums.size(),
+                p.singles.size(), p.other.size(), p.appearsOn.size(), p.playlists.size(), p.similar.size(), p.links.size(),
+                p.topCities.size());
+    CHECK(p.artist.id == "spotify:artist:4gzpq5DPGxSnKTe4SA8HAU" && p.artist.name == "Coldplay");
+    CHECK(p.artist.images.size() == 3);
+    CHECK(p.verified);
+    CHECK(p.monthlyListeners == 90055966 && p.followers == 66322604 && p.worldRank == 9);
+    CHECK(p.artist.listenCount == p.monthlyListeners);
+    CHECK(p.topCities.size() == 2 && p.topCities[0].city == "Mexico City" && p.topCities[0].country == "MX" &&
+          p.topCities[0].listeners == 1389683);
+    // The header image's sources carry maxWidth / maxHeight.
+    CHECK(p.banner.size() == 5 && p.banner[0].width == 1494 && p.banner[0].height == 640 && p.banner[4].width == 2660);
+    CHECK(p.gallery.size() == 1 && p.gallery[0].width == 640);
+    // Biography: entities decoded, the link's tag gone, one paragraph per line.
+    CHECK(p.bio == "Coldplay are one of the world's \"biggest\" bands.\nTheir first album came out in 2000 & more.");
+    CHECK(p.bioSource == "Spotify" && p.bioUrl.empty());
+    // Links: lower-case kinds, the javascript: one dropped.
+    CHECK(p.links.size() == 4);
+    if (p.links.size() == 4) {
+        CHECK(p.links[0].kind == "facebook" && p.links[0].url == "https://facebook.com/coldplay");
+        CHECK(p.links[2].kind == "twitter" && p.links[3].kind == "wikipedia");
+    }
+    // The pick: a playlist with its comment and cover.
+    CHECK(p.pick.item.kind == CardItem::Kind::Playlist && p.pick.item.id == "spotify:playlist:0pFZ302c8nEkMIl6HH302o");
+    CHECK(p.pick.item.title == "Coldplay Christmas Playlist " && p.pick.item.subtitle == "Çalma Listesi");
+    CHECK(p.pick.comment == "A selection of festive Coldplay songs" && p.pick.item.images.size() == 1);
+    // Discography: kinds in the catalog's spelling, full dates, credited to the artist, newest first as given.
+    CHECK(p.topTracks.size() == 3 && p.topTracks[0].name == "Yellow");
+    CHECK(p.popular.size() == 2 && p.popular[0].name == "Parachutes" && p.popular[0].primaryType == "Album" &&
+          p.popular[0].firstReleaseDate == "2000-07-10");
+    CHECK(p.albums.size() == 2 && p.albums[0].name == "Moon Music" && p.albums[0].firstReleaseDate == "2024-10-04");
+    CHECK(p.albums.size() == 2 && p.albums[0].artists.size() == 1 && p.albums[0].artists[0].name == "Coldplay");
+    CHECK(p.singles.size() == 2 && p.singles[0].primaryType == "Single" && p.singles[0].name == "ALL MY LOVE");
+    CHECK(p.other.empty());
+    CHECK(p.latest.id == "spotify:album:5N2PVskrF5Sl7cLsIKMwfT" && p.latest.firstReleaseDate == "2025-08-22" &&
+          p.latest.primaryType == "Single");
+    CHECK(p.appearsOn.size() == 2 && p.appearsOn[0].name == "Memories...Do Not Open");
+    // Featuring playlists: the duplicate and the error entries dropped.
+    CHECK(p.playlists.size() == 2 && p.playlists[0].name == "This Is Coldplay" && p.playlists[1].name == "Christmas Hits");
+    CHECK(p.playlists.size() == 2 && p.playlists[0].ownerName == "Spotify" && !p.playlists[0].images.empty());
+    CHECK(p.similar.size() == 2 && p.similar[0].name == "Keane" && !p.similar[0].images.empty());
+    // The overview's groups are their first part: the full sizes say how many there are.
+    CHECK(p.albumsTotal == 17 && p.singlesTotal == 103 && p.otherTotal == 0 && p.appearsOnTotal == 1657);
+
+    // The whole group (queryArtistDiscographyAlbums / queryArtistAppearsOn pages): the first edition of each release.
+    const auto pages = loadFixture("artist_releases.json");
+    int total = 0;
+    const auto albums = Api::parseArtistReleasePage(pages.value("albums", nlohmann::json::object())["data"], ReleaseGroup::Albums, &total);
+    CHECK(total == 34 && albums.size() == 3);
+    if (albums.size() == 3) {
+        CHECK(albums[0].id == "spotify:album:4hF2gTGuPYlykYuphDxi8J" && albums[0].firstReleaseDate == "2026-09-25" &&
+              albums[0].primaryType == "Album");
+        CHECK(albums[2].name == "The Life of a Showgirl" && albums[2].id == "spotify:album:4a6NzYL1YHRUgx9e3YZI6I");
+    }
+    const auto appears =
+        Api::parseArtistReleasePage(pages.value("appearsOn", nlohmann::json::object())["data"], ReleaseGroup::AppearsOn, &total);
+    CHECK(total == 1657 && appears.size() == 2);
+    CHECK(appears.size() == 2 && appears[0].name == "Memories...Do Not Open" && appears[0].artists.size() == 1 &&
+          appears[0].artists[0].name == "The Chainsmokers");
+    CHECK(Api::parseArtistReleasePage(nlohmann::json::object(), ReleaseGroup::Singles, &total).empty() && total == 0);
+
+    // Nothing there: an empty page, no crash.
+    const ArtistPage none = Api::parseArtistOverview(nlohmann::json::object());
+    CHECK(none.artist.id.empty() && none.albums.empty() && none.bio.empty() && none.pick.item.id.empty());
+    const ArtistPage notFound = Api::parseArtistOverview(nlohmann::json::parse(R"({"artistUnion":{"__typename":"NotFound"}})"));
+    CHECK(notFound.artist.name.empty() && notFound.topTracks.empty());
 #else
     std::printf("  skipped (SPOTIFY_FIXTURE_DIR not defined)\n");
 #endif
@@ -1118,6 +1199,7 @@ int main(int argc, char** argv) {
     testHomeFixture();
     testBuddylistFixture();
     testReleasesFixtures();
+    testArtistOverviewFixture();
     testPlaylistTree();
     testHashExtractor();
     testHashRegistryOffline();

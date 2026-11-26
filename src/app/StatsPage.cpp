@@ -3,6 +3,7 @@
 // in the week they listen (hour x weekday heatmap). The data comes from app/ListenStats, which initListenStats()
 // feeds from the player through the AppContext hooks (every source: Spotify, MusicBrainz, downloads, local files; not
 // internet radio stations), plus the history the user imports from Spotify's data download (app/HistoryImport).
+#include "app/Accounts.h"
 #include "app/AppContext.h"
 #include "app/HistoryImport.h"
 #include "app/InternetRadio.h"
@@ -57,7 +58,8 @@ namespace type = gfx::type;
 namespace {
 
 ListenStats& store() {
-    static ListenStats s;   // %LOCALAPPDATA%\ShadeTube\listening.json (+ listening-imported.json)
+    // The active Spotify account's listening.json (+ listening-imported.json); the profile's own without an account.
+    static ListenStats s(accounts::file(L"listening.json"));
     return s;
 }
 
@@ -516,6 +518,7 @@ struct ImportProgress {
     double fraction = 0;
     int waitingS = 0;                  // waiting for the service's rate limit
     bool stopping = false;             // "Durdur" pressed: what was fetched so far is being kept
+    bool switched = false;             // stopped by an account switch: it belongs to the account left
     std::shared_ptr<ImportCancel> cancel;
 };
 ImportProgress g_import;
@@ -543,6 +546,17 @@ void stopImport() {
     g_import.cancel->cancel();
     importChanged();
 }
+
+// Exit and account switches: a running import stops at once and its Last.fm / ListenBrainz job is waited for, so the
+// batches it committed (and its cursor) are in the files of the history it was importing into before that history
+// goes. A Spotify import (a pool job) stops reading; a merge already under way still writes into its own account's file.
+void stopImportNow() {
+    if (g_import.cancel) g_import.cancel->cancel();
+    if (g_importThread.joinable()) g_importThread.join();
+}
+
+// The toast after an import an account switch stopped.
+void switchedToast() { toast(tr(L"İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.")); }
 
 std::wstring serviceName(scrobbles::Service s) { return s == scrobbles::Service::LastFm ? L"Last.fm" : L"ListenBrainz"; }
 
@@ -627,8 +641,15 @@ void startImport(std::vector<std::filesystem::path> files) {
             return o;
         },
         [](Result<Outcome> r) {
+            const bool switched = g_import.switched;
             g_import = {};
             auto& s = store();
+            if (switched) {   // another account's history by now (detach() dropped this import)
+                if (r) s.finishImport(std::move(r->result));   // superseded: nothing lands here
+                importChanged();
+                switchedToast();
+                return;
+            }
             if (!r || r->parsed.cancelled) {
                 if (!r) ST_LOG_ERROR("stats", "import failed: {}", r.errorMessage());
                 s.cancelImport();
@@ -741,14 +762,20 @@ void startScrobbleImport(scrobbles::Service service, std::string user, std::vect
             out->error = e.what();
             out->result.token = base->token;
             out->result.source = base->source;
+            out->result.file = base->importedFile;
         }
         Dispatcher::post([out, service = job->service, files = !job->files.empty()] {
             if (g_importThread.joinable()) g_importThread.join();   // it has posted this as its last act
+            const bool switched = g_import.switched;
             g_import = {};
             auto& s = store();
             const size_t added = out->added;
-            s.finishImport(std::move(out->result));
+            s.finishImport(std::move(out->result));   // superseded after a switch: nothing lands in the new history
             importChanged();
+            if (switched) {
+                switchedToast();
+                return;
+            }
             if (added > 0) {
                 s.saveAsync();
                 g_lastSaveMs = steadyMs();
@@ -816,8 +843,11 @@ void pickScrobbleFilesPosted(scrobbles::Service service) {
     });
 }
 
-// "Last.fm geçmişini getir" / "ListenBrainz geçmişini getir": the account (the connected one pre-filled, else the one
-// imported last), Last.fm's API key when none is stored, where the account's last import got to; or export files.
+// "Last.fm geçmişini getir" / "ListenBrainz geçmişini getir": the account, Last.fm's API key when none is stored (or it
+// was refused), where the account's last import got to; or export files.
+// The pre-filled name is per Spotify account: the one this history imported from last (its cursors live in the active
+// account's files), and only for a history that never imported from the service, the PC's scrobbling login (Ayarlar ›
+// Bağlantılar is one per PC: on a shared PC another person's Last.fm is not offered to a history that has its own).
 void openScrobbleDialog(scrobbles::Service service) {
     if (refuseImport()) return;
     auto& s = store();
@@ -825,9 +855,10 @@ void openScrobbleDialog(scrobbles::Service service) {
     const ImportSource source = scrobbles::sourceOf(service);
     const auto* sc = ctx().scrobbler;
     std::string user;
-    if (sc) user = lastfm ? (sc->lastfmConnected() ? sc->lastfmUser() : std::string{})
-                          : (sc->listenbrainzConnected() ? sc->listenbrainzUser() : std::string{});
-    if (user.empty() && !s.importCursors(source).empty()) user = s.importCursors(source).back().account;
+    if (!s.importCursors(source).empty()) user = s.importCursors(source).back().account;   // imported last
+    if (user.empty() && sc)
+        user = lastfm ? (sc->lastfmConnected() ? sc->lastfmUser() : std::string{})
+                      : (sc->listenbrainzConnected() ? sc->listenbrainzUser() : std::string{});
     const bool needKey = lastfm && (!sc || sc->lastfmApiKey().empty() || g_lastfmKeyRejected);
     auto* d = ui::Dialog::open(
         ctx().window, lastfm ? tr(L"Last.fm geçmişini getir") : tr(L"ListenBrainz geçmişini getir"),
@@ -1514,7 +1545,7 @@ private:
         auto& s = store();
         banner_ = nullptr;
         if (!s.loaded()) {   // the history is still being read (the store notifies when it lands)
-            showSkeleton(3);
+            showLoading(Loading::Shelves);
             return;
         }
         built_ = true;
@@ -1529,7 +1560,7 @@ private:
             c->setSpacingBefore(banner_, 20);
         }
         if (!anything) {
-            c->add<MessagePanel>("stats", tr(L"Henüz dinleme geçmişi yok"),
+            emptyState(c, "stats", tr(L"Henüz dinleme geçmişi yok"),
                                  tr(L"Şarkı dinledikçe en çok dinlediklerin, toplam süren ve son çalınanlar burada "
                                     L"birikir."));
             if (!g_import.active && s.canImport()) {
@@ -1997,15 +2028,41 @@ std::vector<std::string> statsArtistGenres(const ArtistRef& a) {
     return it != g_artistTags.end() ? it->second : std::vector<std::string>{};
 }
 
-void initListenStats() {
-    auto& c = ctx();
-    // The history is parsed on a worker (a big file takes a moment); plays recorded meanwhile are merged on top.
+namespace {
+// The history is parsed on a worker (a big file takes a moment); plays recorded meanwhile are merged on top. A read
+// of a history that is no longer the store's (an account switch while it ran) is dropped.
+void loadHistory(std::function<void()> then = {}) {
     static Lifetime life;   // the store lives as long as the process
     async(
-        Priority::Normal, life.ref(), [file = store().file()] { return ListenStats::readFile(file); },
-        [](Result<ListenStats::Snapshot> r) {
+        Priority::Normal, life.ref(), [file = store().file()] { return std::pair{file, ListenStats::readFile(file)}; },
+        [then = std::move(then)](Result<std::pair<std::filesystem::path, ListenStats::Snapshot>> r) {
+            if (r && r->first != store().file()) return;
             if (!r) ST_LOG_WARN("stats", "reading listening.json failed: {}", r.errorMessage());
-            store().adopt(r ? std::move(*r) : ListenStats::Snapshot{});
+            store().adopt(r ? std::move(r->second) : ListenStats::Snapshot{});
+            if (then) then();
+        });
+}
+} // namespace
+
+void initListenStats() {
+    auto& c = ctx();
+    // Another Spotify account: its own history (app/Accounts). The play in progress carries over.
+    c.accountLeaveHooks.push_back([] {
+        // A running import belongs to the account being left: stopped and waited for first, so what it fetched (and an
+        // API import's cursor: it resumes there when that account is back) is in that account's files.
+        if (g_import.active) {
+            g_import.switched = g_import.stopping = true;
+            stopImportNow();
+        }
+        sample();
+        store().detach();
+        g_lastSaveMs = steadyMs();
+    });
+    c.accountEnterHooks.push_back([] {
+        store().attach(accounts::file(L"listening.json"));
+        loadHistory();
+    });
+    loadHistory([] {
             // SHADETUBE_IMPORT_HISTORY = <file>[;<file>...] (dev / tests): import these once the history is loaded.
             wchar_t buf[4096];
             const DWORD n = GetEnvironmentVariableW(L"SHADETUBE_IMPORT_HISTORY", buf, 4096);
@@ -2072,10 +2129,7 @@ void initListenStats() {
     // Synchronous; a worker save still running is waited for, and an older one landing later is skipped.
     c.persistHooks.push_back([] {
         // A Last.fm / ListenBrainz import still running: stopped (its batches so far are on disk) before the exit.
-        if (g_importThread.joinable()) {
-            if (g_import.cancel) g_import.cancel->cancel();
-            g_importThread.join();
-        }
+        if (g_importThread.joinable()) stopImportNow();
         sample();
         syncSampleTimer(false);   // the next sample turns it back on if playback goes on
         auto& s = store();

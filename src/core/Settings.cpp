@@ -142,6 +142,7 @@ void Settings::load() {
     read(j, "miniOnTop", miniOnTop);
     read(j, "miniPlaces", miniPlaces);
     read(j, "taskbarProgress", taskbarProgress);
+    read(j, "songNotifications", songNotifications);
     read(j, "previewMode", previewMode);
     if (previewMode != "hold" && previewMode != "menu" && previewMode != "off") previewMode = "hold";
     read(j, "videoQuality", videoQuality);
@@ -153,6 +154,9 @@ void Settings::load() {
     read(j, "videoY", videoY);
     read(j, "videoW", videoW);
     read(j, "videoH", videoH);
+    read(j, "audioCacheMb", audioCacheMb);
+    audioCacheMb = std::clamp(audioCacheMb, 0, 100 * 1024);
+    read(j, "trackColumns", trackColumns);
     volume = std::clamp(volume, 0.0f, 1.0f);
 }
 
@@ -240,6 +244,7 @@ void Settings::save() const {
         {"miniOnTop", miniOnTop},
         {"miniPlaces", miniPlaces},
         {"taskbarProgress", taskbarProgress},
+        {"songNotifications", songNotifications},
         {"previewMode", previewMode},
         {"videoQuality", videoQuality},
         {"rememberVideoMode", rememberVideoMode},
@@ -249,6 +254,8 @@ void Settings::save() const {
         {"videoY", videoY},
         {"videoW", videoW},
         {"videoH", videoH},
+        {"audioCacheMb", audioCacheMb},
+        {"trackColumns", trackColumns},
     };
     // Write-then-rename so a crash never leaves a truncated settings file.
     const auto path = paths::settingsFile();

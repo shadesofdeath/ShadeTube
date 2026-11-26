@@ -1,0 +1,51 @@
+{
+  "id": "b1a9c0e9-d987-4042-ae91-78d6a3267d69",
+  "title": "Bohemian Rhapsody",
+  "length": 355000,
+  "video": false,
+  "artist-credit": [
+    { "name": "Queen", "joinphrase": "", "artist": { "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "name": "Queen", "sort-name": "Queen" } }
+  ],
+  "relations": [
+    { "type": "producer", "target-type": "artist", "direction": "backward", "attributes": [], "target-credit": "",
+      "artist": { "id": "6d6f8e1c-0001-4000-8000-000000000001", "name": "Roy Thomas Baker" } },
+    { "type": "producer", "target-type": "artist", "direction": "backward", "attributes": [],
+      "artist": { "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "name": "Queen" } },
+    { "type": "producer", "target-type": "artist", "direction": "backward", "attributes": [ "executive" ],
+      "artist": { "id": "6d6f8e1c-0001-4000-8000-000000000002", "name": "John Reid" } },
+    { "type": "vocal", "target-type": "artist", "direction": "backward", "attributes": [ "lead vocals" ],
+      "artist": { "id": "022589ea-0001-4000-8000-000000000003", "name": "Freddie Mercury" } },
+    { "type": "instrument", "target-type": "artist", "direction": "backward", "attributes": [ "piano" ],
+      "artist": { "id": "022589ea-0001-4000-8000-000000000003", "name": "Freddie Mercury" } },
+    { "type": "instrument", "target-type": "artist", "direction": "backward", "attributes": [ "guest", "electric guitar" ],
+      "target-credit": "Brian Harold May",
+      "artist": { "id": "022589ea-0001-4000-8000-000000000004", "name": "Brian May" } },
+    { "type": "vocal", "target-type": "artist", "direction": "backward", "attributes": [],
+      "artist": { "id": "022589ea-0001-4000-8000-000000000005", "name": "Roger Taylor" } },
+    { "type": "engineer", "target-type": "artist", "direction": "backward", "attributes": [ "assistant" ],
+      "artist": { "id": "022589ea-0001-4000-8000-000000000006", "name": "Gary Lyons" } },
+    { "type": "mix", "target-type": "artist", "direction": "backward", "attributes": [],
+      "artist": { "id": "022589ea-0001-4000-8000-000000000007", "name": "Mike Stone" } },
+    { "type": "recording", "target-type": "artist", "direction": "backward", "attributes": [],
+      "artist": { "id": "022589ea-0001-4000-8000-000000000007", "name": "Mike Stone" } },
+    { "type": "misc", "target-type": "artist", "direction": "backward", "attributes": [],
+      "artist": { "id": "022589ea-0001-4000-8000-000000000008", "name": "Tea Maker" } },
+    { "type": "photography", "target-type": "artist", "direction": "backward", "attributes": [],
+      "artist": { "id": "022589ea-0001-4000-8000-000000000009", "name": "Mick Rock" } },
+    { "type": "performance", "target-type": "work", "direction": "forward", "attributes": [],
+      "work": {
+        "id": "8a0e2a44-0001-4000-8000-000000000010",
+        "title": "Bohemian Rhapsody",
+        "relations": [
+          { "type": "composer", "target-type": "artist", "direction": "backward", "attributes": [],
+            "artist": { "id": "022589ea-0001-4000-8000-000000000003", "name": "Freddie Mercury" } },
+          { "type": "lyricist", "target-type": "artist", "direction": "backward", "attributes": [],
+            "artist": { "id": "022589ea-0001-4000-8000-000000000003", "name": "Freddie Mercury" } },
+          { "type": "publishing", "target-type": "label", "direction": "backward", "attributes": [],
+            "label": { "id": "8a0e2a44-0001-4000-8000-000000000011", "name": "B. Feldman & Co. Ltd." } }
+        ]
+      } },
+    { "type": "phonographic copyright", "target-type": "label", "direction": "backward", "attributes": [],
+      "label": { "id": "8a0e2a44-0001-4000-8000-000000000012", "name": "EMI Records Ltd" } }
+  ]
+}

@@ -1,0 +1,868 @@
+{
+ "data": {
+  "artistUnion": {
+   "__typename": "Artist",
+   "discography": {
+    "albums": {
+     "items": [
+      {
+       "releases": {
+        "items": [
+         {
+          "coverArt": {
+           "sources": [
+            {
+             "height": 300,
+             "url": "https://i.scdn.co/image/ab67616d00001e02f40306925074cfdcd8bee61f",
+             "width": 300
+            },
+            {
+             "height": 64,
+             "url": "https://i.scdn.co/image/ab67616d00004851f40306925074cfdcd8bee61f",
+             "width": 64
+            },
+            {
+             "height": 640,
+             "url": "https://i.scdn.co/image/ab67616d0000b273f40306925074cfdcd8bee61f",
+             "width": 640
+            }
+           ]
+          },
+          "date": {
+           "day": 4,
+           "month": 10,
+           "precision": "DAY",
+           "year": 2024
+          },
+          "id": "5SGtrmYbIo0Dsg4kJ4qjM6",
+          "label": "Parlophone UK",
+          "name": "Moon Music",
+          "tracks": {
+           "totalCount": 10
+          },
+          "type": "ALBUM",
+          "uri": "spotify:album:5SGtrmYbIo0Dsg4kJ4qjM6"
+         }
+        ]
+       }
+      },
+      {
+       "releases": {
+        "items": [
+         {
+          "coverArt": {
+           "sources": [
+            {
+             "height": 300,
+             "url": "https://i.scdn.co/image/ab67616d00001e02d75f119409f50e08ce77c5f1",
+             "width": 300
+            },
+            {
+             "height": 64,
+             "url": "https://i.scdn.co/image/ab67616d00004851d75f119409f50e08ce77c5f1",
+             "width": 64
+            },
+            {
+             "height": 640,
+             "url": "https://i.scdn.co/image/ab67616d0000b273d75f119409f50e08ce77c5f1",
+             "width": 640
+            }
+           ]
+          },
+          "date": {
+           "day": 3,
+           "month": 10,
+           "precision": "DAY",
+           "year": 2024
+          },
+          "id": "1PdMoahMiMnqWfzWZs3xSI",
+          "label": "Parlophone UK",
+          "name": "Moon Music (Full Moon Edition)",
+          "tracks": {
+           "totalCount": 20
+          },
+          "type": "ALBUM",
+          "uri": "spotify:album:1PdMoahMiMnqWfzWZs3xSI"
+         }
+        ]
+       }
+      }
+     ],
+     "totalCount": 17
+    },
+    "compilations": {
+     "items": [],
+     "totalCount": 0
+    },
+    "latest": {
+     "coverArt": {
+      "sources": [
+       {
+        "height": 300,
+        "url": "https://i.scdn.co/image/ab67616d00001e02e051979ee125f75ab4c5dfb0",
+        "width": 300
+       },
+       {
+        "height": 64,
+        "url": "https://i.scdn.co/image/ab67616d00004851e051979ee125f75ab4c5dfb0",
+        "width": 64
+       },
+       {
+        "height": 640,
+        "url": "https://i.scdn.co/image/ab67616d0000b273e051979ee125f75ab4c5dfb0",
+        "width": 640
+       }
+      ]
+     },
+     "date": {
+      "day": 22,
+      "month": 8,
+      "precision": "DAY",
+      "year": 2025
+     },
+     "id": "5N2PVskrF5Sl7cLsIKMwfT",
+     "label": "Parlophone UK",
+     "name": "ALL MY LOVE",
+     "tracks": {
+      "totalCount": 3
+     },
+     "type": "SINGLE",
+     "uri": "spotify:album:5N2PVskrF5Sl7cLsIKMwfT"
+    },
+    "popularReleasesAlbums": {
+     "items": [
+      {
+       "coverArt": {
+        "sources": [
+         {
+          "height": 300,
+          "url": "https://i.scdn.co/image/ab67616d00001e029164bafe9aaa168d93f4816a",
+          "width": 300
+         },
+         {
+          "height": 64,
+          "url": "https://i.scdn.co/image/ab67616d000048519164bafe9aaa168d93f4816a",
+          "width": 64
+         },
+         {
+          "height": 640,
+          "url": "https://i.scdn.co/image/ab67616d0000b2739164bafe9aaa168d93f4816a",
+          "width": 640
+         }
+        ]
+       },
+       "date": {
+        "day": 10,
+        "month": 7,
+        "precision": "DAY",
+        "year": 2000
+       },
+       "id": "6ZG5lRT77aJ3btmArcykra",
+       "label": "Parlophone UK",
+       "name": "Parachutes",
+       "tracks": {
+        "totalCount": 10
+       },
+       "type": "ALBUM",
+       "uri": "spotify:album:6ZG5lRT77aJ3btmArcykra"
+      },
+      {
+       "coverArt": {
+        "sources": [
+         {
+          "height": 300,
+          "url": "https://i.scdn.co/image/ab67616d00001e02de09e02aa7febf30b7c02d82",
+          "width": 300
+         },
+         {
+          "height": 64,
+          "url": "https://i.scdn.co/image/ab67616d00004851de09e02aa7febf30b7c02d82",
+          "width": 64
+         },
+         {
+          "height": 640,
+          "url": "https://i.scdn.co/image/ab67616d0000b273de09e02aa7febf30b7c02d82",
+          "width": 640
+         }
+        ]
+       },
+       "date": {
+        "day": 27,
+        "month": 8,
+        "precision": "DAY",
+        "year": 2002
+       },
+       "id": "0RHX9XECH8IVI3LNgWDpmQ",
+       "label": "Parlophone Records Limited",
+       "name": "A Rush of Blood to the Head",
+       "tracks": {
+        "totalCount": 11
+       },
+       "type": "ALBUM",
+       "uri": "spotify:album:0RHX9XECH8IVI3LNgWDpmQ"
+      }
+     ],
+     "totalCount": 20
+    },
+    "singles": {
+     "items": [
+      {
+       "releases": {
+        "items": [
+         {
+          "coverArt": {
+           "sources": [
+            {
+             "height": 300,
+             "url": "https://i.scdn.co/image/ab67616d00001e02e051979ee125f75ab4c5dfb0",
+             "width": 300
+            },
+            {
+             "height": 64,
+             "url": "https://i.scdn.co/image/ab67616d00004851e051979ee125f75ab4c5dfb0",
+             "width": 64
+            },
+            {
+             "height": 640,
+             "url": "https://i.scdn.co/image/ab67616d0000b273e051979ee125f75ab4c5dfb0",
+             "width": 640
+            }
+           ]
+          },
+          "date": {
+           "day": 22,
+           "month": 8,
+           "precision": "DAY",
+           "year": 2025
+          },
+          "id": "5N2PVskrF5Sl7cLsIKMwfT",
+          "label": "Parlophone UK",
+          "name": "ALL MY LOVE",
+          "tracks": {
+           "totalCount": 3
+          },
+          "type": "SINGLE",
+          "uri": "spotify:album:5N2PVskrF5Sl7cLsIKMwfT"
+         }
+        ]
+       }
+      },
+      {
+       "releases": {
+        "items": [
+         {
+          "coverArt": {
+           "sources": [
+            {
+             "height": 300,
+             "url": "https://i.scdn.co/image/ab67616d00001e02a764b8fbcfa7c83c81203e7a",
+             "width": 300
+            },
+            {
+             "height": 64,
+             "url": "https://i.scdn.co/image/ab67616d00004851a764b8fbcfa7c83c81203e7a",
+             "width": 64
+            },
+            {
+             "height": 640,
+             "url": "https://i.scdn.co/image/ab67616d0000b273a764b8fbcfa7c83c81203e7a",
+             "width": 640
+            }
+           ]
+          },
+          "date": {
+           "day": 17,
+           "month": 4,
+           "precision": "DAY",
+           "year": 2025
+          },
+          "id": "0QOAUAUR20fpa2SK1J0yGy",
+          "label": "Parlophone UK",
+          "name": "WE PRAY (TWICE Version)",
+          "tracks": {
+           "totalCount": 1
+          },
+          "type": "SINGLE",
+          "uri": "spotify:album:0QOAUAUR20fpa2SK1J0yGy"
+         }
+        ]
+       }
+      }
+     ],
+     "totalCount": 103
+    },
+    "topTracks": {
+     "items": [
+      {
+       "track": {
+        "albumOfTrack": {
+         "coverArt": {
+          "sources": [
+           {
+            "url": "https://i.scdn.co/image/ab67616d00001e029164bafe9aaa168d93f4816a"
+           },
+           {
+            "url": "https://i.scdn.co/image/ab67616d000048519164bafe9aaa168d93f4816a"
+           },
+           {
+            "url": "https://i.scdn.co/image/ab67616d0000b2739164bafe9aaa168d93f4816a"
+           }
+          ]
+         },
+         "uri": "spotify:album:6ZG5lRT77aJ3btmArcykra"
+        },
+        "artists": {
+         "items": [
+          {
+           "profile": {
+            "name": "Coldplay"
+           },
+           "uri": "spotify:artist:4gzpq5DPGxSnKTe4SA8HAU"
+          }
+         ]
+        },
+        "contentRating": {
+         "label": "NONE"
+        },
+        "duration": {
+         "totalMilliseconds": 266773
+        },
+        "id": "3AJwUDP919kvQ9QcozQPxg",
+        "name": "Yellow",
+        "playcount": "4110784266",
+        "uri": "spotify:track:3AJwUDP919kvQ9QcozQPxg"
+       },
+       "uid": "81d5e3a37076e73b4dfc"
+      },
+      {
+       "track": {
+        "albumOfTrack": {
+         "coverArt": {
+          "sources": [
+           {
+            "url": "https://i.scdn.co/image/ab67616d00001e02e21cc1db05580b6f2d2a3b6e"
+           },
+           {
+            "url": "https://i.scdn.co/image/ab67616d00004851e21cc1db05580b6f2d2a3b6e"
+           },
+           {
+            "url": "https://i.scdn.co/image/ab67616d0000b273e21cc1db05580b6f2d2a3b6e"
+           }
+          ]
+         },
+         "uri": "spotify:album:1CEODgTmTwLyabvwd7HBty"
+        },
+        "artists": {
+         "items": [
+          {
+           "profile": {
+            "name": "Coldplay"
+           },
+           "uri": "spotify:artist:4gzpq5DPGxSnKTe4SA8HAU"
+          }
+         ]
+        },
+        "contentRating": {
+         "label": "NONE"
+        },
+        "duration": {
+         "totalMilliseconds": 242373
+        },
+        "id": "1mea3bSkSGXuIRvnydlB5b",
+        "name": "Viva La Vida",
+        "playcount": "3628135743",
+        "uri": "spotify:track:1mea3bSkSGXuIRvnydlB5b"
+       },
+       "uid": "b4fbd05649822272498d"
+      },
+      {
+       "track": {
+        "albumOfTrack": {
+         "coverArt": {
+          "sources": [
+           {
+            "url": "https://i.scdn.co/image/ab67616d00001e029164bafe9aaa168d93f4816a"
+           },
+           {
+            "url": "https://i.scdn.co/image/ab67616d000048519164bafe9aaa168d93f4816a"
+           },
+           {
+            "url": "https://i.scdn.co/image/ab67616d0000b2739164bafe9aaa168d93f4816a"
+           }
+          ]
+         },
+         "uri": "spotify:album:6ZG5lRT77aJ3btmArcykra"
+        },
+        "artists": {
+         "items": [
+          {
+           "profile": {
+            "name": "Coldplay"
+           },
+           "uri": "spotify:artist:4gzpq5DPGxSnKTe4SA8HAU"
+          }
+         ]
+        },
+        "contentRating": {
+         "label": "NONE"
+        },
+        "duration": {
+         "totalMilliseconds": 227093
+        },
+        "id": "7D0RhFcb3CrfPuTJ0obrod",
+        "name": "Sparks",
+        "playcount": "2327924708",
+        "uri": "spotify:track:7D0RhFcb3CrfPuTJ0obrod"
+       },
+       "uid": "e402937e0cc2a20e1fe3"
+      }
+     ]
+    }
+   },
+   "headerImage": {
+    "data": {
+     "__typename": "ImageV2",
+     "sources": [
+      {
+       "maxHeight": 640,
+       "maxWidth": 1494,
+       "url": "https://image-cdn-ak.spotifycdn.com/image/ab676186000001948653fa3322f48b6f4f966c52"
+      },
+      {
+       "maxHeight": 1080,
+       "maxWidth": 1920,
+       "url": "https://i2o.scdn.co/image/ab676186000016678653fa3322f48b6f4f966c52"
+      },
+      {
+       "maxHeight": 1080,
+       "maxWidth": 1920,
+       "url": "https://i2o.scdn.co/image/ab676186000016678653fa3322f48b6f4f966c52"
+      },
+      {
+       "maxHeight": 641,
+       "maxWidth": 1495,
+       "url": "https://image-cdn-ak.spotifycdn.com/image/ab67618600009d808653fa3322f48b6f4f966c52"
+      },
+      {
+       "maxHeight": 1140,
+       "maxWidth": 2660,
+       "url": "https://image-cdn-ak.spotifycdn.com/image/ab6761860000eab18653fa3322f48b6f4f966c52"
+      }
+     ]
+    }
+   },
+   "id": "4gzpq5DPGxSnKTe4SA8HAU",
+   "onPlatformReputationTrait": {
+    "verification": {
+     "isRegistered": true,
+     "isVerified": true
+    }
+   },
+   "profile": {
+    "biography": {
+     "text": "Coldplay are one of the world&#39;s &#34;biggest&#34; bands.\n\nTheir <a href=\"spotify:album:x\">first album</a> came out in 2000 &amp; more.",
+     "type": "AUTOBIOGRAPHY"
+    },
+    "externalLinks": {
+     "items": [
+      {
+       "name": "FACEBOOK",
+       "url": "https://facebook.com/coldplay"
+      },
+      {
+       "name": "INSTAGRAM",
+       "url": "https://instagram.com/coldplay"
+      },
+      {
+       "name": "TWITTER",
+       "url": "https://twitter.com/coldplay"
+      },
+      {
+       "name": "WIKIPEDIA",
+       "url": "https://en.wikipedia.org/wiki/Coldplay"
+      },
+      {
+       "name": "BROKEN",
+       "url": "javascript:alert(1)"
+      }
+     ]
+    },
+    "name": "Coldplay",
+    "pinnedItem": {
+     "backgroundImageV2": {
+      "data": {
+       "__typename": "ImageV2",
+       "sources": [
+        {
+         "url": "https://image-cdn-fa.spotifycdn.com/image/ab6761700000591041cc6c97eab3260ab24080d6"
+        }
+       ]
+      }
+     },
+     "comment": "A selection of festive Coldplay songs",
+     "itemV2": {
+      "__typename": "PlaylistResponseWrapper",
+      "data": {
+       "__typename": "Playlist",
+       "images": {
+        "items": [
+         {
+          "sources": [
+           {
+            "height": null,
+            "url": "https://image-cdn-fa.spotifycdn.com/image/ab67706c0000da84cd86f75ce4d6152390acc024",
+            "width": null
+           }
+          ]
+         }
+        ]
+       },
+       "name": "Coldplay Christmas Playlist ",
+       "uri": "spotify:playlist:0pFZ302c8nEkMIl6HH302o"
+      }
+     },
+     "subtitle": "Çalma Listesi",
+     "thumbnailImage": {
+      "data": {
+       "sources": [
+        {
+         "url": "https://image-cdn-fa.spotifycdn.com/image/ab67706c000097accd86f75ce4d6152390acc024"
+        },
+        {
+         "url": "https://image-cdn-fa.spotifycdn.com/image/ab67706c0000d72ccd86f75ce4d6152390acc024"
+        },
+        {
+         "url": "https://image-cdn-fa.spotifycdn.com/image/ab67706c0000dec5cd86f75ce4d6152390acc024"
+        }
+       ]
+      }
+     },
+     "title": "Coldplay Christmas Playlist ",
+     "type": "PLAYLIST",
+     "uri": "spotify:playlist:0pFZ302c8nEkMIl6HH302o"
+    }
+   },
+   "relatedContent": {
+    "appearsOn": {
+     "items": [
+      {
+       "releases": {
+        "items": [
+         {
+          "artists": {
+           "items": [
+            {
+             "profile": {
+              "name": "The Chainsmokers"
+             },
+             "uri": "spotify:artist:69GGBxA162lTqCwzJG5jLp"
+            }
+           ]
+          },
+          "coverArt": {
+           "sources": [
+            {
+             "height": 300,
+             "url": "https://i.scdn.co/image/ab67616d00001e020c13d3d5a503c84fcc60ae94",
+             "width": 300
+            },
+            {
+             "height": 64,
+             "url": "https://i.scdn.co/image/ab67616d000048510c13d3d5a503c84fcc60ae94",
+             "width": 64
+            },
+            {
+             "height": 640,
+             "url": "https://i.scdn.co/image/ab67616d0000b2730c13d3d5a503c84fcc60ae94",
+             "width": 640
+            }
+           ]
+          },
+          "date": {
+           "year": 2017
+          },
+          "id": "4JPguzRps3kuWDD5GS6oXr",
+          "name": "Memories...Do Not Open",
+          "type": "ALBUM",
+          "uri": "spotify:album:4JPguzRps3kuWDD5GS6oXr"
+         }
+        ],
+        "totalCount": 1
+       }
+      },
+      {
+       "releases": {
+        "items": [
+         {
+          "artists": {
+           "items": [
+            {
+             "profile": {
+              "name": "TINI"
+             },
+             "uri": "spotify:artist:7vXDAI8JwjW531ouMGbfcp"
+            }
+           ]
+          },
+          "coverArt": {
+           "sources": [
+            {
+             "height": 300,
+             "url": "https://i.scdn.co/image/ab67616d00001e020deb144be5a5243610dc572e",
+             "width": 300
+            },
+            {
+             "height": 64,
+             "url": "https://i.scdn.co/image/ab67616d000048510deb144be5a5243610dc572e",
+             "width": 64
+            },
+            {
+             "height": 640,
+             "url": "https://i.scdn.co/image/ab67616d0000b2730deb144be5a5243610dc572e",
+             "width": 640
+            }
+           ]
+          },
+          "date": {
+           "year": 2026
+          },
+          "id": "2mtbTvzjwh4Dokr8igvQBZ",
+          "name": "Futttura Live",
+          "type": "ALBUM",
+          "uri": "spotify:album:2mtbTvzjwh4Dokr8igvQBZ"
+         }
+        ],
+        "totalCount": 1
+       }
+      }
+     ],
+     "totalCount": 1657
+    },
+    "discoveredOnV2": {
+     "items": [
+      {
+       "data": {
+        "__typename": "GenericError"
+       }
+      },
+      {
+       "data": {
+        "__typename": "GenericError"
+       }
+      }
+     ],
+     "totalCount": 100
+    },
+    "featuringV2": {
+     "items": [
+      {
+       "data": {
+        "__typename": "Playlist",
+        "description": "The essential tracks, all in one playlist.",
+        "id": "37i9dQZF1DXaQm3ZVg9Z2X",
+        "images": {
+         "items": [
+          {
+           "sources": [
+            {
+             "height": null,
+             "url": "https://i.scdn.co/image/ab67706f000000024f865fd680a6ee7793646f59",
+             "width": null
+            }
+           ]
+          }
+         ],
+         "totalCount": 1
+        },
+        "name": "This Is Coldplay",
+        "ownerV2": {
+         "data": {
+          "__typename": "User",
+          "name": "Spotify"
+         }
+        },
+        "uri": "spotify:playlist:37i9dQZF1DXaQm3ZVg9Z2X"
+       }
+      },
+      {
+       "data": {
+        "__typename": "Playlist",
+        "description": "The biggest Christmas songs of all time.",
+        "id": "37i9dQZF1DX0Yxoavh5qJV",
+        "images": {
+         "items": [
+          {
+           "sources": [
+            {
+             "height": null,
+             "url": "https://i.scdn.co/image/ab67706f000000025a331885c91cb868d17c3059",
+             "width": null
+            }
+           ]
+          }
+         ],
+         "totalCount": 1
+        },
+        "name": "Christmas Hits",
+        "ownerV2": {
+         "data": {
+          "__typename": "User",
+          "name": "Spotify"
+         }
+        },
+        "uri": "spotify:playlist:37i9dQZF1DX0Yxoavh5qJV"
+       }
+      },
+      {
+       "data": {
+        "__typename": "Playlist",
+        "description": "The essential tracks, all in one playlist.",
+        "id": "37i9dQZF1DXaQm3ZVg9Z2X",
+        "images": {
+         "items": [
+          {
+           "sources": [
+            {
+             "height": null,
+             "url": "https://i.scdn.co/image/ab67706f000000024f865fd680a6ee7793646f59",
+             "width": null
+            }
+           ]
+          }
+         ],
+         "totalCount": 1
+        },
+        "name": "This Is Coldplay",
+        "ownerV2": {
+         "data": {
+          "__typename": "User",
+          "name": "Spotify"
+         }
+        },
+        "uri": "spotify:playlist:37i9dQZF1DXaQm3ZVg9Z2X"
+       }
+      }
+     ],
+     "totalCount": 8
+    },
+    "relatedArtists": {
+     "items": [
+      {
+       "id": "53A0W3U0s8diEn9RhXQhVz",
+       "profile": {
+        "name": "Keane"
+       },
+       "uri": "spotify:artist:53A0W3U0s8diEn9RhXQhVz",
+       "visuals": {
+        "avatarImage": {
+         "sources": [
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab6761610000e5eb41ad42c0fd1dabe8db013a7a",
+           "width": 640
+          },
+          {
+           "height": 160,
+           "url": "https://i.scdn.co/image/ab6761610000f17841ad42c0fd1dabe8db013a7a",
+           "width": 160
+          },
+          {
+           "height": 320,
+           "url": "https://i.scdn.co/image/ab6761610000517441ad42c0fd1dabe8db013a7a",
+           "width": 320
+          }
+         ]
+        }
+       }
+      },
+      {
+       "id": "04gDigrS5kc9YWfZHwBETP",
+       "profile": {
+        "name": "Maroon 5"
+       },
+       "uri": "spotify:artist:04gDigrS5kc9YWfZHwBETP",
+       "visuals": {
+        "avatarImage": {
+         "sources": [
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab6761610000e5ebf8349dfb619a7f842242de77",
+           "width": 640
+          },
+          {
+           "height": 160,
+           "url": "https://i.scdn.co/image/ab6761610000f178f8349dfb619a7f842242de77",
+           "width": 160
+          },
+          {
+           "height": 320,
+           "url": "https://i.scdn.co/image/ab67616100005174f8349dfb619a7f842242de77",
+           "width": 320
+          }
+         ]
+        }
+       }
+      }
+     ],
+     "totalCount": 40
+    }
+   },
+   "stats": {
+    "followers": 66322604,
+    "monthlyListeners": 90055966,
+    "topCities": {
+     "items": [
+      {
+       "city": "Mexico City",
+       "country": "MX",
+       "numberOfListeners": 1389683,
+       "region": "CMX"
+      },
+      {
+       "city": "São Paulo",
+       "country": "BR",
+       "numberOfListeners": 1378867,
+       "region": "SP"
+      }
+     ]
+    },
+    "worldRank": 9
+   },
+   "uri": "spotify:artist:4gzpq5DPGxSnKTe4SA8HAU",
+   "visuals": {
+    "avatarImage": {
+     "sources": [
+      {
+       "height": 640,
+       "url": "https://i.scdn.co/image/ab6761610000e5eb1ba8fc5f5c73e7e9313cc6eb",
+       "width": 640
+      },
+      {
+       "height": 160,
+       "url": "https://i.scdn.co/image/ab6761610000f1781ba8fc5f5c73e7e9313cc6eb",
+       "width": 160
+      },
+      {
+       "height": 320,
+       "url": "https://i.scdn.co/image/ab676161000051741ba8fc5f5c73e7e9313cc6eb",
+       "width": 320
+      }
+     ]
+    },
+    "gallery": {
+     "items": [
+      {
+       "sources": [
+        {
+         "height": 640,
+         "url": "https://i.scdn.co/image/ab6761670000ecd4def6f8bffb1d54ef51c5fffb",
+         "width": 640
+        }
+       ]
+      }
+     ]
+    }
+   }
+  }
+ }
+}

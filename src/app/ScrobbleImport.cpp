@@ -1128,6 +1128,7 @@ JobOutcome runJob(const ListenStats::ImportBase& base, const Job& job, const Tra
                 out.result.ok = true;
                 out.result.token = base.token;
                 out.result.source = base.source;
+                out.result.file = base.importedFile;
                 return;
             }
         }

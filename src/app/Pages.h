@@ -32,7 +32,11 @@ protected:
 
     // Replace content with an error panel ("Tekrar dene" calls retry).
     void showError(const std::wstring& message, std::function<void()> retry);
-    void showSkeleton(int rows = 8);
+    void showSkeleton(int rows = 8);   // a collection page loading: header + track rows (SkeletonBlock)
+    // Other pages loading in their own shape (app/PageWidgets skeletons): a page title over a grid of cards, over
+    // shelves (sections of cards), or over track rows.
+    enum class Loading { Cards, Shelves, Rows };
+    void showLoading(Loading shape);
     void contentReady();   // content is built: applies a pending scroll restore (now or when restoreScroll comes)
     ui::Column* resetContent(float gap = gfx::metrics::sectionGap);
     // coverSlot() of a detail page still showing its loading skeleton: where its header's cover will be (not ready).

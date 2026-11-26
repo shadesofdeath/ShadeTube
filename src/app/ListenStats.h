@@ -281,6 +281,7 @@ public:
         Snapshot snapshot;           // this PC's plays (as in the base) + every imported play, the new ones included
         uint64_t token = 0;
         ImportSource source = ImportSource::Spotify;
+        std::filesystem::path file;  // the source's file it wrote to (the base's: an account switch changes the store's)
         size_t rows = 0;             // rows offered
         size_t added = 0;            // new plays
         size_t duplicates = 0;       // already known (a re-import, overlapping files, a play recorded here, the same
@@ -312,9 +313,19 @@ public:
     bool loaded() const { return loaded_; }
     bool readOnly() const { return readOnly_; }   // the file couldn't be read: this session's plays are not saved
     bool dirty() const;
-    // This PC's history plus the current play so far, as a job for write(); clears dirty(). Empty file = nothing to do
-    // (not loaded yet, or read-only).
-    SaveJob makeSaveJob();
+    // This PC's history plus the current play so far (unless `withCurrent` is false), as a job for write(); clears
+    // dirty(). Empty file = nothing to do (not loaded yet, or read-only).
+    SaveJob makeSaveJob(bool withCurrent = true);
+    // Another Spotify account becomes active (app/Accounts). detach(), before the switch: every play stored so far is
+    // written to the current file at once, without the play in progress (it carries over and is stored in the history
+    // that is active when it ends), and so is every imported file a removal left to rewrite; a running import is
+    // dropped from memory (the batches it committed are in that account's files already: they show, and an API import
+    // resumes from its cursor, when that account is back; app/StatsPage stops the import job itself first); the store
+    // empties (imported plays and cursors too) and is not loaded. Not loaded yet (a switch right after the start):
+    // nothing is written and the plays recorded so far go along. attach(file), after it: the new account's file (its
+    // imported files are its siblings), which readFile() + adopt() then bring in under what was recorded meanwhile.
+    void detach();
+    void attach(std::filesystem::path file) { file_ = std::move(file); }
     // The imported histories that a removal / clear left to rewrite, one job per file.
     std::vector<SaveJob> makeImportedSaveJobs();
     // Serializes and replaces the file (flushed .tmp, previous file kept as .old). Any thread; writers of the same file

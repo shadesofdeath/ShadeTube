@@ -1,6 +1,7 @@
 #include "musicbrainz/MusicBrainz.h"
 
 #include "core/Http.h"
+#include "core/I18n.h"
 #include "core/Log.h"
 #include "musicbrainz/Net.h"
 #include "musicbrainz/Parse.h"
@@ -11,6 +12,7 @@
 #include <atomic>
 #include <cstdlib>
 #include <format>
+#include <optional>
 
 namespace st::mb {
 
@@ -83,6 +85,26 @@ std::string enc(const std::string& s) { return http::urlEncode(s); }
 
 std::string artistLookupPath(const std::string& id) { return "artist/" + id + "?inc=tags+url-rels"; }
 
+// The Wikipedias whose article titles are kept from a Wikidata entity (the UI languages).
+constexpr const char* kWikis[] = {"tr", "en", "de", "es", "fr", "pt", "ru", "uk", "id", "ja", "ko"};
+
+// Fetches a Wikidata entity (~100 KB, never stored itself) and caches what is used of it: the P18 photo's file name
+// and the article titles of kWikis.
+json fetchWikidataEntity(const std::string& q, const CT& ct) {
+    Request r;
+    r.service = Service::Wikidata;
+    r.url = "https://www.wikidata.org/wiki/Special:EntityData/" + q + ".json";
+    r.ttl = net::ttl::wikidata;
+    r.store = false;
+    const json entity = *net::fetch(r, ct);
+    net::cachePut("wikidata-p18 " + q, json{{"file", detail::wikidataImageFile(entity)}}.dump());
+    json titles = json::object();
+    for (const char* wiki : kWikis)
+        if (std::string t = detail::wikipediaTitle(entity, std::string(wiki) + "wiki"); !t.empty()) titles[wiki] = std::move(t);
+    net::cachePut("wikidata-sitelinks " + q, titles.dump());
+    return entity;
+}
+
 // Commons photo of an artist lookup (url-rels): direct "image" rel, else Wikidata P18. Best effort.
 std::vector<Image> artistImages(const json& lookup, const CT& ct, bool cacheOnly) {
     std::string file = detail::commonsFileFromRels(lookup);
@@ -95,13 +117,7 @@ std::vector<Image> artistImages(const json& lookup, const CT& ct, bool cacheOnly
         } else {
             if (cacheOnly) return {};
             try {
-                Request r;
-                r.service = Service::Wikidata;
-                r.url = "https://www.wikidata.org/wiki/Special:EntityData/" + q + ".json";
-                r.ttl = net::ttl::wikidata;
-                r.store = false;   // entities are ~100 KB; only the file name is cached
-                file = detail::wikidataImageFile(*net::fetch(r, ct));
-                net::cachePut(key, json{{"file", file}}.dump());
+                file = detail::wikidataImageFile(fetchWikidataEntity(q, ct));
             } catch (const OperationCanceled&) {
                 throw;
             } catch (const std::exception& e) {
@@ -112,6 +128,40 @@ std::vector<Image> artistImages(const json& lookup, const CT& ct, bool cacheOnly
         }
     }
     return detail::commonsImages(file);
+}
+
+// The artist's Wikipedia lead for the About block: the article in the UI language, else the English one. Sets bio,
+// bioSource, bioUrl and adds the article to the links. Best effort (throws only on cancellation).
+void addWikipediaBio(ArtistPage& page, const json& lookup, const CT& ct) {
+    const std::string q = detail::wikidataId(lookup);
+    if (q.empty()) return;
+    const std::string key = "wikidata-sitelinks " + q;
+    auto cached = net::cacheGet(key, net::ttl::wikidata);
+    if (!cached) {
+        fetchWikidataEntity(q, ct);   // stores the titles
+        cached = net::cacheGet(key, net::ttl::wikidata);
+    }
+    const json titles = json::parse(cached.value_or("{}"), nullptr, false);
+    if (!titles.is_object()) return;
+    std::vector<std::string> langs{i18n::code()};
+    if (langs.front() != "en") langs.push_back("en");
+    for (const auto& lang : langs) {
+        const std::string title = detail::str(titles, lang);
+        if (title.empty()) continue;
+        std::string path = title;
+        std::replace(path.begin(), path.end(), ' ', '_');
+        Request r;
+        r.service = Service::Wikidata;
+        r.url = "https://" + lang + ".wikipedia.org/api/rest_v1/page/summary/" + enc(path);
+        r.ttl = net::ttl::wikidata;
+        const auto summary = detail::parseWikipediaSummary(*net::fetch(r, ct));
+        if (summary.text.empty()) continue;
+        page.bio = summary.text;
+        page.bioSource = "Wikipedia";
+        page.bioUrl = summary.url;
+        if (!summary.url.empty()) page.links.push_back({"wikipedia", summary.url});
+        return;
+    }
 }
 
 // Fill photos only from what is already cached (no network): used for shelves of many artists.
@@ -281,6 +331,46 @@ Track recording(const std::string& recordingId, const CT& ct) {
     return std::move(hits.front().track);
 }
 
+Credits recordingCredits(const std::string& recordingId, const CT& ct) {
+    // work-level-rels: the works' own relationships of the requested kinds (artist-rels: composer, lyricist...).
+    const json rec = mbGet("recording/" + recordingId +
+                               "?inc=artist-credits+artist-rels+work-rels+work-level-rels+label-rels",
+                           net::ttl::lookup, ct);
+    return detail::parseRecordingCredits(rec);
+}
+
+std::vector<std::string> findRecordings(const std::string& title, const std::string& artist, int durationMs, size_t max,
+                                        const CT& ct) {
+    const std::string t = detail::searchableTitle(title);
+    if (t.empty()) return {};
+    std::string q = "recording:\"" + detail::luceneEscape(t) + "\"";
+    if (!artist.empty()) q += " AND artist:\"" + detail::luceneEscape(artist) + "\"";
+    q += " AND video:false";
+    const json root = mbGet(std::format("recording?query={}&limit=25", enc(q)), net::ttl::search, ct);
+    auto ids = detail::rankRecordings(root, title, artist, durationMs);
+    if (ids.size() > max) ids.resize(max);
+    return ids;
+}
+
+Credits songCredits(const std::string& title, const std::string& artist, int durationMs, const CT& ct) {
+    // A recording "knows" more than its artist credit when any relationship added somebody or a source.
+    auto rich = [](const Credits& c) {
+        if (!c.sources.empty()) return true;
+        for (size_t g = 0; g < kCreditGroups; ++g)
+            for (const auto& p : c.groups[g])
+                if (g != static_cast<size_t>(CreditGroup::Performers) || p.roles != std::vector<std::string>{"main artist"})
+                    return true;
+        return false;
+    };
+    std::optional<Credits> first;
+    for (const auto& id : findRecordings(title, artist, durationMs, 3, ct)) {
+        Credits c = recordingCredits(id, ct);
+        if (rich(c)) return c;
+        if (!first) first = std::move(c);
+    }
+    return first ? std::move(*first) : Credits{"musicbrainz", {}, {}};
+}
+
 // ---- ListenBrainz --------------------------------------------------------------------------------------------
 std::vector<Track> topTracksForArtist(const std::string& artistId, int limit, const CT& ct) {
     initTokenFromEnv();
@@ -378,6 +468,14 @@ ArtistPage artistPage(const std::string& artistId, const CT& ct) {
     };
     optional([&] { page.topTracks = topTracksForArtist(artistId, 10, ct); }, "top tracks");
     optional([&] { page.similar = similarArtists(artistId, 12, ct); }, "similar artists");
+    // About: the artist's own places (url-rels of the lookup artist() just cached) and the Wikipedia lead.
+    optional(
+        [&] {
+            const json lookup = mbGet(artistLookupPath(artistId), net::ttl::lookup, ct);
+            page.links = detail::parseArtistLinks(lookup);
+            addWikipediaBio(page, lookup, ct);
+        },
+        "about");
     return page;
 }
 

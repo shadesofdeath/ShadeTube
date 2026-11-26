@@ -1,5 +1,6 @@
 #include "app/App.h"
 
+#include "app/Accounts.h"
 #include "app/CommandPalette.h"
 #include "app/Commands.h"
 #include "app/Display.h"
@@ -18,6 +19,7 @@
 #include "app/Shell.h"
 #include "app/Smtc.h"
 #include "app/Social.h"
+#include "app/SongNotification.h"
 #include "app/ThemeStudio.h"
 #include "app/Together.h"
 #include "catalog/TrackKind.h"
@@ -33,6 +35,7 @@
 #include "gfx/Icons.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
+#include "player/AudioCache.h"
 #include "ui/Popups.h"
 #include "ui/Window.h"
 
@@ -149,11 +152,17 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     yto.language = i18n::code();
     yto.region = Settings::get().region;
     matcher_ = std::make_unique<youtube::MatchService>(YoutubeExplode::YoutubeClient(yto));
+    // Song cache: read on a worker right away (a play before that loads it on its own worker).
+    audioCache_ = std::make_unique<player::AudioCache>(paths::cacheDir() / L"audio");
+    audioCache_->setLimit(int64_t{Settings::get().audioCacheMb} << 20);
+    background(Priority::Low, [cache = audioCache_.get()] { cache->load(); });
     player_ = std::make_unique<player::Player>(*matcher_);
+    player_->setCache(audioCache_.get());
 
     auto& c = ctx();
     c.matcher = matcher_.get();
     c.player = player_.get();
+    c.audioCache = audioCache_.get();
     c.themeOverride = options_.theme;   // main.cpp already loaded the palette for it
     c.applyTheme = [this] { applyTheme(); };
     c.restartApp = [this] { restart(); };
@@ -195,7 +204,10 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     // A shadetube: link a second launch hands over (main.cpp, jam::forwardOpenLink).
     ChangeWindowMessageFilterEx(window_->hwnd(), WM_COPYDATA, MSGFLT_ALLOW, nullptr);
     thumbBar_ = std::make_unique<winshell::ThumbBar>(window_->hwnd());
-    thumbBar_->onCommand = [this](winshell::Command cmd) { runCommand(cmd); };
+    thumbBar_->onCommand = [this](winshell::Command cmd) {
+        songnotify::noteMediaControl();   // the thumbnail above the button shows the song
+        runCommand(cmd);
+    };
     windowIcon_ = std::make_unique<winshell::WindowIcon>(window_->hwnd());
     // Keyboard shortcut actions only App can carry out (its windows); the rest are app/Commands' own.
     commands::setHandler("now-playing", [this] {
@@ -272,6 +284,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     window_->onCtrlWheel = [](float delta) { return display::onCtrlWheel(delta); };   // zoom
     display::scheduleKeysDemo();   // SHADETUBE_KEYS_DEMO (dev)
     overlaydemo::schedule();       // SHADETUBE_OVERLAY_DEMO (dev)
+    accounts::scheduleDemo();      // SHADETUBE_ACCOUNT_DEMO (dev)
     window_->onNavButton = [](ui::MouseButton b) {
         if (!ctx().router) return;
         if (b == ui::MouseButton::Back) ctx().router->back();
@@ -345,6 +358,7 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     smtc_ = std::make_unique<Smtc>();
     smtc_->onButton = [this](Smtc::Button b) {
         if (!player_) return;
+        songnotify::noteMediaControl();   // Windows' media overlay shows the song: no notification of ours
         switch (b) {
         case Smtc::Button::Play: player_->play(); break;
         case Smtc::Button::Pause:
@@ -408,17 +422,36 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     // open-catalog fallback, so the app is fully usable logged out too.
     session_ = std::make_unique<spotify::Session>();
     c.session = session_.get();
+    // The saved accounts first (a single-account profile migrates here): every feature reads its per-account files from
+    // the active account's folder (app/Accounts).
+    session_->loadAccounts(accounts::perAccountFiles());
+    // (Copies: a hook may lead a feature to register its own hooks for the first time.)
+    session_->onAccountLeaving = [] {
+        const auto hooks = ctx().accountLeaveHooks;
+        for (auto& hook : hooks) hook();
+    };
+    session_->onAccountEntered = [this] {
+        const auto hooks = ctx().accountEnterHooks;
+        for (auto& hook : hooks) hook();
+        onAccountSwitched();
+    };
     c.startSpotifyLogin = [this] { startLogin(); };
     c.showConnect = [this](bool on) {
         if (shell_) shell_->setConnect(on);
     };
     c.logoutSpotify = [this] {
-        // Logging out stops the music (the queue came from that account) and leaves Now Playing, then shows the
-        // connect screen over everything.
-        if (player_ && player_->isPlaying()) player_->pause();
-        if (shell_) shell_->setNowPlaying(false);
+        // With another signed-in account it takes over and the music plays on (switching keeps the queue). Signing out
+        // of the last one stops the music (the queue came from that account), leaves Now Playing and shows the connect
+        // screen over everything.
+        const std::string active = session_->activeAccountId();
+        const auto others = session_->signedInAccounts();
+        const bool fallback = std::any_of(others.begin(), others.end(), [&](const spotify::Account& a) { return a.id != active; });
+        if (!fallback) {
+            if (player_ && player_->isPlaying()) player_->pause();
+            if (shell_) shell_->setNowPlaying(false);
+        }
         session_->logout();
-        if (shell_) shell_->setConnect(true);
+        if (!fallback && shell_) shell_->setConnect(true);
     };
 
     c.library.load();
@@ -450,14 +483,46 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
 }
 
 void App::startLogin() {
-    LoginWindow::open(window_->hwnd(), [this](std::string spDc) {
+    // A fresh WebView2 profile for this login (its own cookie jar): the accounts already here stay signed in, and the
+    // login never just picks up one of their cookies again.
+    const auto slot = session_->beginLogin();
+    if (slot.id.empty()) {
+        toast(tr(L"Spotify girişi tamamlanmadı."), true);
+        return;
+    }
+    LoginWindow::open(window_->hwnd(), slot.webViewDir.wstring(), [this, slot](std::string spDc) {
         if (spDc.empty()) {
+            session_->finishLogin(slot, {});
             toast(tr(L"Spotify girişi tamamlanmadı."));
             return;
         }
-        session_->loginWithCookie(std::move(spDc));
+        session_->finishLogin(slot, std::move(spDc), [](bool ok) {
+            if (!ok) toast(tr(L"Spotify'a bağlanılamadı. Biraz sonra yeniden dene."), true);
+        });
         toast(tr(L"Spotify'a bağlanılıyor…"));
     });
+}
+
+// The active Spotify account changed (a switch, a login of another account, a sign out with another account taking
+// over): the features already reloaded their per-account files (accountEnterHooks). The page on screen is rebuilt when it
+// shows account data (a playlist of the other account may not exist for this one: its page says so); Settings,
+// Downloads, local files, podcasts and radio stay as they are (the ones that show the account follow its notification).
+void App::onAccountSwitched() {
+    if (!shell_) return;
+    shell_->sidebar()->refresh();
+    shell_->playerBar()->sync();
+    if (auto* r = ctx().router) {
+        switch (r->current().kind) {
+        case RouteKind::Settings:
+        case RouteKind::Downloads:
+        case RouteKind::LocalFiles:
+        case RouteKind::Radio:
+        case RouteKind::Podcasts:
+        case RouteKind::Stats: break;   // Stats follows the listening history it shows
+        default: r->navigate(r->current(), true); break;
+        }
+    }
+    window_->invalidate();
 }
 
 void App::wireSession() {
@@ -514,6 +579,8 @@ App::~App() {
     discord_.reset();   // joins the RPC thread promptly; closing the pipe removes the presence
     matcher_.reset();
     c.matcher = nullptr;
+    audioCache_.reset();   // after the player: its download threads are joined (flushes the index)
+    c.audioCache = nullptr;
     session_.reset();
     c.session = nullptr;
 }
@@ -720,6 +787,13 @@ void App::wirePlayer() {
         for (auto& hook : ctx().trackChangedHooks) hook(t);
     };
     player_->onError = [](const std::wstring& msg) { toast(msg, true); };
+    // A song in the song cache keeps its video's SponsorBlock segments: an offline play skips the same parts.
+    sponsor_.stored = [this](const std::string& videoId, const std::string& key) {
+        return audioCache_ ? audioCache_->sponsor(videoId, key) : std::nullopt;
+    };
+    sponsor_.onFetched = [this](const std::string& videoId, const std::string& key, const std::string& json) {
+        if (audioCache_) audioCache_->setSponsor(videoId, key, json);
+    };
     // Song preview (app/Preview): about 35 % in, past a SponsorBlock segment this session already knows of the video.
     player_->previewStartFor = [this](const catalog::Track&, const youtube::Match* m, int64_t durationMs) {
         std::vector<std::pair<int64_t, int64_t>> skip;
@@ -969,6 +1043,8 @@ void App::housekeeping() {
         if (player_ && player_->onChanged) player_->onChanged();
     }
     if (matcher_) matcher_->flush();
+    // The song cache's index: plays and SponsorBlock data only mark it (written on a worker).
+    if (audioCache_ && audioCache_->dirty()) background(Priority::Low, [cache = audioCache_.get()] { cache->flush(); });
     if (session_) session_->maybeRefresh();
     // Dev: --open-link, once a saved Spotify session has finished connecting (its login re-applies the start route).
     if (!options_.openLink.empty() && session_ && session_->state() != spotify::SessionState::Connecting)
@@ -1252,6 +1328,7 @@ void App::persist() {
     ctx().library.saveIfDirty();
     ctx().downloads.saveIfDirty();
     if (matcher_) matcher_->flush();
+    if (audioCache_) audioCache_->flush();
     for (auto& hook : ctx().persistHooks) hook();
     Settings::get().save();
 }

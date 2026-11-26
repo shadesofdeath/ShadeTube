@@ -33,6 +33,7 @@ set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/resources.rc PROPERTIES 
 add_executable(ShadeTube WIN32
     main.cpp
     AboutSettings.cpp
+    Accounts.cpp Accounts.h
     AltSourceSettings.cpp
     App.cpp App.h
     AudioSettings.cpp
@@ -40,7 +41,10 @@ add_executable(ShadeTube WIN32
     CatalogJson.cpp CatalogJson.h
     Autostart.cpp Autostart.h
     Blacklist.cpp Blacklist.h
+    ArtistPage.cpp
+    BrowseModel.cpp BrowseModel.h
     BrowsePages.cpp
+    BrowseWidgets.cpp BrowseWidgets.h
     CollapsingHeader.cpp CollapsingHeader.h
     CollectionPage.cpp
     CommandPalette.cpp CommandPalette.h
@@ -49,6 +53,8 @@ add_executable(ShadeTube WIN32
     ConnectScreen.cpp ConnectScreen.h
     CoverBackdrop.cpp CoverBackdrop.h
     CoverGradient.cpp CoverGradient.h
+    Credits.cpp Credits.h
+    CreditsUi.cpp CreditsUi.h
     DiscordRpc.cpp DiscordRpc.h
     Display.cpp Display.h
     Downloads.cpp Downloads.h
@@ -71,6 +77,7 @@ add_executable(ShadeTube WIN32
     LocalLibrary.cpp LocalLibrary.h
     LoginWindow.cpp LoginWindow.h
     LyricsFullscreen.cpp LyricsFullscreen.h
+    LyricsPicker.cpp LyricsPicker.h
     LyricsService.cpp LyricsService.h
     LyricsShare.cpp LyricsShare.h
     MiniLayout.cpp MiniLayout.h
@@ -108,12 +115,15 @@ add_executable(ShadeTube WIN32
     Scrobbler.cpp Scrobbler.h
     ScrobbleImport.cpp ScrobbleImport.h
     SettingsCards.cpp SettingsCards.h
+    SearchPage.cpp
     SettingsPage.cpp
     SettingsWidgets.h
     Shortcuts.cpp Shortcuts.h
     Shell.cpp Shell.h
     ShareCard.cpp ShareCard.h
     SmartMix.cpp SmartMix.h
+    SongNotification.cpp SongNotification.h
+    SongNotifier.cpp
     SmartShuffle.cpp SmartShuffle.h
     SmartLists.cpp SmartLists.h
     SmartListsPage.cpp SmartListsPage.h
@@ -128,6 +138,7 @@ add_executable(ShadeTube WIN32
     ThemeStore.cpp ThemeStore.h
     ThemeStudio.cpp ThemeStudio.h
     ThemeStudioUi.cpp
+    TrackColumns.cpp TrackColumns.h
     Updater.cpp Updater.h
     WinShell.cpp WinShell.h
     YearReview.cpp YearReview.h

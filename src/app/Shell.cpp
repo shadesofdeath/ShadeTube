@@ -1,5 +1,6 @@
 #include "app/Shell.h"
 
+#include "app/Accounts.h"
 #include "app/Blacklist.h"
 #include "app/Commands.h"
 #include "app/ConnectScreen.h"
@@ -59,6 +60,8 @@ TitleBar::TitleBar() {
     friends_->setTooltip(tr(L"Arkadaş etkinliği"));
     friends_->onClick = [] { commands::run("friend-activity"); };
     friends_->setVisible(false);
+    // "SPOTIFY · <NAME>": a click opens the account menu (switch / add / sign out).
+    account_ = add<accounts::AccountChip>();
 
     min_ = add<Button>(ButtonKind::Caption, L"", "minimize");
     max_ = add<Button>(ButtonKind::Caption, L"", "maximize");
@@ -74,6 +77,7 @@ void TitleBar::setNowPlayingMode(bool on) {
     collapse_->setVisible(on);
     back_->setVisible(!on);
     forward_->setVisible(!on);
+    account_->setVisible(!on);
     requestLayout();
 }
 
@@ -86,6 +90,10 @@ void TitleBar::layout() {
     back_->setRect({130, 8, 24, 24});
     forward_->setRect({156, 8, 24, 24});
     collapse_->setRect({8, 4, collapse_->naturalWidth(), 32});
+    // Where the source tag was painted (x 196), up to the friend activity button.
+    auto* chip = static_cast<accounts::AccountChip*>(account_);
+    const float maxW = std::max(0.f, r.w - 8 - 120 - 12 - 28 - 16 - 188);
+    account_->setRect({188, 6, std::min(chip->naturalWidth(), maxW), 28});
 }
 
 void TitleBar::paint(Canvas& c) {
@@ -105,8 +113,7 @@ void TitleBar::paint(Canvas& c) {
                                   Color::rgb(winshell::kLogoAccent), accent().base);
         c.text(L"ShadeTube", type::body.withSize(13).withWeight(700), {r.x + 42, r.y, 90, r.h}, col.fgPrimary,
                gfx::TextAlign::Leading, gfx::VAlign::Center);
-        const std::wstring label = source::sourceLabel();
-        c.text(label, type::monoLabel, {r.x + 196, r.y, 400, r.h}, col.fgTertiary, gfx::TextAlign::Leading, gfx::VAlign::Center);
+        // The source tag ("SPOTIFY · <NAME>") is the account chip, a child (app/Accounts).
     } else {
         std::wstring label = tr(L"ŞİMDİ ÇALIYOR");
         if (auto* p = ctx().player; p && !p->context().name.empty()) label += L" · " + toUpperTr(p->context().name);
@@ -983,17 +990,17 @@ PlayerBar::PlayerBar()
     seek_ = add<ui::Slider>(ui::Slider::Look::Wave);
     seek_->hitPadding = 4;
     seek_->onCommit = [](float f) { ctx().player->seek(static_cast<int64_t>(f * ctx().player->durationMs())); };
-    shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle-thin");
-    prev_ = add<Button>(ButtonKind::Icon, L"", "prev-thin");
+    shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle");
+    prev_ = add<Button>(ButtonKind::Icon, L"", "prev");
     play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
-    next_ = add<Button>(ButtonKind::Icon, L"", "next-thin");
-    repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat-thin");
-    heart_ = add<Button>(ButtonKind::Icon, L"", "heart-thin");
-    lyrics_ = add<Button>(ButtonKind::Icon, L"", "lyrics-thin");
-    queue_ = add<Button>(ButtonKind::Icon, L"", "queue-thin");
+    next_ = add<Button>(ButtonKind::Icon, L"", "next");
+    repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat");
+    heart_ = add<Button>(ButtonKind::Icon, L"", "heart");
+    lyrics_ = add<Button>(ButtonKind::Icon, L"", "lyrics");
+    queue_ = add<Button>(ButtonKind::Icon, L"", "queue");
     knob_ = add<ui::Knob>();
-    mini_ = add<Button>(ButtonKind::Icon, L"", "mini-player-thin");
-    expand_ = add<Button>(ButtonKind::Icon, L"", "expand-thin");
+    mini_ = add<Button>(ButtonKind::Icon, L"", "mini-player");
+    expand_ = add<Button>(ButtonKind::Icon, L"", "expand");
     // Playback speed: always offered for podcast episodes, for songs only once it isn't 1x (keys / palette set it).
     speed_ = add<Button>(ButtonKind::Ghost, speedLabel(1.f));
     speed_->setTooltip(tr(L"Çalma hızı"));
@@ -1012,14 +1019,14 @@ PlayerBar::PlayerBar()
         ui::Menu::open(ctx().window, {br.x, br.y - 6}, std::move(items));
     };
     // "Birlikte dinle" (app/Together): the panel's button; during a session a pill that names it.
-    jam_ = add<Button>(ButtonKind::Icon, L"", "users-thin");
+    jam_ = add<Button>(ButtonKind::Icon, L"", "users");
     jam_->setTooltip(tr(L"Birlikte dinle"));
     jam_->onClick = [] { commands::run("listen-together"); };
-    jamLabel_ = add<Button>(ButtonKind::Ghost, L"", "users-thin");
+    jamLabel_ = add<Button>(ButtonKind::Ghost, L"", "users");
     jamLabel_->setTooltip(tr(L"Birlikte dinle"));
     jamLabel_->onClick = [] { commands::run("listen-together"); };
     jamLabel_->setVisible(false);
-    sleep_ = add<Button>(ButtonKind::Icon, L"", "clock-thin");
+    sleep_ = add<Button>(ButtonKind::Icon, L"", "clock");
     sleep_->setTooltip(tr(L"Uyku zamanlayıcı"));
     sleep_->onClick = [this] {
         const Rect br = sleep_->toWindow(sleep_->rect());
@@ -1035,7 +1042,7 @@ PlayerBar::PlayerBar()
     mini_->setTooltip(tr(L"Mini oynatıcı"));
     expand_->setTooltip(tr(L"Tam ekran"));
     heart_->setTooltip(tr(L"Beğen"));
-    heart_->setHeart("heart-thin", "heart-liked-thin");   // the like feedback (ui::HeartPop) when it changes
+    heart_->setHeart("heart", "heart-filled");   // the like feedback (ui::HeartPop) when it changes
 
     shuffle_->onClick = [] { smartshuffle::cycleMode(); };   // off -> shuffle -> smart shuffle
     prev_->onClick = [] { ctx().player->previous(); };
@@ -1060,7 +1067,7 @@ PlayerBar::PlayerBar()
     knob_->setValue(Settings::get().volume);
     knob_->onChange = [](float v) { ctx().player->setVolume(v); };
     // "Video modu" (app/VideoMode): the song's music video where the cover is in Now Playing, or in its own window.
-    video_ = add<Button>(ButtonKind::Icon, L"", "video-thin");
+    video_ = add<Button>(ButtonKind::Icon, L"", "video");
     video_->onClick = [] { videomode::toggle(); };
     sync();
 }
@@ -1068,7 +1075,7 @@ PlayerBar::PlayerBar()
 void PlayerBar::setNowPlayingMode(bool on) {
     nowPlaying_ = on;
     heart_->setVisible(!on);
-    expand_->setIcon(on ? "collapse-thin" : "expand-thin");
+    expand_->setIcon(on ? "collapse" : "expand");
     lyrics_->setActive(on);
     requestLayout();
 }
@@ -1099,13 +1106,13 @@ void PlayerBar::sync() {
     seek_->setLive(live_);
     const auto shuffleMode = smartshuffle::mode();
     shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
-    shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart-thin" : "shuffle-thin");
+    shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart" : "shuffle");
     shuffle_->setTooltip(smartshuffle::modeLabel(shuffleMode));
     const auto rep = p ? p->repeat() : RepeatMode::Off;
     repeat_->setActive(rep != RepeatMode::Off);
-    repeat_->setIcon(rep == RepeatMode::One ? "repeat-one-thin" : "repeat-thin");
+    repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
     const bool liked = t && (live_ ? radio::store().isFavorite(radio::uuidOf(t->id)) : ctx().library.isLiked(t->id));
-    heart_->setIcon(liked ? "heart-liked-thin" : "heart-thin");
+    heart_->setIcon(liked ? "heart-filled" : "heart");
     heart_->setActive(liked);
     // Liked / unliked while it plays (the heart, a row's heart, Ctrl+L, a menu, the phone): the feedback. Another song
     // just shows its own state.
@@ -1380,12 +1387,16 @@ void PlayerBar::paint(Canvas& c) {
 // QueuePanel
 
 namespace {
-// Upcoming rows: 52 DIP, 40 with "Liste yoğunluğu: Sıkı" (Settings::compactLists, app/Display); the playing row keeps 56.
+// Upcoming rows: 52 DIP, 40 with "Liste yoğunluğu: Sıkı" (Settings::compactLists, app/Display); "Şimdi çalıyor" is a
+// 64 DIP block of its own.
 float queueRowH() { return Settings::get().compactLists ? 40.f : 52.f; }
+constexpr float kPadX = 20;
+constexpr float kNowLabelY = 64, kNowY = 84, kNowH = 64, kSectionY = 168, kListTop = 192;
+constexpr float kHeadH = 36;   // a section header inside the list
 } // namespace
 
 QueuePanel::QueuePanel()
-    : title_(tr(L"Sıradaki"), type::title), meta_({}, type::monoLabel), blockedBadge_(toUpperTr(tr(L"Engelli")), type::monoBadge) {
+    : title_(tr(L"Sıradaki"), type::title), meta_({}, type::monoLabel), nowLabel_(toUpperTr(tr(L"Şimdi çalıyor")), type::monoLabel) {
     clipsChildren = true;
     gfx::TextOptions right;
     right.align = gfx::TextAlign::Trailing;
@@ -1394,6 +1405,15 @@ QueuePanel::QueuePanel()
     save_->setTooltip(tr(L"Kuyruğu kaydet"));
     save_->onClick = [this] { saveAsPlaylist(); };
     save_->setVisible(false);
+    clear_ = add<Button>(ButtonKind::Icon, L"", "trash");
+    clear_->setTooltip(tr(L"Sırayı temizle"));
+    clear_->onClick = [] {
+        if (auto* p = ctx().player) p->clearQueue();
+    };
+    clear_->setVisible(false);
+    empty_ = add<MessagePanel>("queue", tr(L"Sıra boş"), tr(L"Bir şarkı çal ya da şarkıları buraya sürükle."));
+    empty_->setCompact(true);
+    empty_->hitTestVisible = false;
 }
 
 void QueuePanel::saveAsPlaylist() {
@@ -1401,15 +1421,31 @@ void QueuePanel::saveAsPlaylist() {
     if (!p || p->currentOrderIndex() < 0) return;
     std::vector<catalog::Track> tracks;
     for (int i = p->currentOrderIndex(); i < static_cast<int>(p->order().size()); ++i)
-        if (const auto& t = p->items()[p->order()[i]]; !radio::isStationId(t.id) && !catalog::isPodcastId(t.id))
+        if (const auto& t = p->items()[p->order()[i]]; !radio::isStationId(t.id) && !catalog::isPodcastId(t.id)) {
             tracks.push_back(t);   // songs only
+            tracks.back().queued = tracks.back().recommended = false;
+        }
     if (tracks.empty()) return;
     // Name dialog -> a Spotify playlist with the Spotify tracks (logged in) or a local playlist; it reports with a toast.
     promptNewPlaylist({}, std::move(tracks));
 }
 
+void QueuePanel::rebuildSections() {
+    auto* p = ctx().player;
+    const int cur = p ? p->currentOrderIndex() : -1;
+    const int n = p ? static_cast<int>(p->order().size()) : 0;
+    sections_.rowH = queueRowH();
+    sections_.headH = kHeadH;
+    if (cur < 0) sections_.build(0, [](int) { return false; });
+    else sections_.build(n - cur - 1, [p, cur](int k) { return p->items()[p->order()[cur + 1 + k]].queued; });
+    secPos_ = cur;
+    secSize_ = n;
+    secGen_ = p ? p->queueGeneration() : 0;
+}
+
 void QueuePanel::sync() {
     auto* p = ctx().player;
+    rebuildSections();
     int64_t remaining = 0;
     int count = 0;
     if (p) {
@@ -1424,21 +1460,34 @@ void QueuePanel::sync() {
     meta_.setText(stations ? toUpperTr(i18n::plural(L"{} istasyon", count))
                            : i18n::format(tr(L"{} · {} DK"), {std::to_wstring(count), std::to_wstring(remaining / 60000)}));
     // "Kuyruğu kaydet" makes a playlist of songs: not for a list of stations.
-    save_->setVisible(p && p->currentOrderIndex() >= 0 && !p->order().empty() && !stations);
+    const bool any = p && p->currentOrderIndex() >= 0 && !p->order().empty();
+    save_->setVisible(any && !stations);
+    clear_->setVisible(any && count > 0);
+    empty_->setVisible(!any);
+    requestLayout();
     invalidate();
 }
 
-void QueuePanel::layout() { save_->setRect({rect().w - 20 - 32, embedded_ ? 70 + oy() - 16 : 20 + 2, 32, 32}); }
+void QueuePanel::layout() {
+    const float w = rect().w;
+    const float y = embedded_ ? kNowLabelY + oy() - 8 : 22;
+    clear_->setRect({w - kPadX - 32 + 6, y, 32, 32});
+    save_->setRect({w - kPadX - 32 + 6 - (clear_->visible() ? 36 : 0), y, 32, 32});
+    const float top = embedded_ ? 0.f : kNowLabelY + oy() - 16;
+    empty_->setRect({0, top, w, empty_->preferredHeight(w)});
+}
 
-float QueuePanel::listTop() const { return 20 + 36 + 8 + 20 + 56 + 24 + 20 + oy(); }
+float QueuePanel::listTop() const { return kListTop + oy(); }
 
 Rect QueuePanel::rowRect(int orderIndex) const {
     auto* p = ctx().player;
     const int cur = p ? p->currentOrderIndex() : 0;
-    if (orderIndex == cur) return {0, 20 + 36 + 8 + 20 + oy(), rect().w, 56};
+    if (orderIndex == cur) return {kPadX - 8, kNowY + oy(), rect().w - (kPadX - 8) * 2, kNowH};
     const int k = orderIndex - cur - 1;
-    return {0, listTop() + k * queueRowH() - scroll_.value(), rect().w, queueRowH()};
+    return {0, listTop() + sections_.rowY(k) - scroll_.value(), rect().w, sections_.rowH};
 }
+
+Rect QueuePanel::removeRect(const Rect& row) const { return {row.right() - kPadX - 28 + 6, row.cy() - 14, 28, 28}; }
 
 int QueuePanel::rowAt(gfx::Point pt) const {
     auto* p = ctx().player;
@@ -1446,16 +1495,14 @@ int QueuePanel::rowAt(gfx::Point pt) const {
     const gfx::Point lp{pt.x - rect().x, pt.y - rect().y};
     if (rowRect(p->currentOrderIndex()).contains(lp)) return p->currentOrderIndex();
     if (lp.y < listTop()) return -1;
-    const int k = static_cast<int>((lp.y - listTop() + scroll_.value()) / queueRowH());
-    const int idx = p->currentOrderIndex() + 1 + k;
-    return idx < static_cast<int>(p->order().size()) ? idx : -1;
+    const int k = sections_.rowAt(lp.y - listTop() + scroll_.value());
+    return k >= 0 ? p->currentOrderIndex() + 1 + k : -1;
 }
 
 float QueuePanel::maxScroll() const {
     auto* p = ctx().player;
     if (!p || p->currentOrderIndex() < 0) return 0;
-    const int upcoming = static_cast<int>(p->order().size()) - p->currentOrderIndex() - 1;
-    return std::max(0.f, upcoming * queueRowH() - (rect().h - listTop()) + 16);
+    return std::max(0.f, sections_.height() - (rect().h - listTop()) + 16);
 }
 
 bool QueuePanel::onWheel(float dy, float, const ui::MouseEvent&) {
@@ -1488,29 +1535,63 @@ bool QueuePanel::onMouseDown(const ui::MouseEvent& e) {
         return false;
     }
     if (e.button != ui::MouseButton::Left) return false;
+    // The hovered row's "×": out of the queue at once.
+    if (i != p->currentOrderIndex()) {
+        const Rect rr = rowRect(i);
+        if (removeRect(rr).contains({e.pos.x - rect().x, e.pos.y - rect().y})) {
+            p->removeAt(i);
+            hover_ = -1;
+            hoverFade_.clear();
+            return false;
+        }
+    }
     dragFrom_ = i;
     dragTo_ = i;
-    dragStartY_ = e.pos.y;
+    dragStartY_ = dragY_ = e.pos.y - rect().y;
     dragging_ = false;
     return true;
 }
 
 void QueuePanel::onMouseMove(const ui::MouseEvent& e) {
-    if (pressed() && dragFrom_ >= 0 && dragFrom_ != ctx().player->currentOrderIndex()) {
-        if (std::abs(e.pos.y - dragStartY_) > 6) dragging_ = true;
+    auto* p = ctx().player;
+    const gfx::Point lp{e.pos.x - rect().x, e.pos.y - rect().y};
+    if (pressed() && dragFrom_ >= 0 && p && dragFrom_ != p->currentOrderIndex()) {
+        if (std::abs(lp.y - dragStartY_) > 6 && !dragging_) {
+            dragging_ = true;
+            dragLineY_.snap(rowRect(dragFrom_).y);
+        }
         if (dragging_) {
-            const int i = rowAt(e.pos);
-            if (i > ctx().player->currentOrderIndex()) dragTo_ = i;
+            dragY_ = lp.y;
+            // The slot the row would land in front of (sections' headers count as their first row), as Player::move's
+            // final index.
+            const int slot = sections_.insertAt(lp.y - listTop() + scroll_.value());
+            const int ins = p->currentOrderIndex() + 1 + slot;
+            const int to = std::clamp(ins > dragFrom_ ? ins - 1 : ins, p->currentOrderIndex() + 1,
+                                      static_cast<int>(p->order().size()) - 1);
+            if (to != dragTo_) {
+                dragTo_ = to;
+                const float y = listTop() + sections_.rowY(slot) - scroll_.value();
+                dragLineY_.to(y, ui::motion::microMs(ui::motion::fast), ui::Ease::Decelerate);
+            }
             invalidate();
         }
         return;
     }
     const int i = rowAt(e.pos);
-    if (i != hover_) {
+    const bool rm = i >= 0 && p && i != p->currentOrderIndex() && removeRect(rowRect(i)).contains(lp);
+    if (i != hover_ || rm != hoverRemove_) {
+        if (i != hover_) hoverFade_.set(i);
         hover_ = i;
-        hoverFade_.set(i);
+        hoverRemove_ = rm;
         invalidate();
     }
+}
+
+void QueuePanel::onMouseLeave() {
+    hover_ = -1;
+    hoverRemove_ = false;
+    hoverFade_.set(-1);
+    invalidate();
 }
 
 void QueuePanel::onMouseUp(const ui::MouseEvent& e) {
@@ -1536,8 +1617,7 @@ int QueuePanel::dropIndexAt(gfx::Point windowPos) const {
     auto* p = ctx().player;
     if (!p || p->currentOrderIndex() < 0) return 0;
     const gfx::Point pp = fromWindow(windowPos);
-    return dropped::queueDropIndex(pp.y - rect().y - listTop() + scroll_.value(), queueRowH(), p->currentOrderIndex(),
-                                   static_cast<int>(p->order().size()));
+    return p->currentOrderIndex() + 1 + sections_.insertAt(pp.y - rect().y - listTop() + scroll_.value());
 }
 
 bool QueuePanel::dragOver(const DragPayload& payload, gfx::Point windowPos) {
@@ -1560,6 +1640,11 @@ bool QueuePanel::dragOver(const DragPayload& payload, gfx::Point windowPos) {
     lastScrollTick_ = now;
     const int at = dropIndexAt(windowPos);
     if (at != dropAt_) {
+        const float y = p->currentOrderIndex() >= 0
+                            ? listTop() + sections_.rowY(at - p->currentOrderIndex() - 1) - scroll_.value()
+                            : 0.f;
+        if (dropAt_ < 0) dragLineY_.snap(y);
+        else dragLineY_.to(y, ui::motion::microMs(ui::motion::fast), ui::Ease::Decelerate);
         dropAt_ = at;
         invalidate();
     }
@@ -1578,11 +1663,21 @@ void QueuePanel::drop(const DragPayload& payload, gfx::Point windowPos) {
     dragdrop::dropOnQueue(at, payload);
 }
 
+std::wstring QueuePanel::sectionLabel(bool queued) const {
+    if (queued) return toUpperTr(tr(L"Sırada"));
+    std::wstring s = tr(L"SONRAKİ");
+    if (const auto* p = ctx().player; p && !p->context().name.empty()) s += L" · " + toUpperTr(p->context().name);
+    return s;
+}
+
 void QueuePanel::paint(Canvas& c) {
     const Rect r = rect();
     const auto& col = colors();
     const auto& acc = accent();
     auto* p = ctx().player;
+    if (p && (p->currentOrderIndex() != secPos_ || static_cast<int>(p->order().size()) != secSize_ ||
+              p->queueGeneration() != secGen_ || sections_.rowH != queueRowH()))
+        rebuildSections();   // the queue changed before sync() ran (or the density did)
     scroll_.setBounds(0, maxScroll());   // the queue changed / the panel resized: the offset follows the new end
     if (!embedded_) {
         c.fillRect(r, col.bgBase.withAlpha(0.35f));
@@ -1590,99 +1685,142 @@ void QueuePanel::paint(Canvas& c) {
     }
     c.pushClip(r);
     c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
-    const float padX = 20;
-    // meta right-aligned, left of the "Kuyruğu kaydet" button when it is shown (embedded: on the "ŞİMDİ" row)
-    const float metaRight = save_->visible() ? save_->rect().x - 8 : r.w - padX;
     if (!embedded_) {
         const float tw = std::ceil(title_.measure().w);
-        c.text(title_, {padX, 20, tw + 1, 36}, col.fgPrimary, gfx::VAlign::Center);
+        c.text(title_, {kPadX, 20, tw + 1, 36}, col.fgPrimary, gfx::VAlign::Center);
     }
-    c.text(meta_, {padX, embedded_ ? 70 + oy() - 18 : 20, metaRight - padX, 36}, col.fgTertiary, gfx::VAlign::Center);
-    if (!p || p->currentOrderIndex() < 0) {
-        c.text(tr(L"Sıra boş. Bir şarkı çal, burada görünsün."), type::secondary, {padX, 80 + oy(), r.w - padX * 2, 20},
-               col.fgTertiary);
+    if (!p || p->currentOrderIndex() < 0) {   // the empty state is the child panel
         if (dropAt_ >= 0) c.strokeRounded({8, 8, r.w - 16, r.h - 16}, gfx::radii().surface, acc.base, 2);   // songs dragged in play here
         c.popTransform();
         c.popClip();
         paintChildren(c);
         return;
     }
-    c.text(tr(L"ŞİMDİ"), type::monoLabel, {padX, 20 + 36 + 8 - 2 + oy(), 100, 16}, acc.base);
-    auto drawRow = [&](int oi, const Rect& rr, bool current) {
+    const int cur = p->currentOrderIndex();
+    // "Şimdi çalıyor": the label (the actions on its row when embedded), then the playing song's block with its progress.
+    c.text(nowLabel_, {kPadX, kNowLabelY + oy(), r.w - kPadX * 2, 16}, acc.base);
+
+    // One upcoming / playing row. Badges (recommended, added by a guest, blocked) sit right, before the duration; the
+    // hovered row trades its duration for "×" (out of the queue).
+    auto drawRow = [&](int oi, const Rect& rr, bool current, float hv) {
         const auto& t = p->items()[p->order()[oi]];
-        const float hv = current ? 0.f : hoverFade_.of(oi);
-        if (current) c.fillRect(rr, acc.tint06);
-        else if (hv > 0.001f) c.fillRect(rr, col.overlayHover.mulAlpha(hv));
-        float x = padX;
-        if (!current) {
-            c.icon("drag-handle", {x - 12, rr.cy() - 6, 12, 12}, col.fgTertiary.mulAlpha(0.5f + 0.5f * hv));
-            x += 4;
-        }
+        float x = current ? rr.x + 8 : kPadX;
+        if (!current) c.icon("drag-handle", {x - 14, rr.cy() - 6, 12, 12}, col.fgTertiary.mulAlpha(0.35f + 0.65f * hv));
         // Kara liste: an upcoming blocked track is skipped by the player, so it is dimmed like in the track tables;
         // the badge also marks a blocked track that plays because the user picked it.
         const bool blocked = blacklist::isBlocked(t);
         const float alpha = blocked && !current ? 0.38f : 1.f;
-        const float art = current ? 40.f : Settings::get().compactLists ? 28.f : 36.f;
+        const float art = current ? 48.f : Settings::get().compactLists ? 28.f : 36.f;
         const Rect artR{x, rr.cy() - art * 0.5f, art, art};
         const bool station = radio::isStationId(t.id);
         if (station) drawStationArt(c, t.album.images, artR, gfx::radii().art, current ? Priority::High : Priority::Normal);
         else drawArtwork(c, t.album.images, artR, gfx::radii().art, Placeholder::Album, false, current ? Priority::High : Priority::Normal);
         if (alpha < 1) c.fillRect(artR, col.bgBase.withAlpha(0.6f));
         x += art + 12;
+        const float right = current ? rr.right() - 12 : r.w - kPadX;
         float rightW = current ? 24.f : 52.f;
         if (t.recommended) {   // smart shuffle / "Geliştir"
             const float bw = smartshuffle::badgeWidth();
-            smartshuffle::drawBadge(c, r.w - padX - rightW - 8 - bw, rr.cy());
+            smartshuffle::drawBadge(c, right - rightW - 8 - bw, rr.cy());
             rightW += bw + 8;
         }
         if (const std::wstring by = together::addedBy(t); !by.empty()) {   // a listen-together guest queued it
             const float bw = together::addedBadgeWidth(by);
-            together::drawAddedBadge(c, r.w - padX - rightW - 8 - bw, rr.cy(), by);
+            together::drawAddedBadge(c, right - rightW - 8 - bw, rr.cy(), by);
             rightW += bw + 8;
         }
         if (blocked) {
-            const float bw = std::ceil(blockedBadge_.measure().w) + 10;
-            const Rect badge{r.w - padX - rightW - 8 - bw, rr.cy() - 7, bw, 14};
-            c.fillRounded(badge, gfx::radii().badge, col.fgPrimary.withAlpha(0.14f));
-            c.text(blockedBadge_, badge.inset(5, 0), col.fgSecondary, gfx::VAlign::Center);
+            const float bw = badge::width(badge::blockedLabel());
+            badge::draw(c, right - rightW - 8 - bw, rr.cy(), badge::blockedLabel(), badge::Tone::Neutral);
             rightW += bw + 8;
         }
-        c.text(toWide(t.name), type::body.withSize(13), {x, rr.cy() - 17, r.w - x - rightW - padX, 18}, col.fgPrimary.mulAlpha(alpha));
+        const float tw = std::max(0.f, right - rightW - 8 - x);
         // The playing station: the song it announces (ICY) when it sends one.
         const std::wstring second = current && station && !p->liveTitle().empty() ? p->liveTitle() : toWide(t.artistLine());
-        c.text(second, type::caption.withSize(11), {x, rr.cy() + 1, r.w - x - rightW - padX, 16}, col.fgSecondary.mulAlpha(alpha));
+        const bool alone = second.empty();
+        const auto& titleStyle = current ? type::body : type::body.withSize(13);
+        const float th = current ? 20.f : 18.f;
+        c.text(toWide(t.name), titleStyle, {x, alone ? rr.cy() - th * 0.5f : rr.cy() - th + 1, tw, th},
+               (current ? acc.base : col.fgPrimary).mulAlpha(alpha), gfx::TextAlign::Leading, gfx::VAlign::Center);
+        if (!alone)
+            c.text(second, (current ? type::caption : type::caption.withSize(11)), {x, rr.cy() + 2, tw, 16},
+                   col.fgSecondary.mulAlpha(alpha), gfx::TextAlign::Leading, gfx::VAlign::Center);
         if (current) {
-            drawPlayingBars(c, this, {r.w - padX - 16, rr.cy() - 8, 16, 16}, acc.base);   // moving / frozen
-        } else if (!station) {   // stations have no duration
-            c.text(ui::formatDuration(t.durationMs), type::monoMeta, {r.w - padX - 52, rr.y, 52, rr.h}, col.fgTertiary.mulAlpha(alpha),
-                   gfx::TextAlign::Trailing, gfx::VAlign::Center);
+            drawPlayingBars(c, this, {right - 16, rr.cy() - 8, 16, 16}, acc.base);   // moving / frozen
+            return;
+        }
+        const float rm = (hover_ == oi && !dragging_) ? hv : 0.f;
+        if (!station && rm < 0.999f)   // stations have no duration
+            c.text(ui::formatDuration(t.durationMs), type::monoMeta, {right - 52, rr.y, 52, rr.h},
+                   col.fgTertiary.mulAlpha(alpha * (1 - rm)), gfx::TextAlign::Trailing, gfx::VAlign::Center);
+        if (rm > 0.001f) {
+            const Rect xr = removeRect(rr);
+            c.icon("close", xr.center(14, 14).offset((1 - rm) * 6, 0), (hoverRemove_ ? col.fgPrimary : col.fgSecondary).mulAlpha(rm));
         }
     };
-    drawRow(p->currentOrderIndex(), rowRect(p->currentOrderIndex()), true);
-    std::wstring nextLabel = tr(L"SONRAKİ");
-    if (!p->context().name.empty()) nextLabel += L" · " + toUpperTr(p->context().name);
-    c.text(nextLabel, type::monoLabel, {padX, listTop() - 24, r.w - padX * 2, 16}, col.fgTertiary);
+
+    // The playing song: a tinted block with a 2 DIP progress line along its foot.
+    const Rect now = rowRect(cur);
+    c.fillRounded(now, gfx::radii().surface, acc.tint06);
+    drawRow(cur, now, true, 0);
+    if (const int64_t dur = p->durationMs(); dur > 0 && !p->isLive()) {
+        const float f = std::clamp(static_cast<float>(p->positionMs()) / static_cast<float>(dur), 0.f, 1.f);
+        const Rect track{now.x + 8, now.bottom() - 6, now.w - 16, 2};
+        c.fillRect(track, col.hairSubtle);
+        c.fillRect({track.x, track.y, std::round(track.w * f), track.h}, acc.base.mulAlpha(0.85f));
+    }
+
+    // Sections: the first one's label above the list (with the count and minutes), the others inside it.
+    if (sections_.count > 0) {
+        c.text(sectionLabel(sections_.queued.front()), type::monoLabel, {kPadX, kSectionY + oy(), r.w - kPadX * 2 - 90, 16},
+               col.fgTertiary);
+        c.text(meta_, {r.w - kPadX - 90, kSectionY + oy(), 90, 16}, col.fgTertiary);
+    } else {
+        c.text(tr(L"Sırada başka şarkı yok."), type::secondary, {kPadX, kSectionY + oy() - 2, r.w - kPadX * 2, 20}, col.fgTertiary);
+    }
     c.pushClip({0, listTop() - 4, r.w, r.h - listTop() + 4});
-    const int n = static_cast<int>(p->order().size());
-    const int firstVisible = p->currentOrderIndex() + 1 + std::max(0, static_cast<int>(scroll_.value() / queueRowH()));
-    for (int i = firstVisible; i < n; ++i) {
-        const Rect rr = rowRect(i);
-        if (rr.y > r.h) break;
-        if (dragging_ && i == dragFrom_) {
-            c.fillRect(rr, col.overlayPressed);
+    const float scroll = scroll_.value();
+    const float viewH = r.h - listTop();
+    for (int run = 1; run < static_cast<int>(sections_.queued.size()); ++run) {
+        const float y = listTop() + sections_.headerY(run) - scroll;
+        if (y + kHeadH < listTop() - 4 || y > r.h) continue;
+        c.hline(kPadX, r.w - kPadX, y + 8, col.hairSubtle);
+        c.text(sectionLabel(sections_.queued[run]), type::monoLabel, {kPadX, y + 16, r.w - kPadX * 2, 16}, col.fgTertiary);
+    }
+    // Visible rows only (5 000 queued songs cost what fits in the panel).
+    const int n = sections_.count;
+    int k = std::max(0, static_cast<int>(scroll / sections_.rowH) - static_cast<int>(sections_.breaks.size()) - 1);
+    while (k < n && sections_.rowY(k) + sections_.rowH < scroll) ++k;
+    for (; k < n; ++k) {
+        const float y = sections_.rowY(k) - scroll;
+        if (y > viewH) break;
+        const int oi = cur + 1 + k;
+        const Rect rr{0, listTop() + y, r.w, sections_.rowH};
+        if (dragging_ && oi == dragFrom_) {   // the slot the dragged row left: a hairline outline
+            c.strokeRounded(rr.inset(kPadX - 8, 3).inset(0.5f), gfx::radii().surface, col.hairDefault);
             continue;
         }
-        drawRow(i, rr, false);
+        const float hv = hoverFade_.of(oi);
+        if (hv > 0.001f && !dragging_) c.fillRect(rr, col.overlayHover.mulAlpha(hv));
+        drawRow(oi, rr, false, dragging_ ? 0.f : hv);
     }
-    if (dragging_ && dragTo_ >= 0) {
-        const Rect tr = rowRect(dragTo_);
-        c.fillRect({padX, dragTo_ > dragFrom_ ? tr.bottom() - 1 : tr.y - 1, r.w - padX * 2, 2}, acc.base);
-    }
-    if (dropAt_ >= 0) {   // songs dragged in from a list / files from Explorer go in front of this slot
-        const float y = listTop() + static_cast<float>(dropAt_ - p->currentOrderIndex() - 1) * queueRowH() - scroll_.value();
-        c.fillRect({padX, y - 1, r.w - padX * 2, 2}, acc.base);
+    // The insertion line (a row moved here, or songs dragged in from a list / files from Explorer): it glides between
+    // slots, with a small ring at its start.
+    if ((dragging_ && dragTo_ >= 0 && dragTo_ != dragFrom_) || dropAt_ >= 0) {
+        const float y = std::round(dragLineY_.value());
+        c.fillRect({kPadX - 4, y - 1, r.w - kPadX * 2 + 4, 2}, acc.base);
+        c.strokeCircle({kPadX - 9, y}, 3.5f, acc.base, 1.5f);
     }
     c.popClip();
+    // The dragged row follows the pointer, lifted on the elevated surface.
+    if (dragging_ && dragFrom_ >= 0 && dragFrom_ < static_cast<int>(p->order().size())) {
+        const float h = sections_.rowH;
+        const Rect lifted{6, std::round(dragY_ - h * 0.5f), r.w - 12, h};
+        c.shadow(lifted, gfx::radii().surface, 18, 6, col.shadowCard);
+        c.fillRounded(lifted, gfx::radii().surface, col.bgElevated);
+        c.strokeRounded(lifted.inset(0.5f), gfx::radii().surface, col.hairStrong);
+        drawRow(dragFrom_, {0, lifted.y, r.w, h}, false, 0);
+    }
     c.popTransform();
     c.popClip();
     paintChildren(c);

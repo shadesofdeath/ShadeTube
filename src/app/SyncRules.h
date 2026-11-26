@@ -57,6 +57,10 @@ struct Rule {
     int64_t retryAt = 0;                   // backoff: no listing before this (unix seconds)
     int64_t changedAt = 0;                 // the collection changed here after lastSync (not persisted)
     std::vector<Excluded> excluded;        // songs the user took out (never in trackIds), oldest first
+    // Spotify Liked Songs / playlists: the Spotify user (spotify:user:<name>) whose collection it is, listed only while
+    // that account is active (several accounts on one PC). "" = not known yet (a rule from before 0.11): the first
+    // listing stamps it with the account it ran under.
+    std::string account;
 };
 
 // Automatic download attempts of one track by sync (the retry policy for failures).
@@ -71,6 +75,12 @@ struct State {
 };
 
 bool isSpotifyRule(const Rule& r);         // needs a Spotify session to list
+// A Spotify Liked Songs / playlist rule: it belongs to one account (Rule::account). Albums are the same for everyone.
+bool accountBound(const Rule& r);
+// Whether the rule can be listed with the session of Spotify user `user` ("" = logged out): local and MusicBrainz rules
+// always, Spotify albums with any session, Spotify Liked Songs / playlists only with their own account (or any, while
+// not stamped yet). A rule that can't be listed keeps its track ids, so none of its songs are dropped.
+bool listableBy(const Rule& r, const std::string& user);
 const Rule* findRule(const State& s, const std::string& id);
 Rule* findRule(State& s, const std::string& id);
 

@@ -73,6 +73,7 @@ private:
     void wirePlayer();
     void wireSession();
     void startLogin();
+    void onAccountSwitched();    // the active Spotify account changed (app/Accounts)
     void syncAccent(const catalog::Track& t);
     void showMatchPicker(const catalog::Track& t);
     bool handleKey(const ui::KeyEvent& e);
@@ -107,6 +108,7 @@ private:
 
     LaunchOptions options_;
     std::unique_ptr<youtube::MatchService> matcher_;
+    std::unique_ptr<player::AudioCache> audioCache_;   // outlives player_ (its download threads store into it)
     std::unique_ptr<player::Player> player_;
     SponsorBlock sponsor_;               // UI thread; follows player_->currentMatch()
     std::unique_ptr<spotify::Session> session_;

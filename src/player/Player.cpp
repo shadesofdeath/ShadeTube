@@ -6,6 +6,7 @@
 #include "core/Log.h"
 #include "core/Paths.h"
 #include "core/Utf.h"
+#include "player/AudioCache.h"
 
 #include <YoutubeExplode/Exceptions.hpp>
 
@@ -26,7 +27,10 @@ constexpr int64_t kPrefetchWindowMs = 25'000;
 
 Player::Player(youtube::MatchService& matcher) : matcher_(matcher) {
     audio::EngineEvents ev;
-    ev.onState = [this](audio::State s, uint64_t tag) { Dispatcher::post([this, s, tag] { onEngineState(s, tag); }); };
+    ev.onState = [this](audio::State s, uint64_t tag) {
+        const uint64_t at = GetTickCount64();   // when the engine said so (the UI thread may take a while to hear it)
+        Dispatcher::post([this, s, tag, at] { onEngineState(s, tag, at); });
+    };
     ev.onEnded = [this](uint64_t f, uint64_t n) { Dispatcher::post([this, f, n] { onEngineEnded(f, n); }); };
     ev.onError = [this](audio::ErrorKind k, const std::string& m, uint64_t tag) {
         Dispatcher::post([this, k, m, tag] { onEngineError(k, m, tag); });
@@ -338,6 +342,7 @@ void Player::playNext(const Track& track) {
         return;
     }
     items_.push_back(track);
+    items_.back().queued = true;   // the user's own pick: the queue panel's "Sırada"
     order_.insert(order_.begin() + pos_ + 1, static_cast<int>(items_.size()) - 1);
     dropPrepared();
     notify();
@@ -352,6 +357,7 @@ void Player::enqueue(const std::vector<Track>& tracks) {
     for (const auto& t : tracks) {
         if (!t.playable) continue;
         items_.push_back(t);
+        items_.back().queued = true;
         order_.push_back(static_cast<int>(items_.size()) - 1);
     }
     notify();
@@ -370,6 +376,7 @@ int Player::insertAt(int orderIndex, const std::vector<Track>& tracks) {
     for (const auto& t : tracks) {
         if (!t.playable || t.name.empty()) continue;
         items_.push_back(t);
+        items_.back().queued = !t.recommended;   // smart shuffle's picks are no user picks
         order_.insert(order_.begin() + at + added, static_cast<int>(items_.size()) - 1);
         ++added;
     }
@@ -648,10 +655,21 @@ namespace {
 double maxBoostDb() { return Settings::get().loudnessTarget >= -12 ? 8.0 : 4.0; }
 } // namespace
 
-audio::StreamSource Player::sourceFor(const youtube::Resolved& r, uint64_t tag, int64_t durationHint) const {
+audio::StreamSource Player::sourceFor(const Resolution& res, uint64_t tag, int64_t durationHint, bool keep) const {
+    const youtube::Resolved& r = res.r;
     audio::StreamSource s;
-    s.url = r.stream.url;
-    s.contentLength = r.stream.contentLength;
+    if (!res.cachePath.empty()) {
+        s.localPath = res.cachePath;   // mapped read-only, like a download
+    } else {
+        s.url = r.stream.url;
+        s.contentLength = r.stream.contentLength;
+        // The whole stream arrived: the song cache keeps it (on the download thread; the playing buffer is untouched).
+        if (keep && cache_)
+            if (auto song = AudioCache::songFor(r, res.profile, res.trackId))
+                s.onComplete = [cache = cache_, song = std::move(*song)](const uint8_t* data, int64_t length) {
+                    cache->store(song, data, length);
+                };
+    }
     s.mimeType = r.stream.mimeType;
     s.durationMsHint = durationHint;
     s.tag = tag;
@@ -701,12 +719,15 @@ void Player::loadCurrent(int64_t startMs, bool autoplay) {
     // Gapless handoff already prepared for exactly this slot?
     if (prepared_ && prepared_->orderIndex == pos_ && startMs == 0) {
         currentTag_ = prepared_->tag;
-        currentLocal_ = !prepared_->source.localPath.empty();
+        currentCacheKey_ = prepared_->cacheKey;
+        currentLocal_ = !prepared_->source.localPath.empty() && currentCacheKey_.empty();
         live_ = false;
         direct_ = false;
         if (currentLocal_) match_.reset();
         else match_ = prepared_->resolved.match;
         stream_ = prepared_->resolved.stream;
+        loadStartedAt_ = autoplay ? GetTickCount64() : 0;
+        loadVia_ = "preloaded";
         engine_->open(prepared_->source, 0, autoplay);
         prepared_.reset();
         status_ = Status::Buffering;
@@ -742,6 +763,52 @@ std::string Player::localMimeType(const std::wstring& path) {
     return {};
 }
 
+// Worker thread. The song cache first: the video this track plays (as MatchService::resolve() would pick it) in the
+// format the current quality picks is played from its file, without a request. Otherwise the usual resolve; when it
+// fails (offline, YouTube refusing), any cached format of the song; when it picked a format another quality setting
+// already cached, that file.
+Player::Resolution Player::resolveSong(youtube::MatchService& matcher, AudioCache* cache, const Track& track, bool webm,
+                                       bool low, bool refresh, bool canWebm, const YoutubeExplode::CancellationToken& ct) {
+    Resolution res;
+    res.profile = AudioCache::profile(webm, low);
+    res.trackId = track.id;
+    std::optional<youtube::Match> known = matcher.cachedMatch(track.id);   // listen together, manual or persisted
+    if (!known && !track.videoId.empty()) {
+        youtube::Match m;
+        m.videoId = track.videoId;
+        m.title = track.name;
+        m.score = 100;
+        m.manual = true;
+        known = std::move(m);
+    }
+    auto fromCache = [&res](AudioCache::Hit& hit, youtube::Match match) {
+        res.r.match = std::move(match);
+        res.r.stream = hit.song.stream();
+        res.cachePath = std::move(hit.path);
+        res.cacheKey = hit.song.key;
+        return res;
+    };
+    if (cache && !refresh && known)
+        if (auto hit = cache->find(known->videoId, res.profile, track.id)) return fromCache(*hit, *known);
+    try {
+        res.r = matcher.resolveForPlayback(track, webm, low, refresh, ct);
+    } catch (const YoutubeExplode::Exceptions::OperationCanceledException&) {
+        throw;
+    } catch (const std::exception& e) {
+        auto hit = cache ? cache->findAny(known ? known->videoId : std::string{}, track.id, canWebm) : std::nullopt;
+        if (!hit) throw;
+        ST_LOG_WARN("player", "\"{}\" could not be resolved ({}): playing its cached stream {}", track.name, e.what(), hit->song.key);
+        youtube::Match m = known && known->videoId == hit->song.videoId ? *known : hit->song.match;
+        return fromCache(*hit, std::move(m));
+    }
+    if (cache && !res.r.match.videoId.empty() && res.r.stream.itag > 0)
+        if (auto hit = cache->findFormat(res.r.match.videoId, res.r.stream.itag, res.profile, track.id)) {
+            youtube::Match m = res.r.match;
+            return fromCache(*hit, std::move(m));
+        }
+    return res;
+}
+
 void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool bypassStreamCache) {
     if (resolveCts_) resolveCts_->cancel();
     resolveCts_ = std::make_shared<YoutubeExplode::CancellationTokenSource>();
@@ -749,6 +816,9 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
     currentTag_ = tag;
     status_ = Status::Resolving;
     match_.reset();
+    currentCacheKey_.clear();
+    loadStartedAt_ = autoplay ? GetTickCount64() : 0;
+    loadVia_ = "network";
     pendingSeekMs_ = startMs > 0 ? startMs : -1;
     engine_->stop();   // release the previous track's buffers right away
 
@@ -761,6 +831,7 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
     direct_ = false;
     if (live) {
         currentLocal_ = false;
+        loadVia_ = "station";
         stream_ = {};
         pendingSeekMs_ = -1;
         status_ = Status::Buffering;
@@ -781,6 +852,7 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
     if (!localPath.empty()) {
         match_.reset();
         stream_ = {};
+        loadVia_ = "file";
         status_ = Status::Buffering;
         audio::StreamSource s = localSource(localPath, tag, track.durationMs);
         s.speed = speedFor(track);
@@ -794,6 +866,7 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
         direct_ = true;
         match_.reset();
         stream_ = {};
+        loadVia_ = "feed";
         auto open = [this, tag, startMs, autoplay, durationMs = track.durationMs, speed = speedFor(track)](const DirectStream& d) {
             status_ = Status::Buffering;
             audio::StreamSource s;
@@ -839,10 +912,12 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
     auto* matcher = &matcher_;
     async(
         Priority::High, life_.ref(),
-        [matcher, track, webm, low, token, bypassStreamCache]() -> youtube::Resolved {
-            return matcher->resolveForPlayback(track, webm, low, bypassStreamCache, token);
+        [matcher, cache = cache_, track, webm, low, token, bypassStreamCache, canWebm = allowWebm_,
+         drop = std::exchange(dropCacheKey_, {})]() {
+            if (cache && !drop.empty()) cache->remove(drop);
+            return resolveSong(*matcher, cache, track, webm, low, bypassStreamCache, canWebm, token);
         },
-        [this, tag, startMs, autoplay, track](Result<youtube::Resolved> r) {
+        [this, tag, startMs, autoplay, track](Result<Resolution> r) {
             if (tag != currentTag_) return;   // superseded
             if (!r) {
                 const std::string err = r.errorMessage();
@@ -857,10 +932,15 @@ void Player::startResolve(int orderIndex, int64_t startMs, bool autoplay, bool b
                 scheduleErrorAdvance();   // skip ahead after a short pause so the user sees what happened
                 return;
             }
-            match_ = r->match;
-            stream_ = r->stream;
+            match_ = r->r.match;
+            stream_ = r->r.stream;
+            currentCacheKey_ = r->cacheKey;
+            if (!r->cacheKey.empty()) {
+                loadVia_ = "song cache";
+                ST_LOG_INFO("player", "\"{}\" plays from the song cache ({}, {} KB)", track.name, r->cacheKey, r->r.stream.contentLength >> 10);
+            }
             status_ = Status::Buffering;
-            audio::StreamSource s = sourceFor(*r, tag, track.durationMs);
+            audio::StreamSource s = sourceFor(*r, tag, track.durationMs, true);
             s.speed = speedFor(track);
             engine_->open(s, startMs, autoplay);
             notify();
@@ -902,8 +982,11 @@ void Player::maybePrefetch() {
     const uint64_t forTag = currentTag_;
     const int forPos = pos_;
     async(
-        Priority::Low, life_.ref(), [matcher, track, webm, low, token] { return matcher->resolveForPlayback(track, webm, low, false, token); },
-        [this, tag, nextPos, track, forTag, forPos](Result<youtube::Resolved> r) {
+        Priority::Low, life_.ref(),
+        [matcher, cache = cache_, track, webm, low, token, canWebm = allowWebm_] {
+            return resolveSong(*matcher, cache, track, webm, low, false, canWebm, token);
+        },
+        [this, tag, nextPos, track, forTag, forPos](Result<Resolution> r) {
             if (prefetchTag_ != tag) return;
             prefetchTag_ = 0;
             prefetchCts_.reset();
@@ -911,24 +994,31 @@ void Player::maybePrefetch() {
             if (currentTag_ != forTag || pos_ != forPos) return;
             // The queue may have changed meanwhile: keep it only if the same track still plays next.
             if (upcomingSlot() != nextPos || items_[order_[nextPos]].id != track.id) return;
-            Prepared p{tag, nextPos, track.id, *r};
-            p.source = sourceFor(*r, tag, track.durationMs);
+            Prepared p{tag, nextPos, track.id, r->r};
+            p.source = sourceFor(*r, tag, track.durationMs, true);
             p.source.crossfadeMs = crossfadeInto(nextPos);
             p.source.speed = speedFor(track);
+            p.cacheKey = r->cacheKey;
             prepared_ = std::move(p);
             engine_->preload(prepared_->source);
-            ST_LOG_DEBUG("player", "preloaded next: {}", track.name);
+            ST_LOG_DEBUG("player", "preloaded next{}: {}", r->cacheKey.empty() ? "" : " (song cache)", track.name);
         });
 }
 
 // --- engine events ------------------------------------------------------------------------------------------
 
-void Player::onEngineState(audio::State s, uint64_t tag) {
+void Player::onEngineState(audio::State s, uint64_t tag, uint64_t at) {
     if (tag != currentTag_) return;
     switch (s) {
     case audio::State::Loading: status_ = Status::Buffering; break;
     case audio::State::Playing:
         status_ = Status::Playing;
+        if (loadStartedAt_) {   // how long the item took from the click (or the track change) to its first sound
+            if (const Track* t = current())
+                ST_LOG_INFO("player", "\"{}\" playing after {} ms ({})", t->name, at > loadStartedAt_ ? at - loadStartedAt_ : 0,
+                            loadVia_);
+            loadStartedAt_ = 0;
+        }
         // Catalog items without a duration (manual / restored) learn it from the decoder.
         if (pos_ >= 0 && pos_ < static_cast<int>(order_.size()) && items_[order_[pos_]].durationMs <= 0)
             items_[order_[pos_]].durationMs = static_cast<int>(engine_->durationMs());
@@ -962,7 +1052,9 @@ void Player::onEngineEnded(uint64_t finished, uint64_t next) {
         }
         pos_ = slot;
         currentTag_ = next;
-        currentLocal_ = !prepared_->source.localPath.empty();
+        currentCacheKey_ = prepared_->cacheKey;
+        currentLocal_ = !prepared_->source.localPath.empty() && currentCacheKey_.empty();
+        loadStartedAt_ = 0;   // already audible
         if (currentLocal_) match_.reset();
         else match_ = prepared_->resolved.match;
         stream_ = prepared_->resolved.stream;
@@ -1017,6 +1109,14 @@ void Player::onEngineError(audio::ErrorKind kind, const std::string& message, ui
         return;
     }
     const int64_t at = engine_->positionMs();
+    if (!currentCacheKey_.empty()) {
+        // The cached file did not play (damaged since its check, a decoder gone): it goes, and the song is resolved
+        // again from the network (refresh: the cache is not asked first), where it was.
+        ST_LOG_WARN("player", "cached stream {} failed ({}): resolving again", currentCacheKey_, message);
+        dropCacheKey_ = currentCacheKey_;   // removed by the resolve's worker before it looks anything up
+        startResolve(pos_, at, status_ != Status::Paused, true);
+        return;
+    }
     if (direct_) {
         // A podcast episode: a dropped / expired media URL is resolved again (it may have moved) and continues where it
         // was; anything else, or a third failure, moves on.
@@ -1095,6 +1195,7 @@ void Player::saveSession() const {
         json item{{"id", t.id}, {"n", t.name}, {"d", t.durationMs}, {"a", a}, {"al", t.album.name},
                   {"ali", t.album.id}, {"img", imgs}, {"e", t.explicitContent}};
         if (t.recommended) item["rec"] = true;
+        if (t.queued) item["q"] = true;
         items.push_back(std::move(item));
     }
     j["items"] = std::move(items);
@@ -1112,6 +1213,8 @@ void Player::restoreSession() {
     currentTag_ = 0;
     match_.reset();
     stream_ = {};
+    currentCacheKey_.clear();
+    loadStartedAt_ = 0;
     live_ = direct_ = currentLocal_ = false;
     clearLiveTitle();
     pendingSeekMs_ = -1;
@@ -1147,6 +1250,7 @@ void Player::restoreSessionFile() {
         t.album.id = it.value("ali", "");
         t.explicitContent = it.value("e", false);
         t.recommended = it.value("rec", false);
+        t.queued = it.value("q", false);
         for (const auto& a : it.value("a", json::array())) t.artists.push_back({a.value("id", ""), a.value("n", "")});
         for (const auto& im : it.value("img", json::array())) t.album.images.push_back({im.value("u", ""), im.value("w", 0), im.value("w", 0)});
         if (!t.name.empty()) tracks.push_back(std::move(t));
@@ -1194,10 +1298,13 @@ uint64_t Player::startPreview(const Track& track, int64_t startMs, bool keepMain
     const bool webm = allowWebm_ && Settings::get().quality == AudioQuality::High;
     const bool low = Settings::get().quality == AudioQuality::Normal;
     auto* matcher = &matcher_;
+    // A sample reads the song cache like any play, but never adds to it.
     async(
         Priority::High, life_.ref(),
-        [matcher, track, webm, low, token] { return matcher->resolveForPlayback(track, webm, low, false, token); },
-        [this, tag, startMs, track](Result<youtube::Resolved> r) {
+        [matcher, cache = cache_, track, webm, low, token, canWebm = allowWebm_] {
+            return resolveSong(*matcher, cache, track, webm, low, false, canWebm, token);
+        },
+        [this, tag, startMs, track](Result<Resolution> r) {
             if (tag != previewTag_ || previewState_ != PreviewState::Resolving) return;   // stopped / replaced
             previewCts_.reset();
             if (!r) {
@@ -1208,8 +1315,9 @@ uint64_t Player::startPreview(const Track& track, int64_t startMs, bool keepMain
                 setPreviewState(PreviewState::Failed);
                 return;
             }
-            const int64_t duration = r->match.durationSec > 0 ? r->match.durationSec * 1000LL : track.durationMs;
-            openPreview(sourceFor(*r, tag, track.durationMs), startMs, track, &r->match, duration);
+            const youtube::Match& m = r->r.match;
+            const int64_t duration = m.durationSec > 0 ? m.durationSec * 1000LL : track.durationMs;
+            openPreview(sourceFor(*r, tag, track.durationMs, false), startMs, track, &m, duration);
         });
     return id;
 }

@@ -1,6 +1,7 @@
 // Komut paleti (Ctrl+K). See CommandPalette.h.
 #include "app/CommandPalette.h"
 
+#include "app/Accounts.h"
 #include "app/AppContext.h"
 #include "app/Commands.h"
 #include "app/Router.h"
@@ -250,6 +251,17 @@ std::vector<Item> staticItems() {
     if (!source::loggedIn() && ctx().startSpotifyLogin)
         items.push_back(commandItem("cmd:spotify-login", tr(L"Spotify ile bağlan"), L"Spotify", "spotify-link",
                                     [] { ctx().startSpotifyLogin(); }));
+    // Several Spotify accounts (app/Accounts): "Hesaba geç: <name>" for each other signed-in one, "Spotify hesabı ekle".
+    if (auto* s = ctx().session) {
+        for (const auto& a : s->signedInAccounts()) {
+            if (s->loggedIn() && a.id == s->activeAccountId()) continue;
+            items.push_back(commandItem("account:" + a.id, i18n::format(tr(L"Hesaba geç: {}"), {toWide(a.label())}),
+                                        L"Spotify", "users", [id = a.id] { accounts::switchTo(id); }));
+        }
+        if (source::loggedIn() && ctx().startSpotifyLogin)
+            items.push_back(commandItem("cmd:spotify-add-account", tr(L"Spotify hesabı ekle"), L"Spotify", "plus",
+                                        [] { accounts::add(); }));
+    }
     for (auto& jc : together::paletteCommands())   // "Birlikte dinle": start / join / copy the link / leave
         items.push_back(commandItem(jc.key, jc.title, tr(L"Birlikte dinle"), jc.icon, std::move(jc.run)));
     items.push_back(commandItem("cmd:year-review", tr(L"Yılın özeti hikâyesi"), tr(L"İstatistikler"), "sparkle", [] { review::open(); }));

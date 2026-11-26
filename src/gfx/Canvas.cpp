@@ -3,6 +3,7 @@
 #include "gfx/Icons.h"
 #include "gfx/Theme.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 
@@ -306,18 +307,24 @@ void Canvas::imageCircle(ID2D1Bitmap1* bmp, const Rect& r, float opacity) {
 void Canvas::skeleton(const Rect& r, float radius, double nowMs) {
     const auto& c = colors();
     fillRounded(r, radius, c.skeletonBase);
-    // 30%-wide shine sweeping left -> right over 1400 ms.
-    const float t = static_cast<float>(std::fmod(nowMs, 1400.0) / 1400.0);
-    const float span = std::max(r.w, 120.f);
-    const float cx = r.x - span * 0.3f + (span * 1.6f) * t;
+    if (nowMs < 0) return;   // static (reduced motion)
+    // The band is placed in window space (the target's DIPs), so every placeholder on screen shimmers in step: one
+    // band crossing the page, not one per block. Map its center into the current transform's x.
+    const D2D1_SIZE_F size = dc_->GetSize();
+    float bandW = 0;
+    const float wx = skeletonBand(nowMs, size.width, &bandW);
+    D2D1_MATRIX_3X2_F m;
+    dc_->GetTransform(&m);
+    const float sx = std::abs(m._11) > 1e-4f ? m._11 : 1.f;
+    const float cx = (wx - m._31) / sx, half = bandW * 0.5f / sx;
+    if (cx + half < r.x || cx - half > r.right()) return;   // the band is elsewhere
     const D2D1_GRADIENT_STOP stops[] = {{0.f, c.skeletonBase.withAlpha(0).d2d()},
                                         {0.5f, (c.skeletonShine.mulAlpha(0.6f)).d2d()},
                                         {1.f, c.skeletonBase.withAlpha(0).d2d()}};
     ComPtr<ID2D1GradientStopCollection> coll;
     dc_->CreateGradientStopCollection(stops, 3, &coll);
     ComPtr<ID2D1LinearGradientBrush> br;
-    dc_->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties({cx - span * 0.15f, 0}, {cx + span * 0.15f, 0}),
-                                   coll.Get(), &br);
+    dc_->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties({cx - half, 0}, {cx + half, 0}), coll.Get(), &br);
     dc_->FillRoundedRectangle(D2D1::RoundedRect(r.d2d(), radius, radius), br.Get());
 }
 
