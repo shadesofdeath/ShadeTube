@@ -138,8 +138,7 @@ public:
         else if (cover_ == Cover::Remove) drawArtwork(c, {}, cover, gfx::radii().art, Placeholder::Playlist);
         else drawArtwork(c, images_, cover, gfx::radii().art, Placeholder::Playlist);
         if (busy_) {
-            c.skeleton(cover, gfx::radii().art, ui::frame::now());
-            ui::frame::requestNext();
+            ui::paintSkeleton(c, this, cover, gfx::radii().art);
         } else if (hover_) {
             c.fillRounded(cover, gfx::radii().art, Color{0, 0, 0, 0.55f});
             c.icon("edit", cover.center(40, 40), Color{1, 1, 1, 1});

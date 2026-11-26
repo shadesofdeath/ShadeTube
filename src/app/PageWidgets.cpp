@@ -301,28 +301,46 @@ void SkeletonRows::paint(Canvas& c) {
     TrackTable::paintSkeletonRows(c, this, {r.x, r.y, r.w, rows_ * TrackTable::rowMetrics().h}, rows_, 0, art_);
 }
 
-namespace {
-int cardColumns(float width, float minCell) {
-    return std::max(1, static_cast<int>((width + gfx::metrics::cardGap) / (minCell + gfx::metrics::cardGap)));
+void SkeletonLines::paint(Canvas& c) {
+    const Rect r = rect();
+    const Rect vis = c.clip();
+    for (int k = 0; k < rows_; ++k) {
+        const Rect row{r.x, r.y + k * rowH_, r.w, rowH_};
+        if (!row.intersects(vis)) continue;
+        float x = row.x + 10;
+        if (art_ > 0) {
+            ui::paintSkeleton(c, this, {x, row.cy() - art_ * 0.5f, art_, art_}, round_ ? art_ * 0.5f : gfx::radii().art);
+            x += art_ + 12;
+        }
+        const float w = std::max(0.f, row.right() - x - 10);
+        const int v = k * 7 % 5;
+        ui::paintSkeleton(c, this, {x, row.cy() - 10, std::min(w, 140.f + v * 26.f), 9}, gfx::radii().badge);
+        ui::paintSkeleton(c, this, {x, row.cy() + 5, std::min(w, 80.f + v * 14.f), 7}, gfx::radii().badge);
+    }
 }
-} // namespace
 
-float SkeletonCards::gridHeight(float width, int rows, float minCell) {
-    const int cols = cardColumns(width, minCell);
-    const float cw = (width - gfx::metrics::cardGap * (cols - 1)) / cols;
-    return rows * (cw + 10 + 18 + 4 + 16) + (rows - 1) * gfx::metrics::cardGap;
+float SkeletonCards::gridHeight(float width, int rows, float minCell, float tileH) {
+    const float gap = tileH > 0 ? gfx::metrics::gridGap : gfx::metrics::cardGap;
+    const int cols = std::max(1, static_cast<int>((width + gap) / (minCell + gap)));
+    const float cw = (width - gap * (cols - 1)) / cols;
+    return rows * (tileH > 0 ? tileH : cw + 10 + 18 + 4 + 16) + (rows - 1) * gap;
 }
 
-// MediaCard's geometry: the square (or round) artwork, a title bar and a shorter subtitle bar under it.
-void SkeletonCards::paintGrid(Canvas& c, ui::Widget* owner, const Rect& r, int rows, float minCell, bool round) {
-    const int cols = cardColumns(r.w, minCell);
-    const float gap = gfx::metrics::cardGap;
-    const float cw = (r.w - gap * (cols - 1)) / cols, ch = cw + 10 + 18 + 4 + 16;
+// MediaCard's geometry: the square (or round) artwork, a title bar and a shorter subtitle bar under it; or editorial
+// tiles (ui::Grid of Tile: the grid gap, a fixed height) as plain blocks.
+void SkeletonCards::paintGrid(Canvas& c, ui::Widget* owner, const Rect& r, int rows, float minCell, bool round, float tileH) {
+    const float gap = tileH > 0 ? gfx::metrics::gridGap : gfx::metrics::cardGap;
+    const int cols = std::max(1, static_cast<int>((r.w + gap) / (minCell + gap)));
+    const float cw = (r.w - gap * (cols - 1)) / cols, ch = tileH > 0 ? tileH : cw + 10 + 18 + 4 + 16;
     const Rect vis = c.clip();
     for (int row = 0; row < rows; ++row)
         for (int k = 0; k < cols; ++k) {
             const float x = r.x + k * (cw + gap), y = r.y + row * (ch + gap);
             if (!Rect{x, y, cw, ch}.intersects(vis)) continue;
+            if (tileH > 0) {
+                ui::paintSkeleton(c, owner, {x, y, cw, ch}, gfx::radii().surface);
+                continue;
+            }
             const int v = (row * cols + k) * 5 % 4;
             ui::paintSkeleton(c, owner, {x, y, cw, cw}, round ? cw * 0.5f : gfx::radii().art);
             const float tw = std::round(cw * (0.72f - 0.1f * v));

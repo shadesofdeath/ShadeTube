@@ -400,9 +400,8 @@ void LyricsFullscreen::paintLyrics(Canvas& c, const Rect& area) {
     case State::Loading:
         for (int i = 0; i < 5; ++i) {
             const float w = area.w * (0.35f + 0.1f * ((i * 7) % 4));
-            c.skeleton({area.cx() - w / 2, area.cy() - 110 + i * 52.f, w, 28}, 2, ui::frame::now());
+            ui::paintSkeleton(c, this, {area.cx() - w / 2, area.cy() - 110 + i * 52.f, w, 28}, gfx::radii().badge);
         }
-        ui::frame::requestNext();
         return;
     case State::Missing:
         if (pick_.kind == lyrics::Choice::Kind::None && Settings::get().lyricsEnabled)

@@ -173,20 +173,39 @@ private:
     bool art_, header_;
 };
 
-// A grid of media cards (square, or round for artists): `rows` rows of as many `minCell` columns as fit.
-class SkeletonCards : public ui::Widget {
+// Generic two-line rows (a title bar over a shorter line, an optional square or round artwork before them) for lists that
+// are not track tables: dialogs' result lists (lyrics picker, credits), people, episodes.
+class SkeletonLines : public ui::Widget {
 public:
-    SkeletonCards(int rows, float minCell = 170, bool round = false) : rows_(rows), minCell_(minCell), round_(round) {
+    explicit SkeletonLines(int rows, float rowH = 48, float art = 0, bool round = false)
+        : rows_(rows), rowH_(rowH), art_(art), round_(round) {
         hitTestVisible = false;
     }
-    float preferredHeight(float width) override { return gridHeight(width, rows_, minCell_); }
-    void paint(Canvas& c) override { paintGrid(c, this, rect(), rows_, minCell_, round_); }
-    static float gridHeight(float width, int rows, float minCell);
-    static void paintGrid(Canvas& c, ui::Widget* owner, const Rect& r, int rows, float minCell, bool round);
+    float preferredHeight(float) override { return rows_ * rowH_; }
+    void paint(Canvas& c) override;
 
 private:
     int rows_;
-    float minCell_;
+    float rowH_, art_;
+    bool round_;
+};
+
+// A grid of media cards (square, or round for artists): `rows` rows of as many `minCell` columns as fit.
+class SkeletonCards : public ui::Widget {
+public:
+    // tileH > 0: editorial tiles of that height (genre / mood tiles, the grid gap) instead of cards with two lines.
+    SkeletonCards(int rows, float minCell = 170, bool round = false, float tileH = 0)
+        : rows_(rows), minCell_(minCell), tileH_(tileH), round_(round) {
+        hitTestVisible = false;
+    }
+    float preferredHeight(float width) override { return gridHeight(width, rows_, minCell_, tileH_); }
+    void paint(Canvas& c) override { paintGrid(c, this, rect(), rows_, minCell_, round_, tileH_); }
+    static float gridHeight(float width, int rows, float minCell, float tileH = 0);
+    static void paintGrid(Canvas& c, ui::Widget* owner, const Rect& r, int rows, float minCell, bool round, float tileH = 0);
+
+private:
+    int rows_;
+    float minCell_, tileH_;
     bool round_;
 };
 

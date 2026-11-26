@@ -741,7 +741,7 @@ private:
         if (shelves && !shelves->empty()) {
             for (const auto& shelf : *shelves) addSpotifyShelf(net_, shelf, L"YOUTUBE MUSIC");
         } else if (cache.failed()) {
-            net_->add<MessagePanel>("offline", tr(L"Bir şeyler ters gitti"), toWide(cache.error()), tr(L"Tekrar dene"), [this] {
+            errorState(net_, toWide(cache.error()), [this] {   // the shared error / offline state (app/PageWidgets)
                 ShelfCache::instance().retryNow();
                 Dispatcher::post([this, ref = life_.ref()] {
                     if (ref.expired()) return;
@@ -951,8 +951,7 @@ private:
                 if (!net_) return;
                 net_->clearChildren();
                 if (!r || (r->failures >= 3 && r->trendingAlbums.empty() && r->fresh.empty())) {
-                    net_->add<MessagePanel>("offline", tr(L"Bir şeyler ters gitti"),
-                                            toWide(r ? r->firstError : r.errorMessage()), tr(L"Tekrar dene"), [this] {
+                    errorState(net_, toWide(r ? r->firstError : r.errorMessage()), [this] {
                                                 net_->clearChildren();
                                                 net_->add<home::ShelfSkeleton>();
                                                 load();

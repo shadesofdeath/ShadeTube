@@ -244,7 +244,8 @@ class TopResultCard : public ui::Widget, public CoverSource, public PreviewSourc
 public:
     TopResultCard(ResultEntry e, std::wstring kindLabel)
         : e_(std::move(e)), title_(e_.title, type::displayS), kind_(toUpperTr(kindLabel), type::monoLabel),
-          sub_(e_.subtitle, type::secondary) {
+          // A subtitle that only repeats the kind (YouTube Music's "Sanatçı" under the SANATÇI badge) is left out.
+          sub_(toUpperTr(e_.subtitle) == toUpperTr(kindLabel) ? std::wstring() : e_.subtitle, type::secondary) {
         focusable = true;
         gfx::TextOptions two;
         two.wrap = true;
@@ -555,24 +556,22 @@ public:
     }
     void paint(Canvas& c) override {
         const Rect r = rect();
-        const double now = ui::frame::now();
         const float card = std::max(212.f, 4 * rowH());
         const bool wide = r.w >= 760;
         const float lw = wide ? std::clamp(r.w * 0.4f, 300.f, 460.f) : r.w;
-        c.skeleton({r.x, r.y + 10, 140, 22}, gfx::radii().badge, now);
-        c.skeleton({r.x, r.y + 48, lw, card}, gfx::radii().surface, now);
+        ui::paintSkeleton(c, this, {r.x, r.y + 10, 140, 22}, gfx::radii().badge);
+        ui::paintSkeleton(c, this, {r.x, r.y + 48, lw, card}, gfx::radii().surface);
         const float rx = wide ? r.x + lw + 24 : r.x;
         const float ry = wide ? r.y : r.y + 48 + card + 32;
         const float rw = wide ? r.right() - rx : r.w;
-        c.skeleton({rx, ry + 10, 120, 22}, gfx::radii().badge, now);
+        ui::paintSkeleton(c, this, {rx, ry + 10, 120, 22}, gfx::radii().badge);
         const float h = rowH(), a = TrackTable::rowMetrics().art;
         for (int i = 0; i < 4; ++i) {
             const float y = ry + 48 + i * h;
-            c.skeleton({rx + 12, y + (h - a) * 0.5f, a, a}, gfx::radii().art, now);
-            c.skeleton({rx + 24 + a, y + h * 0.5f - 12, std::min(rw * 0.5f, 240.f - (i % 3) * 40.f), 10}, gfx::radii().badge, now);
-            c.skeleton({rx + 24 + a, y + h * 0.5f + 4, std::min(rw * 0.3f, 120.f), 8}, gfx::radii().badge, now);
+            ui::paintSkeleton(c, this, {rx + 12, y + (h - a) * 0.5f, a, a}, gfx::radii().art);
+            ui::paintSkeleton(c, this, {rx + 24 + a, y + h * 0.5f - 12, std::min(rw * 0.5f, 240.f - (i % 3) * 40.f), 10}, gfx::radii().badge);
+            ui::paintSkeleton(c, this, {rx + 24 + a, y + h * 0.5f + 4, std::min(rw * 0.3f, 120.f), 8}, gfx::radii().badge);
         }
-        ui::frame::requestNext();
     }
 };
 
@@ -1207,7 +1206,7 @@ void SearchPage::addMoodTiles(ui::Column* c, bool afterCards) {
                                  });
             return;
         }
-        auto* placeholder = c->add<SkeletonBlock>(3);
+        auto* placeholder = c->add<SkeletonCards>(2, 180.f, false, 104.f);   // the mood tiles' grid while they load
         c->setSpacingBefore(placeholder, 16);
         // This view comes back with the tiles when they land (unless the page shows something else by then).
         mc.listeners.emplace_back(searchLife_.ref(), [this] {

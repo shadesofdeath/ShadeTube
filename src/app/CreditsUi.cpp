@@ -2,6 +2,7 @@
 
 #include "app/AppContext.h"
 #include "app/Components.h"
+#include "app/PageWidgets.h"
 #include "app/Credits.h"
 #include "app/InternetRadio.h"
 #include "app/Router.h"
@@ -86,24 +87,26 @@ public:
     CreditsList() {
         scroll_ = add<ui::ScrollView>();
         col_ = scroll_->setContent<ui::Column>(2.f, 0.f, 0.f, 4.f);
-        status_ = add<ui::Label>(tr(L"Krediler yükleniyor…"), type::secondary, ui::Tone::Tertiary);
-        status_->setWrap(true);
+        col_->add<SkeletonLines>(5, 48.f);   // the shared placeholder rows until the credits are there
+        empty_ = false;
     }
     std::function<void(const std::string& artistId)> onArtist;
 
     // nullopt: the lookup failed.
     void setCredits(const std::optional<Credits>& c) {
         col_->clearChildren();
-        if (!c || c->empty()) {
-            status_->setText(!c ? tr(L"Krediler yüklenemedi. Bağlantını kontrol et.") : tr(L"Bu şarkı için kredi bilgisi yok."));
-            status_->setVisible(true);
+        if (!c || c->empty()) {   // the compact shared states (app/PageWidgets)
+            MessagePanel* p = !c ? &col_->add<MessagePanel>("offline", tr(L"Krediler yüklenemedi. Bağlantını kontrol et."),
+                                                            std::wstring())->setTone(MessagePanel::Tone::Offline)
+                                 : emptyState(col_, "user", tr(L"Bu şarkı için kredi bilgisi yok."), {});
+            p->setCompact(true);
             if (c && !c->sources.empty()) addSources(*c);   // nobody credited, but a label is known
-            empty_ = col_->children().empty();
+            empty_ = false;
+            scroll_->contentChanged();
             requestLayout();
             invalidate();
             return;
         }
-        status_->setVisible(false);
         empty_ = false;
         bool first = true;
         for (size_t g = 0; g < catalog::kCreditGroups; ++g) {
@@ -136,18 +139,11 @@ public:
 
     float preferredHeight(float w) override {
         const float list = empty_ ? 0.f : col_->preferredHeight(w - 4);
-        const float status = status_->visible() ? std::max(40.f, status_->preferredHeight(w)) : 0.f;
-        return std::clamp(status + list, 48.f, 440.f);
+        return std::clamp(list, 48.f, 440.f);
     }
     void layout() override {
         const Rect r = rect();
-        float y = 0;
-        if (status_->visible()) {
-            const float sh = std::max(40.f, status_->preferredHeight(r.w));
-            status_->setRect({0, 0, r.w, sh});
-            y = sh;
-        }
-        scroll_->setRect({0, y, r.w, std::max(0.f, r.h - y)});
+        scroll_->setRect({0, 0, r.w, r.h});
     }
 
 private:
@@ -164,7 +160,6 @@ private:
 
     ui::ScrollView* scroll_;
     ui::Column* col_;
-    ui::Label* status_;
     bool empty_ = true;
 };
 

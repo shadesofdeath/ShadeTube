@@ -350,8 +350,7 @@ public:
             drawArtwork(c, {{previewUrl_, 0, 0}}, tile, gfx::radii().art, Placeholder::Album);
         }
         if (busy_) {
-            c.skeleton(tile, gfx::radii().art, ui::frame::now());
-            ui::frame::requestNext();
+            ui::paintSkeleton(c, this, tile, gfx::radii().art);
         } else if (hover_) {
             c.fillRounded(tile, gfx::radii().art, Color{0, 0, 0, 0.55f});
             c.icon("edit", tile.center(32, 32), Color{1, 1, 1, 1});
