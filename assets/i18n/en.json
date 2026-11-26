@@ -1165,13 +1165,8 @@
   "Spotify geçmişi (ZIP, JSON)": "Spotify history (ZIP, JSON)",
   "Spotify geçmişi içe aktarılıyor…": "Importing your Spotify history…",
   "Spotify geçmişini getir": "Bring in your Spotify history",
-  "Spotify geçmişini içe aktar": "Import Spotify history",
   "Spotify geçmişini seç": "Choose your Spotify history",
   "Spotify'da verilerini iste": "Request your data on Spotify",
-  "Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların kalır.": {
-    "one": "{} play imported from Spotify will be removed from your stats. What you've played on this computer stays.",
-    "other": "{} plays imported from Spotify will be removed from your stats. What you've played on this computer stays."
-  },
   "Spotify'dan verilerini indir (Hesap › Gizlilik › Verilerini indir: \"Uzun süreli yayın geçmişi\") ve gelen ZIP dosyasını seç. Yıllar öncesine kadar dinlediklerin istatistiklere eklenir; dosyalar yalnızca bu bilgisayarda okunur.": "Download your data from Spotify (Account › Privacy › Download your data: \"Extended streaming history\") and choose the ZIP file you get. Years of listening are added to your stats; the files are only read on this computer.",
   "Tüm dosyalar": "All files",
   "Tüm geçmişi temizle": "Clear all history",
@@ -1204,7 +1199,6 @@
   "İçe aktar": "Import",
   "İçe aktarılan geçmiş kaldırıldı": "Imported history removed",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Remove the imported history?",
-  "İçe aktarılan geçmişi kaldır": "Remove imported history",
   "Çalma hızı": "Playback speed",
   "Çalma hızı: {}": "Playback speed: {}",
   "Daha hızlı çal": "Play faster",
@@ -1922,5 +1916,62 @@
   "Video penceresi açılamadı.": "The video window couldn't be opened.",
   "Video penceresinde aç": "Open in the video window",
   "Video yükleniyor…": "Loading video…",
-  "Şu an bir şarkı çalmıyor": "Nothing is playing right now"
+  "Şu an bir şarkı çalmıyor": "Nothing is playing right now",
+  "Bir ListenBrainz profilinin tüm dinlemeleri istatistiklere eklenir. Büyük geçmişler birkaç dakika sürer; sonraki seferlerde yalnızca yeniler gelir.": "All plays of a ListenBrainz profile are added to your stats. Big histories take a few minutes; after that, only new plays are fetched.",
+  "Bu Last.fm profilinin dinlemeleri gizli": "This Last.fm profile's listening history is private",
+  "Bu bilgisayarda çaldıkların ve içe aktarılan {} dinleme · 30 saniyeyi geçen her çalma bir dinleme sayılır": {
+    "one": "What you've played on this computer and {} imported play · anything played past 30 seconds counts as a play",
+    "other": "What you've played on this computer and {} imported plays · anything played past 30 seconds counts as a play"
+  },
+  "Bu hesabın {} tarihine kadarki dinlemeleri içe aktarıldı: yalnızca sonrası getirilecek.": "This account's plays up to {} are already imported: only later ones will be fetched.",
+  "Bu kullanıcı {}'de bulunamadı": "This user wasn't found on {}",
+  "Dosya seç": "Choose a file",
+  "Dosyadan…": "From a file…",
+  "Durdur": "Stop",
+  "Durduruluyor…": "Stopping…",
+  "Getir": "Fetch",
+  "Getirilenler kalır; sonraki içe aktarma kaldığı yerden sürer": "What was fetched stays; the next import picks up where it left off",
+  "Herkese açık bir Last.fm profilinin tüm dinlemeleri istatistiklere eklenir. Büyük geçmişler birkaç dakika sürer; sonraki seferlerde yalnızca yeniler gelir.": "All scrobbles of a public Last.fm profile are added to your stats. Big histories take a few minutes; after that, only new scrobbles are fetched.",
+  "Kullanıcı adı": "User name",
+  "Last.fm dinlemeleri yalnızca bir API anahtarıyla verir": "Last.fm only shares listening history with an API key",
+  "Last.fm dinlemeleri yalnızca bir API anahtarıyla verir: last.fm/api/account/create sayfasından ücretsiz alınır ve Ayarlar › Bağlantılar'a kaydedilir.": "Last.fm only shares listening history with an API key: get one free on last.fm/api/account/create. It's saved in Settings › Connections.",
+  "Last.fm dosyaları okunuyor…": "Reading Last.fm files…",
+  "Last.fm dışa aktarması (CSV, JSON)": "Last.fm export (CSV, JSON)",
+  "Last.fm dışa aktarmasını seç": "Choose your Last.fm export",
+  "Last.fm geçmişi getiriliyor…": "Fetching your Last.fm history…",
+  "Last.fm geçmişini getir": "Bring in your Last.fm history",
+  "Last.fm'deki dinlemelerin (scrobble) kullanıcı adınla getirilir; burada ya da Spotify'da çaldıklarınla aynı olanlar bir kez sayılır. Dışa aktarma dosyası (CSV, JSON) da seçebilirsin.": "Your Last.fm scrobbles are fetched by user name; plays you also played here or on Spotify count once. You can also pick an export file (CSV, JSON).",
+  "Last.fm'den getir": "Fetch from Last.fm",
+  "Last.fm'den içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların ve diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca geri gelir.": {
+    "one": "{} play imported from Last.fm will be removed from your stats. What you played on this computer and other sources stay; plays they also had come back when you import them again.",
+    "other": "{} plays imported from Last.fm will be removed from your stats. What you played on this computer and other sources stay; plays they also had come back when you import them again."
+  },
+  "ListenBrainz dosyaları okunuyor…": "Reading ListenBrainz files…",
+  "ListenBrainz dışa aktarması (ZIP, JSONL, JSON)": "ListenBrainz export (ZIP, JSONL, JSON)",
+  "ListenBrainz dışa aktarmasını seç": "Choose your ListenBrainz export",
+  "ListenBrainz geçmişi getiriliyor…": "Fetching your ListenBrainz history…",
+  "ListenBrainz geçmişini getir": "Bring in your ListenBrainz history",
+  "ListenBrainz'deki dinlemelerin kullanıcı adınla getirilir; başka yerden gelenlerle aynı olanlar bir kez sayılır. Dışa aktarma ZIP'ini de seçebilirsin.": "Your ListenBrainz listens are fetched by user name; plays that also came from elsewhere count once. You can also pick the export ZIP.",
+  "ListenBrainz'den getir": "Fetch from ListenBrainz",
+  "ListenBrainz'den içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların ve diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca geri gelir.": {
+    "one": "{} play imported from ListenBrainz will be removed from your stats. What you played on this computer and other sources stay; plays they also had come back when you import them again.",
+    "other": "{} plays imported from ListenBrainz will be removed from your stats. What you played on this computer and other sources stay; plays they also had come back when you import them again."
+  },
+  "Seçilen dosyalarda {} dinleme geçmişi bulunamadı": "No {} listening history found in the selected files",
+  "Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların ve diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca geri gelir.": {
+    "one": "{} play imported from Spotify will be removed from your stats. What you played on this computer and other sources stay; plays they also had come back when you import them again.",
+    "other": "{} plays imported from Spotify will be removed from your stats. What you played on this computer and other sources stay; plays they also had come back when you import them again."
+  },
+  "Spotify, Last.fm veya ListenBrainz geçmişini içe aktar": "Import your Spotify, Last.fm or ListenBrainz history",
+  "Yeni dinleme yok": "No new plays",
+  "{} istek sınırı: {} sn bekleniyor…": "{} rate limit: waiting {} s…",
+  "{} şu anda yanıt vermiyor. Biraz sonra tekrar dene.": "{} isn't responding right now. Try again in a bit.",
+  "İçe aktarma durduruldu": "Import stopped",
+  "İçe aktarma durduruldu: {} dinleme eklendi": {
+    "one": "Import stopped: {} play added",
+    "other": "Import stopped: {} plays added"
+  },
+  "İçe aktarılan Last.fm geçmişini kaldır": "Remove imported Last.fm history",
+  "İçe aktarılan ListenBrainz geçmişini kaldır": "Remove imported ListenBrainz history",
+  "İçe aktarılan Spotify geçmişini kaldır": "Remove imported Spotify history"
 }

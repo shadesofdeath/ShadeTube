@@ -1165,13 +1165,8 @@
   "Spotify geçmişi (ZIP, JSON)": "Histórico do Spotify (ZIP, JSON)",
   "Spotify geçmişi içe aktarılıyor…": "Importando seu histórico do Spotify…",
   "Spotify geçmişini getir": "Traga seu histórico do Spotify",
-  "Spotify geçmişini içe aktar": "Importar histórico do Spotify",
   "Spotify geçmişini seç": "Escolha seu histórico do Spotify",
   "Spotify'da verilerini iste": "Solicite seus dados no Spotify",
-  "Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların kalır.": {
-    "one": "{} reprodução importada do Spotify será removida das suas estatísticas. O que você tocou neste computador continua.",
-    "other": "{} reproduções importadas do Spotify serão removidas das suas estatísticas. O que você tocou neste computador continua."
-  },
   "Spotify'dan verilerini indir (Hesap › Gizlilik › Verilerini indir: \"Uzun süreli yayın geçmişi\") ve gelen ZIP dosyasını seç. Yıllar öncesine kadar dinlediklerin istatistiklere eklenir; dosyalar yalnızca bu bilgisayarda okunur.": "Baixe seus dados do Spotify (Conta › Privacidade › Baixar seus dados: \"Histórico de streaming estendido\") e escolha o arquivo ZIP que você receber. Anos de reprodução entram nas suas estatísticas; os arquivos são lidos apenas neste computador.",
   "Tüm dosyalar": "Todos os arquivos",
   "Tüm geçmişi temizle": "Limpar todo o histórico",
@@ -1204,7 +1199,6 @@
   "İçe aktar": "Importar",
   "İçe aktarılan geçmiş kaldırıldı": "Histórico importado removido",
   "İçe aktarılan geçmiş kaldırılsın mı?": "Remover o histórico importado?",
-  "İçe aktarılan geçmişi kaldır": "Remover histórico importado",
   "Çalma hızı": "Velocidade de reprodução",
   "Çalma hızı: {}": "Velocidade de reprodução: {}",
   "Daha hızlı çal": "Tocar mais rápido",
@@ -1922,5 +1916,62 @@
   "Video penceresi açılamadı.": "Não foi possível abrir a janela de vídeo.",
   "Video penceresinde aç": "Abrir na janela de vídeo",
   "Video yükleniyor…": "Carregando vídeo…",
-  "Şu an bir şarkı çalmıyor": "Nada está tocando agora"
+  "Şu an bir şarkı çalmıyor": "Nada está tocando agora",
+  "Bir ListenBrainz profilinin tüm dinlemeleri istatistiklere eklenir. Büyük geçmişler birkaç dakika sürer; sonraki seferlerde yalnızca yeniler gelir.": "Todas as reproduções de um perfil do ListenBrainz entram nas suas estatísticas. Históricos grandes levam alguns minutos; depois, só as novas são buscadas.",
+  "Bu Last.fm profilinin dinlemeleri gizli": "O histórico deste perfil do Last.fm é privado",
+  "Bu bilgisayarda çaldıkların ve içe aktarılan {} dinleme · 30 saniyeyi geçen her çalma bir dinleme sayılır": {
+    "one": "O que você tocou neste computador e {} reprodução importada · cada reprodução de mais de 30 segundos conta",
+    "other": "O que você tocou neste computador e {} reproduções importadas · cada reprodução de mais de 30 segundos conta"
+  },
+  "Bu hesabın {} tarihine kadarki dinlemeleri içe aktarıldı: yalnızca sonrası getirilecek.": "As reproduções desta conta até {} já foram importadas: só as posteriores serão buscadas.",
+  "Bu kullanıcı {}'de bulunamadı": "Este usuário não foi encontrado no {}",
+  "Dosya seç": "Escolher arquivo",
+  "Dosyadan…": "De um arquivo…",
+  "Durdur": "Parar",
+  "Durduruluyor…": "Parando…",
+  "Getir": "Buscar",
+  "Getirilenler kalır; sonraki içe aktarma kaldığı yerden sürer": "O que já foi buscado fica; a próxima importação continua de onde parou",
+  "Herkese açık bir Last.fm profilinin tüm dinlemeleri istatistiklere eklenir. Büyük geçmişler birkaç dakika sürer; sonraki seferlerde yalnızca yeniler gelir.": "Todos os scrobbles de um perfil público do Last.fm entram nas suas estatísticas. Históricos grandes levam alguns minutos; depois, só os novos são buscados.",
+  "Kullanıcı adı": "Nome de usuário",
+  "Last.fm dinlemeleri yalnızca bir API anahtarıyla verir": "O Last.fm só compartilha o histórico com uma chave de API",
+  "Last.fm dinlemeleri yalnızca bir API anahtarıyla verir: last.fm/api/account/create sayfasından ücretsiz alınır ve Ayarlar › Bağlantılar'a kaydedilir.": "O Last.fm só compartilha o histórico com uma chave de API: consiga uma grátis em last.fm/api/account/create; ela fica salva em Configurações › Conexões.",
+  "Last.fm dosyaları okunuyor…": "Lendo arquivos do Last.fm…",
+  "Last.fm dışa aktarması (CSV, JSON)": "Exportação do Last.fm (CSV, JSON)",
+  "Last.fm dışa aktarmasını seç": "Escolha sua exportação do Last.fm",
+  "Last.fm geçmişi getiriliyor…": "Buscando seu histórico do Last.fm…",
+  "Last.fm geçmişini getir": "Traga seu histórico do Last.fm",
+  "Last.fm'deki dinlemelerin (scrobble) kullanıcı adınla getirilir; burada ya da Spotify'da çaldıklarınla aynı olanlar bir kez sayılır. Dışa aktarma dosyası (CSV, JSON) da seçebilirsin.": "Seus scrobbles do Last.fm são buscados pelo nome de usuário; o que você também tocou aqui ou no Spotify conta uma vez só. Você também pode escolher um arquivo de exportação (CSV, JSON).",
+  "Last.fm'den getir": "Buscar no Last.fm",
+  "Last.fm'den içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların ve diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca geri gelir.": {
+    "one": "{} reprodução importada do Last.fm será removida das estatísticas. O que você tocou neste computador e as outras fontes ficam; as reproduções que elas também tinham voltam quando você as importar de novo.",
+    "other": "{} reproduções importadas do Last.fm serão removidas das estatísticas. O que você tocou neste computador e as outras fontes ficam; as reproduções que elas também tinham voltam quando você as importar de novo."
+  },
+  "ListenBrainz dosyaları okunuyor…": "Lendo arquivos do ListenBrainz…",
+  "ListenBrainz dışa aktarması (ZIP, JSONL, JSON)": "Exportação do ListenBrainz (ZIP, JSONL, JSON)",
+  "ListenBrainz dışa aktarmasını seç": "Escolha sua exportação do ListenBrainz",
+  "ListenBrainz geçmişi getiriliyor…": "Buscando seu histórico do ListenBrainz…",
+  "ListenBrainz geçmişini getir": "Traga seu histórico do ListenBrainz",
+  "ListenBrainz'deki dinlemelerin kullanıcı adınla getirilir; başka yerden gelenlerle aynı olanlar bir kez sayılır. Dışa aktarma ZIP'ini de seçebilirsin.": "Suas reproduções do ListenBrainz são buscadas pelo nome de usuário; o que também veio de outro lugar conta uma vez só. Você também pode escolher o ZIP de exportação.",
+  "ListenBrainz'den getir": "Buscar no ListenBrainz",
+  "ListenBrainz'den içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların ve diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca geri gelir.": {
+    "one": "{} reprodução importada do ListenBrainz será removida das estatísticas. O que você tocou neste computador e as outras fontes ficam; as reproduções que elas também tinham voltam quando você as importar de novo.",
+    "other": "{} reproduções importadas do ListenBrainz serão removidas das estatísticas. O que você tocou neste computador e as outras fontes ficam; as reproduções que elas também tinham voltam quando você as importar de novo."
+  },
+  "Seçilen dosyalarda {} dinleme geçmişi bulunamadı": "Nenhum histórico do {} encontrado nos arquivos selecionados",
+  "Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların ve diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca geri gelir.": {
+    "one": "{} reprodução importada do Spotify será removida das estatísticas. O que você tocou neste computador e as outras fontes ficam; as reproduções que elas também tinham voltam quando você as importar de novo.",
+    "other": "{} reproduções importadas do Spotify serão removidas das estatísticas. O que você tocou neste computador e as outras fontes ficam; as reproduções que elas também tinham voltam quando você as importar de novo."
+  },
+  "Spotify, Last.fm veya ListenBrainz geçmişini içe aktar": "Importar seu histórico do Spotify, Last.fm ou ListenBrainz",
+  "Yeni dinleme yok": "Nenhuma reprodução nova",
+  "{} istek sınırı: {} sn bekleniyor…": "Limite de solicitações do {}: aguardando {} s…",
+  "{} şu anda yanıt vermiyor. Biraz sonra tekrar dene.": "O {} não está respondendo agora. Tente de novo daqui a pouco.",
+  "İçe aktarma durduruldu": "Importação interrompida",
+  "İçe aktarma durduruldu: {} dinleme eklendi": {
+    "one": "Importação interrompida: {} reprodução adicionada",
+    "other": "Importação interrompida: {} reproduções adicionadas"
+  },
+  "İçe aktarılan Last.fm geçmişini kaldır": "Remover histórico importado do Last.fm",
+  "İçe aktarılan ListenBrainz geçmişini kaldır": "Remover histórico importado do ListenBrainz",
+  "İçe aktarılan Spotify geçmişini kaldır": "Remover histórico importado do Spotify"
 }
