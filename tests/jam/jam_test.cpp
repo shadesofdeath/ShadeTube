@@ -14,6 +14,11 @@
 //   clock       : offset estimation (symmetric, asymmetric outliers, negative round trips)
 //   reconcile   : what a guest does for a host state: load / jump / replace upcoming / seek / play / pause / hold
 //                 (unsupported items, waiting for the video, failures), drift threshold, cooldown, seek lead learning
+//   level 2     : podcast episodes / radio stations ("k":"x" + "pe" / "rs", what a 0.10.0 parser keeps of them, hostile
+//                 data), the state's feature level / speed / away (a 0.10.0 state reads as level 1), the envelope still
+//                 at version 1, episodes at the host's speed, a station followed live (no seeks)
+//   saved host  : the host's room kept across a restart (JSON round trip, the resume window, broken files), DPAPI
+//   blend invite: shadetube://blend/ links and topics (neither kind of link opens as the other)
 //   protocol    : the shadetube: URL protocol in a test key (SHADETUBE_PROTOCOL_KEY)
 //   live        : (`jam_test live [wss://broker...]`) two clients per broker through the real public broker: retained
 //                 encrypted state to a late subscriber, a guest request back, clock pings, the last will, clearing the
@@ -32,6 +37,7 @@
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdio>
 #include <cstring>
@@ -762,6 +768,212 @@ static void testReconcile() {
     }
 }
 
+// ---- level 2 (0.11.0): episodes, stations, speed, away; what a 0.10.0 peer sees ----------------------------------------
+
+static QueueItem episodeItem() {
+    QueueItem e = item("podcast:0123456789abcdef", 3'600'000, ItemKind::Episode, "");
+    e.title = "Bölüm 12";
+    e.artists = {"Bir Podcast"};
+    e.episode = {"https://feeds.example.com/show.xml", "guid-12", "https://cdn.example.com/12.mp3", "audio/mpeg", "Bir Podcast", 1'760'000'000};
+    return e;
+}
+
+static QueueItem stationItem() {
+    QueueItem r = item("radio:9617a958-0601-11e8-ae97-52543be04c81", 0, ItemKind::Station, "");
+    r.title = "Radyo";
+    r.station = {"9617a958-0601-11e8-ae97-52543be04c81", "https://stream.example.com/live.mp3", "MP3", "TR", {"pop", "news"}, 128, false};
+    return r;
+}
+
+static void testLevel2() {
+    std::printf("level 2: episodes, stations, speed, away\n");
+    // Episodes and stations round trip; on the wire they are still "k":"x" (a 0.10.0 guest holds on them).
+    for (const QueueItem& i : {episodeItem(), stationItem()}) {
+        const json j = toJson(i);
+        CHECK(j["k"] == "x");
+        CHECK(j.contains(i.kind == ItemKind::Episode ? "pe" : "rs"));
+        const auto back = itemFromJson(json::parse(j.dump()));
+        CHECK(back && *back == i);
+    }
+    // What a 0.10.0 guest parses: only the keys it knows, kind "x" -> Unsupported. Emulated by dropping the new keys.
+    {
+        json j = toJson(episodeItem());
+        j.erase("pe");
+        const auto old = itemFromJson(j);
+        CHECK(old && old->kind == ItemKind::Unsupported);
+    }
+    // Hostile / wrong data stays unsupported: no http(s) audio, an id of the other kind, a station uuid that isn't the id.
+    {
+        json j = toJson(episodeItem());
+        j["pe"]["u"] = "file:///C:/Windows/win.ini";
+        CHECK(itemFromJson(j)->kind == ItemKind::Unsupported);
+        j = toJson(episodeItem());
+        j["i"] = "radio:x";
+        CHECK(itemFromJson(j)->kind == ItemKind::Unsupported);
+        j = toJson(stationItem());
+        j["rs"]["id"] = "another";
+        CHECK(itemFromJson(j)->kind == ItemKind::Unsupported);
+        j = toJson(stationItem());
+        j["rs"] = "nonsense";
+        CHECK(itemFromJson(j)->kind == ItemKind::Unsupported);
+        j = toJson(stationItem());
+        j["rs"]["u"] = "  https://x";
+        CHECK(itemFromJson(j)->kind == ItemKind::Unsupported);
+    }
+    // The state: feature level, speed and away travel; a 0.10.0 state (none of them) reads as level 1, speed 1, here.
+    {
+        SessionState s = hostState();
+        s.featureLevel = kFeatureLevel;
+        s.speed = 1.5;
+        s.awaySince = 1'764'000'000;
+        s.queue = {episodeItem(), stationItem()};
+        const json j = toJson(s);
+        const auto back = stateFromJson(json::parse(j.dump()));
+        CHECK(back && back->featureLevel == 2 && std::fabs(back->speed - 1.5) < 1e-9 && back->awaySince == 1'764'000'000);
+        CHECK(back && back->queue == s.queue);
+        json old = j;
+        old.erase("pv");
+        old.erase("sp");
+        old.erase("away");
+        const auto o = stateFromJson(old);
+        CHECK(o && o->featureLevel == 1 && o->speed == 1.0 && o->awaySince == 0);
+        json bad = j;
+        bad["sp"] = 40;
+        CHECK(stateFromJson(bad)->speed == 3.0);
+        bad["sp"] = "fast";
+        CHECK(stateFromJson(bad)->speed == 1.0);
+        SessionState plain = hostState();
+        CHECK(!toJson(plain).contains("sp") && !toJson(plain).contains("away"));
+    }
+    // The envelope stays version 1: 0.10.0 refuses any other "v".
+    {
+        const Bytes key = randomBytes(32);
+        const Bytes wire = sealEnvelope(key, "t", Envelope{"state", "0011223344556677", 5, toJson(hostState())});
+        CHECK(wire[0] == 'J' && wire[1] == 1);
+        const auto plain = open(key, std::span(wire).subspan(2), Bytes{'S', 'T', 'J', '1', '|', 't'});
+        CHECK(plain && json::parse(plain->begin(), plain->end())["v"] == 1);
+    }
+    // Episodes advance at the host's speed.
+    {
+        SessionState s = hostState();
+        s.queue = {episodeItem()};
+        s.positionMs = 600'000;
+        s.atHostMs = 10'000;
+        s.speed = 1.5;
+        CHECK(expectedPosition(s, 12'000) == 603'000);
+        s.speed = 1.0;
+        CHECK(expectedPosition(s, 12'000) == 602'000);
+        // A guest at the right spot at 1.5x has no drift; one following at 1x would drift past the threshold.
+        s.speed = 1.5;
+        SyncMemory mem;
+        LocalView l{s.queue[0].id, {}, true, false, false, 603'050, 3'600'000};
+        auto d = decide(s, 12'000, 100'000, l, mem);
+        CHECK(d.hasDrift && d.driftMs == 50 && d.seekMs < 0);
+        l.positionMs = 601'500;
+        d = decide(s, 12'000, 200'000, l, mem);
+        CHECK(d.seekMs == 603'000 + mem.seekLeadMs);
+    }
+    // A station: load it live (no seek), follow play / pause, never seek, never hold for a missing video.
+    {
+        SessionState s = hostState();
+        s.queue = {stationItem(), item("spotify:track:next")};
+        s.positionMs = 0;
+        s.speed = 1.0;
+        SyncMemory mem;
+        auto d = decide(s, 99'000'000, 0, LocalView{}, mem);
+        CHECK(d.load == Decision::Load::Queue && d.autoplay && d.seekMs == 0 && mem.pending == SyncMemory::Pending::None);
+        LocalView l{s.queue[0].id, {"spotify:track:next"}, true, false, false, 45'000, 0};
+        d = decide(s, 99'000'000, 10'000, l, mem);
+        CHECK(d.load == Decision::Load::None && !d.hasDrift && d.seekMs < 0 && !d.play && !d.pause && d.hold == Decision::Hold::None);
+        SessionState paused = s;
+        paused.playing = false;
+        paused.status = HostStatus::Paused;
+        d = decide(paused, 99'000'000, 20'000, l, mem);
+        CHECK(d.pause && d.seekMs < 0);
+        LocalView stopped = l;
+        stopped.playing = false;
+        d = decide(s, 99'000'000, 30'000, stopped, mem);
+        CHECK(d.play && d.seekMs < 0);
+        // A paused host's station loads paused.
+        SyncMemory fresh;
+        d = decide(paused, 0, 0, LocalView{}, fresh);
+        CHECK(d.load == Decision::Load::Queue && !d.autoplay);
+        // A station the guest can't play is held after two attempts, like a song.
+        SyncMemory fails;
+        decide(s, 0, 0, LocalView{}, fails);
+        LocalView err{s.queue[0].id, {}, false, false, true, 0, 0};
+        decide(s, 0, 0, err, fails);
+        d = decide(s, 0, 0, err, fails);
+        CHECK(d.hold == Decision::Hold::Failed);
+    }
+    // An episode from a level-1 host ("x" without "pe") is still held.
+    {
+        SessionState s = hostState();
+        QueueItem e = episodeItem();
+        e.kind = ItemKind::Unsupported;
+        s.queue = {e};
+        SyncMemory mem;
+        CHECK(decide(s, 0, 0, LocalView{}, mem).hold == Decision::Hold::Unsupported);
+    }
+}
+
+static void testSavedHost() {
+    std::printf("saved host + dpapi\n");
+    SavedHost s;
+    const Invite inv = newInvite("wss://broker.emqx.io:8084/mqtt");
+    s.roomId = inv.roomId;
+    s.key = inv.key;
+    s.broker = inv.broker;
+    s.revision = 4242;
+    s.guestsControl = true;
+    s.bans = {"ffeeddccbbaa0099"};
+    s.members = {{"0102030405060708", "Ayşe", EcdhKey::generate().publicKey()}, {"0807060504030201", "Can", {}}};
+    s.addedBy = {{"spotify:track:z", "Ayşe"}};
+    s.savedAt = 1'764'000'000;
+    s.away = true;
+    const auto back = savedHostFromJson(json::parse(toJson(s).dump()));
+    CHECK(back && *back == s);
+    CHECK(resumable(s, s.savedAt + 30) && resumable(s, s.savedAt + kResumeWindowSec) && !resumable(s, s.savedAt + kResumeWindowSec + 1));
+    CHECK(resumable(s, s.savedAt - 30) && !resumable(s, s.savedAt - 3600));   // a clock behind by a little is fine
+    json bad = toJson(s);
+    bad["key"] = base64url(randomBytes(16));
+    CHECK(!savedHostFromJson(bad));
+    bad = toJson(s);
+    bad["v"] = 2;
+    CHECK(!savedHostFromJson(bad));
+    bad = toJson(s);
+    bad["m"][0]["d"] = "not a device";
+    CHECK(savedHostFromJson(bad)->members.size() == 1);
+
+    // DPAPI: round trip for this user; anything changed is refused.
+    const std::string text = toJson(s).dump();
+    const auto sealed = protect(asBytes(text), L"jam_test");
+    CHECK(sealed && sealed->size() > text.size());
+    CHECK(sealed && std::string_view(reinterpret_cast<const char*>(sealed->data()), sealed->size()).find("broker.emqx.io") == std::string_view::npos);
+    const auto opened = sealed ? unprotect(*sealed) : std::nullopt;
+    CHECK(opened && std::string(opened->begin(), opened->end()) == text);
+    if (sealed) {
+        Bytes tampered = *sealed;
+        tampered[tampered.size() / 2] ^= 0x5A;
+        CHECK(!unprotect(tampered));
+    }
+    CHECK(!unprotect(Bytes{}));
+}
+
+static void testBlendInvite() {
+    std::printf("blend invite\n");
+    const Invite inv = newInvite("wss://test.mosquitto.org:8081/mqtt");
+    const std::string link = formatBlendInvite(inv);
+    CHECK(link.rfind("shadetube://blend/", 0) == 0 && link.size() < 140);
+    CHECK(parseBlendInvite(link) == inv);
+    CHECK(parseBlendInvite(" <" + link + "> ") == inv && parseBlendInvite(link + "/") == inv);
+    // Neither kind opens as the other.
+    CHECK(!parseInvite(link) && !parseBlendInvite(formatInvite(inv)));
+    CHECK(looksLikeBlendInvite(link) && !looksLikeInvite(link) && !looksLikeBlendInvite(formatInvite(inv)));
+    const std::string base = blendTopicBase(inv.roomId);
+    CHECK(base.rfind("shadetube/blend/v1/", 0) == 0 && base.size() == 19 + 64 && base.substr(19) == topicBase(inv.roomId).substr(17));
+}
+
 // ---- URL protocol -----------------------------------------------------------------------------------------------------
 
 static void testProtocol() {
@@ -1016,6 +1228,9 @@ int main(int argc, char** argv) {
         testState();
         testClock();
         testReconcile();
+        testLevel2();
+        testSavedHost();
+        testBlendInvite();
         testProtocol();
     }
     RegDeleteTreeW(HKEY_CURRENT_USER, key.c_str());

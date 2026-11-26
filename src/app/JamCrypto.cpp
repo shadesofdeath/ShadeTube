@@ -3,11 +3,13 @@
 
 #include <windows.h>
 #include <bcrypt.h>
+#include <wincrypt.h>
 
 #include <cstring>
 #include <stdexcept>
 
 #pragma comment(lib, "bcrypt.lib")
+#pragma comment(lib, "crypt32.lib")
 
 namespace st::app::jam {
 
@@ -79,6 +81,26 @@ std::array<uint8_t, 32> sha256(std::span<const uint8_t> data) {
 }
 
 std::array<uint8_t, 32> sha256(std::string_view text) { return sha256(asBytes(text)); }
+
+std::optional<Bytes> protect(std::span<const uint8_t> plain, const wchar_t* description) {
+    DATA_BLOB in{static_cast<DWORD>(plain.size()), const_cast<BYTE*>(plain.data())};
+    DATA_BLOB out{};
+    if (!CryptProtectData(&in, description, nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out)) return std::nullopt;
+    Bytes sealed(out.pbData, out.pbData + out.cbData);
+    LocalFree(out.pbData);
+    return sealed;
+}
+
+std::optional<Bytes> unprotect(std::span<const uint8_t> sealed) {
+    if (sealed.empty()) return std::nullopt;
+    DATA_BLOB in{static_cast<DWORD>(sealed.size()), const_cast<BYTE*>(sealed.data())};
+    DATA_BLOB out{};
+    if (!CryptUnprotectData(&in, nullptr, nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out)) return std::nullopt;
+    Bytes plain(out.pbData, out.pbData + out.cbData);
+    SecureZeroMemory(out.pbData, out.cbData);
+    LocalFree(out.pbData);
+    return plain;
+}
 
 std::string toHex(std::span<const uint8_t> data) {
     static constexpr char kDigits[] = "0123456789abcdef";

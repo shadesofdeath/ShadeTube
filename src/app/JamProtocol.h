@@ -8,8 +8,15 @@
 //
 // Topics (JamInvite topicBase): <base>/state retained, host -> all: the SessionState ("state"); an empty retained
 // message clears it when the session ends. <base>/h host -> all: "hb", "pong", "end", "kick", "deny", "handoff",
-// "move", and the host's last will ("bye"). <base>/g guests -> host: "hello", "hb", "ping", "req", "bye" (also the
-// guest's last will).
+// "move", and the host's last will ("bye"; reason "lost", or "away" when the host's app closes and will resume the
+// room after its restart). <base>/g guests -> host: "hello", "hb", "ping", "req", "bye" (also the guest's last will).
+//
+// Versions: the envelope's "v" stays 1 — a 0.10.0 app drops every envelope with another value, so bumping it would
+// turn an old peer away with "session not found". New abilities are announced by the feature level instead ("pv" in
+// the state and in the guest's hello, absent = 1) and travel in fields older apps ignore (their parsers read only the
+// keys they know). Level 2 (0.11.0): podcast episodes and radio stations are shared — they keep "k":"x" (an older guest
+// still holds on them as unsupported instead of searching YouTube for an episode title) and add "pe" / "rs" with what a
+// newer guest needs to play them; the host's speed for episodes ("sp"); a host away for a restart ("away").
 //
 // Standalone (tests/jam compiles it): app/JamCrypto, nlohmann/json.
 #include "app/JamCrypto.h"
@@ -26,8 +33,12 @@
 
 namespace st::app::jam {
 
-inline constexpr int kProtocolVersion = 1;
+inline constexpr int kProtocolVersion = 1;   // the envelope's "v" (see above: never bumped)
+inline constexpr int kFeatureLevel = 2;      // "pv": what this app understands beyond 0.10.0's level 1
 inline constexpr int kMaxMembers = 10;     // the host included
+// A host whose app closed comes back to the same room within this time (its key is kept with DPAPI); guests wait that
+// long (plus a minute for a slow start) before they give up on it.
+inline constexpr int64_t kResumeWindowSec = 10 * 60;
 inline constexpr int kQueueWindow = 50;    // upcoming items in the state (after the current one)
 
 struct Topics {
@@ -91,8 +102,32 @@ private:
 
 // ---- Session state --------------------------------------------------------------------------------------------------
 
-enum class ItemKind { Song, File, Unsupported };   // File: plays from the host's disk; Unsupported: podcast / radio
+// File: plays from the host's disk. Episode / Station (level 2): a podcast episode / a live radio station with what a
+// guest needs to play it (on the wire "k":"x" + "pe" / "rs"). Unsupported: something a guest can't follow (an episode
+// or station from a level-1 host, or one whose data the host didn't have).
+enum class ItemKind { Song, File, Unsupported, Episode, Station };
 enum class HostStatus { Idle, Loading, Playing, Paused, Error };
+
+struct EpisodeRef {
+    std::string feedUrl;      // the show's RSS feed
+    std::string guid;         // the item's guid (the episode id is FNV-1a of feed URL + guid)
+    std::string url;          // the enclosure (audio), http(s)
+    std::string mimeType;
+    std::string show;
+    int64_t published = 0;    // unix seconds
+    bool operator==(const EpisodeRef&) const = default;
+};
+
+struct StationRef {
+    std::string uuid;         // radio-browser.info stationuuid
+    std::string url;          // the stream the host plays, http(s)
+    std::string codec;        // "MP3", "AAC", ...
+    std::string countryCode;
+    std::vector<std::string> tags;
+    int bitrate = 0;
+    bool hls = false;
+    bool operator==(const StationRef&) const = default;
+};
 
 struct QueueItem {
     std::string id;
@@ -104,6 +139,8 @@ struct QueueItem {
     std::string videoId;      // the YouTube video the host plays it from ("" = not known)
     std::string addedBy;      // the guest who queued it ("" = the host / the list)
     ItemKind kind = ItemKind::Song;
+    EpisodeRef episode;       // kind Episode
+    StationRef station;       // kind Station
     bool operator==(const QueueItem&) const = default;
 };
 
@@ -130,12 +167,18 @@ struct SessionState {
     HostStatus status = HostStatus::Idle;
     uint64_t queueGen = 0;
     std::string contextName;            // what the host plays from ("Gece Sürüşü")
+    int featureLevel = 1;               // "pv": the host's feature level (1 = a 0.10.0 host)
+    double speed = 1.0;                 // "sp": the current item's speed (podcast episodes; songs always play at 1)
+    int64_t awaySince = 0;              // "away": unix seconds since the host's app closed to resume later (0 = here)
 
     const QueueItem* currentItem() const {
         return current >= 0 && current < static_cast<int>(queue.size()) ? &queue[static_cast<size_t>(current)] : nullptr;
     }
     bool banned(const std::string& device) const;
 };
+
+// Live (Station): no position, no seeking — following it means playing the same station.
+inline bool isLive(ItemKind k) { return k == ItemKind::Station; }
 
 nlohmann::json toJson(const QueueItem& item);
 std::optional<QueueItem> itemFromJson(const nlohmann::json& j);
@@ -158,6 +201,31 @@ std::optional<Request> requestFromJson(const nlohmann::json& j);
 const char* opName(RequestOp op);
 // Guest-controlled ops (everything but Add) need SessionState::guestsControl.
 inline bool needsControl(RequestOp op) { return op != RequestOp::Add; }
+
+// ---- A host's session across a restart ------------------------------------------------------------------------------
+// What a host keeps (app/Together: jam-host.dat, sealed with DPAPI) so that its next start resumes the same room with
+// the same key: written when the session starts or changes, every minute while it runs and when the app closes;
+// removed when the session ends. A start within kResumeWindowSec of savedAt resumes it.
+struct SavedMember {
+    std::string device, name;
+    Bytes publicKey;                    // its ECDH key (new invite hand-offs)
+    bool operator==(const SavedMember&) const = default;
+};
+struct SavedHost {
+    Bytes roomId, key;
+    std::string broker;                 // where the session was (tried first)
+    uint64_t revision = 0;              // the next state continues above it (guests drop older revisions)
+    bool guestsControl = false;
+    std::vector<std::string> bans;
+    std::vector<SavedMember> members;
+    std::vector<std::pair<std::string, std::string>> addedBy;   // track id -> the guest who added it
+    int64_t savedAt = 0;                // unix seconds
+    bool away = false;                  // the app closed (guests were told it will be back), not a crash
+    bool operator==(const SavedHost&) const = default;
+};
+nlohmann::json toJson(const SavedHost& s);
+std::optional<SavedHost> savedHostFromJson(const nlohmann::json& j);
+bool resumable(const SavedHost& s, int64_t nowUnix);   // saved within the window (a clock a minute behind is fine)
 
 // ---- New invite hand-off --------------------------------------------------------------------------------------------
 // The host's new invite link for one guest: sealed with SHA-256(ECDH(host ephemeral key, guest key) || label), the

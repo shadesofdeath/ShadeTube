@@ -4,6 +4,8 @@
 #include "app/JamInvite.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cmath>
 
 namespace st::app::jam {
 
@@ -76,8 +78,82 @@ bool deviceId(std::string_view s) {
     return s.size() == 16 && std::all_of(s.begin(), s.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
 }
 
-const char* kindName(ItemKind k) { return k == ItemKind::File ? "f" : k == ItemKind::Unsupported ? "x" : "s"; }
+// Episodes and stations stay "x" on the wire: a level-1 guest holds on them (it would read an unknown kind as a song
+// and look its title up on YouTube). "pe" / "rs" next to it say what they are.
+const char* kindName(ItemKind k) {
+    switch (k) {
+    case ItemKind::File: return "f";
+    case ItemKind::Unsupported:
+    case ItemKind::Episode:
+    case ItemKind::Station: return "x";
+    case ItemKind::Song: break;
+    }
+    return "s";
+}
 ItemKind kindFrom(std::string_view s) { return s == "f" ? ItemKind::File : s == "x" ? ItemKind::Unsupported : ItemKind::Song; }
+
+bool httpUrl(std::string_view u) {
+    auto starts = [&](std::string_view p) {
+        if (u.size() <= p.size()) return false;
+        for (size_t i = 0; i < p.size(); ++i)
+            if (static_cast<char>(std::tolower(static_cast<unsigned char>(u[i]))) != p[i]) return false;
+        return true;
+    };
+    return (starts("https://") || starts("http://")) && u.find_first_of(" \t\r\n") == std::string_view::npos;
+}
+
+double fnum(const json& j, const char* key, double def) {
+    if (!j.is_object()) return def;
+    const auto it = j.find(key);
+    return it != j.end() && it->is_number() ? it->get<double>() : def;
+}
+
+json episodeJson(const EpisodeRef& e) {
+    json j{{"f", e.feedUrl}, {"g", e.guid}, {"u", e.url}};
+    if (!e.mimeType.empty()) j["m"] = e.mimeType;
+    if (!e.show.empty()) j["s"] = e.show;
+    if (e.published > 0) j["p"] = e.published;
+    return j;
+}
+
+std::optional<EpisodeRef> episodeFrom(const json& j) {
+    if (!j.is_object()) return std::nullopt;
+    EpisodeRef e;
+    e.feedUrl = str(j, "f", 2048);
+    e.guid = str(j, "g", 1024);
+    e.url = str(j, "u", 2048);
+    e.mimeType = str(j, "m", 64);
+    e.show = str(j, "s");
+    e.published = std::max<int64_t>(0, num(j, "p"));
+    if (!httpUrl(e.feedUrl) || !httpUrl(e.url) || e.guid.empty()) return std::nullopt;
+    return e;
+}
+
+json stationJson(const StationRef& s) {
+    json j{{"id", s.uuid}, {"u", s.url}};
+    if (!s.codec.empty()) j["c"] = s.codec;
+    if (!s.countryCode.empty()) j["cc"] = s.countryCode;
+    if (!s.tags.empty()) j["t"] = s.tags;
+    if (s.bitrate > 0) j["br"] = s.bitrate;
+    if (s.hls) j["hls"] = true;
+    return j;
+}
+
+std::optional<StationRef> stationFrom(const json& j) {
+    if (!j.is_object()) return std::nullopt;
+    StationRef s;
+    s.uuid = str(j, "id", 64);
+    s.url = str(j, "u", 2048);
+    s.codec = str(j, "c", 16);
+    s.countryCode = str(j, "cc", 8);
+    s.tags = strings(j, "t", 8);
+    for (auto& t : s.tags)
+        if (t.size() > 40) t.resize(40);
+    s.bitrate = static_cast<int>(std::clamp<int64_t>(num(j, "br"), 0, 10'000));
+    s.hls = flag(j, "hls");
+    if (s.uuid.empty() || !httpUrl(s.url)) return std::nullopt;
+    return s;
+}
 
 HostStatus statusFrom(std::string_view s) {
     if (s == "loading") return HostStatus::Loading;
@@ -194,6 +270,8 @@ json toJson(const QueueItem& i) {
     if (!i.cover.empty()) j["c"] = i.cover;
     if (!i.videoId.empty()) j["v"] = i.videoId;
     if (!i.addedBy.empty()) j["by"] = i.addedBy;
+    if (i.kind == ItemKind::Episode) j["pe"] = episodeJson(i.episode);
+    if (i.kind == ItemKind::Station) j["rs"] = stationJson(i.station);
     return j;
 }
 
@@ -212,6 +290,20 @@ std::optional<QueueItem> itemFromJson(const json& j) {
     i.addedBy = str(j, "by", 64);
     i.kind = kindFrom(str(j, "k", 4));
     if (i.id.empty() || i.title.empty()) return std::nullopt;
+    // Level 2: what an "x" item is, when the host knew (an id of the matching kind only).
+    if (i.kind == ItemKind::Unsupported) {
+        if (const auto pe = j.find("pe"); pe != j.end() && i.id.rfind("podcast:", 0) == 0) {
+            if (auto e = episodeFrom(*pe)) {
+                i.kind = ItemKind::Episode;
+                i.episode = std::move(*e);
+            }
+        } else if (const auto rs = j.find("rs"); rs != j.end() && i.id.rfind("radio:", 0) == 0) {
+            if (auto s = stationFrom(*rs); s && i.id == "radio:" + s->uuid) {
+                i.kind = ItemKind::Station;
+                i.station = std::move(*s);
+            }
+        }
+    }
     return i;
 }
 
@@ -222,8 +314,11 @@ json toJson(const SessionState& s) {
     for (const auto& i : s.queue) queue.push_back(toJson(i));
     json j{{"rev", s.revision}, {"hd", s.hostDevice}, {"hn", s.hostName}, {"br", s.broker}, {"gc", s.guestsControl},
            {"bans", s.bans}, {"m", std::move(members)}, {"q", std::move(queue)}, {"cur", s.current}, {"pos", s.positionMs},
-           {"at", s.atHostMs}, {"pl", s.playing}, {"st", statusName(s.status)}, {"qg", s.queueGen}, {"ctx", s.contextName}};
+           {"at", s.atHostMs}, {"pl", s.playing}, {"st", statusName(s.status)}, {"qg", s.queueGen}, {"ctx", s.contextName},
+           {"pv", s.featureLevel}};
     if (!s.movedTo.empty()) j["mv"] = s.movedTo;
+    if (std::fabs(s.speed - 1.0) > 0.001) j["sp"] = std::round(s.speed * 1000) / 1000;
+    if (s.awaySince > 0) j["away"] = s.awaySince;
     return j;
 }
 
@@ -255,6 +350,9 @@ std::optional<SessionState> stateFromJson(const json& j) {
     s.status = statusFrom(str(j, "st", 16));
     s.queueGen = unum(j, "qg");
     s.contextName = str(j, "ctx", 256);
+    s.featureLevel = static_cast<int>(std::clamp<int64_t>(num(j, "pv", 1), 1, 1000));
+    s.speed = std::clamp(fnum(j, "sp", 1.0), 0.5, 3.0);
+    s.awaySince = std::max<int64_t>(0, num(j, "away"));
     if (!deviceId(s.hostDevice) || s.revision == 0) return std::nullopt;
     return s;
 }
@@ -310,6 +408,51 @@ std::optional<Request> requestFromJson(const json& j) {
         if (r.index < 0 || r.itemId.empty()) return std::nullopt;
     }
     return r;
+}
+
+// ---- A host across a restart ----------------------------------------------------------------------------------------
+
+json toJson(const SavedHost& s) {
+    json members = json::array();
+    for (const auto& m : s.members) members.push_back({{"d", m.device}, {"n", m.name}, {"pk", base64url(m.publicKey)}});
+    json added = json::object();
+    for (const auto& [id, who] : s.addedBy) added[id] = who;
+    return {{"v", 1}, {"room", base64url(s.roomId)}, {"key", base64url(s.key)}, {"br", s.broker}, {"rev", s.revision},
+            {"gc", s.guestsControl}, {"bans", s.bans}, {"m", std::move(members)}, {"by", std::move(added)},
+            {"at", s.savedAt}, {"away", s.away}};
+}
+
+std::optional<SavedHost> savedHostFromJson(const json& j) {
+    if (!j.is_object() || num(j, "v") != 1) return std::nullopt;
+    SavedHost s;
+    const auto room = fromBase64url(str(j, "room", 64));
+    const auto key = fromBase64url(str(j, "key", 64));
+    if (!room || room->size() != kRoomIdBytes || !key || key->size() != kKeyBytes) return std::nullopt;
+    s.roomId = *room;
+    s.key = *key;
+    s.broker = str(j, "br", 256);
+    s.revision = unum(j, "rev");
+    s.guestsControl = flag(j, "gc");
+    s.bans = strings(j, "bans", 256);
+    if (const auto m = j.find("m"); m != j.end() && m->is_array())
+        for (const auto& v : *m) {
+            if (s.members.size() >= static_cast<size_t>(kMaxMembers)) break;
+            SavedMember mem{str(v, "d", 32), str(v, "n", 64), {}};
+            if (const auto pk = fromBase64url(str(v, "pk", 128)); pk && pk->size() == 64) mem.publicKey = *pk;
+            if (deviceId(mem.device)) s.members.push_back(std::move(mem));
+        }
+    if (const auto by = j.find("by"); by != j.end() && by->is_object())
+        for (const auto& [id, who] : by->items()) {
+            if (s.addedBy.size() >= 500) break;
+            if (who.is_string() && !id.empty() && id.size() <= kMaxText) s.addedBy.emplace_back(id, who.get<std::string>().substr(0, 64));
+        }
+    s.savedAt = num(j, "at");
+    s.away = flag(j, "away");
+    return s;
+}
+
+bool resumable(const SavedHost& s, int64_t nowUnix) {
+    return s.savedAt > 0 && nowUnix - s.savedAt <= kResumeWindowSec && s.savedAt - nowUnix <= 60;
 }
 
 // ---- Hand-off -------------------------------------------------------------------------------------------------------

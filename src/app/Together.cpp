@@ -8,6 +8,7 @@
 #include "app/JamMqtt.h"
 #include "app/JamProtocol.h"
 #include "app/JamSync.h"
+#include "app/Podcasts.h"
 #include "app/WinShell.h"
 #include "catalog/TrackKind.h"
 #include "core/Dispatcher.h"
@@ -33,6 +34,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -64,7 +66,9 @@ constexpr int kFastPings = 5;
 constexpr int kMaxAddsPerAction = 20;
 constexpr size_t kMaxNameChars = 40;
 
-enum class Leave { Left, Ended, Kicked, Full, Banned, NotFound, Replaced, Exit };
+constexpr int64_t kSaveEveryMs = 60'000;      // a host / guest refreshes its resume file this often
+
+enum class Leave { Left, Ended, Kicked, Full, Banned, NotFound, Replaced, Exit, HostGone };
 
 struct Member {
     std::string device;
@@ -72,6 +76,7 @@ struct Member {
     bool online = true;
     int64_t lastSeen = 0;   // steady ms
     Bytes pk;               // its ECDH key (new invite hand-offs)
+    int level = 1;          // its feature level ("pv" in its hello; 1 = 0.10.0)
 };
 
 // Sequence numbers are taken on the UI thread (messages) and on the client's thread (each connection's last will).
@@ -106,6 +111,8 @@ struct Session {
     bool announced = false;         // "Oturum hazır" was shown
     std::string lastItemId;         // to warn once per unsupported item
     std::unordered_map<std::string, std::string> addedBy;   // track id -> guest name
+    int64_t nextSaveAt = 0;         // host / guest: the resume file is written again (steady ms)
+    bool resumed = false;           // host: this session came back after a restart
     // Guest
     std::optional<SessionState> state;
     std::string hostDevice;
@@ -125,6 +132,8 @@ struct Session {
     int64_t nextDriftLog = 0;
     std::optional<EcdhKey> myKey;
     bool hostLost = false;
+    bool hostAway = false;          // the host's app closed and will resume the room (it said so, or its state does)
+    int64_t hostAwaySince = 0;      // steady ms (the guest gives up kResumeWindowSec + 1 min later)
     int64_t lastToastAt = 0;        // throttles "only the host controls" toasts
 };
 
@@ -136,9 +145,10 @@ std::string g_device;
 std::string g_inviteFile;           // SHADETUBE_JAM_INVITE_FILE (dev)
 // Dev (SHADETUBE_JAM_DEV, host): "control" = guests may control playback from the start, "rotate@<s>" = a new invite
 // link <s> seconds into the session, "kick@<s>" = the first guest removed then.
+// "quit@<s>" = the app quits that long into the session (either role: restart tests).
 struct DevPlan {
     bool control = false;
-    int64_t rotateAtMs = -1, kickAtMs = -1;
+    int64_t rotateAtMs = -1, kickAtMs = -1, quitAtMs = -1;
 } g_dev;
 
 // ---- small helpers --------------------------------------------------------------------------------------------------
@@ -173,6 +183,47 @@ void writeJson(const fs::path& p, const json& j) {
     }
     std::error_code ec;
     fs::rename(tmp, p, ec);
+}
+
+// The resume files hold a room's key: sealed with DPAPI (this Windows user only), a few hundred bytes.
+fs::path hostFile() { return paths::appData() / L"jam-host.dat"; }
+fs::path guestFile() { return paths::appData() / L"jam-guest.dat"; }
+
+void writeSealed(const fs::path& p, const json& j) {
+    std::string text = j.dump(-1, ' ', false, json::error_handler_t::replace);
+    const auto sealed = protect(asBytes(text), L"ShadeTube listen together");
+    SecureZeroMemory(text.data(), text.size());
+    if (!sealed) {
+        ST_LOG_WARN(kTag, "could not seal {}", toUtf8(p.filename().wstring()));
+        return;
+    }
+    fs::path tmp = p;
+    tmp += L".tmp";
+    {
+        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+        f.write(reinterpret_cast<const char*>(sealed->data()), static_cast<std::streamsize>(sealed->size()));
+        if (!f) return;
+    }
+    std::error_code ec;
+    fs::rename(tmp, p, ec);
+}
+
+std::optional<json> readSealed(const fs::path& p) {
+    std::ifstream f(p, std::ios::binary);
+    if (!f) return std::nullopt;
+    const std::string data((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (data.empty() || data.size() > 256 * 1024) return std::nullopt;
+    auto plain = unprotect(asBytes(data));
+    if (!plain) return std::nullopt;
+    json j = json::parse(plain->begin(), plain->end(), nullptr, false);
+    SecureZeroMemory(plain->data(), plain->size());
+    if (!j.is_object()) return std::nullopt;
+    return j;
+}
+
+void removeFile(const fs::path& p) {
+    std::error_code ec;
+    fs::remove(p, ec);
 }
 
 const std::string& deviceId() {
@@ -274,10 +325,46 @@ bool sendGuest(const char* type, json body) { return send(g.topics.guest, type, 
 
 // ---- host: the state ----------------------------------------------------------------------------------------------------
 
+// An episode of a feed the user added by its RSS address is not shared: such feeds are often private (a token in the
+// address) or on the local network.
+bool privateFeed(const std::string& feedUrl) {
+    const auto* sub = podcast::store().subscription(feedUrl);
+    return sub && sub->manual;
+}
+
 ItemKind kindOf(const catalog::Track& t) {
-    if (radio::isStationId(t.id) || catalog::isPodcastId(t.id)) return ItemKind::Unsupported;
+    if (catalog::isPodcastId(t.id)) {
+        const auto* e = podcast::store().find(t.id);
+        return e && podcast::isHttpUrl(e->url) && !privateFeed(e->feedUrl) ? ItemKind::Episode : ItemKind::Unsupported;
+    }
+    if (radio::isStationId(t.id)) {
+        const auto* s = radio::store().find(radio::uuidOf(t.id));
+        return s && podcast::isHttpUrl(radio::streamUrl(*s)) ? ItemKind::Station : ItemKind::Unsupported;
+    }
     if (auto* p = player(); p && p->localFileFor && !p->localFileFor(t.id).empty()) return ItemKind::File;
     return ItemKind::Song;
+}
+
+// Host: what a guest needs to play an episode / a station itself.
+void fillShared(QueueItem& i) {
+    if (i.kind == ItemKind::Episode) {
+        if (const auto* e = podcast::store().find(i.id)) {
+            i.episode = {e->feedUrl, e->guid, e->url, e->mimeType, e->show, e->published};
+            if (i.cover.empty()) i.cover = e->image;
+            if (i.durationMs <= 0) i.durationMs = e->durationMs;
+        }
+    } else if (i.kind == ItemKind::Station) {
+        if (const auto* s = radio::store().find(radio::uuidOf(i.id))) {
+            i.station.uuid = s->uuid;
+            i.station.url = radio::streamUrl(*s);
+            i.station.codec = s->codec;
+            i.station.countryCode = s->countryCode;
+            for (size_t k = 0; k < s->tags.size() && k < 4; ++k) i.station.tags.push_back(s->tags[k]);
+            i.station.bitrate = s->bitrate;
+            i.station.hls = s->hls;
+            if (i.cover.empty()) i.cover = s->favicon;
+        }
+    }
 }
 
 QueueItem itemFor(const catalog::Track& t, bool current) {
@@ -294,7 +381,8 @@ QueueItem itemFor(const catalog::Track& t, bool current) {
     i.durationMs = t.durationMs;
     if (const auto* img = catalog::pickImage(t.album.images, 300)) i.cover = img->url;
     i.kind = kindOf(t);
-    if (i.kind != ItemKind::Unsupported) {
+    fillShared(i);
+    if (i.kind == ItemKind::Song || i.kind == ItemKind::File) {
         std::optional<youtube::Match> m;
         if (current && player()) m = player()->currentMatch();
         if ((!m || m->videoId.empty()) && ctx().matcher) m = ctx().matcher->cachedMatch(t.id);
@@ -319,6 +407,7 @@ HostStatus hostStatus(const Player& p) {
 SessionState buildState() {
     SessionState s;
     s.revision = ++g.revision;
+    s.featureLevel = kFeatureLevel;
     s.hostDevice = deviceId();
     s.hostName = myName();
     s.broker = g.brokerUrl;
@@ -338,6 +427,8 @@ SessionState buildState() {
         s.status = hostStatus(*p);
         s.queueGen = p->queueGeneration();
         s.contextName = toUtf8(p->context().name);
+        // Episodes play at the host's speed (songs stay at 1 during a session; a station has none).
+        if (catalog::isPodcastId(p->current()->id) && !p->isLive()) s.speed = p->speed();
     } else {
         s.atHostMs = now();
     }
@@ -394,7 +485,7 @@ void pinVideos(const SessionState& s) {
     auto* m = ctx().matcher;
     if (!m) return;
     for (const auto& i : s.queue) {
-        if (i.videoId.empty() || i.kind == ItemKind::Unsupported) continue;
+        if (i.videoId.empty() || (i.kind != ItemKind::Song && i.kind != ItemKind::File)) continue;
         youtube::Match match;
         match.videoId = i.videoId;
         match.title = i.title;
@@ -405,11 +496,68 @@ void pinVideos(const SessionState& s) {
     }
 }
 
+// Guest: a shared episode / station as this player plays it. The host's copy goes into the podcast / radio registry
+// unless this PC knows the episode / station already (its own copy wins), so the player resolves it as usual: from
+// the public internet only (an episode of a feed this user added by address is never taken from the host).
+catalog::Track sharedTrack(const QueueItem& i) {
+    if (i.kind == ItemKind::Episode) {
+        podcast::Episode e;
+        e.guid = i.episode.guid;
+        e.feedUrl = i.episode.feedUrl;
+        e.title = i.title;
+        e.show = i.episode.show;
+        e.author = i.artists.empty() ? std::string() : i.artists.front();
+        e.image = i.cover;
+        e.url = i.episode.url;
+        e.mimeType = i.episode.mimeType;
+        e.durationMs = i.durationMs;
+        e.published = i.episode.published;
+        if (e.id() == i.id && !podcast::store().find(i.id) && !privateFeed(e.feedUrl)) podcast::store().remember(e);
+        if (const auto* known = podcast::store().find(i.id)) return podcast::toTrack(*known);
+        return podcast::toTrack(e);   // not taken: it fails here and the guest holds until the host moves on
+    }
+    radio::Station st;
+    st.uuid = i.station.uuid;
+    st.name = i.title;
+    st.url = i.station.url;
+    st.urlResolved = i.station.url;
+    st.favicon = i.cover;
+    st.codec = i.station.codec;
+    st.countryCode = i.station.countryCode;
+    st.tags = i.station.tags;
+    st.bitrate = i.station.bitrate;
+    st.hls = i.station.hls;
+    if (!radio::store().find(st.uuid)) radio::store().remember(st);
+    const auto* known = radio::store().find(st.uuid);
+    return radio::toTrack(known ? *known : st);
+}
+
 std::vector<catalog::Track> tracksFrom(const SessionState& s, size_t first) {
     std::vector<catalog::Track> out;
-    for (size_t k = first; k < s.queue.size(); ++k)
-        if (s.queue[k].kind != ItemKind::Unsupported) out.push_back(trackFor(s.queue[k]));
+    for (size_t k = first; k < s.queue.size(); ++k) {
+        const QueueItem& i = s.queue[k];
+        if (i.kind == ItemKind::Unsupported) continue;
+        out.push_back(i.kind == ItemKind::Episode || i.kind == ItemKind::Station ? sharedTrack(i) : trackFor(i));
+    }
     return out;
+}
+
+// Guest: an episode plays at the host's speed (Settings::podcastSpeed; the guest's own comes back when it leaves).
+void followSpeed(const SessionState& s) {
+    const QueueItem* cur = s.currentItem();
+    auto* p = player();
+    if (!cur || cur->kind != ItemKind::Episode || !p) return;
+    const float want = static_cast<float>(s.speed);
+    auto& st = Settings::get();
+    if (std::fabs(st.podcastSpeed - want) < 0.01f) return;
+    ST_LOG_INFO(kTag, "guest: episode speed {:.2f}x (the host's)", want);
+    if (p->current() && catalog::isPodcastId(p->current()->id) && !p->isLive()) {
+        Player::Unfiltered u(*p);
+        p->setSpeed(want);
+    } else {
+        st.podcastSpeed = want;
+        st.markDirty();
+    }
 }
 
 player::PlayContext contextFor(const SessionState& s) {
@@ -437,6 +585,7 @@ void reconcile() {
     if (g.role != Role::Guest || !g.state || !p) return;
     if (g.hostLost) return;   // the host is gone for now: what plays keeps playing until it is back (or the guest leaves)
     const SessionState& s = *g.state;
+    followSpeed(s);
     // Without a clock sample the host's positions mean nothing here (steady clocks start at boot): wait for a pong,
     // unless the host is paused (its position needs no clock).
     if (!g.clock.ready() && hostAdvancing(s)) {
@@ -567,7 +716,7 @@ void connect(const std::vector<std::string>& brokers) {
 }
 
 void sayHello() {
-    json body{{"n", myName()}};
+    json body{{"n", myName()}, {"pv", kFeatureLevel}};
     if (g.myKey) body["pk"] = base64url(g.myKey->publicKey());
     sendGuest("hello", std::move(body));
 }
@@ -586,6 +735,33 @@ void writeInviteFile() {
     if (g_inviteFile.empty() || g.role != Role::Host) return;
     std::ofstream f(fs::path(g_inviteFile), std::ios::binary | std::ios::trunc);
     f << formatInvite(g.invite);
+}
+
+// ---- surviving a restart ----------------------------------------------------------------------------------------------
+
+// Host: the room, its key and who was in it (jam-host.dat), so the next start within kResumeWindowSec resumes it.
+void saveHost(bool away) {
+    if (g.role != Role::Host) return;
+    SavedHost s;
+    s.roomId = g.invite.roomId;
+    s.key = g.invite.key;
+    s.broker = !g.invite.broker.empty() ? g.invite.broker : g.brokerUrl;
+    s.revision = g.revision;
+    s.guestsControl = g.guestsControl;
+    s.bans = g.bans;
+    for (const auto& m : g.members) s.members.push_back({m.device, m.name, m.pk});
+    for (const auto& [id, who] : g.addedBy) s.addedBy.emplace_back(id, who);
+    s.savedAt = nowUnix();
+    s.away = away;
+    writeSealed(hostFile(), toJson(s));
+    g.nextSaveAt = now() + kSaveEveryMs;
+}
+
+// Guest: the invite (jam-guest.dat), so a restart of this app within the window joins the room again by itself.
+void saveGuest() {
+    if (g.role != Role::Guest) return;
+    writeSealed(guestFile(), {{"v", 1}, {"invite", formatInvite(g.invite)}, {"at", nowUnix()}});
+    g.nextSaveAt = now() + kSaveEveryMs;
 }
 
 void onLinkState(mqtt::Client::State s, const std::string& broker, const std::string& detail) {
@@ -607,6 +783,7 @@ void onLinkState(mqtt::Client::State s, const std::string& broker, const std::st
             g.invite.broker = broker;   // the invite names the broker the session really is on
             publishState();
             if (moved) writeInviteFile();
+            saveHost(false);
             if (!g.announced) {
                 g.announced = true;
                 if (auto* w = ctx().window)
@@ -640,6 +817,7 @@ void saveOwnQueue() {
     j["guestSaved"] = {{"shuffle", p->shuffle()},
                        {"repeat", static_cast<int>(p->repeat())},
                        {"musicSpeed", Settings::get().musicSpeed},
+                       {"podcastSpeed", Settings::get().podcastSpeed},
                        {"queue", fs::exists(ownSessionFile(), ec)}};
     writeJson(stateFile(), j);
 }
@@ -662,6 +840,7 @@ std::optional<std::pair<bool, RepeatMode>> restoreOwnQueueFiles() {
     fs::remove(ownSessionFile(), ec);
     auto& s = Settings::get();
     s.musicSpeed = std::clamp(saved.value("musicSpeed", 1.f), 0.5f, 3.f);
+    s.podcastSpeed = std::clamp(saved.value("podcastSpeed", s.podcastSpeed), 0.5f, 3.f);   // episodes follow the host's
     const bool shuffle = saved.value("shuffle", false);
     const RepeatMode repeat = static_cast<RepeatMode>(std::clamp(saved.value("repeat", 0), 0, 2));
     s.shuffle = shuffle;
@@ -697,7 +876,7 @@ void requestAdd(const std::vector<catalog::Track>& tracks) {
         if (n >= kMaxAddsPerAction) break;
         if (!t.playable || t.name.empty()) continue;
         if (radio::isStationId(t.id) || catalog::isPodcastId(t.id)) {
-            toastThrottled(tr(L"Podcast ve radyo yayınları birlikte dinlemede paylaşılmaz"));
+            toastThrottled(tr(L"Podcast bölümlerini ve radyo istasyonlarını yalnızca oturum sahibi açabilir"));
             continue;
         }
         QueueItem item;
@@ -804,7 +983,9 @@ bool guestFilter(Player::Command c, const Player::CommandArgs& a) {
 
 bool hostFilter(Player::Command c, const Player::CommandArgs&) {
     if (c == Player::Command::Speed) {
-        toastThrottled(tr(L"Birlikte dinlerken çalma hızı değiştirilemez"));
+        // A podcast episode's speed is shared (guests follow it); songs stay at 1 for everyone.
+        if (auto* p = player(); p && p->current() && catalog::isPodcastId(p->current()->id)) return false;
+        toastThrottled(tr(L"Birlikte dinlerken şarkıların hızı değiştirilemez"));
         return true;
     }
     return false;
@@ -851,7 +1032,10 @@ void resetSession() {
 void leaveGuest(Leave why, bool quiet = false) {
     if (g.role != Role::Guest) return;
     ST_LOG_INFO(kTag, "guest: leaving room {} ({})", roomTag(g.invite.roomId), static_cast<int>(why));
-    if (why == Leave::Left || why == Leave::Exit) sendGuest("bye", {{"reason", "leave"}});
+    if (why == Leave::Left || why == Leave::Exit) sendGuest("bye", {{"reason", why == Leave::Exit ? "away" : "leave"}});
+    // Closing the app keeps the room for the next start (within the window); anything else forgets it.
+    if (why == Leave::Exit) saveGuest();
+    else removeFile(guestFile());
     dropClient(std::chrono::milliseconds(800), why == Leave::Exit);
     resetSession();
     if (why == Leave::Exit) {
@@ -870,6 +1054,7 @@ void leaveGuest(Leave why, bool quiet = false) {
     case Leave::NotFound:
         toastIn(tr(L"Oturum bulunamadı. Bağlantı eskimiş ya da oturum sona ermiş olabilir."), true);
         break;
+    case Leave::HostGone: toastIn(tr(L"Oturum sahibi geri dönmedi; birlikte dinleme sona erdi")); break;
     case Leave::Replaced:
     case Leave::Exit: break;
     }
@@ -880,11 +1065,73 @@ void endHost(bool exiting) {
     ST_LOG_INFO(kTag, "host: ending room {}", roomTag(g.invite.roomId));
     sendHost("end", json::object());
     if (g.client && g.link == Link::Connected) g.client->publish(g.topics.state, {}, true);   // clears the retained state
+    removeFile(hostFile());
     dropClient(std::chrono::milliseconds(800), exiting);
     resetSession();
     if (exiting) return;
     notify();
     toast(tr(L"Birlikte dinleme oturumu sona erdi"));
+}
+
+// The app closes while hosting: the session is kept, not ended. Guests get a last state (paused where the host was,
+// "away" since now) and a goodbye that says the host will be back; the room and its key stay in jam-host.dat and the
+// next start within kResumeWindowSec resumes it (resumeHost). 0.10.0 guests just see the host pause and go quiet.
+void suspendHost() {
+    if (g.role != Role::Host) return;
+    ST_LOG_INFO(kTag, "host: the app closes; room {} kept for {} min", roomTag(g.invite.roomId), kResumeWindowSec / 60);
+    if (g.link == Link::Connected) {
+        SessionState s = buildState();
+        s.playing = false;
+        if (s.status == HostStatus::Playing || s.status == HostStatus::Loading) s.status = HostStatus::Paused;
+        s.awaySince = nowUnix();
+        send(g.topics.state, "state", toJson(s), true);
+        sendHost("bye", {{"reason", "away"}, {"back", kResumeWindowSec}});
+    }
+    saveHost(true);
+    dropClient(std::chrono::milliseconds(800), true);
+    resetSession();
+}
+
+// A kept room that is too old to resume: its retained state goes (and "end" tells a guest still waiting), on a worker.
+void clearStaleRoom(const SavedHost& saved) {
+    const std::vector<std::string> brokers = brokerOrder(saved.broker, Settings::get().jamBroker);
+    background(Priority::Low, [saved, brokers, dev = deviceId()] {
+        struct Flag {
+            std::mutex m;
+            bool connected = false;
+        };
+        auto flag = std::make_shared<Flag>();
+        mqtt::Client::Events ev;
+        ev.onState = [flag](mqtt::Client::State s, const std::string&, const std::string&) {
+            std::lock_guard lk(flag->m);
+            flag->connected = s == mqtt::Client::State::Connected;
+        };
+        mqtt::Client c(std::move(ev));
+        mqtt::Client::Config cfg;
+        cfg.brokers = brokers;
+        c.start(cfg);
+        for (int i = 0; i < 150; ++i) {   // up to 15 s
+            {
+                std::lock_guard lk(flag->m);
+                if (flag->connected) break;
+            }
+            Sleep(100);
+        }
+        bool connected = false;
+        {
+            std::lock_guard lk(flag->m);
+            connected = flag->connected;
+        }
+        if (connected) {
+            const Topics t = topicsFor(saved.roomId);
+            SequenceCounter seq;
+            seq.newEpoch(static_cast<int64_t>(std::time(nullptr)));
+            c.publish(t.host, sealEnvelope(saved.key, t.host, Envelope{"end", dev, seq.next(), json::object()}));
+            c.publish(t.state, {}, true);
+        }
+        c.stop(std::chrono::milliseconds(1000));
+        ST_LOG_INFO(kTag, "host: an old room {} was {}", roomTag(saved.roomId), connected ? "cleared" : "left as it was (no broker)");
+    });
 }
 
 // ---- host: guests ---------------------------------------------------------------------------------------------------
@@ -971,11 +1218,13 @@ void hostMessage(const Envelope& e, int64_t rxAt) {
             toast(i18n::format(tr(L"{} birlikte dinlemeye katıldı"), {toWide(m->name)}));
         }
         if (const auto pk = fromBase64url(jstr(e.body, "pk")); pk && pk->size() == 64) m->pk = *pk;
+        m->level = static_cast<int>(std::clamp<int64_t>(jint(e.body, "pv"), 1, 1000));
         if (!name.empty()) m->name = name;
         m->lastSeen = rxAt;
         m->online = true;
         notify();
         publishState();
+        saveHost(false);
         return;
     }
     if (!m) return;   // only members speak
@@ -986,6 +1235,7 @@ void hostMessage(const Envelope& e, int64_t rxAt) {
         notify();
     }
     if (e.type == "hb") {
+        if (const int64_t pv = jint(e.body, "pv"); pv > 0) m->level = static_cast<int>(std::min<int64_t>(pv, 1000));
         if (!name.empty() && name != m->name) {
             m->name = name;
             schedulePublish();
@@ -1004,6 +1254,7 @@ void hostMessage(const Envelope& e, int64_t rxAt) {
         toast(i18n::format(tr(L"{} birlikte dinlemeden ayrıldı"), {toWide(who)}));
         schedulePublish();
         notify();
+        if (left) saveHost(false);
     }
 }
 
@@ -1031,9 +1282,24 @@ void guestState(const Envelope& e) {
     if (!g.hostDevice.empty() && s->hostDevice != g.hostDevice) return;   // someone else's state in our room
     if (g.state && s->revision < g.state->revision && s->hostDevice == g.state->hostDevice) return;   // stale
     if (s->hostDevice != e.device) return;
+    // A host away for a restart for longer than it keeps a room: the session is over.
+    if (s->awaySince > 0 && nowUnix() - s->awaySince > kResumeWindowSec + 60) {
+        ST_LOG_INFO(kTag, "guest: the host has been away since {} s ago; giving up", nowUnix() - s->awaySince);
+        leaveGuest(g.state ? Leave::HostGone : Leave::NotFound);
+        return;
+    }
     g.hostDevice = s->hostDevice;
     g.lastHostMsg = now();
     g.hostLost = false;
+    if (s->awaySince > 0 && !g.hostAway) {
+        g.hostAway = true;
+        g.hostAwaySince = now() - std::clamp<int64_t>(nowUnix() - s->awaySince, 0, kResumeWindowSec) * 1000;
+        ST_LOG_INFO(kTag, "guest: the host is away (its app closed); waiting for it");
+    } else if (s->awaySince == 0 && g.hostAway) {
+        g.hostAway = false;
+        ST_LOG_INFO(kTag, "guest: the host is back");
+        toastIn(i18n::format(tr(L"{} geri döndü; birlikte dinleme sürüyor"), {toWide(s->hostName)}));
+    }
     if (s->banned(deviceId())) {
         leaveGuest(g.state ? Leave::Kicked : Leave::Banned);   // removed now, or turned away at the door
         return;
@@ -1106,8 +1372,19 @@ void guestMessage(const mqtt::Publish& p, const Envelope& e, int64_t rxAt) {
         const std::string b = jstr(e.body, "broker");
         if (mqtt::parseBrokerUrl(b) && b != g.brokerUrl) g.client->moveTo(b);
     } else if (e.type == "bye") {
-        g.hostLost = true;
-        ST_LOG_INFO(kTag, "guest: the host lost its connection");
+        if (jstr(e.body, "reason") == "away") {
+            // The host's app closed and keeps the room: its last state (paused) stands; wait here for it.
+            if (!g.hostAway) {
+                g.hostAway = true;
+                g.hostAwaySince = now();
+                toastIn(i18n::format(tr(L"{} uygulamayı kapattı. 10 dakika içinde dönerse birlikte dinleme kaldığı yerden sürer."),
+                                     {toWide(g.state ? g.state->hostName : std::string())}));
+            }
+            ST_LOG_INFO(kTag, "guest: the host's app closed; waiting up to {} min", kResumeWindowSec / 60);
+        } else {
+            g.hostLost = true;
+            ST_LOG_INFO(kTag, "guest: the host lost its connection");
+        }
         notify();
     }
 }
@@ -1165,6 +1442,7 @@ void hostTick() {
             sendHost("hb", {{"rev", g.revision}});
         }
     }
+    if (t >= g.nextSaveAt) saveHost(false);   // a crash still resumes within the window
     bool changed = false;
     for (auto& m : g.members)
         if (m.online && t - m.lastSeen > kOfflineMs) {
@@ -1187,10 +1465,16 @@ void guestTick() {
         leaveGuest(Leave::NotFound);
         return;
     }
+    // The host said it would be back (its app closed) and wasn't within the window: over.
+    if (g.hostAway && t - g.hostAwaySince > (kResumeWindowSec + 60) * 1000) {
+        leaveGuest(Leave::HostGone);
+        return;
+    }
+    if (t >= g.nextSaveAt) saveGuest();   // a crash of this app still finds the room again within the window
     if (g.link == Link::Connected) {
         if (t >= g.nextHeartbeat) {
             g.nextHeartbeat = t + kHeartbeatMs;
-            sendGuest("hb", {{"n", myName()}});
+            sendGuest("hb", {{"n", myName()}, {"pv", kFeatureLevel}});
         }
         if (t >= g.nextPing) sendPing();
         // No session on this broker (yet): look on the next one; give up after two rounds.
@@ -1204,8 +1488,9 @@ void guestTick() {
             g.connectedAt = t;
             g.client->nextBroker();
         }
-        // The host went silent (its broker may be down for it): look for it on the next broker.
-        if (g.state && t - g.lastHostMsg > kHostSilenceMs && t - g.connectedAt > kHostSilenceMs) {
+        // The host went silent (its broker may be down for it): look for it on the next broker. Not while it is away
+        // for a restart: it comes back to the broker it left from.
+        if (g.state && !g.hostAway && t - g.lastHostMsg > kHostSilenceMs && t - g.connectedAt > kHostSilenceMs) {
             if (!g.hostLost) {
                 g.hostLost = true;
                 notify();
@@ -1219,6 +1504,12 @@ void guestTick() {
 }
 
 void CALLBACK onTimer(HWND, UINT, UINT_PTR, DWORD) {
+    if (g_dev.quitAtMs >= 0 && g.role != Role::None && now() - g.startedAt >= g_dev.quitAtMs && g.link == Link::Connected) {
+        g_dev.quitAtMs = -1;
+        ST_LOG_INFO(kTag, "dev: quitting the app");
+        if (ctx().quitApp) ctx().quitApp();
+        return;
+    }
     if (g.role == Role::Host) hostTick();
     else if (g.role == Role::Guest) guestTick();
 }
@@ -1249,12 +1540,69 @@ void joinRoom(const Invite& inv, bool fresh) {
     }
     g.invite = inv;
     g.startedAt = now();
+    g.nextSaveAt = 0;   // the resume file names this room from the next tick on
     connect(brokerOrder(inv.broker, Settings::get().jamBroker));
     startTimer();
     notify();
 }
 
 void hostLinkTo(const std::string& first) { connect(brokerOrder(first, Settings::get().jamBroker)); }
+
+void resumeHost(SavedHost saved) {
+    g = Session{};
+    g.role = Role::Host;
+    g.invite = {saved.roomId, saved.key, saved.broker};
+    g.startedAt = now();
+    g.resumed = true;
+    g.announced = true;   // (the "resumed" toast instead of "ready")
+    // Revisions continue above anything published before the restart, also when the last save is a minute old.
+    g.revision = std::max<uint64_t>(saved.revision, static_cast<uint64_t>(std::max<int64_t>(0, nowUnix())) << 20);
+    g.guestsControl = saved.guestsControl;
+    g.bans = saved.bans;
+    for (auto& m : saved.members) g.members.push_back({m.device, m.name, false, now(), m.publicKey, 1});   // back with their heartbeats
+    for (auto& [id, who] : saved.addedBy) g.addedBy[id] = who;
+    installFilter();
+    if (auto& s = Settings::get(); std::fabs(s.musicSpeed - 1.f) > 0.01f) {
+        s.musicSpeed = 1.f;
+        s.markDirty();
+    }
+    hostLinkTo(saved.broker);
+    startTimer();
+    ST_LOG_INFO(kTag, "host: resumed room {} ({} guest(s) to come back, saved {} s ago{})", roomTag(g.invite.roomId),
+                g.members.size(), nowUnix() - saved.savedAt, saved.away ? "" : ", after an unexpected end");
+    if (auto* w = ctx().window)
+        ui::Toasts::show(w, tr(L"Birlikte dinleme oturumun sürüyor; misafirler yeniden bağlanıyor."), ui::ToastKind::Info,
+                         tr(L"Oturumu bitir"), [] { endSession(); });
+    notify();
+}
+
+// Startup: a kept host room within its window resumes; an older one is cleared from its broker. A guest room
+// (this app closed or crashed while it was a guest) is joined again within the window.
+void resumeAtStartup() {
+    if (auto j = readSealed(hostFile())) {
+        auto saved = savedHostFromJson(*j);
+        if (saved && resumable(*saved, nowUnix())) {
+            removeFile(guestFile());
+            resumeHost(std::move(*saved));
+            return;
+        }
+        if (saved) clearStaleRoom(*saved);
+        ST_LOG_INFO(kTag, "host: a kept room was too old to resume");
+    }
+    removeFile(hostFile());
+    if (auto j = readSealed(guestFile())) {
+        const std::string link = j->value("invite", std::string());
+        const int64_t at = j->value("at", int64_t{0});
+        if (parseInvite(link) && nowUnix() - at <= kResumeWindowSec && at - nowUnix() <= 60) {
+            ST_LOG_INFO(kTag, "guest: joining the session again (this app closed {} s ago)", nowUnix() - at);
+            Dispatcher::post([link] {
+                if (g.role == Role::None) join(link);
+            });
+            return;
+        }
+    }
+    removeFile(guestFile());
+}
 
 } // namespace
 
@@ -1298,14 +1646,21 @@ std::wstring syncText() {
     if (g.role != Role::Guest) return {};
     if (g.link != Link::Connected && g.state) return tr(L"Bağlantı bekleniyor…");
     if (!g.state) return tr(L"Oturum aranıyor…");
+    if (g.hostAway) return tr(L"Oturum sahibi uygulamayı kapattı; dönmesi bekleniyor (en fazla 10 dakika).");
     if (g.hostLost) return tr(L"Oturum sahibine ulaşılamıyor; bekleniyor…");
     switch (g.hold) {
-    case Decision::Hold::Unsupported: return tr(L"Oturum sahibi bir podcast ya da radyo dinliyor; bunlar birlikte dinlemede paylaşılmaz.");
+    case Decision::Hold::Unsupported:
+        // A 0.10.0 host doesn't share them; a newer one didn't have what a guest needs (a private feed, say).
+        return g.state->featureLevel < 2
+                   ? tr(L"Oturum sahibi bir podcast ya da radyo dinliyor. Bunları birlikte dinlemek için onun ShadeTube'u da güncel olmalı.")
+                   : tr(L"Oturum sahibinin dinlediği yayın paylaşılmıyor.");
     case Decision::Hold::Failed: return tr(L"Bu şarkı burada çalınamadı; oturum sahibi sonrakine geçince devam edilir.");
     case Decision::Hold::Idle: return tr(L"Oturum sahibi şu an bir şey çalmıyor.");
     case Decision::Hold::Waiting: return tr(L"Eşitleniyor…");
     case Decision::Hold::None: break;
     }
+    if (const QueueItem* cur = g.state->currentItem(); cur && isLive(cur->kind))   // a station: nothing to line up
+        return g.state->playing ? tr(L"Aynı istasyon · canlı") : tr(L"Oturum sahibi duraklattı");
     if (g.state->status == HostStatus::Loading) return tr(L"Eşitleniyor…");
     if (!hostAdvancing(*g.state)) return tr(L"Oturum sahibi duraklattı");
     if (!g.hasDrift) return tr(L"Eşitleniyor…");
@@ -1316,7 +1671,9 @@ std::wstring syncText() {
     return i18n::format(tr(L"Eşit · ±{} sn"), {sec});
 }
 
-bool syncOk() { return g.role == Role::Guest && g.state && g.hold == Decision::Hold::None && !g.hostLost && g.link == Link::Connected; }
+bool syncOk() {
+    return g.role == Role::Guest && g.state && g.hold == Decision::Hold::None && !g.hostLost && !g.hostAway && g.link == Link::Connected;
+}
 
 void subscribe(Lifetime::Ref owner, std::function<void()> fn) { g_listeners.emplace_back(std::move(owner), std::move(fn)); }
 
@@ -1472,6 +1829,7 @@ void rotateInvite() {
     g.replay.clear();
     hostLinkTo(broker);
     if (!next.broker.empty()) writeInviteFile();
+    saveHost(false);
     notify();
     toast(handed > 0 ? i18n::plural(L"Yeni davet bağlantısı hazır; {} misafir yeni odaya taşındı. Eski bağlantı artık çalışmaz.", handed)
                      : std::wstring(tr(L"Yeni davet bağlantısı hazır. Eski bağlantı artık çalışmaz.")));
@@ -1486,6 +1844,7 @@ void removeMember(const std::string& device) {
     sendHost("kick", {{"d", device}});
     ST_LOG_INFO(kTag, "host: removed {}", name);
     publishState();
+    saveHost(false);
     notify();
     if (auto* w = ctx().window)
         ui::Toasts::show(w, i18n::format(tr(L"{} oturumdan çıkarıldı. Bağlantıyı bilen biri yeniden katılamasın diye yeni bir davet bağlantısı oluştur."), {toWide(name)}),
@@ -1497,6 +1856,7 @@ void setGuestsControl(bool on) {
     g.guestsControl = on;
     ST_LOG_INFO(kTag, "host: guests {} control playback", on ? "may" : "may not");
     publishState();
+    saveHost(false);
     notify();
 }
 
@@ -1610,11 +1970,17 @@ void initTogether() {
     ctx().playerChangedHooks.push_back([] {
         if (g.role == Role::Host) {
             schedulePublish();
-            // Podcasts and radio are not shared: say so once per item.
+            // Episodes and stations are shared with guests on 0.11.0 or newer: say once per item when someone can't
+            // follow (a private feed's episode for everyone, any of them for older guests).
             if (auto* pl = ctx().player; pl && pl->current() && pl->current()->id != g.lastItemId) {
                 g.lastItemId = pl->current()->id;
-                if (radio::isStationId(g.lastItemId) || catalog::isPodcastId(g.lastItemId))
-                    toast(tr(L"Podcast ve radyo yayınları birlikte dinlemede paylaşılmaz"));
+                if (radio::isStationId(g.lastItemId) || catalog::isPodcastId(g.lastItemId)) {
+                    if (kindOf(*pl->current()) == ItemKind::Unsupported)
+                        toast(catalog::isPodcastId(g.lastItemId) ? tr(L"Kendi eklediğin RSS akışlarının bölümleri birlikte dinlemede paylaşılmaz")
+                                                                 : tr(L"Bu istasyon birlikte dinlemede paylaşılamıyor"));
+                    else if (std::any_of(g.members.begin(), g.members.end(), [](const auto& m) { return m.online && m.level < 2; }))
+                        toast(tr(L"Bazı misafirlerin ShadeTube'u eski: podcast ve radyoyu onlar dinleyemez"));
+                }
             }
         } else if (g.role == Role::Guest) {
             // Follow at once (a finished song, a failed load); the 250 ms tick does the rest.
@@ -1625,11 +1991,13 @@ void initTogether() {
         }
     });
     ctx().persistHooks.push_back([] {
-        // Exit (or Windows ending the session): the host ends it for everyone, a guest says goodbye; the guest's own
-        // queue goes back to session.json for the next start.
-        if (g.role == Role::Host) endHost(true);
+        // Exit (or Windows ending the session): the host keeps its room for the next start (guests wait for it), a
+        // guest says goodbye and keeps the invite for its next start; the guest's own queue goes back to session.json.
+        if (g.role == Role::Host) suspendHost();
         else if (g.role == Role::Guest) leaveGuest(Leave::Exit);
     });
+    // A room kept by the last run (after the player restored its queue: posted).
+    Dispatcher::post([] { resumeAtStartup(); });
 
     // The shadetube: URL protocol, for the real profile only (a sandbox leaves it alone unless a test key is given).
     if (!winshell::registrationAllowed() && !protocolKeyOverridden()) {
@@ -1652,6 +2020,7 @@ void initTogether() {
             if (what == L"control") g_dev.control = true;
             else if (what == L"rotate") g_dev.rotateAtMs = ms;
             else if (what == L"kick") g_dev.kickAtMs = ms;
+            else if (what == L"quit") g_dev.quitAtMs = ms;
         }
     }
     if (envVar(L"SHADETUBE_JAM_HOST") == L"1") Dispatcher::post([] { startHosting(); });
