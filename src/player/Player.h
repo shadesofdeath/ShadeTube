@@ -18,6 +18,7 @@
 namespace st::player {
 
 using catalog::Track;
+class AudioCache;
 
 enum class Status { Idle, Resolving, Buffering, Playing, Paused, Error };
 
@@ -107,6 +108,16 @@ public:
     // Media type hint for a local file, by extension (mp3, m4a/mp4/aac, flac, wav, wma, ogg/opus, webm, mka).
     // "" = unknown (Media Foundation sniffs the content).
     static std::string localMimeType(const std::wstring& path);
+
+    // Song cache (player/AudioCache; owned by the caller, outliving the player). Set: a YouTube / backup-server song
+    // whose stream arrived completely while it played (current or preloaded item, not a preview) is kept, and a song
+    // whose known video is cached in the current quality's format plays from the file, without resolving anything;
+    // when resolving fails (offline), any cached format of it plays. Everything else (gapless preload, crossfade, seek,
+    // preview, listen together, video mode) behaves the same for both. A cached file that fails to play is dropped and
+    // the song resolved again.
+    void setCache(AudioCache* cache) { cache_ = cache; }
+    AudioCache* cache() const { return cache_; }
+    bool currentFromCache() const { return !currentCacheKey_.empty(); }
 
     // Kara liste: asked (UI thread) whenever the player picks an item by itself — auto-advance, next / previous,
     // the start of a context played without a start index (header play / shuffle), the repeat wrap and the
@@ -231,18 +242,30 @@ public:
     std::function<int64_t(const Track& track, const youtube::Match* match, int64_t durationMs)> previewStartFor;
 
 private:
+    // A song's stream: resolved from YouTube / a backup server, or found in the song cache (cachePath set; the stream
+    // info then has no URL).
+    struct Resolution {
+        youtube::Resolved r;
+        std::wstring cachePath;
+        std::string cacheKey;
+        std::string profile;   // AudioCache::profile() of the stream choice
+        std::string trackId;
+    };
+    static Resolution resolveSong(youtube::MatchService& matcher, AudioCache* cache, const Track& track, bool webm, bool low,
+                                  bool refresh, bool canWebm, const YoutubeExplode::CancellationToken& ct);
     struct Prepared {
         uint64_t tag = 0;
         int orderIndex = -1;
         std::string trackId;   // the item prepared (the gapless handoff re-checks its slot)
         youtube::Resolved resolved;   // empty for a local file
-        audio::StreamSource source;   // what the engine preloaded (localPath set for a local file)
+        audio::StreamSource source;   // what the engine preloaded (localPath set for a local file or a cached song)
+        std::string cacheKey;         // a song from the song cache
     };
 
     void loadCurrent(int64_t startMs, bool autoplay);
     void startResolve(int orderIndex, int64_t startMs, bool autoplay, bool bypassStreamCache);
     void maybePrefetch();
-    void onEngineState(audio::State s, uint64_t tag);
+    void onEngineState(audio::State s, uint64_t tag, uint64_t at);   // at: GetTickCount64() on the engine thread
     void onEngineEnded(uint64_t finished, uint64_t next);
     void onEngineError(audio::ErrorKind kind, const std::string& message, uint64_t tag);
     void onEngineTitle(const std::string& title, uint64_t tag);
@@ -260,7 +283,8 @@ private:
     void restoreSessionFile();
     void rebuildOrder(int keepItemIndex);
     void notify();
-    audio::StreamSource sourceFor(const youtube::Resolved& r, uint64_t tag, int64_t durationHint) const;
+    // `keep`: a complete download goes to the song cache (queue items; previews only read it).
+    audio::StreamSource sourceFor(const Resolution& res, uint64_t tag, int64_t durationHint, bool keep) const;
     audio::StreamSource localSource(const std::wstring& path, uint64_t tag, int64_t durationHint) const;
     int crossfadeInto(int orderIndex) const;   // crossfade length (ms) from the current item into that slot, 0 = gapless
     static float speedFor(const Track& t);     // the remembered speed of its kind
@@ -288,6 +312,11 @@ private:
     int64_t pendingSeekMs_ = -1;
     bool allowWebm_ = false;
     bool currentLocal_ = false;         // the current item plays from a local file (no YouTube fallbacks)
+    AudioCache* cache_ = nullptr;
+    std::string currentCacheKey_;       // the current item plays from the song cache (this entry)
+    std::string dropCacheKey_;          // a cached file that failed: the next resolve removes it first
+    uint64_t loadStartedAt_ = 0;        // GetTickCount64() when the current item's load began (0: reported)
+    const char* loadVia_ = "";          // how it is loaded: "network", "song cache", "file", "preloaded"...
     int failStreak_ = 0;                // consecutive tracks that failed to start (stops a queue that can't play)
     uint64_t errorTag_ = 0;             // the load scheduleErrorAdvance() is for
     bool endedAtEnd_ = false;           // stopped because the queue ran out (extend() continues)
