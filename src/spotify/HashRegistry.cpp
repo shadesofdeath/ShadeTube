@@ -58,6 +58,15 @@ const std::vector<std::pair<const char*, const char*>> kBuiltins = {
     // The "Credits" dialog of a track (the lazily loaded xpui-root-dialogs.74170731.js chunk of web-player.4c608093.js,
     // 2026-11-26): {trackUri, contributorsLimit, contributorsOffset} -> trackUnion.creditsTrait.
     {"queryTrackCreditsGroupedModal", "5c109593bca8ea4cb28104e178820ff035418fb4694d34d10c89cc755fe64694"},
+    // The search page's per-kind tabs (xpui-routes-search chunk) and a show's details (main bundle);
+    // web-player.4c608093.js, 2026-11-26.
+    {"searchTracks", "b02683192a98dde7966b5e6655a79eeb62713eab703eda9902c932818dd52751"},
+    {"searchAlbums", "202cb3305e31e5a0767ba7925f28bd728cf8f8b0217e6da43909056071cd70e9"},
+    {"searchArtists", "7bf95d754fdbe32c8b161fbbe54d1ae50974900df4dce4c8f1afcbcad153224d"},
+    {"searchPlaylists", "d520014e748f9ea44f7707d8df1819867ac1205e8b7f3e28f22fe5fc858921b1"},
+    {"searchPodcasts", "0195d9f61b43606d490bca64c3456e3593528cea6cc05c7e822c7c42beed0f4e"},
+    {"searchUsers", "8f358dd82e62f61dd4ceaa9f8cd0889e644c9b707f1b724fbfb356a757cb7e5a"},
+    {"queryShowMetadataV2", "b475447846f37cc426add800b995a7859c169c53c72b62de6338c0c40a5dacea"},
 };
 
 bool isHex64(std::string_view s) {

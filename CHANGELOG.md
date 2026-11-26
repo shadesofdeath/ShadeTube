@@ -79,6 +79,15 @@ All notable changes to ShadeTube, newest first.
 - **Exclusive mode**: Settings › Sound › "Exclusive mode (WASAPI)" gives ShadeTube the output device to itself: songs
   play at their own sample rate without the Windows mixer, and the settings show the format the device runs at (or
   why it fell back to shared mode). Other apps are silent while it plays; pausing frees the device.
+- **Search finds playlists, podcasts and profiles**: with Spotify connected, the new search also has Playlists,
+  Podcasts and Profiles chips and rows, and the top result is the one Spotify itself puts first. A kind's own chip loads
+  more with "Load more". Playlists open as usual, a profile opens a page with that person's public playlists, and a
+  podcast opens in Podcasts through its public feed. Pasted Spotify podcast and profile links open them too.
+- **Your Spotify podcasts in Podcasts**: the shows you follow on Spotify appear on the Podcasts page, each matched to
+  its public RSS feed by name and publisher. "Import Spotify podcasts" lists them all: the matches to subscribe to
+  (you pick which), the ones you already follow, and the ones with no public feed. Spotify exclusives can't play in
+  ShadeTube, so they are shown as "Only on Spotify" with a link to open them there instead of quietly disappearing. A
+  wrong match can be undone from the show's menu ("Wrong podcast?").
 - **Last.fm and ListenBrainz history in Stats**: next to "Spotify geçmişini getir", bring in years of scrobbles from
   Last.fm (any public profile by user name, with the API key from Settings › Connections, or a lastfm-to-csv /
   lastfmstats / Ghan export file) and ListenBrainz (any profile by user name, or the export ZIP). Big histories come in

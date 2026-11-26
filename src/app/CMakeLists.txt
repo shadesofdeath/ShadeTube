@@ -102,6 +102,8 @@ add_executable(ShadeTube WIN32
     RemoteServer.cpp RemoteServer.h
     RemoteState.cpp RemoteState.h
     PodcastsPage.cpp PodcastUi.h
+    PodcastsSpotify.cpp PodcastsSpotify.h
+    ProfilePage.cpp
     Podcasts.cpp Podcasts.h
     InternetRadio.cpp InternetRadio.h
     JamCrypto.cpp JamCrypto.h

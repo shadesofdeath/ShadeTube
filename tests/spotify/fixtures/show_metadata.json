@@ -1,0 +1,54 @@
+{
+ "data": {
+  "podcastUnionV2": {
+   "__typename": "Podcast",
+   "consumptionOrderV2": "SEQUENTIAL",
+   "contentRatingV2": null,
+   "contentType": "CONTENT_TYPE_PODCAST",
+   "coverArt": {
+    "sources": [
+     {
+      "height": 64,
+      "url": "https://i.scdn.co/image/ab6765630000f68d38b841098d0c08a33231fa29",
+      "width": 64
+     },
+     {
+      "height": 300,
+      "url": "https://i.scdn.co/image/ab67656300005f1f38b841098d0c08a33231fa29",
+      "width": 300
+     },
+     {
+      "height": 640,
+      "url": "https://i.scdn.co/image/ab6765630000ba8a38b841098d0c08a33231fa29",
+      "width": 640
+     }
+    ]
+   },
+   "description": "Notes of sample show 1",
+   "htmlDescription": "Notes of <b>sample</b> show 1 &amp; more",
+   "id": "1IxHbXJGMc8hdfbT3dHPQI",
+   "mediaType": "AUDIO",
+   "name": "Sample Show 1",
+   "playability": {
+    "playable": true,
+    "reason": "PLAYABLE",
+    "unplayabilityReasons": []
+   },
+   "publisher": {
+    "name": "Sample Publisher 1"
+   },
+   "saved": false,
+   "showTypes": [],
+   "topics": {
+    "items": [
+     {
+      "__typename": "PodcastTopic",
+      "title": "Music",
+      "uri": "spotify:genre:music_interviews_podcasts-page"
+     }
+    ]
+   },
+   "uri": "spotify:show:1IxHbXJGMc8hdfbT3dHPQI"
+  }
+ }
+}

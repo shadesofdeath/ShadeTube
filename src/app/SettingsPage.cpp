@@ -42,6 +42,7 @@ std::unique_ptr<Page> makeLocalFilesPage(const std::string& id);
 std::unique_ptr<Page> makeRadioPage(const std::string& id);
 std::unique_ptr<Page> makePodcastsPage(const std::string& id);
 std::unique_ptr<Page> makeSmartListPage(const std::string& id);
+std::unique_ptr<Page> makeProfilePage(const std::string& id);
 
 using gfx::accent;
 using gfx::colors;
@@ -896,6 +897,7 @@ std::unique_ptr<Page> createPage(const Route& route) {
     case RouteKind::Podcasts: return makePodcastsPage(route.id);
     case RouteKind::SmartList: return makeSmartListPage(route.id);
     case RouteKind::NewReleases: return makeNewReleasesPage();
+    case RouteKind::Profile: return makeProfilePage(route.id);
     }
     return makeHomePage();
 }

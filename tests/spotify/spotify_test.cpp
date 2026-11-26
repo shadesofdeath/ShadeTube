@@ -20,6 +20,11 @@
 //                                  hash must still work) and tries the current hash of every op whose built-in differs.
 //                                  Learned hashes go to a temp file, never to %LOCALAPPDATA%\ShadeTube.
 //   spotify_test hashes scan       only the web-player scan + comparison (no login, no Pathfinder call)
+//   spotify_test search            offline checks + search (read-only): the overview with every kind, two pages of each
+//                                  kind, a show's details, Spotify's public profile and its playlists, a missing
+//                                  profile, the followed shows (logged in), then shows resolved to their public RSS feeds
+//                                  through Apple's directory. Without a sp_dc it uses an anonymous web-player token
+//                                  (no account; it finds fewer profiles than a logged-in one).
 //
 // The cookie / token values are never printed or logged; only lengths and success are reported.
 #ifndef WIN32_LEAN_AND_MEAN
@@ -31,6 +36,7 @@
 #include <windows.h>
 
 #include "app/PlaylistEditing.h"   // cover JPEG for the playlist-edit round trip
+#include "app/Podcasts.h"          // Spotify shows -> public feeds (search mode)
 #include "core/Http.h"
 #include "core/Log.h"
 #include "spotify/Auth.h"
@@ -743,6 +749,320 @@ static void testRadioLive(Api& api) {
     }
 }
 
+// ---- Search kinds, shows, profiles ------------------------------------------------------------------------------
+// Offline: answers captured with an anonymous web-player token on 2026-11-26 (search_desktop, search_podcasts,
+// search_playlists, search_tracks_page2, search_users_anonymous, show_metadata, profile, profile_playlists; private
+// people's names replaced; search_users with one row added), and library_shows in the shape the web player's mapper
+// reads (libraryV3 with the "Podcasts & Shows" filter: no capture is possible without a login).
+#ifdef SPOTIFY_FIXTURE_DIR
+// The `data` object of a captured Pathfinder answer (what Api::query returns).
+static nlohmann::json fixtureData(const char* name) {
+    const nlohmann::json j = loadFixture(name);
+    return j.is_object() && j.contains("data") ? j["data"] : nlohmann::json();
+}
+#endif
+
+static void testSearchFixtures() {
+    std::printf("search kinds / shows / profiles (fixtures):\n");
+#ifdef SPOTIFY_FIXTURE_DIR
+    using nlohmann::json;
+    {
+        const json j = loadFixture("search_desktop.json");
+        const SearchResults r = Api::parseSearch(j.is_object() ? j["searchV2"] : json());
+        std::printf("  overview: %zu tracks, %zu albums, %zu artists, %zu playlists, %zu shows, %zu profiles\n",
+                    r.tracks.size(), r.albums.size(), r.artists.size(), r.playlists.size(), r.shows.size(), r.profiles.size());
+        CHECK(r.tracks.size() == 2 && r.albums.size() == 2 && r.artists.size() == 2);
+        CHECK(r.playlists.size() == 2);   // the NotFound wrapper is skipped
+        CHECK(r.shows.size() == 2);       // episodes are not shows
+        CHECK(r.profiles.empty());
+        CHECK(!r.empty());
+        // Spotify's top hit: the first topResultsV2 item when it is a kind the lists hold.
+        CHECK(r.topResult == "spotify:artist:6RTC1abMgBC7Krg6qJQHJh");
+        const json episodeOnTop = {
+            {"topResultsV2",
+             {{"itemsV2", json::array({json{{"item", {{"__typename", "EpisodeResponseWrapper"},
+                                                       {"data", {{"__typename", "Episode"}, {"uri", "spotify:episode:x"}}}}}},
+                                       json{{"item", {{"__typename", "ArtistResponseWrapper"},
+                                                       {"data", {{"__typename", "Artist"}, {"uri", "spotify:artist:y"}}}}}}})}}}};
+        CHECK(Api::parseSearch(episodeOnTop).topResult.empty());
+        if (r.tracks.size() == 2) CHECK(r.tracks[0].id == "spotify:track:4uqlFpMPTKO6uAsX6qvK0l" && !r.tracks[0].artists.empty());
+        if (r.artists.size() == 2) CHECK(r.artists[0].name == "Duman" && !r.artists[0].images.empty());
+        if (r.playlists.size() == 2) {
+            const Playlist& p = r.playlists[1];
+            CHECK(p.id == "spotify:playlist:2IzZXi7aS5PDXz8wlTxRr2");
+            CHECK(p.ownerName == "Listener 2" && p.ownerId == "listener2");
+            CHECK(!p.countKnown && !p.images.empty());
+            CHECK(p.description.find('<') == std::string::npos);
+        }
+        if (r.shows.size() == 2) {
+            const PodcastShow& s = r.shows[0];
+            CHECK(s.id == "spotify:show:1IxHbXJGMc8hdfbT3dHPQI");
+            CHECK(s.name == "Sample Show 1" && s.publisher == "Sample Publisher 1");
+            CHECK(s.images.size() == 3 && s.mediaType == "AUDIO");
+        }
+        CHECK(SearchResults{}.empty());
+    }
+    {
+        const auto b = Api::parseSearchBatch(SearchKind::Shows, fixtureData("search_podcasts.json"));
+        std::printf("  searchPodcasts page: %zu shows, total %d, next %d\n", b.results.shows.size(), b.total, b.nextOffset);
+        CHECK(b.results.shows.size() == 3 && b.total == 182 && b.nextOffset == 10 && b.hasMore());
+        CHECK(b.results.tracks.empty() && b.results.playlists.empty());
+        // The same answer read as another kind holds nothing of it and no paging.
+        const auto wrong = Api::parseSearchBatch(SearchKind::Profiles, fixtureData("search_podcasts.json"));
+        CHECK(wrong.results.empty() && !wrong.hasMore());
+    }
+    {
+        const auto b = Api::parseSearchBatch(SearchKind::Playlists, fixtureData("search_playlists.json"));
+        CHECK(b.results.playlists.size() == 3 && b.hasMore());
+        for (const auto& p : b.results.playlists) CHECK(p.id.rfind("spotify:playlist:", 0) == 0 && !p.name.empty());
+    }
+    {
+        const auto b = Api::parseSearchBatch(SearchKind::Tracks, fixtureData("search_tracks_page2.json"));
+        CHECK(b.results.tracks.size() == 2 && b.nextOffset == 20 && b.total == 206);
+        if (!b.results.tracks.empty()) CHECK(!b.results.tracks[0].album.images.empty() && b.results.tracks[0].durationMs > 0);
+    }
+    {
+        const auto anon = Api::parseSearchBatch(SearchKind::Profiles, fixtureData("search_users_anonymous.json"));
+        CHECK(anon.results.profiles.empty() && !anon.hasMore() && anon.total == 0);
+        const auto b = Api::parseSearchBatch(SearchKind::Profiles, fixtureData("search_users.json"));
+        CHECK(b.results.profiles.size() == 3 && b.nextOffset == 3 && b.total == 6);
+        if (b.results.profiles.size() == 3) {
+            CHECK(b.results.profiles[0].id == "spotify:user:spotify" && b.results.profiles[0].name == "Spotify");
+            CHECK(b.results.profiles[0].images.size() == 2);
+            CHECK(b.results.profiles[2].name == "31abcdefghijklmnopqrstuvwxyz");   // no display name: the username
+        }
+    }
+    {
+        int total = 0;
+        const auto shows = Api::parseLibraryShows(loadFixture("library_shows.json"), &total);
+        std::printf("  library shows: %zu (of %d items)\n", shows.size(), total);
+        CHECK(total == 4 && shows.size() == 2);   // the audiobook and the playlist are not shows
+        if (shows.size() == 2) {
+            CHECK(shows[0].name == "Sample Show A" && shows[0].publisher == "Sample Publisher A" && shows[0].images.size() == 2);
+            CHECK(shows[1].id == "spotify:show:4rOoJ6Egrf8K2IrywzwOMk");   // uri only on the wrapper
+            CHECK(shows[1].mediaType == "MIXED");
+        }
+        CHECK(Api::parseLibraryShows(json::object()).empty());
+    }
+    {
+        const json j = loadFixture("show_metadata.json");
+        json p = j.is_object() ? j["data"]["podcastUnionV2"] : json();
+        const PodcastShow s = Api::parseShow(p);
+        CHECK(s.id == "spotify:show:1IxHbXJGMc8hdfbT3dHPQI" && s.name == "Sample Show 1");
+        CHECK(s.publisher == "Sample Publisher 1" && s.description == "Notes of sample show 1" && !s.images.empty());
+        p.erase("description");   // only the HTML notes: as text
+        CHECK(Api::parseShow(p).description == "Notes of sample show 1 & more");
+        CHECK(Api::parseShow(json{{"__typename", "Audiobook"}, {"uri", "spotify:show:7iHfbu1YPACw6oZPAFJtqe"}, {"name", "x"}}).id.empty());
+        CHECK(Api::parseShow(json{{"__typename", "RestrictedContent"}}).id.empty());
+        CHECK(Api::parseShow(json{{"__typename", "Podcast"}, {"uri", "spotify:episode:1"}, {"name", "x"}}).id.empty());
+    }
+    {
+        const Profile p = Api::parseProfile(loadFixture("profile.json"));
+        CHECK(p.id == "spotify:user:spotify" && p.name == "Spotify");
+        CHECK(p.followers > 1'000'000 && p.publicPlaylists == -1 && p.images.size() == 1);
+        // A short page still covers its whole window (Spotify drops rows after paging): the next one starts at
+        // offset + limit, up to the total.
+        const auto pl = Api::parseProfilePlaylists(loadFixture("profile_playlists.json"), 0, 20);
+        CHECK(pl.playlists.size() == 3 && pl.total == 1519 && pl.nextOffset == 20);
+        CHECK(Api::parseProfilePlaylists(loadFixture("profile_playlists.json"), 1500, 20).nextOffset == -1);
+        if (!pl.playlists.empty()) {
+            CHECK(pl.playlists[0].id == "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M");
+            CHECK(pl.playlists[0].ownerName == "Spotify" && pl.playlists[0].ownerId == "spotify");
+            CHECK(!pl.playlists[0].images.empty() && pl.playlists[0].images[0].url.rfind("https://i.scdn.co/", 0) == 0);
+        }
+        // Image URIs instead of URLs, a percent-encoded owner, a non-playlist row.
+        const json odd = {{"public_playlists",
+                           json::array({json{{"uri", "spotify:playlist:a"}, {"name", "m"},
+                                             {"image_url", "spotify:mosaic:ab67616d0000b273aaaa:ab67616d0000b273bbbb"},
+                                             {"owner_uri", "spotify:user:some%2Bname"}},
+                                        json{{"uri", "spotify:playlist:b"}, {"name", "i"}, {"image_url", "spotify:image:ab67706c0000da84cccc"}},
+                                        json{{"uri", "spotify:album:c"}, {"name", "not a playlist"}}})}};
+        const auto o = Api::parseProfilePlaylists(odd, 50, 50);   // no total: on until an empty page
+        CHECK(o.playlists.size() == 2 && o.nextOffset == 100);
+        if (o.playlists.size() == 2) {
+            CHECK(!o.playlists[0].images.empty() &&
+                  o.playlists[0].images[0].url == "https://mosaic.scdn.co/640/ab67616d0000b273aaaaab67616d0000b273bbbb");
+            CHECK(o.playlists[0].ownerId == "some+name");
+            CHECK(!o.playlists[1].images.empty() && o.playlists[1].images[0].url == "https://i.scdn.co/image/ab67706c0000da84cccc");
+        }
+        CHECK(Api::parseProfilePlaylists(json::object(), 50, 50).nextOffset == -1);
+    }
+#else
+    std::printf("  skipped (SPOTIFY_FIXTURE_DIR not defined)\n");
+#endif
+}
+
+// A logged-out web-player token (no cookie, no account): Pathfinder search, show details and public profiles answer
+// it like the logged-out web player, so the live search checks run without a session (a query for a person's name
+// finds no profiles then; "spotify" finds Spotify's own accounts).
+static std::string anonymousToken() {
+    const Nuance n = fetchNuance(false, {});
+    const std::string code = totp(n.secret, fetchServerTimeSeconds({}));
+    const std::string url = "https://open.spotify.com/api/token?reason=init&productType=web-player&totp=" + code +
+                            "&totpServer=" + code + "&totpVer=" + std::to_string(n.version);
+    const auto resp = http::get(url, {{"User-Agent", kUserAgent}, {"Accept", "application/json"},
+                                      {"Referer", "https://open.spotify.com/"}, {"App-Platform", "WebPlayer"}});
+    if (!resp.isSuccessStatusCode()) return {};
+    const auto j = nlohmann::json::parse(resp.body, nullptr, false);
+    return j.is_object() ? j.value("accessToken", std::string()) : std::string();
+}
+
+static const char* searchKindName(SearchKind k) {
+    switch (k) {
+    case SearchKind::Tracks: return "tracks";
+    case SearchKind::Albums: return "albums";
+    case SearchKind::Artists: return "artists";
+    case SearchKind::Playlists: return "playlists";
+    case SearchKind::Shows: return "shows";
+    case SearchKind::Profiles: return "profiles";
+    }
+    return "?";
+}
+
+static size_t batchCount(const SearchBatch& b) {
+    const auto& r = b.results;
+    return r.tracks.size() + r.albums.size() + r.artists.size() + r.playlists.size() + r.shows.size() + r.profiles.size();
+}
+
+static std::vector<std::string> batchIds(const SearchBatch& b) {
+    std::vector<std::string> ids;
+    const auto& r = b.results;
+    for (const auto& v : r.tracks) ids.push_back(v.id);
+    for (const auto& v : r.albums) ids.push_back(v.id);
+    for (const auto& v : r.artists) ids.push_back(v.id);
+    for (const auto& v : r.playlists) ids.push_back(v.id);
+    for (const auto& v : r.shows) ids.push_back(v.id);
+    for (const auto& v : r.profiles) ids.push_back(v.id);
+    return ids;
+}
+
+// Read-only: the overview, every kind's first two pages, a show's details, Spotify's own public profile and its
+// playlists, a profile that doesn't exist; logged in also the followed shows. Then shows from search resolved to their
+// public feeds through Apple's directory (podcast::Client::findFeed, as Podcastler does).
+static void testSearchLive(Api& api, bool anonymous) {
+    std::printf("search kinds (live, %s):\n", anonymous ? "anonymous token" : "logged in");
+    try {
+        const auto sr = api.search("duman", 12);
+        std::printf("  overview 'duman': %zu tracks, %zu albums, %zu artists, %zu playlists, %zu shows, %zu profiles\n",
+                    sr.tracks.size(), sr.albums.size(), sr.artists.size(), sr.playlists.size(), sr.shows.size(),
+                    sr.profiles.size());
+        CHECK(!sr.tracks.empty() && !sr.albums.empty() && !sr.artists.empty() && !sr.playlists.empty() && !sr.shows.empty());
+        std::printf("  top result: %s\n", sr.topResult.empty() ? "(none)" : sr.topResult.c_str());
+        CHECK(sr.topResult.rfind("spotify:", 0) == 0);
+        if (!sr.shows.empty()) {
+            const PodcastShow s = api.show(sr.shows[0].id);
+            std::printf("  show %s: name %s, publisher %s, %zu images, notes %zu chars\n", s.id.c_str(),
+                        s.name == sr.shows[0].name ? "matches search" : "DIFFERS", s.publisher.empty() ? "missing" : "present",
+                        s.images.size(), s.description.size());
+            CHECK(s.id == sr.shows[0].id && s.name == sr.shows[0].name && !s.images.empty());
+        }
+    } catch (const std::exception& e) {
+        std::printf("  FAIL overview / show: %s\n", e.what());
+        ++g_failures;
+    }
+    for (const SearchKind k : {SearchKind::Tracks, SearchKind::Albums, SearchKind::Artists, SearchKind::Playlists,
+                               SearchKind::Shows, SearchKind::Profiles}) {
+        const std::string q = k == SearchKind::Profiles ? "spotify" : "duman";
+        try {
+            const auto b0 = api.searchMore(k, q, 0, 10);
+            std::printf("  %-9s '%s' page 1: %zu (total %d, next %d)", searchKindName(k), q.c_str(), batchCount(b0), b0.total,
+                        b0.nextOffset);
+            if (k == SearchKind::Profiles) {   // few accounts match: one page, each with a name
+                std::printf("\n");
+                CHECK(!b0.results.profiles.empty());
+                for (const auto& p : b0.results.profiles) CHECK(p.id.rfind("spotify:user:", 0) == 0 && !p.name.empty());
+                continue;
+            }
+            CHECK(batchCount(b0) == 10 && b0.hasMore());
+            if (!b0.hasMore()) {
+                std::printf("\n");
+                continue;
+            }
+            const auto b1 = api.searchMore(k, q, b0.nextOffset, 10);
+            const auto first = batchIds(b0), second = batchIds(b1);
+            size_t repeated = 0;
+            for (const auto& id : second) repeated += std::count(first.begin(), first.end(), id);
+            std::printf(", page 2: %zu (next %d), %zu repeated\n", batchCount(b1), b1.nextOffset, repeated);
+            CHECK(batchCount(b1) > 0 && repeated <= 1);
+        } catch (const std::exception& e) {
+            std::printf("\n  FAIL %s: %s\n", searchKindName(k), e.what());
+            ++g_failures;
+        }
+    }
+    try {
+        const Profile p = api.profile("spotify:user:spotify");
+        const auto pl = api.profilePlaylists(p.id, 0, 20);
+        const auto pl2 = api.profilePlaylists(p.id, pl.nextOffset, 20);
+        size_t repeated = 0;
+        for (const auto& a : pl2.playlists)
+            repeated += std::count_if(pl.playlists.begin(), pl.playlists.end(), [&](const Playlist& b) { return a.id == b.id; });
+        std::printf("  profile %s: \"%s\", %lld followers, playlists %zu + %zu (total %d), %zu repeated\n", p.id.c_str(),
+                    p.name.c_str(), static_cast<long long>(p.followers), pl.playlists.size(), pl2.playlists.size(), pl.total,
+                    repeated);
+        CHECK(p.name == "Spotify" && p.followers > 0);
+        CHECK(pl.playlists.size() == 20 && pl.nextOffset == 20 && !pl2.playlists.empty() && repeated == 0);
+    } catch (const std::exception& e) {
+        std::printf("  FAIL profile: %s\n", e.what());
+        ++g_failures;
+    }
+    try {
+        api.profile("spotify:user:zz_no_such_user_shadetube_8812");
+        std::printf("  FAIL a missing profile answered\n");
+        ++g_failures;
+    } catch (const ApiError& e) {
+        std::printf("  missing profile -> HTTP %d\n", e.status);
+        CHECK(e.status == 404);
+    }
+    if (!anonymous) {
+        try {
+            const auto shows = api.libraryShows();
+            std::printf("  followed shows: %zu\n", shows.size());
+            for (const auto& s : shows) CHECK(s.id.rfind("spotify:show:", 0) == 0 && !s.name.empty());
+        } catch (const std::exception& e) {
+            std::printf("  FAIL libraryShows: %s\n", e.what());
+            ++g_failures;
+        }
+    }
+
+    // Spotify shows -> public feeds (Apple's directory, US store; requests ~3 s apart).
+    std::printf("spotify shows -> public feeds (live):\n");
+    auto& podcasts = st::app::podcast::Client::shared();
+    struct Probe {
+        const char* query;
+        bool expectFeed;
+    };
+    for (const Probe probe : {Probe{"the daily", true}, Probe{"darknet diaries", true}}) {
+        try {
+            const auto b = api.searchMore(SearchKind::Shows, probe.query, 0, 5);
+            if (b.results.shows.empty()) {
+                std::printf("  FAIL no show for '%s'\n", probe.query);
+                ++g_failures;
+                continue;
+            }
+            const PodcastShow& s = b.results.shows[0];
+            const auto m = podcasts.findFeed(s.name, s.publisher, "US");
+            std::printf("  \"%s\" (%s) -> %s%s%s\n", s.name.c_str(), s.publisher.c_str(), m ? "\"" : "no public feed",
+                        m ? m->title.c_str() : "", m ? "\"" : "");
+            if (m) std::printf("      %s (score %d)\n", m->feedUrl.c_str(), st::app::podcast::matchScore(s.name, s.publisher, *m));
+            CHECK(m.has_value() == probe.expectFeed);
+        } catch (const std::exception& e) {
+            std::printf("  FAIL '%s': %s\n", probe.query, e.what());
+            ++g_failures;
+        }
+    }
+    try {   // shows a Turkish search finds: reported, not checked (whether they have a public feed varies)
+        const auto b = api.searchMore(SearchKind::Shows, "duman", 0, 4);
+        for (const auto& s : b.results.shows) {
+            const auto m = podcasts.findFeed(s.name, s.publisher, "TR");
+            const std::string verdict =
+                m ? "public feed, score " + std::to_string(st::app::podcast::matchScore(s.name, s.publisher, *m)) : "no public feed";
+            std::printf("  %s -> %s\n", s.id.c_str(), verdict.c_str());
+        }
+    } catch (const std::exception& e) {
+        std::printf("  (turkish shows: %s)\n", e.what());
+    }
+}
+
 // ---- Persisted-query hashes (HashRegistry) -----------------------------------------------------------------------
 
 static const char* kBogusHash = "00000000000000000000000000000000000000000000000000000000deadbeef";
@@ -1145,10 +1465,18 @@ static void testLive(bool homeOnly, const char* dumpPath, bool playlistEdit, boo
         // Search (searchDesktop — hash not in the registry, so this is the risky one).
         try {
             const auto sr = api.search("duman", 8);
-            std::printf("  search 'duman': %zu artists, %zu albums, %zu tracks\n", sr.artists.size(), sr.albums.size(),
-                        sr.tracks.size());
+            std::printf("  search 'duman': %zu artists, %zu albums, %zu tracks, %zu playlists, %zu shows, %zu profiles\n",
+                        sr.artists.size(), sr.albums.size(), sr.tracks.size(), sr.playlists.size(), sr.shows.size(),
+                        sr.profiles.size());
         } catch (const std::exception& e) {
             std::printf("  FAIL search (searchDesktop): %s\n", e.what());
+            ++g_failures;
+        }
+        // The shows the user follows (libraryV3, "Podcasts & Shows").
+        try {
+            std::printf("  followed shows: %zu\n", api.libraryShows().size());
+        } catch (const std::exception& e) {
+            std::printf("  FAIL libraryShows: %s\n", e.what());
             ++g_failures;
         }
         // Artist overview (queryArtistOverview — also not in the registry).
@@ -1186,6 +1514,31 @@ static void testLive(bool homeOnly, const char* dumpPath, bool playlistEdit, boo
     }
 }
 
+// `search` mode: with the saved / given sp_dc a logged-in token, else an anonymous one.
+static void testSearchMode() {
+    std::string sp;
+    if (const char* e = std::getenv("SHADETUBE_SPDC"); e && *e) sp = e;
+    else sp = store::loadCookie();
+    Api api;
+    try {
+        if (!sp.empty()) {
+            const TokenBundle tok = fetchAccessToken(sp, {});
+            api.setCredentials(tok.accessToken, sp);
+        } else {
+            const std::string token = anonymousToken();
+            std::printf("live: no sp_dc; anonymous web-player token %s\n", token.empty() ? "FAILED" : "ok");
+            CHECK(!token.empty());
+            if (token.empty()) return;
+            api.setCredentials(token, "");
+        }
+    } catch (const std::exception& e) {
+        std::printf("  FAIL token: %s\n", e.what());
+        ++g_failures;
+        return;
+    }
+    testSearchLive(api, sp.empty());
+}
+
 int main(int argc, char** argv) {
     SetConsoleOutputCP(CP_UTF8);   // shelf titles are UTF-8 (Turkish)
     st::log::init();   // so query()'s HTTP-error bodies land in shadetube.log
@@ -1193,6 +1546,7 @@ int main(int argc, char** argv) {
     const bool playlistEdit = argc > 1 && std::strcmp(argv[1], "playlist-edit") == 0;
     const bool radio = argc > 1 && std::strcmp(argv[1], "radio") == 0;
     const bool hashes = argc > 1 && std::strcmp(argv[1], "hashes") == 0;
+    const bool search = argc > 1 && std::strcmp(argv[1], "search") == 0;
     const char* dumpPath = homeOnly && argc > 2 ? argv[2] : nullptr;
     testBase32();
     testTotp();
@@ -1201,9 +1555,11 @@ int main(int argc, char** argv) {
     testReleasesFixtures();
     testArtistOverviewFixture();
     testPlaylistTree();
+    testSearchFixtures();
     testHashExtractor();
     testHashRegistryOffline();
     if (argc > 1 && std::strcmp(argv[1], "offline") == 0) std::printf("live: skipped (offline)\n");
+    else if (search) testSearchMode();
     else if (hashes && !testHashDiscoveryLive()) std::printf("live: skipped (hash discovery failed)\n");
     else if (hashes && argc > 2 && std::strcmp(argv[2], "scan") == 0) std::printf("live: skipped (hashes scan only)\n");
     else testLive(homeOnly, dumpPath, playlistEdit, radio, hashes);

@@ -82,4 +82,10 @@ MediaCard* addAlbumCard(ui::Widget* parent, const catalog::Album& a, std::wstrin
 MediaCard* addArtistCard(ui::Widget* parent, const catalog::Artist& a);
 MediaCard* addPlaylistCard(ui::Widget* parent, const catalog::Playlist& p);
 
+// "Daha fazla yükle" centered under a list that pages (search kinds, a profile's playlists): a secondary button in a
+// 56 DIP row. setLoadMore() shows it (visible), its label while loading ("Yükleniyor…", disabled) and hides the row when
+// there is no more.
+ui::Button* addLoadMore(ui::Column* parent, std::function<void()> onClick);
+void setLoadMore(ui::Button* button, bool more, bool loading);
+
 } // namespace st::app

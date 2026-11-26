@@ -9,6 +9,7 @@
 #include "app/Links.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/PodcastsSpotify.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -18,6 +19,7 @@
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
 #include "musicbrainz/MusicBrainz.h"
+#include "spotify/SpotifyApi.h"
 #include "ui/Popups.h"
 #include "ui/TextBox.h"
 #include "ui/Window.h"
@@ -31,6 +33,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <set>
 
 namespace st::app {
 
@@ -134,6 +137,66 @@ ResultEntry albumEntry(const Album& a) {
     e.recent = {"album", id, e.title, artists, a.images, std::nullopt};
     return e;
 }
+
+// Spotify only (MusicBrainz has none of these kinds: their tabs and shelves never show there).
+ResultEntry playlistEntry(const Playlist& p) {
+    ResultEntry e;
+    e.title = toWide(p.name);
+    e.subtitle = p.ownerName.empty() ? std::wstring(tr(L"Çalma listesi")) : toWide(p.ownerName);
+    e.images = p.images;
+    e.placeholder = Placeholder::Playlist;
+    const Route open{RouteKind::Playlist, p.id};
+    e.open = [open] { ctx().router->navigate(open); };
+    e.play = [open] { ctx().router->navigate({open.kind, open.id + "#play"}); };
+    e.menu = [open, offline = sync::Target{sync::Kind::Playlist, p.id, p.name, p.images}](gfx::Point wp) {
+        showPlaylistCardMenu(open, offline, wp);
+    };
+    e.preview = preview::collectionTarget(open, e.title, p.images);
+    e.recent = {"playlist", p.id, e.title, toWide(p.ownerName), p.images, std::nullopt};
+    return e;
+}
+
+// A podcast opens in Podcastler, which plays it from its public feed (app/PodcastsSpotify: matched by name and
+// publisher) or says why it can't.
+void openShow(const PodcastShow& s) {
+    spotifyshows::remember(s);   // its name and publisher: what the directory is searched for
+    ctx().router->navigate({RouteKind::Podcasts, s.id});
+}
+
+ResultEntry showEntry(const PodcastShow& s) {
+    ResultEntry e;
+    e.title = toWide(s.name);
+    e.subtitle = s.publisher.empty() ? std::wstring(tr(L"Podcast")) : toWide(s.publisher);
+    e.images = s.images;
+    e.open = [s] { openShow(s); };
+    e.recent = {"show", s.id, e.title, toWide(s.publisher), s.images, std::nullopt};
+    return e;
+}
+
+ResultEntry profileEntry(const Profile& p) {
+    ResultEntry e;
+    e.title = toWide(p.name);
+    e.subtitle = tr(L"Profil");
+    e.images = p.images;
+    e.circle = true;
+    e.placeholder = Placeholder::Artist;
+    e.open = [id = p.id] { ctx().router->navigate({RouteKind::Profile, id}); };
+    e.recent = {"profile", p.id, e.title, {}, p.images, std::nullopt};
+    return e;
+}
+
+// The kinds Spotify pages one at a time (Api::searchMore): every kind of its results.
+std::optional<spotify::SearchKind> pagedKind(const std::string& id) {
+    if (id == "track") return spotify::SearchKind::Tracks;
+    if (id == "album") return spotify::SearchKind::Albums;
+    if (id == "artist") return spotify::SearchKind::Artists;
+    if (id == "playlist") return spotify::SearchKind::Playlists;
+    if (id == "show") return spotify::SearchKind::Shows;
+    if (id == "profile") return spotify::SearchKind::Profiles;
+    return std::nullopt;
+}
+
+bool roundKind(const std::string& id) { return id == "artist" || id == "profile"; }
 
 RecentItem trackRecent(const Track& t) {
     return {"track", t.id, toWide(t.name), toWide(t.artistLine()), t.album.images, t};
@@ -349,7 +412,7 @@ public:
             c.fillRounded(art, gfx::radii().art, gfx::isLightTheme() ? col.bgSunken : col.bgOverlay);
             c.icon("search", art.center(20, 20), col.fgSecondary);
         } else if (pagetx::presence(this) > 0.f) {
-            const bool circle = item_.kind == "artist";
+            const bool circle = roundKind(item_.kind);
             drawArtwork(c, item_.images, art, gfx::radii().art, circle ? Placeholder::Artist : Placeholder::Album, circle,
                         Priority::Normal);
         }
@@ -424,7 +487,7 @@ private:
     }
     SharedCover cover() const {
         const Rect a = artRect();
-        return pagetx::imageCover(*this, a, item_.kind == "artist" ? a.w * 0.5f : gfx::radii().art, item_.images);
+        return pagetx::imageCover(*this, a, roundKind(item_.kind) ? a.w * 0.5f : gfx::radii().art, item_.images);
     }
     void open() {
         if (!item_.isQuery() && !item_.images.empty()) pagetx::arm(cover());
@@ -513,7 +576,7 @@ public:
                            type::body);
         sub_ = gfx::Text(unsupported && link_.service == links::Service::ShadeTube
                              ? tr(L"Birlikte dinleme davetleri shadetube://jam/ ile başlar.")
-                         : unsupported ? tr(L"Şarkı, albüm, çalma listesi ve sanatçı bağlantıları desteklenir.")
+                         : unsupported ? tr(L"Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir.")
                          : connect   ? i18n::format(tr(L"{} · Açmak için Spotify hesabınla bağlan"), {linkLabel(link_)})
                                      : linkLabel(link_),
                          type::secondary);
@@ -677,6 +740,17 @@ private:
     MediaCard* addCard(ui::Widget* parent, const ResultEntry& e);
     float headerBottom() const;
 
+    // ---- more of one kind (Spotify)
+    static constexpr size_t kOverview = 12;   // rows of each kind in the overview search
+    static constexpr int kPage = 30;
+    void setResults(SearchResults r) {
+        results_ = std::move(r);
+        spotifyResults_ = source::loggedIn();   // the catalog the answer (or the cached one) came from
+        exhausted_.clear();
+    }
+    bool canLoadMore(size_t kind) const;
+    void loadMore(size_t kind);
+
     ui::TextBox* box_;
     ChipTabs* tabs_ = nullptr;
     std::vector<int> tabKinds_;        // chip -> kind index (-1 = "Tümü")
@@ -694,6 +768,15 @@ private:
     bool loading_ = false;
     double loadingSince_ = 0;
     bool linkShown_ = false;
+    // "Daha fazla yükle" of the kind tab shown (Spotify).
+    bool spotifyResults_ = false;
+    std::set<std::string> exhausted_;   // kinds of this query with no more pages
+    size_t kindShown_ = SIZE_MAX;       // the kind whose tab is shown
+    ui::Widget* kindGrid_ = nullptr;    // its cards
+    TrackTable* kindTable_ = nullptr;   // or its songs
+    ui::Button* moreButton_ = nullptr;
+    bool moreLoading_ = false;
+    Lifetime moreLife_;
 };
 
 const std::vector<ResultKind>& resultKinds() {
@@ -715,8 +798,23 @@ const std::vector<ResultKind>& resultKinds() {
                                      RouteKind::Artist));
         k.push_back(cardKind<Album>("album", tr(L"Albümler"), tr(L"Albüm"), &SearchResults::albums, albumEntry,
                                     RouteKind::Album));
-        // More kinds (playlists, podcasts, profiles...) go here: cardKind(id, tab, one, &SearchResults::list, entryFn,
-        // route). The order is the tab order after "Tümü" and the order of the sections.
+        // More kinds go here: cardKind(id, tab, one, &SearchResults::list, entryFn, route). The order is the tab order
+        // after "Tümü" and the order of the sections.
+        k.push_back(cardKind<Playlist>("playlist", tr(L"Çalma listeleri"), tr(L"Çalma listesi"), &SearchResults::playlists,
+                                       playlistEntry, RouteKind::Playlist));
+        auto shows = cardKind<PodcastShow>("show", tr(L"Podcastler"), tr(L"Podcast"), &SearchResults::shows, showEntry,
+                                           RouteKind::Podcasts);
+        shows.reopen = [](const RecentItem& it) {   // the name and publisher the page looks the feed up with
+            PodcastShow s;
+            s.id = it.id;
+            s.name = toUtf8(it.title);
+            s.publisher = toUtf8(it.subtitle);
+            s.images = it.images;
+            openShow(s);
+        };
+        k.push_back(std::move(shows));
+        k.push_back(cardKind<Profile>("profile", tr(L"Profiller"), tr(L"Profil"), &SearchResults::profiles, profileEntry,
+                                      RouteKind::Profile));
         return k;
     }();
     return kinds;
@@ -1058,6 +1156,13 @@ void SearchPage::showResults(int tab, bool scrollTop) {
     setTabs(visible.size() > 1 ? visible : std::vector<int>{}, chip);
     tab_ = chip;
     nav_.clear();
+    // A page of more results still on its way belongs to the view being replaced.
+    moreLife_.renew();
+    moreLoading_ = false;
+    moreButton_ = nullptr;
+    kindGrid_ = nullptr;
+    kindTable_ = nullptr;
+    kindShown_ = SIZE_MAX;
     const float was = layer_ ? layer_->opacity() : 1.f;
     auto* c = resetContent(0.f);
     c->setPadding(metrics::pageX, 8, 48);
@@ -1105,13 +1210,79 @@ void SearchPage::buildAll(ui::Column* c) {
     }
 }
 
-// One kind's own tab: everything (songs as a full list, cards as a grid).
+// One kind's own tab: everything (songs as a full list, cards as a grid), and with Spotify "Daha fazla yükle" while
+// the kind has more.
 void SearchPage::buildKind(ui::Column* c, size_t k) {
     const auto& kind = resultKinds()[k];
-    if (kind.custom) return (this->*kind.custom)(c, true);
-    auto* g = addCardRow(c, 160, 0);
-    const size_t n = kind.count(results_);
-    for (size_t i = 0; i < n; ++i) addCard(g, kind.entry(results_, i));
+    kindShown_ = k;
+    if (kind.custom) {
+        (this->*kind.custom)(c, true);
+    } else {
+        kindGrid_ = addCardRow(c, 160, 0);
+        const size_t n = kind.count(results_);
+        for (size_t i = 0; i < n; ++i) addCard(kindGrid_, kind.entry(results_, i));
+    }
+    if (spotifyResults_ && pagedKind(kind.id)) {
+        moreButton_ = addLoadMore(c, [this, k] { loadMore(k); });
+        setLoadMore(moreButton_, canLoadMore(k), false);
+        nav(moreButton_);
+    }
+}
+
+// Spotify gave a full overview row (12) of the kind, and its pages have not run out.
+bool SearchPage::canLoadMore(size_t k) const {
+    const auto& kind = resultKinds()[k];
+    return spotifyResults_ && pagedKind(kind.id) && !exhausted_.contains(kind.id) && kind.count(results_) >= kOverview;
+}
+
+// The kind's next page (Api::searchMore from the rows already here): new rows go to results_ (and the cache) and,
+// while the tab is still on screen, to its grid / list. A page that adds nothing ends the kind.
+void SearchPage::loadMore(size_t k) {
+    const auto& kind = resultKinds()[k];
+    const auto paged = pagedKind(kind.id);
+    spotify::Api* api = source::activeApi();
+    if (moreLoading_ || !paged || !api || !canLoadMore(k)) return;
+    moreLoading_ = true;
+    setLoadMore(moreButton_, true, true);
+    const int offset = static_cast<int>(kind.count(results_));
+    async(Priority::High, moreLife_.ref(),
+          [api, sk = *paged, q = toUtf8(query_), offset] { return api->searchMore(sk, q, offset, kPage); },
+          [this, k, search = searchLife_.ref()](Result<spotify::SearchBatch> r) {
+              if (search.expired()) return;   // another query / view meanwhile
+              moreLoading_ = false;
+              const auto& kind = resultKinds()[k];
+              if (!r) {
+                  ST_LOG_WARN("search", "more {} failed: {}", kind.id, r.errorMessage());
+                  toast(tr(L"Daha fazla sonuç yüklenemedi"), true);
+                  setLoadMore(moreButton_, true, false);
+                  return;
+              }
+              const size_t before = kind.count(results_);
+              auto merge = [](auto& into, auto& more) {
+                  for (auto& v : more)
+                      if (std::none_of(into.begin(), into.end(), [&](const auto& o) { return o.id == v.id; }))
+                          into.push_back(std::move(v));
+              };
+              auto& R = results_;
+              merge(R.tracks, r->results.tracks);
+              merge(R.albums, r->results.albums);
+              merge(R.artists, r->results.artists);
+              merge(R.playlists, r->results.playlists);
+              merge(R.shows, r->results.shows);
+              merge(R.profiles, r->results.profiles);
+              if (kind.count(results_) == before || !r->hasMore()) exhausted_.insert(kind.id);
+              cacheSearch(query_, results_);   // typing back shows them too
+              if (kindShown_ == k) {
+                  if (kind.custom) {
+                      if (kindTable_) kindTable_->setTracks(results_.tracks);
+                  } else if (kindGrid_) {
+                      for (size_t i = before, n = kind.count(results_); i < n; ++i) addCard(kindGrid_, kind.entry(results_, i));
+                  }
+              }
+              setLoadMore(moreButton_, canLoadMore(k), false);
+              scroll_->contentChanged();
+              invalidate();
+          });
 }
 
 // The top result (the best match among every kind's results) and, beside it, the first songs ("Tümünü gör" -> their
@@ -1135,10 +1306,25 @@ void SearchPage::addTopRow(ui::Column* c) {
                 cands.push_back({kinds[k].id, i, e.title, e.recent.id});
                 candKind.push_back(k);
             }
+    // Spotify names its own top hit: that one, wherever it is in its list. Otherwise (MusicBrainz, or a top hit of a
+    // kind not shown) the best match by name.
+    int top = -1;
+    if (const std::string& hit = results_.topResult; !hit.empty()) {
+        for (size_t i = 0; i < cands.size() && top < 0; ++i)
+            if (cands[i].id == hit) top = static_cast<int>(i);
+        for (size_t k = 0; k < kinds.size() && top < 0; ++k)
+            for (size_t i = 0, n = kinds[k].count(results_); i < n; ++i)
+                if (const ResultEntry e = kinds[k].entry(results_, i); e.recent.id == hit) {
+                    cands.push_back({kinds[k].id, i, e.title, e.recent.id});
+                    candKind.push_back(k);
+                    top = static_cast<int>(cands.size()) - 1;
+                    break;
+                }
+    }
     std::vector<std::string> songArtists;
     for (size_t i = 0; i < results_.tracks.size() && i < 3; ++i)
         for (const auto& a : results_.tracks[i].artists) songArtists.push_back(a.id);
-    const int top = browse::pickTopResult(query_, cands, songArtists);
+    if (top < 0) top = browse::pickTopResult(query_, cands, songArtists);
     const bool hasSongs = !results_.tracks.empty();
     if (top < 0 && !hasSongs) return;
 
@@ -1204,7 +1390,8 @@ void SearchPage::songs(ui::Column* c, bool full) {
     if (!full) c->setSpacingBefore(table, 16 - 8);
     std::vector<Track> shown(R.tracks.begin(), R.tracks.begin() + std::min<size_t>(full ? R.tracks.size() : 4, R.tracks.size()));
     table->setTracks(shown);
-    table->onPlay = [tracks = R.tracks](int i) { playSearchTracks(tracks, i); };
+    table->onPlay = [this](int i) { playSearchTracks(results_.tracks, i); };   // the rows are results_'s first ones
+    if (full) kindTable_ = table;   // "Daha fazla yükle" adds to it
     // Up on the first row / Down on the last: on to what is above / below the list.
     table->onEdge = [this, table](int dir) { return moveFrom(table, 0, dir); };
     nav(table);
@@ -1234,7 +1421,7 @@ void SearchPage::scheduleSearch(const std::wstring& q) {
         const bool sameQuery = q == query_;
         query_ = q;
         requested_.clear();
-        results_ = *hit;
+        setResults(*hit);
         showResults(tab_, !sameQuery);
         return;
     }
@@ -1253,7 +1440,7 @@ void SearchPage::runSearch(const std::wstring& q) {
         stopLoading();
         const bool sameQuery = q == query_;
         query_ = q;
-        results_ = *hit;
+        setResults(*hit);
         showResults(tab_, !sameQuery);
         return;
     }
@@ -1302,7 +1489,7 @@ void SearchPage::startRequest(const std::wstring& q) {
               cacheSearch(q, *r);
               const bool sameQuery = q == query_;
               query_ = q;
-              results_ = std::move(*r);
+              setResults(std::move(*r));
               showResults(tab_, !sameQuery);
           });
 }

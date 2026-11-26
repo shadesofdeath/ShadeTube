@@ -8,10 +8,11 @@
 //              notes, per-episode art, seasons, explicit, newest-first order), an Atom feed, non-XML
 //   directory: iTunes search / lookup JSON, both chart formats, artwork sizes
 //   model    : episode ids, episode -> catalog::Track, the played rule, media types, download file names
+//   spotify  : Spotify shows -> directory entries (matchScore, bestMatch) and the links kept in podcasts.json
 //   store    : subscriptions, positions / played / resume, "continue listening", downloads, new-episode counts, the
 //              queue window, persistence, the state bound, a damaged file kept as podcasts.json.bad
-//   live     : (`podcasts_test live`) search, charts, lookup, a real feed, its newest episode's audio (redirects, length)
-//              and a resumed partial download
+//   live     : (`podcasts_test live`) search, charts, lookup, a real feed, its newest episode's audio (redirects, length),
+//              a resumed partial download and findFeed (a known show, one that doesn't exist, the spacing of its requests)
 //
 // Temporary files go to a folder next to the exe (removed at the end).
 #include "app/Podcasts.h"
@@ -20,6 +21,7 @@
 #include <windows.h>
 
 #include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -506,6 +508,120 @@ static void testStore() {
     CHECK(fs::exists(g_dir / "bad.json.bad"));
 }
 
+// Spotify shows -> directory entries: the score, the best candidate, the links kept in podcasts.json.
+static podcast::DirectoryEntry entry(std::string title, std::string author, std::string feed = {}) {
+    podcast::DirectoryEntry e;
+    e.title = std::move(title);
+    e.author = std::move(author);
+    e.feedUrl = feed.empty() ? "https://feeds.example/" + std::to_string(std::hash<std::string>{}(e.title + e.author)) : feed;
+    e.appleId = "1";
+    return e;
+}
+
+static void testSpotifyMatch() {
+    std::printf("spotify match\n");
+    using podcast::kMatchMin;
+    using podcast::matchScore;
+    // Same name and publisher, whatever the case, accents, "The" / "Podcast" and punctuation.
+    CHECK(matchScore("The Daily", "The New York Times", entry("The Daily", "The New York Times")) == 100);
+    CHECK(matchScore("Çok Bilinmeyenli Denklem", "Sözcü", entry("COK BILINMEYENLI DENKLEM", "Sozcu")) == 100);
+    CHECK(matchScore("Hikaye Odası", "Erdem Sezer", entry("Hikaye Odası Podcast", "Erdem Sezer")) == 100);
+    CHECK(matchScore("Rock'n Coke", "Duman", entry("Rockn Coke", "Duman")) == 100);
+    CHECK(matchScore("Bilim & Teknoloji", "X", entry("Bilim and Teknoloji", "X")) == 100);
+    // An unknown publisher on one side: the same name still counts.
+    CHECK(matchScore("Darknet Diaries", "", entry("Darknet Diaries", "Jack Rhysider")) >= kMatchMin);
+    // A publisher written another way ("NPR" in "NPR News") confirms it.
+    CHECK(matchScore("Up First", "NPR", entry("Up First", "NPR News")) >= kMatchMin);
+    // A name contained in the other one, at least half its length, with the same publisher.
+    const int longer = matchScore("Tarih Sohbetleri", "Yayıncı", entry("Tarih Sohbetleri Sezon 2", "Yayıncı"));
+    CHECK(longer >= kMatchMin && longer < 100);
+    // A short name inside a much longer one: a different show of the same publisher.
+    CHECK(matchScore("Duman", "Duman", entry("Duman Rock n Coke Canlı Konserler", "Duman")) < kMatchMin);
+    // A generic name from someone else is not the show.
+    CHECK(matchScore("The Daily", "Some Student", entry("The Daily", "The New York Times")) < kMatchMin);
+    // A distinctive name from another publisher still is (the directory often lists the host, Spotify the network).
+    CHECK(matchScore("Sesli Kitaplar ve Hikayeler Kulübü", "Kulüp", entry("Sesli Kitaplar ve Hikayeler Kulübü", "Ahmet Yılmaz")) >= kMatchMin);
+    // Unrelated names.
+    CHECK(matchScore("Bilim Kafası", "Ali", entry("Tarih Defteri", "Ali")) < kMatchMin);
+    CHECK(matchScore("", "Ali", entry("Tarih Defteri", "Ali")) == 0);
+
+    // bestMatch: the best scoring one wins (not the first), ties keep the directory's order, a rejected feed is skipped,
+    // entries without a feed never count.
+    const std::vector<podcast::DirectoryEntry> list = {
+        entry("The Daily Show", "Comedy Central", "https://feeds.example/tds"),
+        entry("The Daily", "The New York Times", "https://feeds.example/nyt"),
+        entry("The Daily", "The New York Times", "https://feeds.example/nyt-copy"),
+        entry("The Daily (no feed)", "The New York Times", "not a url"),
+    };
+    int score = 0;
+    auto m = podcast::bestMatch("The Daily", "The New York Times", list, {}, &score);
+    CHECK(m && m->feedUrl == "https://feeds.example/nyt" && score == 100);
+    m = podcast::bestMatch("The Daily", "The New York Times", list, "https://feeds.example/nyt");
+    CHECK(m && m->feedUrl == "https://feeds.example/nyt-copy");
+    CHECK(!podcast::bestMatch("Something Else Entirely", "Nobody", list, {}, &score));
+    CHECK(score < kMatchMin);
+    CHECK(!podcast::bestMatch("The Daily", "The New York Times", {}));
+
+    // Links in the store: fresh while matched, "no feed" for a week; kept across a reload; a rejection is remembered and
+    // survives a later lookup; listeners are not called (the Spotify module notifies its own).
+    const fs::path file = g_dir / "links.json";
+    std::error_code ec;
+    fs::remove(file, ec);
+    podcast::Store s;
+    s.load(file);
+    int notified = 0;
+    auto owner = std::make_shared<char>();
+    s.subscribe(owner, [&] { ++notified; });
+    const std::string a = "spotify:show:1IxHbXJGMc8hdfbT3dHPQI", b = "spotify:show:5Ijs5lR9bb0UOaZiOfnWi7";
+    const int64_t t0 = 1'800'000'000;
+    CHECK(!s.spotifyLink(a) && !s.spotifyLinkFresh(a, t0));
+    podcast::SpotifyLink la;
+    la.showName = "Show A";
+    la.showPublisher = "Pub A";
+    la.showImage = "https://i.scdn.co/image/a";
+    la.feedUrl = "https://feeds.example/a";
+    la.appleId = "42";
+    la.title = "Show A";
+    la.author = "Pub A";
+    la.image = "javascript:alert(1)";   // not http(s): dropped
+    la.score = 100;
+    la.checkedAt = t0;
+    s.setSpotifyLink(a, la);
+    podcast::SpotifyLink lb;
+    lb.showName = "Show B";
+    lb.checkedAt = t0;
+    s.setSpotifyLink(b, lb);
+    s.setSpotifyLink("spotify:episode:x", lb);   // not a show: ignored
+    CHECK(notified == 0 && s.dirty());
+    CHECK(s.spotifyLink(a) && s.spotifyLink(a)->matched() && s.spotifyLink(a)->image.empty());
+    CHECK(s.spotifyLinkFresh(a, t0 + 400 * 86400));   // a match stays
+    CHECK(s.spotifyLinkFresh(b, t0 + 86400) && !s.spotifyLink(b)->matched());
+    CHECK(!s.spotifyLinkFresh(b, t0 + podcast::Store::kSpotifyRecheckSec + 1));   // looked up again after a week
+    CHECK(!s.spotifyLink("spotify:episode:x"));
+    CHECK(s.save());
+    podcast::Store r;
+    r.load(file);
+    CHECK(r.spotifyLink(a) && r.spotifyLink(a)->feedUrl == "https://feeds.example/a" && r.spotifyLink(a)->appleId == "42");
+    CHECK(r.spotifyLink(a)->showName == "Show A" && r.spotifyLink(a)->showImage == "https://i.scdn.co/image/a" &&
+          r.spotifyLink(a)->score == 100);
+    CHECK(r.spotifyLink(b) && !r.spotifyLink(b)->matched() && r.spotifyLink(b)->checkedAt == t0);
+    r.rejectSpotifyLink(a, t0 + 10);
+    CHECK(!r.spotifyLink(a)->matched() && r.spotifyLink(a)->rejectedFeed == "https://feeds.example/a");
+    CHECK(r.spotifyLinkFresh(a, t0 + 20));   // "no feed" now, for a week
+    podcast::SpotifyLink again = la;
+    again.feedUrl = "https://feeds.example/a2";
+    r.setSpotifyLink(a, again);   // a later lookup keeps the rejection
+    CHECK(r.spotifyLink(a)->rejectedFeed == "https://feeds.example/a" && r.spotifyLink(a)->feedUrl == "https://feeds.example/a2");
+    // The bound: the oldest lookups go.
+    for (size_t i = 0; i < podcast::Store::kMaxSpotifyLinks + 5; ++i) {
+        podcast::SpotifyLink l;
+        l.checkedAt = t0 + 100 + static_cast<int64_t>(i);
+        r.setSpotifyLink("spotify:show:n" + std::to_string(i), l);
+    }
+    CHECK(!r.spotifyLink(b));   // checked at t0: among the oldest
+    CHECK(r.spotifyLink("spotify:show:n" + std::to_string(podcast::Store::kMaxSpotifyLinks + 4)) != nullptr);
+}
+
 static void testLive() {
     std::printf("live\n");
     auto& c = podcast::Client::shared();
@@ -573,6 +689,22 @@ static void testLive() {
         std::printf("  FAIL live: %s\n", ex.what());
         ++g_failures;
     }
+    // Spotify shows -> public feeds: a well-known show, one that doesn't exist; the lookups keep their distance.
+    try {
+        const auto t0 = std::chrono::steady_clock::now();
+        const auto daily = c.findFeed("The Daily", "The New York Times", "US");
+        std::printf("  findFeed \"The Daily\" -> %s\n", daily ? (daily->title + " | " + daily->feedUrl).c_str() : "none");
+        CHECK(daily && daily->title.find("Daily") != std::string::npos);
+        const auto none = c.findFeed("Zzqx Shadetube No Such Show 8812", "Nobody At All", "TR");   // TR, then US
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+        std::printf("  findFeed (no such show) -> %s; 3 directory requests in %lld ms\n", none ? "MATCH" : "none",
+                    static_cast<long long>(ms));
+        CHECK(!none);
+        CHECK(ms >= 2 * std::chrono::duration_cast<std::chrono::milliseconds>(podcast::Client::kPoliteGap).count());
+    } catch (const std::exception& ex) {
+        std::printf("  FAIL findFeed: %s\n", ex.what());
+        ++g_failures;
+    }
     // Local addresses are refused unless allowed.
     CHECK(throwsPodcastError([&] { c.feed("http://127.0.0.1:9/feed.xml", true, false); }));
     CHECK(throwsPodcastError([&] { c.resolveMedia("http://192.168.1.1/a.mp3", false); }));
@@ -597,6 +729,7 @@ int main(int argc, char** argv) {
     testDirectory();
     testModel();
     testStore();
+    testSpotifyMatch();
     if (live) testLive();
 
     fs::remove_all(g_dir, ec);

@@ -1,0 +1,145 @@
+{
+ "data": {
+  "searchV2": {
+   "tracksV2": {
+    "items": [
+     {
+      "item": {
+       "__typename": "TrackResponseWrapper",
+       "data": {
+        "__typename": "Track",
+        "albumOfTrack": {
+         "coverArt": {
+          "sources": [
+           {
+            "height": 300,
+            "url": "https://i.scdn.co/image/ab67616d00001e021d0d71d22c8d179577756208",
+            "width": 300
+           },
+           {
+            "height": 64,
+            "url": "https://i.scdn.co/image/ab67616d000048511d0d71d22c8d179577756208",
+            "width": 64
+           },
+           {
+            "height": 640,
+            "url": "https://i.scdn.co/image/ab67616d0000b2731d0d71d22c8d179577756208",
+            "width": 640
+           }
+          ]
+         },
+         "id": "5FF7COlSB5P6s7x9omE3bw",
+         "name": "Duman 2",
+         "uri": "spotify:album:5FF7COlSB5P6s7x9omE3bw"
+        },
+        "artists": {
+         "items": [
+          {
+           "profile": {
+            "name": "Duman"
+           },
+           "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh"
+          }
+         ]
+        },
+        "associationsV3": {
+         "audioAssociations": {
+          "totalCount": 0
+         },
+         "videoAssociations": {
+          "totalCount": 1
+         }
+        },
+        "contentRating": {
+         "label": "NONE"
+        },
+        "duration": {
+         "totalMilliseconds": 239093
+        },
+        "id": "2sLAykCWyB1VA5hXDjU59T",
+        "trackMediaType": "AUDIO",
+        "name": "Senden Daha Güzel",
+        "playability": {
+         "playable": true,
+         "reason": "PLAYABLE"
+        },
+        "uri": "spotify:track:2sLAykCWyB1VA5hXDjU59T"
+       }
+      },
+      "matchedFields": []
+     },
+     {
+      "item": {
+       "__typename": "TrackResponseWrapper",
+       "data": {
+        "__typename": "Track",
+        "albumOfTrack": {
+         "coverArt": {
+          "sources": [
+           {
+            "height": 300,
+            "url": "https://i.scdn.co/image/ab67616d00001e0295843194016ef123b63bae1c",
+            "width": 300
+           },
+           {
+            "height": 64,
+            "url": "https://i.scdn.co/image/ab67616d0000485195843194016ef123b63bae1c",
+            "width": 64
+           },
+           {
+            "height": 640,
+            "url": "https://i.scdn.co/image/ab67616d0000b27395843194016ef123b63bae1c",
+            "width": 640
+           }
+          ]
+         },
+         "id": "5Y2a9iCvO8nflR7838wkrz",
+         "name": "Kufi",
+         "uri": "spotify:album:5Y2a9iCvO8nflR7838wkrz"
+        },
+        "artists": {
+         "items": [
+          {
+           "profile": {
+            "name": "Duman"
+           },
+           "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh"
+          }
+         ]
+        },
+        "associationsV3": {
+         "audioAssociations": {
+          "totalCount": 0
+         },
+         "videoAssociations": {
+          "totalCount": 0
+         }
+        },
+        "contentRating": {
+         "label": "NONE"
+        },
+        "duration": {
+         "totalMilliseconds": 265364
+        },
+        "id": "7AbbuiP5vKiuyFl47Z5jY3",
+        "trackMediaType": "AUDIO",
+        "name": "Kufi",
+        "playability": {
+         "playable": true,
+         "reason": "PLAYABLE"
+        },
+        "uri": "spotify:track:7AbbuiP5vKiuyFl47Z5jY3"
+       }
+      },
+      "matchedFields": []
+     }
+    ],
+    "pagingInfo": {
+     "limit": 10,
+     "nextOffset": 20
+    },
+    "totalCount": 206
+   }
+  }
+ }
+}

@@ -258,4 +258,24 @@ MediaCard* addPlaylistCard(ui::Widget* parent, const Playlist& p) {
     return card;
 }
 
+ui::Button* addLoadMore(ui::Column* parent, std::function<void()> onClick) {
+    auto* foot = parent->add<ui::Box>();
+    auto* b = foot->add<ui::Button>(ui::ButtonKind::Secondary, tr(L"Daha fazla yükle"), "chevron-down");
+    b->onClick = std::move(onClick);
+    foot->hitTestVisible = false;
+    foot->onPreferredHeight = [](float) { return 56.f; };
+    foot->onLayout = [b](ui::Box& box) {
+        const float w = b->naturalWidth();
+        b->setRect({std::floor(box.rect().w * 0.5f - w * 0.5f), 8, w, 40});
+    };
+    return b;
+}
+
+void setLoadMore(ui::Button* button, bool more, bool loading) {
+    if (!button) return;
+    button->setLabel(loading ? tr(L"Yükleniyor…") : tr(L"Daha fazla yükle"));
+    button->setEnabled(!loading);
+    if (auto* foot = button->parent()) foot->setVisible(more);
+}
+
 } // namespace st::app

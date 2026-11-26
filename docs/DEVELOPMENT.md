@@ -110,6 +110,8 @@ ShadeTube/
 │                                CoverGradient + CoverBackdrop (Now Playing's backdrop, 3.40),
 │                                Credits + CreditsUi (song credits), LyricsPicker ("Yanlış sözler mi?"; both 3.42),
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
+│                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts +
+│                                PodcastsSpotify (Spotify shows -> public feeds, 3.42), Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
 │                                Preview + PreviewSession (song preview, 3.30),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
@@ -318,11 +320,13 @@ web player uses. Audio never comes from Spotify. Flow (`src/spotify/`, `app/Logi
    public gist (baked-in fallback), signs `GET open.spotify.com/api/token`. The web-player token is refreshed
    before it expires (`Session::maybeRefresh`, from the app's housekeeping tick).
 3. **Data** (`SpotifyApi`): persisted GraphQL queries and mutations on `api-partner.spotify.com/pathfinder/v2/query`
-   (profile, library, playlists, albums, artists, search, personalized home, library and playlist-item writes:
+   (profile, library, playlists, albums, artists, followed shows, show details, search with its per-kind pages
+   (3.42), personalized home, library and playlist-item writes:
    add / remove / `moveItemsInPlaylist` with a `newPosition` relative to a row uid); the spclient playlist service for
    create / rename / delete, "Edit details" (`UPDATE_LIST_ATTRIBUTES` with `noValue` to clear the description or the
    picture) and track counts; a new cover goes to `image-upload.spotify.com/v4/playlist` (raw JPEG -> `uploadToken`)
-   and `/playlist/<id>/register-image` (-> `picture`) first; `inspiredby-mix` for radios. The
+   and `/playlist/<id>/register-image` (-> `picture`) first; `inspiredby-mix` for radios; `user-profile-view/v3` for
+   public profiles (3.42). The
    web-player token is rate-limited on `api.spotify.com/v1`, so that API is not used. Home shelves are requested
    with the UI language's `Accept-Language`.
 4. **Session** caches the library snapshot (playlists incl. Liked Songs, saved albums, followed artists) for the
@@ -529,8 +533,9 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
   from that song and shows the album; a YouTube video becomes a `yt:<videoId>` track titled from the video
   (`links::videoSong`: "Artist - Title (Official Video)" -> artist / title) whose video is pinned in `MatchService`,
   so it never re-matches. A `shadetube://jam/` invite joins a listen-together session (3.24; never logged). Spotify
-  links need a session (logged out: the connect screen); links of those services to
-  anything else (podcasts, users, YouTube playlists, `spotify.link` short links) only toast; other text is searched.
+  shows open in Podcastler and Spotify users their profile page (3.42 Search kinds). Spotify links need a session
+  (logged out: the connect screen); links of those services to anything else (episodes, YouTube channels,
+  `spotify.link` short links) only toast; other text is searched.
 - **Windows shell** (`app/WinShell`): the process gets the AppUserModelID before any window exists (the Start menu
   shortcut carries the same id, so the media flyout names the app), `HKCU\Software\Classes\AppUserModelId\<AUMID>`
   names its notifications, the taskbar button has Previous / Play-Pause / Next thumbnail buttons (glyphs rendered from
@@ -695,7 +700,8 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 ### 3.17 Podcasts
 
 `app/Podcasts` (standalone: directory client, RSS parsing, episode model, downloads, store; `podcasts_test`) and
-`app/PodcastsPage.cpp` (the Podcastler pages and the wiring). Open sources only, no Spotify podcasts:
+`app/PodcastsPage.cpp` (the Podcastler pages and the wiring). Open sources only: Spotify's own podcasts (the shows the
+user follows there, search results) are resolved to their public feeds (3.42), never played from Spotify:
 
 - **Directory**: Apple's `itunes.apple.com/search` (media=podcast) and `/lookup` (a show's feed URL); the top shows
   of the Windows home location from `rss.applemarketingtools.com` (the legacy `itunes.apple.com/<cc>/rss/toppodcasts`
@@ -723,7 +729,8 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 - **Network**: anything the directory or a feed supplies must be on the public internet; only a feed the user added
   by its RSS address (a self-hosted server) may be on the local network, and so may its audio.
 - **Routes** `Route{RouteKind::Podcasts, id}`: `""` (home), `search:<text>`, `feed:<url>`, `apple:<directory id>`,
-  `new` (new episodes of the subscriptions), `downloads`.
+  `new` (new episodes of the subscriptions), `downloads`, `spotify` (the Spotify import preview) and
+  `spotify:show:<id>` (a Spotify show: its matched feed or why it can't play; 3.42).
 
 ### 3.18 Internet radio
 
@@ -2660,6 +2667,85 @@ statically (`external/libopus` 1.6.1 decoder, `opusfile` 0.12, `libvorbis` 1.3.7
 - **Tests**: `codecs_test --exclusive` (exclusive at the file's rate, a second engine refused → Busy, released while
   paused, a 44.1 → 48 kHz handoff reopening, a crossfade keeping the rate, the preview, back to shared while playing),
   `audio_test --exclusive [--webm]`, and `playback_test` / `preview_test` with `SHADETUBE_EXCLUSIVE=1`.
+### 3.42 Search kinds, profiles and Spotify podcasts
+
+**Search** (`app/SearchPage.cpp`, "Artist and Search pages" above; `spotify/SpotifyApi`). `catalog::SearchResults`
+holds tracks, albums, artists and, from Spotify only, `playlists`, `shows` (`catalog::PodcastShow`: `spotify:show:` id,
+name, publisher, notes, cover, media type), `profiles` (`catalog::Profile`: `spotify:user:` id, name, avatar,
+followers, public playlist count) and `topResult`. `Api::search` (searchDesktop, 12 of each) fills every kind; episodes,
+audiobooks and genres are left out, and wrappers of another type (`NotFound`, restricted content) are skipped.
+
+- **Kinds**: three more entries of `resultKinds()`, after the albums: *Çalma listeleri* (`playlistEntry`: the owner as
+  the line, open / play / the playlist menu / preview, `RouteKind::Playlist`), *Podcastler* (`showEntry`: the
+  publisher; opens `Route{Podcasts, "spotify:show:<id>"}` after `spotifyshows::remember()`, below; a recent search
+  reopens it the same way from its saved name and publisher) and *Profiller* (`profileEntry`: round, no play button,
+  `RouteKind::Profile`; round recent-search cards too). Chips, Tümü shelves, grids, top-result candidates and recent
+  searches follow from the table. MusicBrainz has none of them, so their chips and shelves never appear there.
+- **Top result**: searchDesktop's `topResultsV2.itemsV2[0]` is Spotify's own top hit; when it is a kind the lists hold
+  (`topResult`, its URI) the card shows that item, wherever it is in its list. Otherwise (MusicBrainz, an episode or
+  genre on top) `browse::pickTopResult` picks one as before.
+- **More of one kind** (Spotify): a kind's own tab ends with *Daha fazla yükle* (`addLoadMore` / `setLoadMore` in
+  `BrowseWidgets`) when its overview row came back full (12). `Api::searchMore(kind, query, offset, 30)` sends the web
+  player's per-kind query (`searchTracks`, `searchAlbums`, `searchArtists`, `searchPlaylists`, `searchPodcasts`,
+  `searchUsers`; variables as its search route sends them; `pagingInfo.nextOffset` null = the end) from the rows already
+  there; new rows join `results_` (and the session's search cache, so typing back shows them) and the open grid / song
+  list. A page that adds nothing ends the kind. Another tab or query drops a page still on its way.
+- **Pasted links** (`app/Links`, `app/LinkOpener`): `open.spotify.com/show/<id>` / `spotify:show:<id>` open the
+  Podcastler page of the show, `open.spotify.com/user/<name>[/...]` / `spotify:user:<name>` the profile (the username
+  as the link has it: 1-128 of `[A-Za-z0-9._+-]` and `%XX`). Both need a session like the other Spotify links.
+
+The command palette and the phone remote keep using tracks, albums and artists.
+
+**Profiles** (`app/ProfilePage.cpp`, `--route profile:<uri>`): spclient `user-profile-view/v3/profile/<name>`
+(`playlist_limit=0`: name, avatar, followers) and `/profile/<name>/playlists?offset&limit` (50 a page), asked as JSON
+(the web player asks for the protobuf form of the same messages). Image fields may be `spotify:image:` /
+`spotify:mosaic:` URIs (turned into `i.scdn.co` / `mosaic.scdn.co` URLs). Spotify drops rows it won't show *after*
+paging (offset 20, limit 20 gave 16 rows; offset 36 repeats three of them), so the next page starts at offset + limit
+while that is below `total_public_playlists_count`, which is itself an estimate (1519, then 1515 on the next page).
+Logged out the page says it needs Spotify; an unknown user is a 404.
+
+**The user's Spotify podcasts** (`app/PodcastsSpotify`, UI thread; the Podcastler routes in `app/PodcastsPage.cpp`).
+ShadeTube never plays Spotify-hosted audio: a show plays through its **public RSS feed**, so each Spotify show is
+looked up in Apple's directory and played through the existing feed pipeline (3.17).
+
+- **Followed shows**: `Api::libraryShows` = libraryV3 with the web player's filter id `"Podcasts & Shows"`
+  (audiobooks and other items skipped). Should Spotify refuse the id (`LibraryInvalidFilterIdError`), the whole
+  library is walked unfiltered and its `Podcast` items kept. The list is reloaded when it is 10 minutes old or the
+  account changed. `Api::show` (queryShowMetadataV2) names a show opened by its id alone.
+- **Matching** (`podcast::matchScore` / `bestMatch`, standalone, `podcasts_test`): names and publishers become folded
+  words (`foldForSearch`: case, accents, I/ı; `&` = "and"; apostrophes dropped; "the", "a", "an", "podcast(s)"
+  ignored). Same words = 100; one name a whole-word run of the other with at least half its letters = 72..95; else 90 ×
+  the Dice coefficient. The same or a contained publisher adds up to +10, an unknown one leaves an exact name at 80, a
+  different one takes 25-30 off, and a short generic name (one or two words under 14 letters: "The Daily") with a
+  different publisher never matches. 70 and up (`kMatchMin`) is the same show; ties keep the directory's order.
+- **Lookup** (`Client::findFeed`): the directory's search for the show's name in the home store, then the US store;
+  `findFeed` keeps 3.2 s between its own uncached requests (Apple allows about 20 a minute) and throws when the
+  directory can't be asked, which is never recorded as a verdict. The page side (`spotifyshows::resolve`) runs one
+  lookup at a time on a Low worker (a page waiting for one puts it first); a failure is retried after two minutes or on
+  demand.
+- **Verdicts** (`podcasts.json` `"spotify"`, `podcast::SpotifyLink`, at most 2000, oldest lookups dropped): the
+  show's own name / publisher / cover (pages render it without a session), the matched feed with its directory title,
+  author and score, or none. A match stays; "no feed" is looked up again after a week. *Yanlış podcast mi?* in the
+  matched show's menu turns the link into "no feed" and remembers the rejected feed, which later lookups never pick.
+  These changes don't call the store's listeners (that would rebuild every Podcastler section per lookup);
+  `spotifyshows::subscribe` tells the pages instead.
+- **Pages**: the Podcastler home shows *Spotify'daki podcastlerin* (cards whose second line says *Abonesin*, *Yalnızca
+  Spotify'da* or the publisher) and starts the lookups of the shows without a fresh verdict in the background, plus a
+  *Spotify podcastlerini içe aktar* chip. `Route{Podcasts, "spotify"}` is the import preview: every followed show with
+  what it resolved to (the directory entry and a toggle, *Abonesin*, *Herkese açık besleme yok* with a lock, *Aranıyor…*,
+  *Kontrol edilemedi*), select all / none and *Seçilenlere abone ol (n)*, which fetches each chosen feed and subscribes
+  it like the show page's button (so the episodes already out are not "new"). Nothing is subscribed without that
+  button. `Route{Podcasts, "spotify:show:<id>"}` waits on a skeleton for the verdict, then shows the matched feed's show
+  page (its menu adds *Spotify'da aç* and *Yanlış podcast mi?*) or a page that says the show can't play here, with
+  *Spotify'da aç*, *Apple Podcasts'ta ara*, *Tekrar ara* and *RSS adresiyle ekle*.
+
+**Testing**: `spotify_test` (5.2) parses captured answers (`tests/spotify/fixtures/search_*.json`, `show_metadata`,
+`profile*`; captured with an anonymous web-player token on 2026-11-26, private people's names replaced) and a
+`library_shows.json` written in the shape the web player's mapper reads; `spotify_test search` runs every kind, two
+pages each, a show, Spotify's public profile and its playlists, a missing profile and four shows resolved through the
+directory, with the saved session or, without one, an **anonymous** web-player token (no account: Pathfinder search,
+show details and public profiles answer it; it finds only well-known profiles). `podcasts_test` covers the matching, the
+link store and (`live`) `findFeed` with its request spacing.
 ### 3.42 Last.fm and ListenBrainz history import
 
 Stats › *İçe aktar* (a menu: Spotify, Last.fm, ListenBrainz) and, until something is imported, three cards in a row
@@ -2807,7 +2893,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 
 | Program | Covers | Modes |
 |---|---|---|
-| `spotify_test` | TOTP / base32 vectors, home parser, artist page parser (`parseArtistOverview`) and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
+| `spotify_test` | TOTP / base32 vectors, home parser, artist page parser (`parseArtistOverview`), search kinds / followed shows / show details / profiles fixtures and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `search` (every search kind and its paging, a show, a public profile, shows resolved to public feeds; an anonymous token when there is no `sp_dc`, 3.42 Search kinds); `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
 | `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing (artist links from url-rels, Wikipedia titles and summaries), cold vs warm cache | `--offline`, `--keep-cache` |
 | `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
@@ -2822,7 +2908,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
-| `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads) |
+| `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store, Spotify show → directory matching and the kept links | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads, `findFeed` and its request spacing) |
 | `smartlists_test` | smart lists on synthetic histories: each list's rules and minimums, streams only, podcast / radio ids out, session-based mixes, day seeds, year lists, fresh-song blending, trim, timing with 300 000 plays | offline |
 | `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), an account switch (`detach` / `attach`: stored plays to the old file, the play in progress carried over), timings with 300 000 imported plays | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files), Spotify rules bound to their account (listable only with it, the `"acct"` round trip, old files) | offline |
@@ -2837,6 +2923,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
 | `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), level 2 (episodes / stations on the wire, what a 0.10.0 parser keeps of them, hostile data, feature level / speed / away, the envelope still at version 1, episodes at the host's speed, stations followed live), the host's saved room (round trip, resume window) + DPAPI, blend invite links, the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
 | `blend_test` | Blend (`app/Blend`): song / artist keys, taste profiles (streams only, podcast / radio out, recency, the six-month window and its fallback, caps, weights, features), profile JSON (hostile input), the mix (shared first, then one per member in turn, whose taste, cap, three members, newest profile per member, the same mix in any order), the taste match, the store record, timing with 300 000 plays | offline; `live [wss://broker…]` (two members never online together exchange retained sealed profiles through a real broker and build the same mix; leaving); `retain put <file> [broker]` / `retain get <file>` (how long a broker keeps a retained record) |
+| `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists, Spotify shows and profiles too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
+| `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
 | `radio_test` | radio-browser.info parsing (fixtures), codec filter, station -> track mapping, genre labels, `radio.json` store | offline; `live` (discovery, lists, failover; never counts a click) |
 | `liveaudio_test` | live-stream parsers (MPEG / ADTS / ICY / Ogg / TS / playlists / HLS), the engine against `mock_icecast.py` (reconnects, stalls, format changes, HLS, Ogg Opus and Ogg Vorbis when ffmpeg is on PATH), the Player with live items | offline (Python on PATH); `--long`; `live [count]` (real stations, a few of every codec family incl. OGG / OPUS) |
 | `winshell_test` | jump-list commands, glyph icons, thumbnail buttons, taskbar progress states, the accent-tinted app icon (sizes, colors, the logo's color against `app.ico`, `WindowIcon` on a test window: sizes, no re-render, no leaked handles, class icon back), AUMID / Start menu identity under a test id | default; `--start-menu`; `--icons <dir> [RRGGBB…]` (writes the tinted icon as `.ico` files to look at) |
@@ -2894,7 +2982,7 @@ log) opens the page.
 | `--play "Artist - Title"` | play a synthetic track through the real match + stream pipeline |
 | `--download "Artist - Title"` | queue a real download |
 | `--open-link <url>` | open a pasted link (Spotify / YouTube / MusicBrainz / `shadetube://jam/` invite) once a saved Spotify session has connected; with an instance running (not `--preview`) the link is handed to it |
-| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:albums` / `artists` / `history`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `local:<view>` (`songs`, `albums`, `artists`, `folders`, `folder:<path>`), `settings`, `settings:<card>` (that card opened and scrolled into view: `spotify`, `connections`, `playback`, `audio`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `remote`, `jam`, `blocklist`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...), `jam` (the "Birlikte dinle" panel), `queue` (the queue panel) |
+| `--route <r>` | start page: `search`, `search:<query>`, `library`, `library:albums` / `artists` / `history`, `library:folder:<id>`, `liked`, `downloads`, `stats`, `local`, `local:<view>` (`songs`, `albums`, `artists`, `folders`, `folder:<path>`), `settings`, `settings:<card>` (that card opened and scrolled into view: `spotify`, `connections`, `playback`, `audio`, `appearance`, `window`, `keyboard`, `downloads`, `local`, `storage`, `remote`, `jam`, `blocklist`, `about`), `nowplaying`, `lyrics` (full-screen lyrics over Now Playing), `connect`, `playlist:<id>`, `album:<id>`, `artist:<id>`, `profile:<spotify:user:…>`, `podcasts`, `podcasts:<route id>` (`podcasts:spotify`, `podcasts:spotify:show:<id>`...), `smart:<list id>` (`smart:mix:1`, `smart:month`, `smart:year:2025`...), `jam` (the "Birlikte dinle" panel), `queue` (the queue panel) |
 | `--play-episode "<feed URL>[#n][@sec]"` | play podcast episode n (0 = newest) of a feed through the real pipeline, seeking to `sec` once it plays |
 | `--mini` | open the mini player at startup (with `--screenshot` the mini player is captured; `SHADETUBE_MINI_MODE` / `SHADETUBE_MINI_DEMO` pick its mode and drive it, 5.4) |
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
@@ -3011,6 +3099,14 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   without notice. Rotated hashes heal themselves (3.5), but a changed request shape (HTTP 400 naming a variable)
   needs a code change. The TOTP secret comes from a public gist with a fallback. Spotify rate-limits hard; iterate
   with `spotify_test home` rather than the full live run.
+- **Spotify podcasts** (3.42) play only when Apple's directory lists a public feed under the same name: a show renamed on
+  one side, or listed under a very different name, counts as "no public feed" (*Apple Podcasts'ta ara* and *RSS
+  adresiyle ekle* remain), and a short generic name from a different publisher is never matched. Matches are not
+  checked against the episodes; *Yanlış podcast mi?* undoes a wrong one. The directory allows about 20 requests a
+  minute, so the first look at a long list of followed shows takes a while (verdicts are kept). The libraryV3 filter id
+  for shows (`"Podcasts & Shows"`) and the logged-in `searchUsers` answer were not seen live by the development
+  session (no logged-in Spotify sandbox was available); both have fallbacks or captured shapes (an unfiltered library
+  walk; the anonymous answer has the same shape).
 - **WebView2 Runtime** is required for the Spotify login (present on Windows 11; installable on Windows 10).
 - **Song credits** (3.42): Spotify's credits query was taken from the web player's bundle (2026-11-26) and is
   covered by fixtures, but was not run against a logged-in account during development (no sandbox `sp_dc`); its
