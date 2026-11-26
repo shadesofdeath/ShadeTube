@@ -112,7 +112,7 @@ protected:
 
 // ---------------------------------------------------------------------------------------------------
 // Circular play/pause button with the play <-> pause morph and spring press (motion-spec).
-// Accent: accent.base fill, the 9-frame filled glyph morph (page headers).
+// Accent: accent.base fill around the same outline glyph in accent.onAccent (page headers).
 // Outline: the thin outline style of the player bar and the mini player: a 1.25 DIP fg.primary ring around an outline
 // glyph whose triangle splits into the two pause bars continuously; hover turns ring and glyph accent over an
 // accent.tint12 fill; loading = an accent arc running around a faint ring.

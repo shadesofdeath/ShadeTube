@@ -76,13 +76,13 @@ constexpr Action kActions[] = {
     {"zoom-reset", [] { return tr(L"Arayüz ölçeğini sıfırla"); }, Category::View, "Ctrl+0", kInText, "refresh"},
     {"compact-lists", [] { return tr(L"Sıkı / rahat liste görünümü"); }, Category::View, "", 0, "list"},
     // Mini player modes (app/MiniPlayer): switch it, or from the main window open it in that mode.
-    {"mini-strip", [] { return tr(L"Mini oynatıcı: şerit"); }, Category::View, "Ctrl+1", kGlobal | kMini, "mini-strip-thin"},
-    {"mini-square", [] { return tr(L"Mini oynatıcı: kare"); }, Category::View, "Ctrl+2", kGlobal | kMini, "mini-square-thin"},
-    {"mini-wide", [] { return tr(L"Mini oynatıcı: geniş"); }, Category::View, "Ctrl+3", kGlobal | kMini, "mini-wide-thin"},
+    {"mini-strip", [] { return tr(L"Mini oynatıcı: şerit"); }, Category::View, "Ctrl+1", kGlobal | kMini, "mini-strip"},
+    {"mini-square", [] { return tr(L"Mini oynatıcı: kare"); }, Category::View, "Ctrl+2", kGlobal | kMini, "mini-square"},
+    {"mini-wide", [] { return tr(L"Mini oynatıcı: geniş"); }, Category::View, "Ctrl+3", kGlobal | kMini, "mini-wide"},
     {"mini-on-top", [] { return tr(L"Mini oynatıcı: her zaman üstte"); }, Category::View, "Ctrl+T", kMini, "pin"},
     // Video modu (app/VideoMode): the song's music video, and its own window.
-    {"video-mode", [] { return tr(L"Video modunu aç / kapat"); }, Category::View, "Ctrl+Shift+V", kMini, "video-thin"},
-    {"video-window", [] { return tr(L"Video penceresi"); }, Category::View, "", kMini, "pop-out-thin"},
+    {"video-mode", [] { return tr(L"Video modunu aç / kapat"); }, Category::View, "Ctrl+Shift+V", kMini, "video"},
+    {"video-window", [] { return tr(L"Video penceresi"); }, Category::View, "", kMini, "pop-out"},
 };
 
 // English key names of the text form. Letters and digits are their own name.

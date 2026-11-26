@@ -383,7 +383,7 @@ void paintPopOut(gfx::Canvas& c, const VideoView& view, const Rect& picture) {
     Rect b = view.popOutRect();
     b = {std::min(b.x, picture.right() - 12 - b.w), std::max(b.y, picture.y + 12), b.w, b.h};
     c.fillCircle({b.cx(), b.cy()}, b.w * 0.5f, Color{0, 0, 0, (0.45f + 0.2f * view.popOutHover()) * a});
-    c.icon("pop-out-thin", b.center(16, 16), Color{1, 1, 1, 0.92f * a});
+    c.icon("pop-out", b.center(16, 16), Color{1, 1, 1, 0.92f * a});
     if (view.hoverAmount() > 0.01f && view.hoverAmount() < 0.99f) ui::frame::requestNext();
 }
 

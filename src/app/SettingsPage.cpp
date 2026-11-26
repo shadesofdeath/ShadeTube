@@ -306,7 +306,7 @@ private:
         }
 
         // Equalizer, crossfade, output device.
-        c = card("audio", "equalizer", tr(L"Ses"), tr(L"Ses dengeleme, şarkı geçişi, ekolayzer, çıkış aygıtı"));
+        c = card("audio", "sliders", tr(L"Ses"), tr(L"Ses dengeleme, şarkı geçişi, ekolayzer, çıkış aygıtı"));
         buildAudioRows(c, rebuilder());
 
         c = card("appearance", "palette", tr(L"Görünüm"),

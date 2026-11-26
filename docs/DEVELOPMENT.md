@@ -57,7 +57,7 @@ ShadeTube/
 │   fonts/        Bricolage Grotesque + JetBrains Mono (variable, OFL.txt)
 │   i18n/         <code>.json translations (en de es fr pt ru uk id ja ko); _keys.json is a local dump
 │   remote/       the phone remote's web page (index.html, app.js, app.css; served by the app, see 3.23)
-│   icons/16|20|24 (*-thin: the player bar's outline set, 3.29), logo/, placeholders/, animations/ (SVG frames),
+│   icons/12|14|16|18|20|24 (the thin outline set, written by tools/icons.py, 3.42), logo/, placeholders/, animations/ (SVG frames),
 │   textures/, tokens/ (dark/light), themes/ (preset color themes, 3.35), app.ico
 ├─ docs/                         DEVELOPMENT.md, screenshots/
 ├─ packaging/winget/             winget-pkgs manifest of the current release (tools/update_manifests.py)
@@ -68,6 +68,7 @@ ShadeTube/
 │   package.ps1                  Release build -> dist\ShadeTube-<ver>-win64.zip + .sha256
 │   update_manifests.py          winget + Scoop manifests for the packaged release (see 6)
 │   i18n_check.py                translation checker (see 3.13)
+│   icons.py                     the icon set: draws assets/icons/<grid>/*.svg (and the design package's copy), 3.42
 │   import_design.py             regenerates assets/ from the design package
 ├─ src/
 │   core/        st_core         ThreadPool, Dispatcher, Async (Lifetime, Result), Http, Settings, Paths, Log,
@@ -107,7 +108,7 @@ ShadeTube/
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, collections,
-                                 downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
+                                 downloads, headers, icons, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, sponsorblock,
                                  spotify, stats, sync, tags, theme, updater, video, winshell, ytstreams
@@ -116,6 +117,8 @@ ShadeTube/
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
 `tools/import_design.py` expects it locally at the repository root and regenerates the SVGs (stripping C2PA
 metadata that `ID2D1SvgDocument` rejects), tokens, textures and `app.ico`. Without it, edit `assets/` directly.
+The icons are the exception: `tools/icons.py` draws them and writes both `assets/icons` and, with
+`--design ShadeTube-Design`, the package's `icons/` (3.42), so an import brings back the same files.
 
 **Module dependencies** (never reverse them): `core ← catalog ← musicbrainz, spotify, youtube`;
 `core ← audio, lyrics, gfx`; `gfx ← ui`; `audio + gfx ← video` (it reuses the audio module's ProgressiveBuffer and
@@ -1097,14 +1100,11 @@ time of the event.
   elapsed · wave · total, mono 11, elapsed `fg.secondary`, total `fg.tertiary`). The column is 40 % of the bar
   (380..640 DIP) but narrows to keep ~140 DIP of title and the right group free (about 316 DIP at the 960 DIP minimum
   window). A `hairline.subtle` marks the bar's top edge. Now Playing covers the bar with its own controls (3.40).
-- **Thin outline icons**: the player bar and the mini player use `assets/icons/{16,20,24}/<name>-thin.svg` (next, prev,
-  shuffle, shuffle-smart, repeat, repeat-one, heart, heart-liked, lyrics, queue, mini-player, expand, collapse, users,
-  clock, close; video, pin and pop-out for video mode, 3.41): the regular icons' geometry stroked 1.5 / 1.65 / 1.85 units in the 24 / 20 / 16 grids instead of
-  1.75 / 1.9 / 2.15, filled parts redrawn as outlines (next / prev: outlined triangle + bar; the liked heart: outline
-  over a 32 % fill, tinted with the accent). Everything else keeps the regular set, so the filled `play` / `pause` /
-  `next` / `prev` stay where they were (page headers, track rows, menus, the phone remote, the taskbar buttons).
-- **Play button** (`ui::PlayButton::Look::Outline`; `Look::Accent`, the filled accent circle of page headers, is
-  unchanged): a 1.25 DIP `fg.primary` ring around an outline glyph drawn in code (`Canvas::polyline`, round joins).
+- **Thin outline icons**: the bar uses the app's one icon set (3.42; in 0.9.0 it had its own `<name>-thin` files, now
+  aliases of the plain names): next / prev as an outlined triangle + bar, the liked heart `heart-filled` in the accent.
+- **Play button** (`ui::PlayButton::Look::Outline`; `Look::Accent`, the filled accent circle of page headers, draws the
+  same outline glyph in `accent.onAccent`, 1.15 × its icon size, stroke 7.5 % of the glyph): a 1.25 DIP `fg.primary`
+  ring around an outline glyph drawn in code (`Canvas::polyline`, round joins).
   The play triangle is cut into a quad and a triangle that move into the two pause bars (240 ms, eased, continuous);
   while they part, the cut edges fade in and the outline between them fades out. Hover: ring and glyph accent over
   `accent.tint12`; press: the spring scale; loading: an accent arc runs around a `hairline.control` ring with the
@@ -1605,7 +1605,7 @@ the palette command, the dev hooks).
   action row, sort / filter) dissolves into the bar: a `Canvas::pushFade` mask over the header widget, transparent
   above `maskTop` and opaque 40 DIP lower; at rest the band lies above the topmost content, then it moves down to 8 DIP
   above the bar's line. The bar has its own play (`PlayButton::Look::Outline`) and shuffle (`IconOutline`,
-  `shuffle-thin`), which come in while the header's buttons dissolve and mirror their handlers and playing state (the
+  `shuffle`), which come in while the header's buttons dissolve and mirror their handlers and playing state (the
   header's play now shows pause too while the page's collection plays). Lists without a column header (podcast,
   artist) get a hairline under the bar once they dock. Artist and podcast bars have no shuffle.
 - **Driven by the offset**: `collapse::compute(spec, s)` is a pure function of the ScrollView's offset of the frame
@@ -1691,7 +1691,7 @@ the tray's jump list task, `Ctrl+Shift+M` or a mode key; it hides the main windo
   buttons mode · Büyüt · Kapat; in the square everything but the cover) fade in with it (`motion::normal` in,
   `medium` out), also while one of them has keyboard focus (Tab) or the context menu is open. Hidden, they take no
   clicks (`MiniView::hitTest` returns the surface, so the press drags).
-- **Switching**: the mode button (the next mode's icon, `mini-strip-thin` / `mini-square-thin` / `mini-wide-thin`),
+- **Switching**: the mode button (the next mode's icon, `mini-strip` / `mini-square` / `mini-wide`),
   the context menu or the keys. The window keeps its anchor (`mini::anchorFor`): per axis the work area edge it sits
   at (within the 12 DIP snap margin + 6), else the third of the work area its center is in, so a window in the
   bottom-right corner grows up and to the left, one at the top edge downwards, one in the middle from its center; then
@@ -1766,7 +1766,7 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   under the pointer); right click on the cover / title / artist line: the track menu (a station's menu). Match line:
   duration · match %, the smart shuffle badge, "Yanlış eşleşme?" (not for the user's own files); a station: CANLI +
   codec; an episode: its length.
-- **Controls**: the player bar's widgets (3.29: wave `Slider`, outline `PlayButton`, `*-thin` icons, `Knob`): shuffle
+- **Controls**: the player bar's widgets (3.29: wave `Slider`, outline `PlayButton`, the thin icons of 3.42, `Knob`): shuffle
   (cycling smart shuffle), previous, play, next, repeat; like (a station: favorite; `setHeart` / `pulse`: the
   micro-interactions' heart pop, as in the bar); sleep timer, speed (episodes, or
   any speed but 1x), listen together (the session pill when it fits, else the icon; a guest's transport is disabled as
@@ -1901,7 +1901,7 @@ while nothing shows a video opens Now Playing.
   on the idle graphics release and device loss (its `DeviceHook` / the device generation): the next paint of a view
   makes a new one at the clock's position. The stream URL stays cached, so showing it again costs one segment.
 - **Now Playing** (3.40): one `VideoView` child laid over the track block's cover (`artRect_`, wide and
-  compact layouts) and a `video-thin` button after the sleep timer in the utility row. While a picture is on screen
+  compact layouts) and a `video` button after the sleep timer in the utility row. While a picture is on screen
   (`VideoView::hidesHostArt()`) `paintCover` leaves the cover, its baked shadow and outline out, for the incoming and
   the outgoing `TrackSwap` layer alike, so nothing slides under the video; the view draws the picture fitted into the
   cover's square with `radii().art`, the outline around it, on the square's bottom edge next to the title (wide) or
@@ -1945,6 +1945,49 @@ while nothing shows a video opens Now Playing.
   audio), `SHADETUBE_VIDEO_DEMO` scripts the feature (5.4); `video` lines in the log report the sync every 10 s and
   when a picture is dropped (frames shown / dropped, resyncs, frame vs. audio average / worst, frames more than a frame
   off, slot memory, DXVA or software). `video_test` (5.2) covers the pure parts and the decoder.
+
+### 3.42 Icons
+
+One thin outline language for every icon in the app: sidebar, title bar, page headers, menus, track rows, cards,
+settings, dialogs, toasts, the queue, Now Playing, the mini player, the command palette, the taskbar buttons and the
+phone remote (which serves `icons/24`). `tools/icons.py` is the source: each icon is a small drawing function, and the
+tool writes `assets/icons/<grid>/<name>.svg` for the six grids (`--design <dir>` also the design package's
+`icons/`, `--check` fails when the files differ from the drawings). Edit the drawing, never the SVGs.
+
+- **Grids**: 12, 14, 16, 18, 20, 24 px. A file's viewBox is its own grid (`0 0 16 16`), so a unit is a device pixel
+  when the icon is drawn at that size. Each drawing is made on a 24-unit master (2 units of padding, stroke centers
+  between 3 and 21) and scaled to the grid with hinting: stroke centers on pixel centers (x.5), so a 1 px horizontal or
+  vertical stroke covers whole pixels; lengths and radii in whole pixels; filled shapes end on pixel edges; points on an
+  axis of symmetry (a chevron's or a roof's apex, a triangle's tip) are the mean of their snapped neighbours, so the
+  shape stays symmetric. When a grid's center is a pixel edge, a shape with a crisp centre line sits half a pixel right /
+  down. At 12 and 14 px secondary details that would merge are left out (the second sparkle, a wifi arc, keyboard keys).
+- **Weight and shape**: stroke `max(1, N / 16)` px (1 px up to 16, 1.125 / 1.25 / 1.5 at 18 / 20 / 24: the weight the
+  0.9.0 player bar had at 24, now everywhere), round caps, round joins. Circles r 9, squares 16 units, container corners
+  r 1.5 (1 px at 16), inner details 0.75; dots (more, list bullets, the i of info) are filled circles with a stroke's
+  radius, on pixel centers when they line up with a stroke, on pixel corners (a crisp 2 × 2) when they stand alone.
+- **State**: outline = off / neutral, in the foreground color. On = the accent; a state with a body that is *yours*
+  uses the filled glyph: `heart-filled` (liked; the player bar, Now Playing and the mini player too, no longer the
+  0.9.0 outline over a 32 % tint), `downloaded` (on disk), and the playing indicator is the filled `equalizer` (the
+  rest pose of `ui::paintEqualizer`'s bars). Toggles (shuffle, repeat, lyrics, queue) stay outlines in the accent with
+  their dot. No other icon is filled: `play`, `pause`, `stop`, `next`, `prev`, `queue`, `playlist`, `mini-player`,
+  `sparkle`, `youtube-source` are outlines; the page headers' accent `PlayButton` draws the player bar's outline glyph
+  (3.29). A filled glyph is its outline's path filled *and* stroked, so it covers exactly the outline's silhouette and
+  `HeartPop` swaps them without a size change. Details inside a filled glyph are cut out (even-odd: the check of
+  `downloaded`, the E of `explicit`), never painted white: icons are one-color masks, which lost those details before.
+- **Drawing** (`gfx::Icons`, `gfx/IconGrid.h`): the grid for `px` device pixels is the smallest one that is at least
+  `px` (drawn at its size or a little smaller, where its hinting holds), then the larger ones, then the smaller ones, so
+  an icon that only has 16 / 20 / 24 files (one added elsewhere) still draws. Below its own size a grid keeps every
+  stroke at least a device pixel (`keepStrokeFloor`); above 24 px the 24 grid scales and its stroke with it (px / 16).
+  `app/WinShell`'s taskbar and jump-list glyphs pick the grid the same way.
+- **Names** stay what they were, and a name with no file of its own falls back (`icongrid::legacy`): `<name>-thin`
+  (the 0.9.0 player-bar set, removed) draws `<name>`, `heart-liked` draws `heart-filled`. New in 0.11.0: `sliders`
+  (the Ses settings card; the equalizer bars mean "playing"), `mini-strip`, `mini-square`, `mini-wide`, `video`,
+  `pop-out` under their plain names.
+- **Not icons**: the native tray menu has no icons; the placeholders (`assets/placeholders`), the logo and
+  `animations/` are separate (the play-pause morph frames are no longer drawn).
+- **Checks**: `icons_test` (5.2) checks every file against these rules through the app's loader and writes contact
+  sheets with `--sheet <dir>` (every icon at 12-24 DIP for 80-175 % in dark, light and preset themes, each grid
+  magnified over its pixel grid, off / on pairs).
 
 ## 4. Coding conventions
 
@@ -2037,6 +2080,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `video_test` | video mode: picture stream choice on manifest fixtures (cap, H.264 first, VP9 / AV1 only with a decoder, fps, upscales, portrait, muxed fallback), the still-picture check, the sidx / edit-list index on made-up boxes, the A/V scheduler on a fake clock with a fake decoder (1× / 0.5× / 2× / 3× in sync to a frame, pause, seeks both ways, a decoder that can't keep up, the video ending first), a generated H.264 MP4 decoded in software and with DXVA + the video processor (every frame's colors, seeks, 2×, the idle release) | offline; `live [<id>…]` (the picture streams and still-picture verdicts of songs as MatchService matches them, one stream played on the GPU against a real-time clock, a seek); `play <id>`; `fetch <id> <file>`; `file <path> [<start s>]`; `mfurl <path>` (MF's own source on a file) |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.32): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
+| `icons_test` | the icon set (3.42) through `gfx::Icons`: every file in every grid (viewBox = grid, path / rect / circle only, black only, the grid's stroke width, parsed by `ID2D1SvgDocument`, no `-thin` files), the grid order and legacy names, `-thin` aliases drawing the same masks, whole-pixel strokes at each grid's own size, the ink of a stroke from 9 to 36 px (≥ 1 px, then px / 16), `heart-filled` covering `heart`, the `downloaded` check cut out | offline; `--sheet <dir>` (contact sheets: all icons at 12-24 DIP × 80-175 % in dark / light / nord / pastel / sepia, each grid magnified, off / on pairs) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -2207,6 +2251,11 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   video's frame times besides its own ticks (more CPU than either). The app's D3D11 device is multithread protected
   from the first picture on (for that device generation). Not measured: 1080p60, discrete GPUs (the app takes the
   default adapter), software decoding on a machine without DXVA, the mid-play URL refresh (no 403 happened in testing).
+- **Icons** (3.42) are crisp at the six grid sizes (12-24 px); other sizes (a 12 DIP icon at 125 % = 15 px, everything
+  above 24 px) are the nearest grid scaled, so their strokes are anti-aliased (invisible from about 150 % up). An icon
+  added as hand-made SVG files instead of a drawing in `tools/icons.py` gets neither the hinting nor the 12 / 14 / 18
+  grids (it still draws from its 16 / 20 / 24 files; `tools/icons.py` keeps such files and lists them, `--check`
+  fails on them): add the drawing.
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
   of the rest the GPU driver; about 13 MB once nothing has been on screen for 30 s (0.6.0 stayed at 63 MB). WARP
   software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now
