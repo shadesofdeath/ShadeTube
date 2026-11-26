@@ -1957,8 +1957,9 @@ dedupes, times and stores them; `app/StatsPage.cpp` has the dialog, the cards, t
 
 - **Last.fm API**: `user.getRecentTracks`, 200 a page, by user name (the connected account pre-filled, else the account
   imported last). Last.fm hands out listening history only with an API key and the app has none of its own: it uses
-  the key of Settings › Bağlantılar (the scrobbler's, 3.10); without one the dialog asks for it and stores it there
-  (key only, no secret: scrobbling still needs the secret and the login). Under a fixed `to` (the run's start) the newest
+  the key of Settings › Bağlantılar (the scrobbler's, 3.10); without one, or after Last.fm refused it, the dialog asks
+  for it and stores it there (key only: scrobbling still needs the secret and the login; a new key drops the old
+  key's secret and session). Under a fixed `to` (the run's start) the newest
   page is fetched first only for the page count (and kept), then the pages from the oldest to the newest: whatever the
   import has behind it is always one stretch from the start. Errors: 6 (no such user), 17 (private), 10 / 26 (key),
   29 (rate limit); the now-playing entry and undated scrobbles are left out; a single scrobble comes as an object.
@@ -1974,7 +1975,8 @@ dedupes, times and stores them; `app/StatsPage.cpp` has the dialog, the cards, t
 - **Batches, cursors, resume**: rows go into a compact `ListenStats::ImportBatch` (each distinct song once, 24 bytes a
   play) and every 20 000 rows `buildImport` merges them and writes the source's file (`runJob`), so memory holds one
   batch and an import that stops (Durdur, an error, the app closing) keeps every batch so far. API imports store a
-  cursor per account in their file's `"sync"` (everything the account scrobbled before `next` is imported); the next
+  cursor per account in their file's `"sync"` (everything the account scrobbled before `next` is imported; never past
+  the run's start, whatever a wrong client clock stamped on a listen); the next
   run starts from the cursor minus 14 days (scrobbles that reach the service late carry older times: the overlap is
   read again and deduplicated), so it fetches only what is new (live: 656 listens in one request after a 75 725-listen
   import). File imports have no cursor.
@@ -2018,11 +2020,14 @@ dedupes, times and stores them; `app/StatsPage.cpp` has the dialog, the cards, t
   kaldır*); plays carry their source (`ListenStats::Play::source`), counts per source (`importedCount(source)`). The
   imported files are read with a SAX reader (no document tree, no copy of the index), which made the 75 725-listen
   import 3× faster and smaller.
-- **Measured** (Debug build, this PC, `history_test live lb <user>`): 75 725 ListenBrainz listens of a public account
-  (32 847 songs) in 77 requests and 4 batches, 55 s; the run's peak +150 MB private, process peak commit 176 MB - the
-  history's index is built once more for each batch's merge (the store keeps its own until the result is installed);
-  the rows themselves never exceed one batch. The next run: 1 request, 656 listens of overlap, nothing new, 4.6 s.
-  Offline, 100 000 listens through `runJob` in 6 batches.
+- **Measured** (Release, this PC, `history_test live lb <user>`, public accounts): 75 725 listens (32 847 songs) in 77
+  requests and 4 batches, 41 s, peak +61 MB private (process peak commit 87 MB), the next run 1 request / 0.5 s;
+  220 287 listens (219 827 plays after duplicates, 33 760 songs) in 222 requests and 12 batches, 308 s (the network:
+  ~1.4 s a page), peak +70 MB private (process 105 MB), the next run 1 request / 0.7 s. The peak is the history's index
+  built once more for a batch's merge (the store keeps its own until the result is installed); the rows never exceed
+  one batch. Offline (Release): a 64.5 MB Ghan JSON of 100 000 scrobbles reads in 1.0 s with no measurable memory
+  growth; 100 000 listens through `runJob` in 6 batches in 2.0 s. A Debug build is 3-25× slower and needs about twice
+  the memory.
 - **Dev**: `SHADETUBE_IMPORT_SCROBBLES` starts an import once the history is loaded, `SHADETUBE_IMPORT_DIALOG` opens
   the dialog (5.4); `history_test` (5.2) replays fake Last.fm / ListenBrainz servers, reads every export format from
   `tests/history/fixtures` (`make_fixtures.py` regenerates them) and runs live imports.
@@ -2293,9 +2298,10 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   from the first picture on (for that device generation). Not measured: 1080p60, discrete GPUs (the app takes the
   default adapter), software decoding on a machine without DXVA, the mid-play URL refresh (no 403 happened in testing).
 - **Last.fm / ListenBrainz import** (3.42): Last.fm gives listening history only with an API key, and the app has none
-  of its own: the user's key from Settings › Connections is used (the dialog asks for one). The Last.fm path was tested
-  against fake servers built from the API's documented replies (and the field names two public exporters read), not
-  against the live API (no key in this environment). Duplicates are recognised by start time: a ListenBrainz copy that
+  of its own: the user's key from Settings › Connections is used (the dialog asks for one, and again after the key was
+  refused). The Last.fm path was tested against fake servers built from the API's documented replies (and the field
+  names two public exporters read); against the live API only up to its key check (a bogus key: error 10, reported,
+  not retried) - no real import ran (no key in this environment). Duplicates are recognised by start time: a ListenBrainz copy that
   another importer stamped with the end time, or a Spotify play paused for more than half the song, counts twice.
   Scrobbles' minutes are estimates (3.42). Plays submitted to a service with old timestamps more than 14 days after
   they happened (a late bulk import into ListenBrainz) are missed by the incremental runs; removing and importing the

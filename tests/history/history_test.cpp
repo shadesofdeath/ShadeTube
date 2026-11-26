@@ -570,6 +570,14 @@ static void testFetchListenbrainz() {
     r = sc::fetch(q, fakeTransport(server, &sleeps), [](sc::Row&&) {}, {}, {}, {});
     CHECK(r.error == sc::FetchError::None && !server.requests.empty() &&
           server.requests[0].params["min_ts"] == std::to_string(q.since - sc::kResumeOverlapS));
+    // A listen stamped in the future (a client's wrong clock) doesn't carry the cursor past the run's start.
+    FakeLb odd;
+    odd.all = {{utc(2024, 1, 1), "A", "T1", "", "", {}, 0}, {utc(2031, 1, 1), "A", "T2", "", "", {}, 0}};
+    q.since = 0;
+    q.now = utc(2024, 6, 1);
+    r = sc::fetch(q, fakeTransport(odd, nullptr), [](sc::Row&&) {}, {}, {}, {});
+    CHECK(r.error == sc::FetchError::None && r.rows == 2 && r.next == utc(2024, 6, 1));
+    q.since = utc(2024, 6, 1);
     q.user = "nobody";
     CHECK(sc::fetch(q, fakeTransport(server, &sleeps), [](sc::Row&&) {}, {}, {}, {}).error == sc::FetchError::NotFound);
 }

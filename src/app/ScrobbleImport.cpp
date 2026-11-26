@@ -926,6 +926,7 @@ FetchResult fetchLastfm(const FetchRequest& q, const Transport& t, const Sink& s
     res.next = q.since;
     if (q.apiKey.empty()) {
         res.error = FetchError::NoKey;
+        res.message = "no API key";
         return res;
     }
     FetchStatus st;
@@ -980,7 +981,7 @@ FetchResult fetchLastfm(const FetchRequest& q, const Transport& t, const Sink& s
         st.fraction = 1;
         if (status) status(st);
     } catch (const YoutubeExplode::Exceptions::OperationCanceledException&) {
-        return finish(FetchError::Cancelled, {});
+        return finish(FetchError::Cancelled, "cancelled");
     }
     res.requests = net.requests;
     return res;
@@ -1028,6 +1029,7 @@ FetchResult fetchListenbrainz(const FetchRequest& q, const Transport& t, const S
                               const CancellationToken& ct) {
     FetchResult res;
     res.next = q.since;
+    const int64_t runStart = q.now > 0 ? q.now : unixNow();
     FetchStatus st;
     const std::function<void(int)> waiting = [&](int s) {
         st.waitingS = s;
@@ -1067,7 +1069,9 @@ FetchResult fetchListenbrainz(const FetchRequest& q, const Transport& t, const S
                 ++res.rows;
             }
             const int64_t top = page.newestOnPage;
-            if (top > res.next) res.next = top;
+            // The cursor never passes the run's start: a listen stamped in the future (a client's wrong clock) would
+            // make the next runs skip everything until then.
+            if (std::min(top, runStart) > res.next) res.next = std::min(top, runStart);
             if (checkpoint) checkpoint(res.next);
             st.fetched = res.rows;
             if (st.total) st.fraction = std::min(1.0, static_cast<double>(st.fetched) / static_cast<double>(st.total));
@@ -1084,7 +1088,7 @@ FetchResult fetchListenbrainz(const FetchRequest& q, const Transport& t, const S
         st.fraction = 1;
         if (status) status(st);
     } catch (const YoutubeExplode::Exceptions::OperationCanceledException&) {
-        return finish(FetchError::Cancelled, {});
+        return finish(FetchError::Cancelled, "cancelled");
     }
     res.requests = net.requests;
     return res;

@@ -523,6 +523,7 @@ std::vector<std::pair<Lifetime::Ref, std::function<void()>>> g_importWatchers;
 // Last.fm / ListenBrainz imports run for minutes on the network: their own thread (not a pool worker), joined when the
 // result lands, and cancelled + joined at exit.
 std::thread g_importThread;
+bool g_lastfmKeyRejected = false;   // the last Last.fm import was refused for its API key: the dialog asks for one again
 
 void watchImport(Lifetime::Ref owner, std::function<void()> fn) {
     std::erase_if(g_importWatchers, [](const auto& w) { return w.first.expired(); });
@@ -752,6 +753,8 @@ void startScrobbleImport(scrobbles::Service service, std::string user, std::vect
                 s.saveAsync();
                 g_lastSaveMs = steadyMs();
             }
+            if (service == scrobbles::Service::LastFm && !files)
+                g_lastfmKeyRejected = out->fetch.error == scrobbles::FetchError::BadKey || out->fetch.error == scrobbles::FetchError::NoKey;
             std::wstring problem = fetchProblem(service, out->fetch);
             if (problem.empty() && !out->error.empty()) problem = tr(L"Geçmiş içe aktarılamadı");
             if (files && problem.empty() && out->files.rows == 0 && !out->cancelled)
@@ -825,7 +828,7 @@ void openScrobbleDialog(scrobbles::Service service) {
     if (sc) user = lastfm ? (sc->lastfmConnected() ? sc->lastfmUser() : std::string{})
                           : (sc->listenbrainzConnected() ? sc->listenbrainzUser() : std::string{});
     if (user.empty() && !s.importCursors(source).empty()) user = s.importCursors(source).back().account;
-    const bool needKey = lastfm && (!sc || sc->lastfmApiKey().empty());
+    const bool needKey = lastfm && (!sc || sc->lastfmApiKey().empty() || g_lastfmKeyRejected);
     auto* d = ui::Dialog::open(
         ctx().window, lastfm ? tr(L"Last.fm geçmişini getir") : tr(L"ListenBrainz geçmişini getir"),
         lastfm ? tr(L"Herkese açık bir Last.fm profilinin tüm dinlemeleri istatistiklere eklenir. Büyük geçmişler birkaç dakika "
@@ -839,6 +842,10 @@ void openScrobbleDialog(scrobbles::Service service) {
     ui::TextBox* key = nullptr;
     if (needKey) {
         key = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Last.fm API anahtarı"));
+        if (sc && g_lastfmKeyRejected) {   // the stored one was refused: shown to be corrected
+            key->setText(toWide(sc->lastfmApiKey()));
+            key->setError(true);
+        }
         auto* hint = d->body()->add<ui::Label>(
             tr(L"Last.fm dinlemeleri yalnızca bir API anahtarıyla verir: last.fm/api/account/create sayfasından ücretsiz "
                L"alınır ve Ayarlar › Bağlantılar'a kaydedilir."),
@@ -870,7 +877,9 @@ void openScrobbleDialog(scrobbles::Service service) {
                 key->setError(true);
                 return;
             }
-            if (auto* sc = ctx().scrobbler) sc->lastfmSetKeys(k, {});   // no key stored yet: nothing else changes
+            // Stored for scrobbling too. The same key keeps the stored secret; a new one (none stored, or the stored one
+            // was refused) drops the old secret and session, which belonged to the old key.
+            if (auto* sc = ctx().scrobbler) sc->lastfmSetKeys(k, {});
         }
         d->close();
         startScrobbleImport(service, u, {});
