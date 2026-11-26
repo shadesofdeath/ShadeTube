@@ -2,6 +2,15 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.11.0 — unreleased
+
+- **Video mode shows the official music video**: when a song plays from an audio-only upload (an Art Track, the usual
+  case), video mode now finds the artist's official music video and plays its picture against ShadeTube's audio. It
+  listens to both to line them up, so a video with a spoken intro, a pause or a different edit still runs in sync, and
+  parts the video doesn't have briefly show the cover instead. Lyric videos, live versions, covers and videos that
+  aren't the same recording are never shown. The right click on the video button (or the "…" on the video) opens a
+  menu to turn this off, pick another video ("Wrong video?") or hide a video for that song.
+
 ## 0.10.0 — 2026-11-23
 
 - **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays
