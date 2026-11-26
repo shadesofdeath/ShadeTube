@@ -1,0 +1,77 @@
+{
+ "data": {
+  "searchV2": {
+   "query": "spotify",
+   "users": {
+    "items": [
+     {
+      "__typename": "UserResponseWrapper",
+      "data": {
+       "__typename": "User",
+       "avatar": {
+        "sources": [
+         {
+          "height": 64,
+          "url": "https://i.scdn.co/image/ab67757000003b8255c25988a6ac314394d3fbf5",
+          "width": 64
+         },
+         {
+          "height": 300,
+          "url": "https://i.scdn.co/image/ab6775700000ee8555c25988a6ac314394d3fbf5",
+          "width": 300
+         }
+        ]
+       },
+       "id": "spotify",
+       "displayName": "Spotify",
+       "socialHandle": null,
+       "uri": "spotify:user:spotify",
+       "username": "spotify"
+      }
+     },
+     {
+      "__typename": "UserResponseWrapper",
+      "data": {
+       "__typename": "User",
+       "avatar": {
+        "sources": [
+         {
+          "height": 64,
+          "url": "https://i.scdn.co/image/ab67757000003b82ba52bfae57feb3cb5847fb86",
+          "width": 64
+         },
+         {
+          "height": 300,
+          "url": "https://i.scdn.co/image/ab6775700000ee85ba52bfae57feb3cb5847fb86",
+          "width": 300
+         }
+        ]
+       },
+       "id": "spotifybrazilian",
+       "displayName": "Spotify",
+       "socialHandle": null,
+       "uri": "spotify:user:spotifybrazilian",
+       "username": "spotifybrazilian"
+      }
+     },
+     {
+      "__typename": "UserResponseWrapper",
+      "data": {
+       "__typename": "User",
+       "id": "31abcdefghijklmnopqrstuvwxyz",
+       "displayName": null,
+       "socialHandle": null,
+       "uri": "spotify:user:31abcdefghijklmnopqrstuvwxyz",
+       "username": "31abcdefghijklmnopqrstuvwxyz"
+      }
+     }
+    ],
+    "pagingInfo": {
+     "limit": 3,
+     "nextOffset": 3
+    },
+    "totalCount": 6
+   }
+  }
+ }
+}

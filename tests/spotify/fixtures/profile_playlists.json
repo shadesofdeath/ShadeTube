@@ -1,0 +1,29 @@
+{
+ "public_playlists": [
+  {
+   "uri": "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M",
+   "name": "Today’s Top Hits",
+   "image_url": "https://i.scdn.co/image/ab67706f00000002ffe80c69d2e795ea01e63447",
+   "followers_count": 33536222,
+   "owner_name": "Spotify",
+   "owner_uri": "spotify:user:spotify"
+  },
+  {
+   "uri": "spotify:playlist:37i9dQZF1DX0XUsuxWHRQd",
+   "name": "RapCaviar",
+   "image_url": "https://i.scdn.co/image/ab67706f000000024a9c51e58f024feff1f2c35f",
+   "followers_count": 15450524,
+   "owner_name": "Spotify",
+   "owner_uri": "spotify:user:spotify"
+  },
+  {
+   "uri": "spotify:playlist:37i9dQZF1DX1lVhptIYRda",
+   "name": "Hot Country",
+   "image_url": "https://i.scdn.co/image/ab67706f000000028dc8ad68abfc63e4072ae5dd",
+   "followers_count": 7620378,
+   "owner_name": "Spotify",
+   "owner_uri": "spotify:user:spotify"
+  }
+ ],
+ "total_public_playlists_count": 1519
+}

@@ -94,6 +94,26 @@ struct Playlist {                   // a local playlist (stored on this PC) or a
     bool owned = false;             // Spotify: owned by the logged-in user (rename / delete allowed)
 };
 
+// A podcast as Spotify lists it (search, the shows the user follows). ShadeTube never plays Spotify's audio: a show
+// plays through its public RSS feed, found by name and publisher in Apple's directory (app/Podcasts, 3.17).
+struct PodcastShow {
+    std::string id;                 // spotify:show:<id>
+    std::string name;
+    std::string publisher;
+    std::string description;        // plain text ("" when the source gave none)
+    std::vector<Image> images;
+    std::string mediaType;          // "AUDIO" | "VIDEO" | "MIXED" ("" = unknown)
+};
+
+// A Spotify user (search results, the profile page).
+struct Profile {
+    std::string id;                 // spotify:user:<username>
+    std::string name;               // display name, else the username
+    std::vector<Image> images;
+    int64_t followers = -1;         // -1 = unknown
+    int publicPlaylists = -1;       // -1 = unknown
+};
+
 // A tappable item in a shelf (home, artist page, search).
 struct CardItem {
     enum class Kind { Track, Album, Artist, Playlist };
@@ -124,6 +144,14 @@ struct SearchResults {
     std::vector<Artist> artists;
     std::vector<Album> albums;
     std::vector<Track> tracks;
+    // Spotify only (MusicBrainz has none of these).
+    std::vector<Playlist> playlists;
+    std::vector<PodcastShow> shows;
+    std::vector<Profile> profiles;
+
+    bool empty() const {
+        return artists.empty() && albums.empty() && tracks.empty() && playlists.empty() && shows.empty() && profiles.empty();
+    }
 };
 
 template <class T>

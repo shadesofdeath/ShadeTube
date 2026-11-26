@@ -942,6 +942,104 @@ Album Api::album(const std::string& uri, const CT& ct) {
     return albumFrom(a, true);
 }
 
+// ---- Search ------------------------------------------------------------------------------------------------------
+// searchDesktop (the overview) and the per-kind queries all answer data.searchV2 with one page per kind:
+//   tracksV2:{totalCount, pagingInfo:{limit, nextOffset|null}, items:[{item:{__typename:"TrackResponseWrapper",
+//             data:{...Track}}, matchedFields}]}
+//   albumsV2 / artists / playlists / podcasts / users: {totalCount, pagingInfo, items:[{__typename:"<T>ResponseWrapper",
+//             data:{__typename:"<T>", ...}}]}
+// podcasts: data {uri, name, publisher:{name}, coverArt:{sources}, mediaType, topics}; users: data {uri, id, username,
+// displayName, avatar:{sources}} (the web player's search mapper: name = displayName || username). An anonymous token
+// finds only well-known accounts (a person's name: an empty page with limit 0). Wrappers of other types ("NotFound",
+// restricted content) are skipped.
+namespace {
+
+const char* searchOperation(SearchKind k) {
+    switch (k) {
+    case SearchKind::Tracks: return "searchTracks";
+    case SearchKind::Albums: return "searchAlbums";
+    case SearchKind::Artists: return "searchArtists";
+    case SearchKind::Playlists: return "searchPlaylists";
+    case SearchKind::Shows: return "searchPodcasts";
+    case SearchKind::Profiles: return "searchUsers";
+    }
+    return "searchTracks";
+}
+const char* searchKey(SearchKind k) {
+    switch (k) {
+    case SearchKind::Tracks: return "tracksV2";
+    case SearchKind::Albums: return "albumsV2";
+    case SearchKind::Artists: return "artists";
+    case SearchKind::Playlists: return "playlists";
+    case SearchKind::Shows: return "podcasts";
+    case SearchKind::Profiles: return "users";
+    }
+    return "tracksV2";
+}
+
+// A wrapper's data object when it is of `typeName` ("" = any with a uri).
+const json* searchItem(const json& it, const char* typeName) {
+    const json& inner = at(it, "item").is_object() ? at(it, "item") : it;
+    const json& d = at(inner, "data");
+    if (!d.is_object()) return nullptr;
+    const std::string tn = str(d, "__typename");
+    if (*typeName && !tn.empty() && tn != typeName) return nullptr;
+    return str(d, "uri").empty() ? nullptr : &d;
+}
+
+Profile profileFrom(const json& d) {
+    Profile p;
+    p.id = str(d, "uri");
+    if (p.id.empty() && !str(d, "username").empty()) p.id = "spotify:user:" + str(d, "username");
+    p.name = str(d, "displayName");
+    if (p.name.empty()) p.name = str(d, "name");
+    if (p.name.empty()) p.name = str(d, "username");
+    if (p.name.empty() && p.id.rfind("spotify:user:", 0) == 0) p.name = p.id.substr(13);
+    p.images = imagesFrom(at(at(d, "avatar"), "sources"));
+    return p;
+}
+
+// Search results carry the playlist's description as HTML and no track count.
+Playlist searchPlaylistFrom(const json& d) {
+    Playlist p = playlistFrom(d);
+    p.description = plainText(p.description);
+    p.countKnown = false;
+    return p;
+}
+
+template <class T, class Parse>
+void collect(const json& page, const char* typeName, std::vector<T>& out, Parse parse) {
+    const json& items = at(page, "items");
+    if (!items.is_array()) return;
+    for (const auto& it : items)
+        if (const json* d = searchItem(it, typeName)) {
+            T v = parse(*d);
+            if (!v.id.empty()) out.push_back(std::move(v));
+        }
+}
+
+void collectKind(SearchKind kind, const json& page, SearchResults& out) {
+    switch (kind) {
+    case SearchKind::Tracks: collect(page, "Track", out.tracks, [](const json& d) { return trackFrom(d); }); break;
+    case SearchKind::Albums: collect(page, "Album", out.albums, [](const json& d) { return albumFrom(d, false); }); break;
+    case SearchKind::Artists: collect(page, "Artist", out.artists, artistFrom); break;
+    case SearchKind::Playlists: collect(page, "Playlist", out.playlists, searchPlaylistFrom); break;
+    case SearchKind::Shows: collect(page, "Podcast", out.shows, Api::parseShow); break;
+    case SearchKind::Profiles: collect(page, "User", out.profiles, profileFrom); break;
+    }
+}
+
+constexpr SearchKind kSearchKinds[] = {SearchKind::Tracks,    SearchKind::Albums, SearchKind::Artists,
+                                       SearchKind::Playlists, SearchKind::Shows,  SearchKind::Profiles};
+
+} // namespace
+
+SearchResults Api::parseSearch(const json& s) {
+    SearchResults out;
+    for (const SearchKind k : kSearchKinds) collectKind(k, at(s, searchKey(k)), out);
+    return out;
+}
+
 SearchResults Api::search(const std::string& q, int limit, const CT& ct) {
     const json vars{
         {"searchTerm", q},         {"offset", 0},
@@ -951,26 +1049,232 @@ SearchResults Api::search(const std::string& q, int limit, const CT& ct) {
         {"includeAuthors", false},
     };
     const json data = query("searchDesktop", vars, ct);
-    const json& s = at(data, "searchV2");
-    SearchResults out;
+    return parseSearch(at(data, "searchV2"));
+}
 
-    const json& artists = at(at(s, "artists"), "items");
-    if (artists.is_array())
-        for (const auto& it : artists)
-            if (at(it, "data").is_object()) out.artists.push_back(artistFrom(at(it, "data")));
+SearchBatch Api::parseSearchBatch(SearchKind kind, const json& data) {
+    SearchBatch b;
+    const json& page = at(at(data, "searchV2"), searchKey(kind));
+    collectKind(kind, page, b.results);
+    b.total = integer(page, "totalCount");
+    const json& next = at(at(page, "pagingInfo"), "nextOffset");
+    const json& items = at(page, "items");
+    const bool rows = items.is_array() && !items.empty();
+    if (next.is_number_integer()) b.nextOffset = rows ? next.get<int>() : -1;
+    return b;
+}
 
-    const json& albums = at(at(s, "albumsV2"), "items");
-    if (albums.is_array())
-        for (const auto& it : albums)
-            if (at(it, "data").is_object()) out.albums.push_back(albumFrom(at(it, "data"), false));
+SearchBatch Api::searchMore(SearchKind kind, const std::string& q, int offset, int limit, const CT& ct) {
+    // What the web player's search tabs send (xpui-routes-search, getSearchCategoryResults).
+    const json vars{
+        {"searchTerm", q},
+        {"offset", offset},
+        {"limit", limit},
+        {"numberOfTopResults", limit},
+        {"includeAudiobooks", true},
+        {"includePreReleases", false},
+        {"includeAlbumPreReleases", false},
+        {"includeAuthors", false},
+        {"includeEpisodeContentRatingsV2", false},
+    };
+    SearchBatch b = parseSearchBatch(kind, query(searchOperation(kind), vars, ct));
+    if (b.nextOffset >= 0 && b.nextOffset <= offset) b.nextOffset = -1;   // never page in place
+    return b;
+}
 
-    const json& tracks = at(at(s, "tracksV2"), "items");
-    if (tracks.is_array())
-        for (const auto& it : tracks) {
-            const json& d = at(at(it, "item"), "data");
-            if (d.is_object()) out.tracks.push_back(trackFrom(d));
+// ---- Podcasts (shows) --------------------------------------------------------------------------------------------
+// A show as search, libraryV3 and queryShowMetadataV2 give it: {__typename:"Podcast", uri, name, publisher:{name},
+// coverArt:{sources}, mediaType, description (plain), htmlDescription}. Audiobooks share the wrapper: skipped.
+PodcastShow Api::parseShow(const json& d) {
+    PodcastShow s;
+    const std::string tn = str(d, "__typename");
+    if (!tn.empty() && tn != "Podcast") return s;
+    s.id = str(d, "uri");
+    if (s.id.rfind("spotify:show:", 0) != 0) {
+        s.id.clear();
+        return s;
+    }
+    s.name = str(d, "name");
+    s.publisher = str(at(d, "publisher"), "name");
+    s.description = str(d, "description");
+    if (s.description.empty()) s.description = plainText(str(d, "htmlDescription"));
+    s.images = imagesFrom(at(at(d, "coverArt"), "sources"));
+    s.mediaType = str(d, "mediaType");
+    if (s.name.empty()) s.id.clear();
+    return s;
+}
+
+std::vector<PodcastShow> Api::parseLibraryShows(const json& data, int* totalCount) {
+    std::vector<PodcastShow> out;
+    const json& lib = at(at(data, "me"), "libraryV3");
+    if (totalCount) *totalCount = integer(lib, "totalCount");
+    const json& items = at(lib, "items");
+    if (!items.is_array()) return out;
+    for (const auto& entry : items) {
+        const json& wrap = at(entry, "item");
+        const json& d = at(wrap, "data");
+        if (!d.is_object()) continue;
+        json copy;
+        const json* src = &d;
+        if (str(d, "uri").empty() && str(wrap, "_uri").rfind("spotify:show:", 0) == 0) {   // the uri on the wrapper only
+            copy = d;
+            copy["uri"] = str(wrap, "_uri");
+            src = &copy;
         }
+        PodcastShow s = parseShow(*src);
+        if (!s.id.empty()) out.push_back(std::move(s));
+    }
     return out;
+}
+
+std::vector<PodcastShow> Api::libraryShows(const CT& ct) {
+    std::vector<PodcastShow> out;
+    std::unordered_set<std::string> seen;
+    // The web player's filter id for shows ("Podcasts & Shows"). Should Spotify rename it (libraryV3 then answers
+    // LibraryInvalidFilterIdError), the whole library is walked instead and its shows kept.
+    bool filtered = true;
+    for (int offset = 0, page = 0; page < 20; ++page) {
+        json vars = libraryVariables("Podcasts & Shows", offset);
+        if (!filtered) vars["filters"] = json::array();
+        json data;
+        try {
+            data = query("libraryV3", vars, ct);
+        } catch (const std::exception& e) {
+            if (page == 0) throw;
+            ST_LOG_WARN("spotify", "libraryV3 shows page at {} failed: {}", offset, e.what());
+            break;
+        }
+        const json& lib = at(at(data, "me"), "libraryV3");
+        if (filtered && str(lib, "__typename") == "LibraryInvalidFilterIdError") {
+            ST_LOG_WARN("spotify", "libraryV3: the shows filter was refused ({}); walking the whole library",
+                        str(lib, "invalidFilterId"));
+            filtered = false;
+            offset = 0;
+            page = -1;
+            continue;
+        }
+        int total = 0;
+        for (auto& s : parseLibraryShows(data, &total))
+            if (seen.insert(s.id).second) out.push_back(std::move(s));
+        const json& items = at(lib, "items");
+        if (!items.is_array() || items.empty()) break;
+        offset += static_cast<int>(items.size());
+        if (offset >= total) break;
+    }
+    ST_LOG_INFO("spotify", "library shows: {}{}", out.size(), filtered ? "" : " (unfiltered walk)");
+    return out;
+}
+
+PodcastShow Api::show(const std::string& uri, const CT& ct) {
+    if (uri.rfind("spotify:show:", 0) != 0) throw ApiError(0, "Spotify show: invalid uri " + uri);
+    const json vars{{"uri", uri}, {"includeContentCapabilityTrait", false}, {"includeEpisodeContentRatingsV2", false}};
+    const json data = query("queryShowMetadataV2", vars, ct);
+    PodcastShow s = parseShow(at(data, "podcastUnionV2"));
+    if (s.id.empty()) throw ApiError(404, "Spotify show not found: " + uri);
+    return s;
+}
+
+// ---- Profiles (spclient user-profile-view/v3, JSON) ----------------------------------------------------------------
+//   /profile/<username>?playlist_limit=0&artist_limit=0&episode_limit=0 -> {uri, name, image_url, followers_count,
+//                                                                          following_count, is_verified, ...}
+//   /profile/<username>/playlists?offset&limit -> {public_playlists:[{uri, name, image_url, followers_count,
+//                                                  owner_name, owner_uri}], total_public_playlists_count}
+// (the web player asks for the protobuf form of the same messages). The total is an estimate (1519 on the first page,
+// 1515 on the second), and rows Spotify won't show are dropped after paging: see parseProfilePlaylists.
+namespace {
+
+std::string percentDecode(std::string_view s) {
+    std::string out;
+    for (size_t i = 0; i < s.size(); ++i) {
+        auto hex = [](char c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1; };
+        if (s[i] == '%' && i + 2 < s.size() && hex(s[i + 1]) >= 0 && hex(s[i + 2]) >= 0) {
+            out.push_back(static_cast<char>(hex(s[i + 1]) * 16 + hex(s[i + 2])));
+            i += 2;
+        } else {
+            out.push_back(s[i]);
+        }
+    }
+    return out;
+}
+
+std::string usernameOf(const std::string& userUri) {
+    const std::string raw = userUri.rfind("spotify:user:", 0) == 0 ? userUri.substr(13) : userUri;
+    return percentDecode(raw);
+}
+
+// image_url is an https URL, or a spotify:image:<hex> / spotify:mosaic:<hex>:<hex>... URI (playlist mosaics).
+std::vector<Image> imageFromUrl(const std::string& u) {
+    if (u.rfind("https://", 0) == 0) return {Image{u, 0, 0}};
+    if (u.rfind("spotify:image:", 0) == 0) return {Image{"https://i.scdn.co/image/" + u.substr(14), 0, 0}};
+    if (u.rfind("spotify:mosaic:", 0) == 0) {
+        std::string ids = u.substr(15);
+        std::erase(ids, ':');
+        return {Image{"https://mosaic.scdn.co/640/" + ids, 640, 640}, Image{"https://mosaic.scdn.co/300/" + ids, 300, 300}};
+    }
+    return {};
+}
+
+int64_t integer64(const json& j, const char* key, int64_t def) {
+    const json& v = at(j, key);
+    return v.is_number_integer() ? v.get<int64_t>() : def;
+}
+
+} // namespace
+
+Profile Api::parseProfile(const json& j) {
+    Profile p;
+    p.id = str(j, "uri");
+    p.name = str(j, "name");
+    p.images = imageFromUrl(str(j, "image_url"));
+    p.followers = integer64(j, "followers_count", -1);
+    p.publicPlaylists = static_cast<int>(integer64(j, "total_public_playlists_count", -1));
+    if (p.name.empty() && p.id.rfind("spotify:user:", 0) == 0) p.name = usernameOf(p.id);
+    return p;
+}
+
+ProfilePlaylists Api::parseProfilePlaylists(const json& j, int offset, int limit) {
+    ProfilePlaylists out;
+    out.total = integer(j, "total_public_playlists_count");
+    const json& items = at(j, "public_playlists");
+    int raw = 0;
+    if (items.is_array()) {
+        raw = static_cast<int>(items.size());
+        for (const auto& it : items) {
+            Playlist p;
+            p.id = str(it, "uri");
+            if (p.id.rfind("spotify:playlist:", 0) != 0) continue;
+            p.name = str(it, "name");
+            p.images = imageFromUrl(str(it, "image_url"));
+            p.ownerName = str(it, "owner_name");
+            const std::string owner = str(it, "owner_uri");
+            if (owner.rfind("spotify:user:", 0) == 0) p.ownerId = usernameOf(owner);
+            p.countKnown = false;
+            out.playlists.push_back(std::move(p));
+        }
+    }
+    // A page covers `limit` positions even when it holds fewer rows (offset 20 limit 20 -> 16 rows; offset 36 repeats
+    // three of them). No total: on until a page comes back empty.
+    if (raw > 0 && (out.total <= 0 || offset + limit < out.total)) out.nextOffset = offset + limit;
+    return out;
+}
+
+Profile Api::profile(const std::string& userUri, const CT& ct) {
+    const std::string user = usernameOf(userUri);
+    if (user.empty()) throw ApiError(0, "Spotify profile: no username");
+    const std::string url = "https://spclient.wg.spotify.com/user-profile-view/v3/profile/" + http::urlEncode(user) +
+                            "?playlist_limit=0&artist_limit=0&episode_limit=0&market=from_token";
+    Profile p = parseProfile(spclient("GET", url, nullptr, ct, 404));
+    if (p.id.empty()) p.id = "spotify:user:" + http::urlEncode(user);
+    return p;
+}
+
+ProfilePlaylists Api::profilePlaylists(const std::string& userUri, int offset, int limit, const CT& ct) {
+    const std::string user = usernameOf(userUri);
+    if (user.empty()) throw ApiError(0, "Spotify profile: no username");
+    const std::string url = "https://spclient.wg.spotify.com/user-profile-view/v3/profile/" + http::urlEncode(user) +
+                            "/playlists?offset=" + std::to_string(offset) + "&limit=" + std::to_string(limit) +
+                            "&market=from_token";
+    return parseProfilePlaylists(spclient("GET", url, nullptr, ct, 404), offset, limit);
 }
 
 ArtistPage Api::artistPage(const std::string& uri, const CT& ct) {
