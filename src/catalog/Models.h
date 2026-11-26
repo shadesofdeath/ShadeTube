@@ -190,6 +190,7 @@ struct SearchResults {
     std::vector<Playlist> playlists;
     std::vector<PodcastShow> shows;
     std::vector<Profile> profiles;
+    std::string topResult;          // Spotify's own top hit (the id of an item in one of the lists), "" = none
 
     bool empty() const {
         return artists.empty() && albums.empty() && tracks.empty() && playlists.empty() && shows.empty() && profiles.empty();

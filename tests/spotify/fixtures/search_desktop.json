@@ -557,6 +557,111 @@
   "users": {
    "items": [],
    "totalCount": 0
+  },
+  "topResultsV2": {
+   "itemsV2": [
+    {
+     "item": {
+      "__typename": "ArtistResponseWrapper",
+      "data": {
+       "__typename": "Artist",
+       "profile": {
+        "name": "Duman",
+        "verified": true
+       },
+       "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh",
+       "visuals": {
+        "avatarImage": {
+         "sources": [
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab6761610000e5eb5eedfda3da66eb4591be4fa7",
+           "width": 640
+          },
+          {
+           "height": 160,
+           "url": "https://i.scdn.co/image/ab6761610000f1785eedfda3da66eb4591be4fa7",
+           "width": 160
+          },
+          {
+           "height": 320,
+           "url": "https://i.scdn.co/image/ab676161000051745eedfda3da66eb4591be4fa7",
+           "width": 320
+          }
+         ]
+        }
+       }
+      }
+     },
+     "matchedFields": []
+    },
+    {
+     "item": {
+      "__typename": "TrackResponseWrapper",
+      "data": {
+       "__typename": "Track",
+       "albumOfTrack": {
+        "coverArt": {
+         "sources": [
+          {
+           "height": 300,
+           "url": "https://i.scdn.co/image/ab67616d00001e028c0559b991acf898adfede08",
+           "width": 300
+          },
+          {
+           "height": 64,
+           "url": "https://i.scdn.co/image/ab67616d000048518c0559b991acf898adfede08",
+           "width": 64
+          },
+          {
+           "height": 640,
+           "url": "https://i.scdn.co/image/ab67616d0000b2738c0559b991acf898adfede08",
+           "width": 640
+          }
+         ]
+        },
+        "id": "5TQ4ZTyFM7FTDpnfSjE54l",
+        "name": "Belki Alışman Lazım",
+        "uri": "spotify:album:5TQ4ZTyFM7FTDpnfSjE54l"
+       },
+       "artists": {
+        "items": [
+         {
+          "profile": {
+           "name": "Duman"
+          },
+          "uri": "spotify:artist:6RTC1abMgBC7Krg6qJQHJh"
+         }
+        ]
+       },
+       "associationsV3": {
+        "audioAssociations": {
+         "totalCount": 0
+        },
+        "videoAssociations": {
+         "totalCount": 1
+        }
+       },
+       "contentRating": {
+        "label": "NONE"
+       },
+       "duration": {
+        "totalMilliseconds": 270280
+       },
+       "id": "4uqlFpMPTKO6uAsX6qvK0l",
+       "trackMediaType": "AUDIO",
+       "name": "Her Şeyi Yak",
+       "playability": {
+        "playable": true,
+        "reason": "PLAYABLE"
+       },
+       "uri": "spotify:track:4uqlFpMPTKO6uAsX6qvK0l"
+      }
+     },
+     "matchedFields": []
+    }
+   ],
+   "featured": []
   }
  }
 }

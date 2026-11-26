@@ -776,6 +776,15 @@ static void testSearchFixtures() {
         CHECK(r.shows.size() == 2);       // episodes are not shows
         CHECK(r.profiles.empty());
         CHECK(!r.empty());
+        // Spotify's top hit: the first topResultsV2 item when it is a kind the lists hold.
+        CHECK(r.topResult == "spotify:artist:6RTC1abMgBC7Krg6qJQHJh");
+        const json episodeOnTop = {
+            {"topResultsV2",
+             {{"itemsV2", json::array({json{{"item", {{"__typename", "EpisodeResponseWrapper"},
+                                                       {"data", {{"__typename", "Episode"}, {"uri", "spotify:episode:x"}}}}}},
+                                       json{{"item", {{"__typename", "ArtistResponseWrapper"},
+                                                       {"data", {{"__typename", "Artist"}, {"uri", "spotify:artist:y"}}}}}}})}}}};
+        CHECK(Api::parseSearch(episodeOnTop).topResult.empty());
         if (r.tracks.size() == 2) CHECK(r.tracks[0].id == "spotify:track:4uqlFpMPTKO6uAsX6qvK0l" && !r.tracks[0].artists.empty());
         if (r.artists.size() == 2) CHECK(r.artists[0].name == "Duman" && !r.artists[0].images.empty());
         if (r.playlists.size() == 2) {
@@ -938,6 +947,8 @@ static void testSearchLive(Api& api, bool anonymous) {
                     sr.tracks.size(), sr.albums.size(), sr.artists.size(), sr.playlists.size(), sr.shows.size(),
                     sr.profiles.size());
         CHECK(!sr.tracks.empty() && !sr.albums.empty() && !sr.artists.empty() && !sr.playlists.empty() && !sr.shows.empty());
+        std::printf("  top result: %s\n", sr.topResult.empty() ? "(none)" : sr.topResult.c_str());
+        CHECK(sr.topResult.rfind("spotify:", 0) == 0);
         if (!sr.shows.empty()) {
             const PodcastShow s = api.show(sr.shows[0].id);
             std::printf("  show %s: name %s, publisher %s, %zu images, notes %zu chars\n", s.id.c_str(),

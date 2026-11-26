@@ -1034,9 +1034,19 @@ constexpr SearchKind kSearchKinds[] = {SearchKind::Tracks,    SearchKind::Albums
 
 } // namespace
 
+// topResultsV2: {itemsV2:[{item:{__typename:"<T>ResponseWrapper", data:{__typename:"<T>", uri, ...}}, matchedFields}],
+// featured:[...]} — the first item is what the web player shows as "Top result". Only a kind the lists hold counts
+// (an episode or a genre on top leaves it empty: the page then picks one itself).
 SearchResults Api::parseSearch(const json& s) {
     SearchResults out;
     for (const SearchKind k : kSearchKinds) collectKind(k, at(s, searchKey(k)), out);
+    const json& top = at(at(s, "topResultsV2"), "itemsV2");
+    if (top.is_array() && !top.empty()) {
+        const json& d = at(at(top[0], "item"), "data");
+        const std::string tn = str(d, "__typename");
+        if (tn == "Artist" || tn == "Track" || tn == "Album" || tn == "Playlist" || tn == "Podcast" || tn == "User")
+            out.topResult = str(d, "uri");
+    }
     return out;
 }
 
