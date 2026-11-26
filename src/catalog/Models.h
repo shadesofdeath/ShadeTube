@@ -48,6 +48,9 @@ struct Track {
                                     // empty everywhere else (not persisted)
     bool recommended = false;       // mixed in by smart shuffle / "Geliştir" (app/SmartShuffle): not part of the
                                     // list it plays with (the player's session keeps it; catalogs never set it)
+    bool queued = false;            // added to the play queue by the user (Player::playNext / enqueue / insertAt), not
+                                    // part of the context it plays in: the queue panel's "Sırada" section (the player's
+                                    // session keeps it; catalogs never set it)
 
     std::string artistLine() const; // "Artist A, Artist B"
 };

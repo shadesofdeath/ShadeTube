@@ -438,7 +438,6 @@
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Détecter les fichiers nouveaux, modifiés et supprimés dans les dossiers",
   "Bilgisayarındaki müziği ekle": "Ajoute la musique de ton ordinateur",
   "Klasörler taranıyor": "Analyse des dossiers",
-  "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Cela peut prendre un moment ; tes titres s'afficheront ici une fois l'analyse terminée.",
   "Şarkı bulunamadı": "Aucun titre trouvé",
   "Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen biçimler: MP3, M4A, AAC, FLAC, WAV ve WMA.": "Aucun fichier audio lisible dans les dossiers ajoutés. Formats pris en charge : MP3, M4A, AAC, FLAC, WAV et WMA.",
   "Çal": "Lire",
@@ -2025,5 +2024,30 @@
   "Sözler güncellendi": "Paroles mises à jour",
   "\"{}\" için LRCLIB'de bulunan sözler. Seçtiğin sözler bu şarkı için hatırlanır; zamanlama ayarı sıfırlanır.": "Paroles trouvées sur LRCLIB pour « {} ». Ton choix est mémorisé pour ce titre et son décalage est remis à zéro.",
   "Otomatik seçime dön": "Revenir au choix automatique",
-  "Sözler yeniden otomatik seçiliyor": "Les paroles sont de nouveau choisies automatiquement"
+  "Sözler yeniden otomatik seçiliyor": "Les paroles sont de nouveau choisies automatiquement",
+  "+ {} şarkı daha": {
+    "one": "+ {} autre titre",
+    "other": "+ {} autres titres"
+  },
+  "Albüm ara": "Rechercher des albums",
+  "Bir şarkı çal ya da şarkıları buraya sürükle.": "Lance un titre ou fais glisser des titres ici.",
+  "Dinlenme": "Écoutes",
+  "Dinlenme ↓": "Écoutes ↓",
+  "Eklenme tarihi": "Date d'ajout",
+  "Sanatçı ara": "Rechercher des artistes",
+  "Sunucu beklenmeyen bir yanıt verdi. Birazdan tekrar dene.": "Le serveur a renvoyé une réponse inattendue. Réessaie dans un instant.",
+  "Sıra boş": "La file d'attente est vide",
+  "Sırada": "Prochains dans la file",
+  "Sırada başka şarkı yok.": "Rien d'autre dans la file.",
+  "Varsayılan sütunlar": "Colonnes par défaut",
+  "{} seçili": {
+    "one": "{} sélectionné",
+    "other": "{} sélectionnés"
+  },
+  "{} öğe": {
+    "one": "{} élément",
+    "other": "{} éléments"
+  },
+  "Çevrimdışısın": "Tu es hors ligne",
+  "Şarkı ara": "Rechercher des titres"
 }

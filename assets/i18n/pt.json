@@ -438,7 +438,6 @@
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Encontrar arquivos novos, alterados e excluídos nas pastas",
   "Bilgisayarındaki müziği ekle": "Adicione as músicas do seu computador",
   "Klasörler taranıyor": "Escaneando as pastas",
-  "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Isso pode levar um tempinho; ao terminar, suas músicas aparecem aqui.",
   "Şarkı bulunamadı": "Nenhuma música encontrada",
   "Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen biçimler: MP3, M4A, AAC, FLAC, WAV ve WMA.": "Não há arquivos de áudio reproduzíveis nas pastas adicionadas. Formatos compatíveis: MP3, M4A, AAC, FLAC, WAV e WMA.",
   "Çal": "Tocar",
@@ -2025,5 +2024,30 @@
   "Sözler güncellendi": "Letra atualizada",
   "\"{}\" için LRCLIB'de bulunan sözler. Seçtiğin sözler bu şarkı için hatırlanır; zamanlama ayarı sıfırlanır.": "Letras que o LRCLIB tem para “{}”. A que você escolher fica salva para esta música e a sincronia é redefinida.",
   "Otomatik seçime dön": "Voltar à escolha automática",
-  "Sözler yeniden otomatik seçiliyor": "A letra volta a ser escolhida automaticamente"
+  "Sözler yeniden otomatik seçiliyor": "A letra volta a ser escolhida automaticamente",
+  "+ {} şarkı daha": {
+    "one": "+ {} música a mais",
+    "other": "+ {} músicas a mais"
+  },
+  "Albüm ara": "Pesquisar álbuns",
+  "Bir şarkı çal ya da şarkıları buraya sürükle.": "Toque uma música ou arraste músicas para cá.",
+  "Dinlenme": "Reproduções",
+  "Dinlenme ↓": "Reproduções ↓",
+  "Eklenme tarihi": "Data de adição",
+  "Sanatçı ara": "Pesquisar artistas",
+  "Sunucu beklenmeyen bir yanıt verdi. Birazdan tekrar dene.": "O servidor deu uma resposta inesperada. Tente de novo daqui a pouco.",
+  "Sıra boş": "A fila está vazia",
+  "Sırada": "A seguir na fila",
+  "Sırada başka şarkı yok.": "Não há mais nada na fila.",
+  "Varsayılan sütunlar": "Colunas padrão",
+  "{} seçili": {
+    "one": "{} selecionada",
+    "other": "{} selecionadas"
+  },
+  "{} öğe": {
+    "one": "{} item",
+    "other": "{} itens"
+  },
+  "Çevrimdışısın": "Você está offline",
+  "Şarkı ara": "Pesquisar músicas"
 }

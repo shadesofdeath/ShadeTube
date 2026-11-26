@@ -134,6 +134,7 @@ add_executable(ShadeTube WIN32
     ThemeStore.cpp ThemeStore.h
     ThemeStudio.cpp ThemeStudio.h
     ThemeStudioUi.cpp
+    TrackColumns.cpp TrackColumns.h
     Updater.cpp Updater.h
     WinShell.cpp WinShell.h
     YearReview.cpp YearReview.h

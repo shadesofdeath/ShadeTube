@@ -438,7 +438,6 @@
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Busca archivos nuevos, modificados y eliminados en las carpetas",
   "Bilgisayarındaki müziği ekle": "Añade la música de tu equipo",
   "Klasörler taranıyor": "Escaneando carpetas",
-  "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Puede tardar un poco; al terminar, tus canciones aparecerán aquí.",
   "Şarkı bulunamadı": "No se han encontrado canciones",
   "Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen biçimler: MP3, M4A, AAC, FLAC, WAV ve WMA.": "Las carpetas añadidas no tienen archivos de audio reproducibles. Formatos compatibles: MP3, M4A, AAC, FLAC, WAV y WMA.",
   "Çal": "Reproducir",
@@ -2025,5 +2024,30 @@
   "Sözler güncellendi": "Letra actualizada",
   "\"{}\" için LRCLIB'de bulunan sözler. Seçtiğin sözler bu şarkı için hatırlanır; zamanlama ayarı sıfırlanır.": "Letras que LRCLIB tiene para «{}». La que elijas se recordará para esta canción y se restablecerá su sincronía.",
   "Otomatik seçime dön": "Volver a la elección automática",
-  "Sözler yeniden otomatik seçiliyor": "La letra vuelve a elegirse automáticamente"
+  "Sözler yeniden otomatik seçiliyor": "La letra vuelve a elegirse automáticamente",
+  "+ {} şarkı daha": {
+    "one": "+ {} canción más",
+    "other": "+ {} canciones más"
+  },
+  "Albüm ara": "Buscar álbumes",
+  "Bir şarkı çal ya da şarkıları buraya sürükle.": "Reproduce una canción o arrastra canciones aquí.",
+  "Dinlenme": "Reproducciones",
+  "Dinlenme ↓": "Reproducciones ↓",
+  "Eklenme tarihi": "Fecha en que se añadió",
+  "Sanatçı ara": "Buscar artistas",
+  "Sunucu beklenmeyen bir yanıt verdi. Birazdan tekrar dene.": "El servidor dio una respuesta inesperada. Vuelve a intentarlo en un momento.",
+  "Sıra boş": "La cola está vacía",
+  "Sırada": "Siguiente en la cola",
+  "Sırada başka şarkı yok.": "No hay nada más en la cola.",
+  "Varsayılan sütunlar": "Columnas predeterminadas",
+  "{} seçili": {
+    "one": "{} seleccionada",
+    "other": "{} seleccionadas"
+  },
+  "{} öğe": {
+    "one": "{} elemento",
+    "other": "{} elementos"
+  },
+  "Çevrimdışısın": "No tienes conexión",
+  "Şarkı ara": "Buscar canciones"
 }

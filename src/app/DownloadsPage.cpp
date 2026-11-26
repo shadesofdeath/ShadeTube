@@ -267,14 +267,16 @@ private:
             if (collectionFilter_.empty()) c->add<SectionHeader>(tr(L"Şarkılar"), std::to_wstring(tracks.size()));
             TrackTable::Options o;
             o.showAdded = false;
+            o.markDownloaded = false;   // every song here is one
             auto* table = c->add<TrackTable>(o);
             table->setTracks(tracks);
             table->onPlay = [tracks](int i) {
                 ctx().player->playContext(tracks, i, {"downloads", tr(L"İndirilenler")});
             };
         } else if (collectionFilter_.empty() && dm.activeCount() == 0) {
-            c->add<MessagePanel>("download", tr(L"Henüz indirilen şarkı yok"),
-                                 tr(L"Bir şarkıya sağ tıklayıp \"İndir\" de; MP3 olarak buraya insin."));
+            emptyState(c, "download", tr(L"Henüz indirilen şarkı yok"),
+                       tr(L"Bir şarkıya sağ tıklayıp \"İndir\" de; MP3 olarak buraya insin."), tr(L"Şarkı ara"),
+                       [] { ctx().router->navigate({RouteKind::Search}); }, "search");
         }
         contentReady();
     }

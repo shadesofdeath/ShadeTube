@@ -36,6 +36,14 @@ void paintEqualizer(gfx::Canvas& c, Widget* owner, const Rect& box, const Color&
         if (auto* w = owner->window()) w->invalidateAfter(equalizer::kFrameMs);
 }
 
+void paintSkeleton(gfx::Canvas& c, Widget* owner, const Rect& r, float radius) {
+    if (r.w <= 0 || r.h <= 0) return;
+    const bool moving = motion::micro();
+    c.skeleton(r, radius, moving ? frame::now() : -1.0);
+    if (moving && owner)
+        if (auto* w = owner->window()) w->invalidateAfter(skeleton::kFrameMs);
+}
+
 void HeartPop::draw(gfx::Canvas& c, const Rect& box, bool liked, std::string_view outline, std::string_view filled,
                     const Color& outlineColor, const Color& fillColor) const {
     const Pose p = pose(liked);

@@ -342,6 +342,7 @@ void Player::playNext(const Track& track) {
         return;
     }
     items_.push_back(track);
+    items_.back().queued = true;   // the user's own pick: the queue panel's "Sırada"
     order_.insert(order_.begin() + pos_ + 1, static_cast<int>(items_.size()) - 1);
     dropPrepared();
     notify();
@@ -356,6 +357,7 @@ void Player::enqueue(const std::vector<Track>& tracks) {
     for (const auto& t : tracks) {
         if (!t.playable) continue;
         items_.push_back(t);
+        items_.back().queued = true;
         order_.push_back(static_cast<int>(items_.size()) - 1);
     }
     notify();
@@ -374,6 +376,7 @@ int Player::insertAt(int orderIndex, const std::vector<Track>& tracks) {
     for (const auto& t : tracks) {
         if (!t.playable || t.name.empty()) continue;
         items_.push_back(t);
+        items_.back().queued = !t.recommended;   // smart shuffle's picks are no user picks
         order_.insert(order_.begin() + at + added, static_cast<int>(items_.size()) - 1);
         ++added;
     }
@@ -1192,6 +1195,7 @@ void Player::saveSession() const {
         json item{{"id", t.id}, {"n", t.name}, {"d", t.durationMs}, {"a", a}, {"al", t.album.name},
                   {"ali", t.album.id}, {"img", imgs}, {"e", t.explicitContent}};
         if (t.recommended) item["rec"] = true;
+        if (t.queued) item["q"] = true;
         items.push_back(std::move(item));
     }
     j["items"] = std::move(items);
@@ -1246,6 +1250,7 @@ void Player::restoreSessionFile() {
         t.album.id = it.value("ali", "");
         t.explicitContent = it.value("e", false);
         t.recommended = it.value("rec", false);
+        t.queued = it.value("q", false);
         for (const auto& a : it.value("a", json::array())) t.artists.push_back({a.value("id", ""), a.value("n", "")});
         for (const auto& im : it.value("img", json::array())) t.album.images.push_back({im.value("u", ""), im.value("w", 0), im.value("w", 0)});
         if (!t.name.empty()) tracks.push_back(std::move(t));

@@ -41,6 +41,9 @@ class LibraryView : public ui::Widget, public DropTarget, public CoverSource, pu
 public:
     enum class Mode { Grid, List };
     static constexpr float kRowH = 64;   // list rows (ListRow's height), 48 DIP artwork
+    // The list row of the density in effect (Ayarlar › Liste yoğunluğu): 64 / 48 DIP, artwork 48 / 36.
+    static float rowH();
+    static float listArt();
 
     LibraryView(Mode mode, float minCell);
     ~LibraryView() override;
@@ -121,6 +124,37 @@ private:
     ui::Anim playHotA_, playPressA_;      // the hot cell's play button: pointer over it / pressed (ui::card::Play)
     int dropHot_ = -1;                    // cell highlighted under dragged songs
     double lastScrollTick_ = 0;
+};
+
+// Izgara / Liste in the Library's toolbar: two icon segments in a hairline pill (the Settings Segmented look: the
+// selected one is the fg.primary pill with the inverse glyph, sliding between them). One Tab stop: Left / Right, Enter
+// / Space switch.
+class ViewToggle : public ui::Widget {
+public:
+    explicit ViewToggle(bool list) : list_(list) { focusable = true; }
+    static constexpr float kW = 74, kH = 32;
+    std::function<void(bool list)> onChange;
+    void setList(bool list);
+    void paint(Canvas& c) override;
+    bool onMouseDown(const ui::MouseEvent& e) override;
+    void onMouseMove(const ui::MouseEvent& e) override;
+    void onMouseLeave() override;
+    LPCWSTR cursor() const override { return IDC_HAND; }
+    bool activatable() const override { return true; }
+    bool onActivate() override;
+    bool onKeyDown(const ui::KeyEvent& e) override;
+    ui::FocusShape focusShape() const override { return ui::FocusShape::Pill; }
+    Rect focusRect() const override { return box(); }
+    std::wstring tooltip() const override;
+
+private:
+    Rect box() const { return rect().center(kW, kH); }
+    int segmentAt(float x) const;
+    void pick(bool list);
+    bool list_;
+    ui::HoverFade hover_;
+    ui::Anim slide_;
+    bool slideInit_ = false;
 };
 
 // Kitaplık's "Son çalınanlar" sources: when each collection was last played here (player contexts) and the newest

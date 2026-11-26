@@ -438,7 +438,6 @@
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Neue, geänderte und gelöschte Dateien in den Ordnern finden",
   "Bilgisayarındaki müziği ekle": "Füge Musik von deinem PC hinzu",
   "Klasörler taranıyor": "Ordner werden gescannt",
-  "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Das kann etwas dauern; danach erscheinen deine Songs hier.",
   "Şarkı bulunamadı": "Keine Songs gefunden",
   "Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen biçimler: MP3, M4A, AAC, FLAC, WAV ve WMA.": "In den hinzugefügten Ordnern gibt es keine abspielbaren Audiodateien. Unterstützte Formate: MP3, M4A, AAC, FLAC, WAV und WMA.",
   "Çal": "Abspielen",
@@ -2025,5 +2024,30 @@
   "Sözler güncellendi": "Songtext aktualisiert",
   "\"{}\" için LRCLIB'de bulunan sözler. Seçtiğin sözler bu şarkı için hatırlanır; zamanlama ayarı sıfırlanır.": "Songtexte, die LRCLIB für „{}“ hat. Deine Auswahl wird für diesen Song gespeichert, die Zeitkorrektur wird zurückgesetzt.",
   "Otomatik seçime dön": "Zurück zur Automatik",
-  "Sözler yeniden otomatik seçiliyor": "Der Songtext wird wieder automatisch gewählt"
+  "Sözler yeniden otomatik seçiliyor": "Der Songtext wird wieder automatisch gewählt",
+  "+ {} şarkı daha": {
+    "one": "+ {} weiterer Song",
+    "other": "+ {} weitere Songs"
+  },
+  "Albüm ara": "Alben suchen",
+  "Bir şarkı çal ya da şarkıları buraya sürükle.": "Spiel einen Song ab oder zieh Songs hierher.",
+  "Dinlenme": "Wiedergaben",
+  "Dinlenme ↓": "Wiedergaben ↓",
+  "Eklenme tarihi": "Hinzugefügt am",
+  "Sanatçı ara": "Künstler suchen",
+  "Sunucu beklenmeyen bir yanıt verdi. Birazdan tekrar dene.": "Der Server hat unerwartet geantwortet. Versuch es gleich noch einmal.",
+  "Sıra boş": "Die Warteschlange ist leer",
+  "Sırada": "Als Nächstes in der Warteschlange",
+  "Sırada başka şarkı yok.": "Sonst ist nichts in der Warteschlange.",
+  "Varsayılan sütunlar": "Standardspalten",
+  "{} seçili": {
+    "one": "{} ausgewählt",
+    "other": "{} ausgewählt"
+  },
+  "{} öğe": {
+    "one": "{} Eintrag",
+    "other": "{} Einträge"
+  },
+  "Çevrimdışısın": "Du bist offline",
+  "Şarkı ara": "Songs suchen"
 }

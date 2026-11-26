@@ -326,25 +326,25 @@ public:
 };
 
 // Loading placeholder in the RowList geometry.
-class SkeletonRows : public ui::Widget {
+class StationSkeleton : public ui::Widget {
 public:
-    explicit SkeletonRows(int n) : n_(n) { hitTestVisible = false; }
+    explicit StationSkeleton(int n) : n_(n) { hitTestVisible = false; }
     float preferredHeight(float w) override {
         const int cols = std::min(2, RowList::columnsFor(w));
         return std::ceil(static_cast<float>(n_) / static_cast<float>(cols)) * kRowH;
     }
     void paint(Canvas& c) override {
         const Rect r = rect();
-        const double now = ui::frame::now();
         const int cols = std::min(2, RowList::columnsFor(r.w));
         const float cw = (r.w - kRowGap * static_cast<float>(cols - 1)) / static_cast<float>(cols);
         for (int i = 0; i < n_; ++i) {
             const float x = r.x + static_cast<float>(i % cols) * (cw + kRowGap), y = r.y + static_cast<float>(i / cols) * kRowH;
-            c.skeleton({x + 8, y + 10, 44, 44}, gfx::radii().art, now);
-            c.skeleton({x + 66, y + 18, std::min(cw - 120, 200.f - static_cast<float>(i % 3) * 36.f), 12}, gfx::radii().badge, now);
-            c.skeleton({x + 66, y + 38, 110, 10}, gfx::radii().badge, now);
+            // The shared placeholder (ui::paintSkeleton: one band across the window, still with reduced motion).
+            ui::paintSkeleton(c, this, {x + 8, y + 10, 44, 44}, gfx::radii().art);
+            ui::paintSkeleton(c, this, {x + 66, y + 18, std::min(cw - 120, 200.f - static_cast<float>(i % 3) * 36.f), 12},
+                              gfx::radii().badge);
+            ui::paintSkeleton(c, this, {x + 66, y + 38, 110, 10}, gfx::radii().badge);
         }
-        ui::frame::requestNext();
     }
 
 private:
@@ -937,7 +937,7 @@ private:
                      std::function<void()> retry) {
         switch (ls.phase) {
         case ListState::Phase::Idle:
-        case ListState::Phase::Loading: sec->add<SkeletonRows>(maxRows); break;
+        case ListState::Phase::Loading: sec->add<StationSkeleton>(maxRows); break;
         case ListState::Phase::Error: sec->add<InlineError>(ls.error, std::move(retry)); break;
         case ListState::Phase::Ready:
             if (ls.stations.empty()) {
@@ -1161,7 +1161,7 @@ private:
 
     void buildGenres() {
         if (genres_.empty() && !genresFailed_) {
-            body_->add<SkeletonRows>(6);
+            body_->add<StationSkeleton>(6);
             async(
                 Priority::High, life_.ref(), [cts = cts_] { return radio::Client::shared().tags(120, cts->token()); },
                 [this](Result<std::vector<radio::Tag>> r) {
@@ -1271,7 +1271,7 @@ private:
         }
         switch (list_.phase) {
         case ListState::Phase::Idle:
-        case ListState::Phase::Loading: body_->add<SkeletonRows>(12); return;
+        case ListState::Phase::Loading: body_->add<StationSkeleton>(12); return;
         case ListState::Phase::Error:
             body_->add<MessagePanel>("offline", tr(L"İstasyonlar yüklenemedi"), list_.error, tr(L"Tekrar dene"), [this] {
                 Dispatcher::post([this, ref = subs_.ref()] {

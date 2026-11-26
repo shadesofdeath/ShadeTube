@@ -5,10 +5,25 @@
 #include "gfx/Text.h"
 #include "gfx/Types.h"
 
+#include <algorithm>
+#include <cmath>
 #include <string_view>
 #include <vector>
 
 namespace st::gfx {
+
+// Skeleton shimmer timing: one soft band crosses the window in kSkeletonSweepMs, then rests kSkeletonRestMs.
+inline constexpr double kSkeletonSweepMs = 1400, kSkeletonRestMs = 500;
+// The band's center (window DIPs, x) at `nowMs` for a window `width` DIPs wide; far left of 0 while resting.
+// `bandW` receives its width (30 % of the window, 240..520 DIP). Pure (lists_test).
+inline float skeletonBand(double nowMs, float width, float* bandW = nullptr) {
+    const float w = std::clamp(width * 0.3f, 240.f, 520.f);
+    if (bandW) *bandW = w;
+    const double t = std::fmod(std::max(0.0, nowMs), kSkeletonSweepMs + kSkeletonRestMs);
+    if (t >= kSkeletonSweepMs) return -w * 2.f;   // resting: left of the window
+    const float u = static_cast<float>(t / kSkeletonSweepMs);
+    return -w * 0.5f + (width + w) * u;   // from just left of the window to just past its right edge, linear
+}
 
 class Canvas {
 public:
@@ -78,7 +93,9 @@ public:
     // Draws a bitmap covering r (center-crop), clipped to a rounded rect / circle.
     void image(ID2D1Bitmap1* bmp, const Rect& r, float radius = 0, float opacity = 1.f);
     void imageCircle(ID2D1Bitmap1* bmp, const Rect& r, float opacity = 1.f);
-    // Skeleton shimmer block (tokens: 1400 ms sweep).
+    // Skeleton block: skeleton.base, plus the shimmer band at `nowMs` (< 0: static, reduced motion). The band lives in
+    // window space (skeletonBand), so every block on screen shimmers in step. Callers in the app use
+    // ui::paintSkeleton (gate + repaint pacing).
     void skeleton(const Rect& r, float radius, double nowMs);
 
     // --- effects --------------------------------------------------------------------------------

@@ -35,6 +35,20 @@ All notable changes to ShadeTube, newest first.
   against the song's, synced or plain, and a preview, under a search you can edit. Or use Spotify's lyrics, load your
   own .lrc / .txt file, or turn lyrics off for that song. ShadeTube remembers your pick for the song, and you can go
   back to the automatic choice at any time.
+- **Redesigned song lists**: hovering a song slides in "add to queue" and "more" next to the heart without moving
+  anything; click a column header to sort (the sort menu follows), right-click it to show or hide the album, date added
+  and play count columns; columns give way gracefully as the window narrows; the header stays at the top while you
+  scroll. Selecting several songs shows one clean block with check boxes and a count, Shift + arrows extend it and
+  Escape clears it. The playing song is easier to spot, and the explicit, downloaded, recommended, blocked and local
+  marks share one look everywhere. Dragging songs shows a small card with the cover and how many songs come along.
+- **A clearer queue**: "Now playing" with its progress, then the songs you queued yourself ("Next in queue") apart from
+  what plays next from the album or playlist. Remove a song with the × that appears on hover, drag a song and it
+  follows the pointer, and save or clear the queue from its header.
+- **A tidier Library**: one toolbar with the search, how many items show, the sort and a grid / list switch; list rows
+  follow the compact density.
+- **Loading, empty and error states everywhere**: soft placeholder shapes that shimmer together while pages load (still
+  with reduced motion), friendly empty pages with one useful action, and clear error and offline messages with a retry
+  button.
 
 ## 0.10.0 — 2026-11-23
 

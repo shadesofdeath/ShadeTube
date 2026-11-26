@@ -4,6 +4,7 @@
 
 #include "app/AppContext.h"
 #include "app/Blacklist.h"
+#include "app/Components.h"
 #include "app/InternetRadio.h"
 #include "app/LocalLibrary.h"
 #include "app/SettingsWidgets.h"
@@ -390,17 +391,10 @@ gfx::Text& badgeText() {
 }
 } // namespace
 
-float badgeWidth() { return std::ceil(badgeText().measure().w) + 16 + 6; }
+// The shared accent badge (app/Components badge::): outline + sparkle + "ÖNERİLEN".
+float badgeWidth() { return badge::width(badgeText(), true); }
 
-float drawBadge(gfx::Canvas& c, float x, float cy) {
-    const auto& acc = gfx::accent();
-    const float w = badgeWidth();
-    const gfx::Rect r{x, std::round(cy - 7), w, 14};
-    c.fillRounded(r, gfx::radii().badge, acc.tint12);
-    c.icon("sparkle", {r.x + 5, r.cy() - 4, 8, 8}, acc.base);
-    c.text(badgeText(), {r.x + 16, r.y, w - 16, r.h}, acc.base, gfx::VAlign::Center);
-    return w;
-}
+float drawBadge(gfx::Canvas& c, float x, float cy) { return badge::draw(c, x, cy, badgeText(), badge::Tone::Accent, "sparkle"); }
 
 } // namespace st::app::smartshuffle
 
