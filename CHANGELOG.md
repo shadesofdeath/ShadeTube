@@ -2,6 +2,20 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.11.0 — unreleased
+
+- **A new artist page**: the artist's wide header photo behind the name, verified badge, monthly listeners and
+  followers, and play, shuffle, follow, radio and block side by side. Popular songs (five, or ten with "Show more") sit
+  next to the artist's own pick and the newest release. The discography switches between popular releases, albums,
+  singles and EPs, compilations and "appears on" with chips, and "See all" opens the whole group as a grid you can sort
+  by newest, oldest or name. Below: fans also like, playlists featuring the artist, and an About card with the
+  biography (from Wikipedia without Spotify), top cities, genres and links to the artist's website and social profiles.
+- **A new search**: a top result card in the artwork's colors beside the top songs, then a row per kind of result, with
+  chips to show one kind. Results update as you type without flashing empty (the previous results stay dimmed until the
+  new ones arrive), and typing back shows earlier answers at once. Move through the results with the arrow keys, Enter
+  plays or opens, Ctrl+Tab switches the chips. Recent searches now remember the artists, albums and songs you opened,
+  with their covers.
+
 ## 0.10.0 — 2026-11-23
 
 - **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays
