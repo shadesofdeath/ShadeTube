@@ -1,6 +1,7 @@
 // Yeni çıkanlar: new releases of the artists the user follows on Spotify (see app/Social.h). The refresh service
 // (Spotify's "What's New" feed + the latest releases of the artists the user plays most, cached on disk, at most every
 // few hours, backing off on HTTP 429), the page, the Home shelf, the sidebar badge and the notifications.
+#include "app/Accounts.h"
 #include "app/NewReleases.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -53,7 +54,8 @@ Service& svc() {
     return s;
 }
 
-std::filesystem::path storeFile() { return paths::appData() / L"new-releases.json"; }
+// The active Spotify account's (app/Accounts): every account keeps its own releases, seen state and back-off.
+std::filesystem::path storeFile() { return accounts::file(L"new-releases.json"); }
 
 void notifyListeners() {
     auto& s = svc();
@@ -450,6 +452,22 @@ void initNewReleases() {
         if (s.cancel) s.cancel->cancel();
         s.life.renew();
         if (!s.store.user.empty()) releases::save(s.store, storeFile());
+    });
+    // Another Spotify account: what was fetched for this one is saved in its folder (a refresh still running is dropped,
+    // its answer was for this account), then the other account's releases come from its own file.
+    ctx().accountLeaveHooks.push_back([] {
+        auto& s = svc();
+        if (s.cancel) s.cancel->cancel();
+        s.life.renew();
+        s.inFlight = false;
+        if (!s.store.user.empty()) releases::save(s.store, storeFile());
+    });
+    ctx().accountEnterHooks.push_back([] {
+        auto& s = svc();
+        s.store = releases::load(storeFile());
+        s.error.clear();
+        s.readyAt = steadyMs() + kStartDelayMs;
+        notifyListeners();
     });
     // Logging in / out changes whose releases these are (badge, Home shelf).
     static Lifetime sessionLife;

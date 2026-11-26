@@ -1743,5 +1743,22 @@
   "Video penceresi açılamadı.": "Jendela video tidak dapat dibuka.",
   "Video penceresinde aç": "Buka di jendela video",
   "Video yükleniyor…": "Memuat video…",
-  "Şu an bir şarkı çalmıyor": "Tidak ada yang diputar saat ini"
+  "Şu an bir şarkı çalmıyor": "Tidak ada yang diputar saat ini",
+  "{} hesabına geçildi": "Beralih ke {}",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "Tidak bisa beralih ke {}. Sesinya mungkin sudah berakhir: masuk lagi di Setelan.",
+  "{} hesabından çıkış yapıldı": "Keluar dari {}",
+  "Hesap ekle…": "Tambah akun…",
+  "Hesapları yönet": "Kelola akun",
+  "Bu PC'de oturumu açık": "Masuk di PC ini",
+  "Geç": "Beralih",
+  "Bu PC'deki diğer hesaplar": "Akun lain di PC ini",
+  "Başka bir hesap ekle": "Tambah akun lain",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "Beralih antarakun tanpa masuk lagi; musik dan antrean tetap diputar. Setiap akun punya pustaka, statistik dengar, daftar blokir, dan rilisan barunya sendiri; setelan, tema, unduhan, dan file lokal dipakai bersama.",
+  "Hesap ekle": "Tambah akun",
+  "{} hesabına geçiliyor…": "Beralih ke {}…",
+  "Hesaplar": "Akun",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Tidak bisa terhubung ke Spotify. Coba lagi sebentar lagi.",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Daftar milik akun Spotify lain: disinkronkan saat kamu beralih ke akun itu",
+  "Hesaba geç: {}": "Ganti akun: {}",
+  "Spotify hesabı ekle": "Tambah akun Spotify"
 }

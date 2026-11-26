@@ -1922,5 +1922,22 @@
   "Video penceresi açılamadı.": "The video window couldn't be opened.",
   "Video penceresinde aç": "Open in the video window",
   "Video yükleniyor…": "Loading video…",
-  "Şu an bir şarkı çalmıyor": "Nothing is playing right now"
+  "Şu an bir şarkı çalmıyor": "Nothing is playing right now",
+  "{} hesabına geçildi": "Switched to {}",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "Couldn't switch to {}. Its session may have expired: sign in again in Settings.",
+  "{} hesabından çıkış yapıldı": "Logged out of {}",
+  "Hesap ekle…": "Add account…",
+  "Hesapları yönet": "Manage accounts",
+  "Bu PC'de oturumu açık": "Signed in on this PC",
+  "Geç": "Switch",
+  "Bu PC'deki diğer hesaplar": "Other accounts on this PC",
+  "Başka bir hesap ekle": "Add another account",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "Switch between accounts without signing in again; the music and the queue keep playing. Each account keeps its own library, listening stats, blocklist and new releases; settings, themes, downloads and local files are shared.",
+  "Hesap ekle": "Add account",
+  "{} hesabına geçiliyor…": "Switching to {}…",
+  "Hesaplar": "Accounts",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Couldn't connect to Spotify. Try again in a moment.",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Another Spotify account's list: syncs when you switch to that account",
+  "Hesaba geç: {}": "Switch account: {}",
+  "Spotify hesabı ekle": "Add a Spotify account"
 }

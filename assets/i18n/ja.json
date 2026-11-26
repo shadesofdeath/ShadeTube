@@ -1743,5 +1743,22 @@
   "Video penceresi açılamadı.": "動画ウィンドウを開けませんでした。",
   "Video penceresinde aç": "動画ウィンドウで開く",
   "Video yükleniyor…": "動画を読み込み中…",
-  "Şu an bir şarkı çalmıyor": "現在再生中の曲はありません"
+  "Şu an bir şarkı çalmıyor": "現在再生中の曲はありません",
+  "{} hesabına geçildi": "{} に切り替えました",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "{} に切り替えられませんでした。セッションの有効期限が切れている可能性があります。設定から再度ログインしてください。",
+  "{} hesabından çıkış yapıldı": "{} からログアウトしました",
+  "Hesap ekle…": "アカウントを追加…",
+  "Hesapları yönet": "アカウントを管理",
+  "Bu PC'de oturumu açık": "この PC でログイン中",
+  "Geç": "切り替え",
+  "Bu PC'deki diğer hesaplar": "この PC のほかのアカウント",
+  "Başka bir hesap ekle": "別のアカウントを追加",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "再ログインせずにアカウントを切り替えられます。再生中の音楽とキューはそのまま続きます。ライブラリ、再生統計、ブロックリスト、新作はアカウントごとに分かれ、設定、テーマ、ダウンロード、ローカルファイルは共通です。",
+  "Hesap ekle": "アカウントを追加",
+  "{} hesabına geçiliyor…": "{} に切り替え中…",
+  "Hesaplar": "アカウント",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Spotify に接続できませんでした。しばらくしてからもう一度お試しください。",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "別の Spotify アカウントのリストです。そのアカウントに切り替えると同期されます",
+  "Hesaba geç: {}": "アカウントを切り替え: {}",
+  "Spotify hesabı ekle": "Spotify アカウントを追加"
 }

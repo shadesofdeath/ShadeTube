@@ -1922,5 +1922,22 @@
   "Video penceresi açılamadı.": "Das Videofenster konnte nicht geöffnet werden.",
   "Video penceresinde aç": "Im Videofenster öffnen",
   "Video yükleniyor…": "Video wird geladen…",
-  "Şu an bir şarkı çalmıyor": "Gerade läuft nichts"
+  "Şu an bir şarkı çalmıyor": "Gerade läuft nichts",
+  "{} hesabına geçildi": "Zu {} gewechselt",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "Wechsel zu {} fehlgeschlagen. Die Sitzung ist vielleicht abgelaufen: Melde dich in den Einstellungen erneut an.",
+  "{} hesabından çıkış yapıldı": "Von {} abgemeldet",
+  "Hesap ekle…": "Konto hinzufügen…",
+  "Hesapları yönet": "Konten verwalten",
+  "Bu PC'de oturumu açık": "Auf diesem PC angemeldet",
+  "Geç": "Wechseln",
+  "Bu PC'deki diğer hesaplar": "Weitere Konten auf diesem PC",
+  "Başka bir hesap ekle": "Weiteres Konto hinzufügen",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "Wechsle zwischen Konten, ohne dich neu anzumelden; Musik und Warteschlange laufen weiter. Jedes Konto hat eigene Mediathek, Hörstatistik, Sperrliste und Neuerscheinungen; Einstellungen, Designs, Downloads und lokale Dateien sind gemeinsam.",
+  "Hesap ekle": "Konto hinzufügen",
+  "{} hesabına geçiliyor…": "Wechsle zu {}…",
+  "Hesaplar": "Konten",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Verbindung mit Spotify fehlgeschlagen. Versuche es gleich noch einmal.",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Liste eines anderen Spotify-Kontos: wird synchronisiert, sobald du zu diesem Konto wechselst",
+  "Hesaba geç: {}": "Konto wechseln: {}",
+  "Spotify hesabı ekle": "Spotify-Konto hinzufügen"
 }

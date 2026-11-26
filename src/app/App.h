@@ -73,6 +73,7 @@ private:
     void wirePlayer();
     void wireSession();
     void startLogin();
+    void onAccountSwitched();    // the active Spotify account changed (app/Accounts)
     void syncAccent(const catalog::Track& t);
     void showMatchPicker(const catalog::Track& t);
     bool handleKey(const ui::KeyEvent& e);

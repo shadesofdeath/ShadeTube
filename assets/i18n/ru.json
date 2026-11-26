@@ -2081,5 +2081,22 @@
   "Video penceresi açılamadı.": "Не удалось открыть окно видео.",
   "Video penceresinde aç": "Открыть в окне видео",
   "Video yükleniyor…": "Загрузка видео…",
-  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет"
+  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет",
+  "{} hesabına geçildi": "Аккаунт переключён: {}",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "Не удалось переключиться на {}. Возможно, сеанс истёк: войди снова в настройках.",
+  "{} hesabından çıkış yapıldı": "Выполнен выход из аккаунта {}",
+  "Hesap ekle…": "Добавить аккаунт…",
+  "Hesapları yönet": "Управление аккаунтами",
+  "Bu PC'de oturumu açık": "Вход выполнен на этом ПК",
+  "Geç": "Переключить",
+  "Bu PC'deki diğer hesaplar": "Другие аккаунты на этом ПК",
+  "Başka bir hesap ekle": "Добавить ещё один аккаунт",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "Переключайся между аккаунтами без повторного входа: музыка и очередь продолжают играть. У каждого аккаунта своя медиатека, статистика прослушиваний, чёрный список и новинки; настройки, темы, загрузки и локальные файлы общие.",
+  "Hesap ekle": "Добавить аккаунт",
+  "{} hesabına geçiliyor…": "Переключение на {}…",
+  "Hesaplar": "Аккаунты",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Не удалось подключиться к Spotify. Попробуй ещё раз чуть позже.",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Список другого аккаунта Spotify: синхронизируется, когда переключишься на этот аккаунт",
+  "Hesaba geç: {}": "Сменить аккаунт: {}",
+  "Spotify hesabı ekle": "Добавить аккаунт Spotify"
 }

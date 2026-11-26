@@ -1,5 +1,6 @@
 #include "app/Shell.h"
 
+#include "app/Accounts.h"
 #include "app/Blacklist.h"
 #include "app/Commands.h"
 #include "app/ConnectScreen.h"
@@ -59,6 +60,8 @@ TitleBar::TitleBar() {
     friends_->setTooltip(tr(L"Arkadaş etkinliği"));
     friends_->onClick = [] { commands::run("friend-activity"); };
     friends_->setVisible(false);
+    // "SPOTIFY · <NAME>": a click opens the account menu (switch / add / sign out).
+    account_ = add<accounts::AccountChip>();
 
     min_ = add<Button>(ButtonKind::Caption, L"", "minimize");
     max_ = add<Button>(ButtonKind::Caption, L"", "maximize");
@@ -74,6 +77,7 @@ void TitleBar::setNowPlayingMode(bool on) {
     collapse_->setVisible(on);
     back_->setVisible(!on);
     forward_->setVisible(!on);
+    account_->setVisible(!on);
     requestLayout();
 }
 
@@ -86,6 +90,10 @@ void TitleBar::layout() {
     back_->setRect({130, 8, 24, 24});
     forward_->setRect({156, 8, 24, 24});
     collapse_->setRect({8, 4, collapse_->naturalWidth(), 32});
+    // Where the source tag was painted (x 196), up to the friend activity button.
+    auto* chip = static_cast<accounts::AccountChip*>(account_);
+    const float maxW = std::max(0.f, r.w - 8 - 120 - 12 - 28 - 16 - 188);
+    account_->setRect({188, 6, std::min(chip->naturalWidth(), maxW), 28});
 }
 
 void TitleBar::paint(Canvas& c) {
@@ -105,8 +113,7 @@ void TitleBar::paint(Canvas& c) {
                                   Color::rgb(winshell::kLogoAccent), accent().base);
         c.text(L"ShadeTube", type::body.withSize(13).withWeight(700), {r.x + 42, r.y, 90, r.h}, col.fgPrimary,
                gfx::TextAlign::Leading, gfx::VAlign::Center);
-        const std::wstring label = source::sourceLabel();
-        c.text(label, type::monoLabel, {r.x + 196, r.y, 400, r.h}, col.fgTertiary, gfx::TextAlign::Leading, gfx::VAlign::Center);
+        // The source tag ("SPOTIFY · <NAME>") is the account chip, a child (app/Accounts).
     } else {
         std::wstring label = tr(L"ŞİMDİ ÇALIYOR");
         if (auto* p = ctx().player; p && !p->context().name.empty()) label += L" · " + toUpperTr(p->context().name);

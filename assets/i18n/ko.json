@@ -1743,5 +1743,22 @@
   "Video penceresi açılamadı.": "동영상 창을 열 수 없습니다.",
   "Video penceresinde aç": "동영상 창에서 열기",
   "Video yükleniyor…": "동영상 불러오는 중…",
-  "Şu an bir şarkı çalmıyor": "지금 재생 중인 곡이 없습니다"
+  "Şu an bir şarkı çalmıyor": "지금 재생 중인 곡이 없습니다",
+  "{} hesabına geçildi": "{} 계정으로 전환했어요",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "{} 계정으로 전환하지 못했어요. 세션이 만료되었을 수 있어요. 설정에서 다시 로그인하세요.",
+  "{} hesabından çıkış yapıldı": "{} 계정에서 로그아웃했어요",
+  "Hesap ekle…": "계정 추가…",
+  "Hesapları yönet": "계정 관리",
+  "Bu PC'de oturumu açık": "이 PC에서 로그인됨",
+  "Geç": "전환",
+  "Bu PC'deki diğer hesaplar": "이 PC의 다른 계정",
+  "Başka bir hesap ekle": "다른 계정 추가",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "다시 로그인하지 않고 계정을 전환할 수 있어요. 재생 중인 음악과 대기열은 그대로 이어져요. 보관함, 감상 통계, 차단 목록, 새 발매는 계정마다 따로 저장되고 설정, 테마, 다운로드, 로컬 파일은 함께 써요.",
+  "Hesap ekle": "계정 추가",
+  "{} hesabına geçiliyor…": "{} 계정으로 전환하는 중…",
+  "Hesaplar": "계정",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Spotify에 연결하지 못했어요. 잠시 후 다시 시도하세요.",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "다른 Spotify 계정의 목록이에요. 그 계정으로 전환하면 동기화돼요",
+  "Hesaba geç: {}": "계정 전환: {}",
+  "Spotify hesabı ekle": "Spotify 계정 추가"
 }

@@ -134,7 +134,7 @@ struct AppContext {
     std::function<void()> openMiniPlayer;
     std::function<void(const catalog::Track&)> showMatchPicker;
     std::function<void()> startSpotifyLogin;    // opens the WebView2 login window
-    std::function<void()> logoutSpotify;        // clears the session and returns to the connect screen
+    std::function<void()> logoutSpotify;        // signs the active account out (another one takes over, else the connect screen)
     std::function<void(bool)> showConnect;      // toggles the full-window Spotify connect overlay
     std::function<void()> syncDiscord;          // re-apply Settings (enabled / app id) + the playing track
     std::function<void()> applyTheme;           // re-resolve the theme mode (+ Windows app mode) and switch live
@@ -160,6 +160,10 @@ struct AppContext {
     std::vector<std::function<void(const catalog::Track&)>> trackChangedHooks; // a new track started
     std::vector<std::function<void()>> housekeepingHooks;                      // every ~2 s (+ periodic saves)
     std::vector<std::function<void()>> persistHooks;                           // save everything (exit)
+    // Several Spotify accounts (app/Accounts): right before the active account changes (save what belongs to it to
+    // accounts::dataDir(), drop work in flight for it) and right after (load the new account's files from there).
+    std::vector<std::function<void()>> accountLeaveHooks;
+    std::vector<std::function<void()>> accountEnterHooks;
     // Offline playback: asked after the downloads, first non-empty path wins (e.g. the local music library).
     std::vector<std::function<std::wstring(const std::string& trackId)>> localFileResolvers;
     // Windows of features (the video window, app/VideoMode), rendered by App's loop like the main window and the mini

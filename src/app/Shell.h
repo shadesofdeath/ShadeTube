@@ -47,6 +47,7 @@ private:
     ui::Button *back_, *forward_, *collapse_;
     ui::Button* friends_;   // "Arkadaş etkinliği" (only with a Spotify session)
     ui::Button *min_, *max_, *close_;
+    ui::Widget* account_;   // the source tag as the account menu's button (app/Accounts: AccountChip)
     bool nowPlaying_ = false;
 };
 
