@@ -2,7 +2,8 @@
 // Full-screen karaoke lyrics (ctx().toggleLyricsFullscreen): a modal overlay over the whole main window on Now Playing's
 // drifting backdrop in the cover's colours, large centered lines, the active one filled with the accent as it is sung (per word when
 // the lyrics have word times, else across the line until the next one starts), a thin progress bar and the track.
-// The top controls (lyrics source, translation, timing offset −/+, close) fade out while the mouse rests. Esc / F
+// The top controls (lyrics source, "Yanlış sözler mi?", translation, timing offset −/+, share, close) fade out while
+// the mouse rests. Esc / F
 // close it, − / + shift the timing, a click on a line (or its translation) seeks there, the wheel scrolls for a
 // moment. Everything it holds (backdrop, lyrics, text layouts) goes with it when it closes.
 #include "app/Components.h"
@@ -77,6 +78,9 @@ private:
     ui::Widget* drag_;                   // the top strip moves the window (the title bar is covered)
     ui::Button *translate_, *earlier_, *offset_, *later_, *close_;
     ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
+    ui::Button* picker_;                 // "Yanlış sözler mi?" (app/LyricsPicker)
+    lyrics::Choice pick_;                // the user's pick for this track
+    Lifetime subs_;                      // the lyrics-choice subscription
 
     CoverBackdrop backdrop_;             // Now Playing's drifting cover colours (app/CoverBackdrop)
     gfx::Text title_, artist_, time_, label_;

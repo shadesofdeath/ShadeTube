@@ -49,6 +49,8 @@ add_executable(ShadeTube WIN32
     ConnectScreen.cpp ConnectScreen.h
     CoverBackdrop.cpp CoverBackdrop.h
     CoverGradient.cpp CoverGradient.h
+    Credits.cpp Credits.h
+    CreditsUi.cpp CreditsUi.h
     DiscordRpc.cpp DiscordRpc.h
     Display.cpp Display.h
     Downloads.cpp Downloads.h
@@ -71,6 +73,7 @@ add_executable(ShadeTube WIN32
     LocalLibrary.cpp LocalLibrary.h
     LoginWindow.cpp LoginWindow.h
     LyricsFullscreen.cpp LyricsFullscreen.h
+    LyricsPicker.cpp LyricsPicker.h
     LyricsService.cpp LyricsService.h
     LyricsShare.cpp LyricsShare.h
     MiniLayout.cpp MiniLayout.h

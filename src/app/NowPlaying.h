@@ -7,9 +7,10 @@
 //    wave seek row and the player bar's thin outline controls (shuffle · prev · play · next · repeat), then sleep
 //    timer, speed, listen together, volume knob and mini player.
 //  - Tabs with a sliding indicator: Şarkı sözleri (a station: Canlı yayın, the titles it announced; none for a podcast
-//    episode), Sıradaki (the queue panel) and Hakkında (album and artist from the catalog, an episode's show notes, a
-//    station's details). The toolbar of the open tab sits at the right end of the tab row (lyrics: Çeviri, the timing
-//    −/+, full screen, share); features add their buttons in buildToolbar().
+//    episode), Sıradaki (the queue panel) and Hakkında (album and artist from the catalog, the song's credits, an
+//    episode's show notes, a station's details). The toolbar of the open tab sits at the right end of the tab row
+//    (lyrics: Çeviri, the timing −/+, full screen, share); features add their buttons in buildToolbar(). The lyrics
+//    header offers "Yanlış sözler mi?" (app/LyricsPicker).
 //  - Wide windows: the track on the left, the tabs on the right. Narrow / short ones: a compact track header above the
 //    tabs.
 // A track change slides and fades the cover and the titles like the player bar (TrackSwap); lyrics and details fade in
@@ -17,6 +18,7 @@
 #include "app/Components.h"
 #include "app/CoverBackdrop.h"
 #include "app/LyricsService.h"
+#include "catalog/Credits.h"
 #include "lyrics/Lyrics.h"
 #include "ui/Anim.h"
 #include "ui/Controls.h"
@@ -130,7 +132,8 @@ private:
     bool likedWas_ = false;              // change of the same track plays the like feedback
 
     // ---- state ----------------------------------------------------------------------------------------------------
-    Lifetime life_;                      // per track (lyrics / details requests)
+    Lifetime life_;                      // per track (details / credits requests)
+    Lifetime lyricsLife_;                // the lyrics request (also renewed when the lyrics choice changes)
     Lifetime subs_;                      // library / listen-together subscriptions (the view's lifetime)
     std::string trackId_;
     Tab chosen_ = Tab::Lyrics;           // what the user picked (kept across tracks); effectiveTab() may differ
@@ -164,6 +167,9 @@ private:
     LyricsState state_ = LyricsState::None;
     double loadingSince_ = 0;
     bool askedSpotify_ = false;          // the "no lyrics" note names the sources asked
+    lyrics::Choice pick_;                // the user's pick for this track ("Yanlış sözler mi?", app/LyricsPicker)
+    Rect pickerRect_{};                  // the picker's link as last painted (empty = not shown)
+    bool hoverPicker_ = false;
     lyrics::Lyrics lyrics_;
     std::vector<gfx::Text> lines_;       // inactive style; a line keeps its layout only while it is on screen
     std::vector<float> lineH_;           // measured heights (-1 = not yet) for width lineHW_
@@ -187,7 +193,14 @@ private:
         std::optional<catalog::Album> album;   // without its tracks (count kept)
         std::optional<catalog::Artist> artist;
         std::vector<catalog::Artist> similar;
+        // Song credits (app/Credits), fetched alongside: Loading, then Ready (credits set; empty = none known) or
+        // Failed.
+        State creditsState = State::None;
+        std::optional<catalog::Credits> credits;
+        std::vector<catalog::Credit> summary;   // the few people shown here (creditsSummary)
     };
+    void fetchCredits();
+    float paintAboutCredits(Canvas& c, float x, float y, float w);   // returns the height used
     About about_;
     ui::SmoothScroll aboutScroll_;
     float aboutH_ = 0;                   // content height at the last paint
@@ -200,6 +213,7 @@ private:
     gfx::Text aboutTitle_, aboutName_;
     std::vector<std::pair<std::wstring, gfx::Text>> linkTexts_;   // "Albüme git"... (laid out once)
     std::vector<gfx::Text> chipTexts_;   // the similar artists' names
+    std::vector<std::pair<gfx::Text, gfx::Text>> creditTexts_;   // the credits summary: name, roles
 
     CoverBackdrop backdrop_;
     // Hero art shadow, computed once on the CPU (see paintArtShadow).
