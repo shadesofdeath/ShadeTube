@@ -2018,7 +2018,9 @@ relates to the song's. `app/OfficialVideo` (the decision, the picker), `app/Offi
 
 - **When**: video mode is on, the song's own upload turned out a still picture (`looksStatic`) or has no picture
   stream, and Ayarlar › Oynatma › Resmi müzik videosu (`Settings::videoOfficial`, on by default; also in video mode's
-  menu) is on. The note says "Resmi video sesle eşleştiriliyor…" meanwhile.
+  menu) is on. The note says "Resmi video sesle eşleştiriliyor…" meanwhile. A song with a stored decision (below) goes
+  to its official video at once, without asking for its own upload's picture stream first. Offline (a song from the
+  song cache, a network failure on either picture stream or the search): the cover with "Çevrimdışı", nothing stored.
 - **Candidates** (`youtube::findOfficialVideos`): YouTube Music's video search (`music.youtube.com/youtubei/v1/search`,
   WEB_REMIX, the "Videos" filter, query "<artist> <title>", only that text is sent): every result carries YouTube
   Music's own label, `MUSIC_VIDEO_TYPE_OMV` (what its Song / Video switch plays) or `_UGC`, and the artist runs. The
@@ -2063,6 +2065,9 @@ relates to the song's. `app/OfficialVideo` (the decision, the picker), `app/Offi
   "Yanlış eşleşme?" = a new decision). A song is searched and aligned once: the next play shows the video at once. An
   automatic "none" is searched again after 30 days (7 when nothing was found), a decision of an older alignment version
   (`OfficialDecision::kVersion`) at once; the user's choices stay. A lookup that failed on the network stores nothing.
+  At exit (video mode's persist hook) the lookups on the pool are cancelled (their requests' token, the soundtrack
+  downloads) and awaited: App destroys the MatchService they use before it joins the pool (a lookup still running at
+  quit crashed there once).
 - **The user's say** (video mode's menu, 3.41): Resmi müzik videosunu kullan (the setting); Yanlış video mu? (a dialog
   with the candidates, thumbnails, length and what is known: "SESLE EŞLEŞİYOR", "AYNI KAYIT DEĞİL", "RESMİ VİDEO",
   "DENENMEDİ"; a pick is aligned first and refused with a toast when it isn't the song's recording; "Video gösterme"
@@ -2080,7 +2085,15 @@ relates to the song's. `app/OfficialVideo` (the decision, the picker), `app/Offi
   video (the length window; the alignment: "reordered"), unrelated pairs. In the app (Debug, sandbox): a decision in
   3.1-8.6 s (once 38 s: googlevideo throttled one soundtrack URL to ~52 KB/s), the picture vs the mapped clock 5-6 ms
   on average, worst 18-58 ms (3.41's figures), 1.5× 10 / 32 ms; a hold's seek to the next part 78-109 ms; Billie
-  Jean's micro-edit played through without a resync.
+  Jean's micro-edit played through without a resync. Re-measured 2026-11-27 on 0.11.0's decoder (the built-in Opus
+  path): the same offsets and errors on the same songs; a decision in 3.6-5.7 s (soundtracks ~1 s each in Debug).
+  Checked together with (2026-11-27, Debug, sandbox): an Art Track from the song cache (its AAC with an edit list),
+  online (the stored decision at once) and with `SHADETUBE_OFFLINE=1` (the cover, "Çevrimdışı"); a crossfade from
+  "Blinding Lights" into "Billie Jean" and from it into "Bohemian Rhapsody" (each picture starts with its song's
+  audio, the next song's lookup meanwhile); Billie Jean's SponsorBlock segment (289.3 → 294.3 s, a jump past the
+  video's end: resync, then the next song); a song preview held 6.6 s over the video window (identical frames 2 s
+  apart, no resync after it); WASAPI exclusive mode (`SHADETUBE_EXCLUSIVE=1`, 6 ms average, a hold); a `yt:` track of
+  a pasted Art Track link (AAC with an edit list, its official video in 3.6 s).
 - **Remaining error**: the picture shows the frame of the clock's time, both on the presentation timeline: none from the
   codecs when the engine plays Opus (the normal case) or AAC with an edit list. When it plays an AAC stream without
   one, its clock counts the 36 ms of priming as song, and every picture (3.41's too) is 36 ms early.

@@ -23,7 +23,10 @@
 #include "video/AudioAlign.h"
 #include "video/VideoPlayer.h"
 
+#include <YoutubeExplode/Exceptions.hpp>
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <optional>
@@ -42,7 +45,7 @@ namespace {
 enum class Phase { Idle, Resolving, Searching, Ready, NoVideo, Failed };
 
 // Why the cover shows for this song (the note under it).
-enum class NoVideoWhy { None, NotSameRecording, TurnedOff };
+enum class NoVideoWhy { None, NotSameRecording, TurnedOff, Offline };
 
 struct State {
     bool on = false;
@@ -144,6 +147,28 @@ bool officialOn() { return Settings::get().videoOfficial; }
 
 void resolve(bool bypassCache);
 
+// A failure that is the network's (offline, a dropped connection): the cover with "Çevrimdışı", not an error.
+bool networkFailure(const std::exception_ptr& e) {
+    try {
+        std::rethrow_exception(e);
+    } catch (const YoutubeExplode::Exceptions::HttpRequestException&) {
+        return true;
+    } catch (...) {
+    }
+    return false;
+}
+
+// The official video's picture plays on the decision's time map.
+void useDecision(const OfficialDecision& d) {
+    auto& s = S();
+    s.official = true;
+    s.videoId = d.videoId;
+    s.map = video::TimeMap(d.segments);
+    s.officialDurationSec = d.durationSec;
+    ST_LOG_INFO("video", "picture of {} from its official video {} ({} part(s), offset {:+.3f} s)", s.matchId, d.videoId,
+                s.map.segments().size(), d.segments.front().offsetAt(d.segments.front().audioStart));
+}
+
 // The song's own upload has no picture (an Art Track, an audio upload, no stream): its official music video, aligned
 // with the song's audio (app/OfficialVideo), or the cover.
 void findOfficial() {
@@ -164,17 +189,13 @@ void findOfficial() {
         if (s.matchId != id || s.phase != Phase::Searching) return;
         if (!r) {
             ST_LOG_WARN("video", "official video of {}: {}", id, r.errorMessage());
+            s.why = networkFailure(r.error()) ? NoVideoWhy::Offline : NoVideoWhy::None;
             s.phase = Phase::NoVideo;
         } else if (!r->hasVideo()) {
             s.why = r->manual ? NoVideoWhy::TurnedOff : r->verdict == "no candidates" ? NoVideoWhy::None : NoVideoWhy::NotSameRecording;
             s.phase = Phase::NoVideo;
         } else {
-            s.official = true;
-            s.videoId = r->videoId;
-            s.map = video::TimeMap(r->segments);
-            s.officialDurationSec = r->durationSec;
-            ST_LOG_INFO("video", "picture of {} from its official video {} ({} part(s), offset {:+.3f} s)", id, r->videoId,
-                        s.map.segments().size(), r->segments.front().offsetAt(r->segments.front().audioStart));
+            useDecision(*r);
             resolve(false);
             return;
         }
@@ -222,6 +243,10 @@ void resolve(bool bypassCache) {
                       findOfficial();
                       invalidateViews();
                       return;
+                  }
+                  if (!none && networkFailure(r.error())) {   // offline (a song from the song cache): the cover
+                      s.why = NoVideoWhy::Offline;
+                      none = true;
                   }
                   s.phase = none ? Phase::NoVideo : Phase::Failed;
               } else {
@@ -470,6 +495,10 @@ void sync() {
         s.matchId = s.videoId = id;
         s.quality = quality;
         s.officialSetting = officialOn();
+        if (const auto* t = currentTrack(); t && officialOn() && s.devFile.empty()) {
+            const auto now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            if (const auto d = officialvideo::cache().find(t->id, id, now); d && d->hasVideo()) useDecision(*d);
+        }
         resolve(false);
         return;
     }
@@ -516,6 +545,7 @@ std::wstring note() {
     case Phase::NoVideo:
         return s.why == NoVideoWhy::NotSameRecording ? tr(L"Resmi video bu kayıtla eşleşmiyor")
                : s.why == NoVideoWhy::TurnedOff     ? tr(L"Bu şarkıda video kapalı")
+               : s.why == NoVideoWhy::Offline       ? tr(L"Çevrimdışı")
                                                     : tr(L"Bu şarkı için video yok");
     case Phase::Failed: return tr(L"Video oynatılamadı");
     case Phase::Searching: return tr(L"Resmi video sesle eşleştiriliyor…");
