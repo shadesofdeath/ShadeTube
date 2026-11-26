@@ -18,7 +18,8 @@ One thin-outline language for the whole app (docs/DEVELOPMENT.md, "Icons"):
   decoration. A filled glyph covers exactly its outline's silhouette (fill + the same stroke), so the outline and the
   fill swap without a size change; details inside a filled glyph are cut out of it (even-odd), never painted white.
 
-    python tools/icons.py                 # rewrite assets/icons (and remove files of icons no longer drawn here)
+    python tools/icons.py                 # rewrite assets/icons (old "-thin" files go; other files not drawn here
+                                          # are kept and listed)
     python tools/icons.py --design DIR    # also write DIR/icons (the design package's copy, ShadeTube-Design)
     python tools/icons.py --check         # exit 1 when assets/icons differs from these drawings
 
@@ -1371,8 +1372,12 @@ def main():
             d = base / "icons" / str(n)
             d.mkdir(parents=True, exist_ok=True)
             for old in d.glob("*.svg"):
-                if f"icons/{n}/{old.name}" not in files:
+                if f"icons/{n}/{old.name}" in files:
+                    continue
+                if old.stem.endswith("-thin"):   # the 0.9.0 player-bar set: aliases now (gfx/IconGrid.h)
                     old.unlink()
+                else:   # added by hand (another branch?): kept, but it should become a drawing here
+                    print(f"not drawn here (kept): {old.relative_to(base)}")
         for p, text in files.items():
             f = base / p
             if not f.exists() or f.read_text(encoding="utf-8") != text:
