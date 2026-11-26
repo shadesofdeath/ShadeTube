@@ -1,4 +1,4 @@
-﻿// Search, Library and Artist pages. Each reads Spotify when logged in and MusicBrainz otherwise (see Source.h).
+// Search, Library and Artist pages. Each reads Spotify when logged in and MusicBrainz otherwise (see Source.h).
 #include "app/Blacklist.h"
 #include "app/CollapsingHeader.h"
 #include "app/DownloadSync.h"
@@ -906,44 +906,66 @@ private:
         };
     }
 
-    // "Kitaplıkta ara" on the left; the sort and Izgara / Liste on the right (Geçmiş: only the search).
+    // One toolbar row: "Kitaplıkta ara" (the search pill) and how many items show on the left; "SIRALA <sort>" and the
+    // Izgara / Liste toggle on the right (Geçmiş: the search and the count only).
     void addToolbar(ui::Column* c) {
         auto* bar = c->add<ui::Box>();
-        auto* box = bar->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Kitaplıkta ara"));
+        auto* box = bar->add<ui::TextBox>(ui::TextBox::Look::Search, tr(L"Kitaplıkta ara"));
         filterBox_ = box;
         box->setText(filter_);
         box->onChange = [this](const std::wstring& s) { setFilter(s); };
         box->onEscape = [this, box] {
             if (!filter_.empty()) box->setText({}, true);
         };
-        auto* sort = bar->add<Button>(ButtonKind::Ghost, sortLabel(sort_, tabKind()), "sort");
+        auto* count = bar->add<ui::Label>(L"", type::monoLabel, ui::Tone::Tertiary);
+        countLabel_ = count;
+        auto* sortTag = bar->add<ui::Label>(toUpperTr(tr(L"Sırala")), type::monoLabel, ui::Tone::Tertiary);
+        auto* sort = bar->add<Button>(ButtonKind::Ghost, sortLabel(sort_, tabKind()));
         sort->setTooltip(tr(L"Sırala"));
         sort->onClick = [this, sort] { showSortMenu(sort); };
-        auto* grid = bar->add<Button>(ButtonKind::Icon, L"", "grid");
-        grid->setTooltip(tr(L"Izgara"));
-        grid->onClick = [this] { setView(libview::View::Grid); };
-        auto* list = bar->add<Button>(ButtonKind::Icon, L"", "list");
-        list->setTooltip(tr(L"Liste"));
-        list->onClick = [this] { setView(libview::View::List); };
-        for (Button* b : {sort, grid, list}) b->setVisible(tab_ != 3);
+        auto* toggle = bar->add<ViewToggle>(viewMode_ == libview::View::List);
+        toggle->onChange = [this](bool list) { setView(list ? libview::View::List : libview::View::Grid); };
+        for (ui::Widget* w : std::initializer_list<ui::Widget*>{sortTag, sort, toggle}) w->setVisible(tab_ != 3);
         sortBtn_ = sort;
-        gridBtn_ = grid;
-        listBtn_ = list;
-        syncViewButtons();
+        viewToggle_ = toggle;
         bar->onPreferredHeight = [](float) { return 44.f; };
-        bar->onLayout = [box, sort, grid, list](ui::Box& b) {
+        bar->onLayout = [box, count, sortTag, sort, toggle](ui::Box& b) {
             const float w = b.rect().w;
-            list->setRect({w - 36, 4, 36, 36});
-            grid->setRect({w - 36 - 4 - 36, 4, 36, 36});
-            const float sw = sort->visible() ? sort->naturalWidth() : 0.f;
-            sort->setRect({w - 36 - 4 - 36 - 12 - sw, 4, sw, 36});
-            box->setRect({0, 0, std::clamp(w - 2 * 36 - 4 - 12 - sw - 24, 160.f, 320.f), 44});
+            float x = w;
+            if (toggle->visible()) {
+                toggle->setRect({w - ViewToggle::kW, 4, ViewToggle::kW, 36});
+                x = w - ViewToggle::kW - 16;
+            }
+            if (sort->visible()) {
+                const float sw = sort->naturalWidth();
+                sort->setRect({x - sw, 4, sw, 36});
+                const float lw = sortTag->naturalWidth();
+                sortTag->setRect({x - sw - 4 - lw, 4, lw, 36});
+                x -= sw + 4 + lw + 24;
+            }
+            const float bw = std::clamp(x * 0.5f, 200.f, 300.f);
+            box->setRect({0, 0, bw, 44});
+            count->setRect({bw + 16, 4, std::max(0.f, x - bw - 16), 36});
         };
     }
 
     void syncViewButtons() {
-        if (gridBtn_) gridBtn_->setActive(viewMode_ == libview::View::Grid);
-        if (listBtn_) listBtn_->setActive(viewMode_ == libview::View::List);
+        if (viewToggle_) viewToggle_->setList(viewMode_ == libview::View::List);
+    }
+
+    // "12 ÇALMA LİSTESİ" / "3 / 12" while the search narrows them.
+    void syncCount(size_t shown, size_t total) {
+        if (!countLabel_) return;
+        std::wstring text;
+        if (total > 0) {
+            const auto n = static_cast<int64_t>(total);
+            const std::wstring all = tab_ == 1   ? i18n::plural(L"{} albüm", n)
+                                     : tab_ == 2 ? i18n::plural(L"{} sanatçı", n)
+                                     : tab_ == 3 ? i18n::plural(L"{} şarkı", n)
+                                                 : i18n::plural(L"{} öğe", n);
+            text = shown == total ? toUpperTr(all) : i18n::number(static_cast<int64_t>(shown)) + L" / " + toUpperTr(all);
+        }
+        countLabel_->setText(text);
     }
 
     void showSortMenu(Button* anchor) {
@@ -1015,7 +1037,8 @@ private:
         auto& lib = ctx().library;
         if (tab_ == 3) {
             if (lib.history().empty()) {
-                body_->add<MessagePanel>("clock", tr(L"Henüz geçmiş yok"), tr(L"Dinlediğin şarkılar burada listelenir."));
+                emptyState(body_, "clock", tr(L"Henüz geçmiş yok"), tr(L"Dinlediğin şarkılar burada listelenir."));
+                syncCount(0, 0);
             } else {
                 TrackTable::Options o;
                 o.showAdded = false;
@@ -1027,7 +1050,7 @@ private:
                 if (!blank(filter_)) table->setFilter(filter_);
                 // Natural order (newest first); a filtered table plays what it shows.
                 table->onPlay = [table](int i) { ctx().player->playContext(table->displayedTracks(), i, {"history", tr(L"Geçmiş")}); };
-                noMatch_ = body_->add<ui::Label>(tr(L"Aramanla eşleşen sonuç yok."), type::secondary, ui::Tone::Tertiary);
+                noMatch_ = noResultsState(body_, tr(L"Aramanla eşleşen sonuç yok."));
                 syncNoMatch();
             }
             body_->requestLayout();
@@ -1040,10 +1063,15 @@ private:
         makeModel();
         const double modelMs = std::chrono::duration<double, std::milli>(clock::now() - t1).count();
         if (model_.size() == 0) {
+            // An empty tab: what collects here and one way to start (Search).
+            auto search = [] { ctx().router->navigate({RouteKind::Search}); };
             if (tab_ == 1)
-                body_->add<MessagePanel>("album", tr(L"Kayıtlı albüm yok"), tr(L"Albüm sayfasındaki kalp ile albümleri buraya kaydet."));
+                emptyState(body_, "album", tr(L"Kayıtlı albüm yok"), tr(L"Albüm sayfasındaki kalp ile albümleri buraya kaydet."),
+                           tr(L"Albüm ara"), search, "search");
             else if (tab_ == 2)
-                body_->add<MessagePanel>("artist", tr(L"Takip ettiğin sanatçı yok"), tr(L"Sanatçı sayfalarından takip etmeye başla."));
+                emptyState(body_, "artist", tr(L"Takip ettiğin sanatçı yok"), tr(L"Sanatçı sayfalarından takip etmeye başla."),
+                           tr(L"Sanatçı ara"), search, "search");
+            syncCount(0, 0);
         } else {
             view_ = body_->add<LibraryView>(viewMode_ == libview::View::List ? LibraryView::Mode::List : LibraryView::Mode::Grid,
                                            tab_ == 2 ? 160.f : 170.f);
@@ -1051,12 +1079,12 @@ private:
             view_->onPlay = [this](uint32_t i) { playCell(i); };
             view_->onContext = [this](uint32_t i, gfx::Point wp) { menuFor(i, wp); };
             view_->metaFor = [this](uint32_t i) { return metaFor(i); };
-            noMatch_ = body_->add<ui::Label>(tr(L"Aramanla eşleşen sonuç yok."), type::secondary, ui::Tone::Tertiary);
+            noMatch_ = noResultsState(body_, tr(L"Aramanla eşleşen sonuç yok."));
             noMatch_->setVisible(false);
             applyOrder();
         }
         if (folder && folder->playlistCount == 0)
-            body_->add<MessagePanel>("folder", tr(L"Bu klasör boş"), tr(L"Spotify'da bu klasöre çalma listesi ekleyebilirsin."));
+            emptyState(body_, "folder", tr(L"Bu klasör boş"), tr(L"Spotify'da bu klasöre çalma listesi ekleyebilirsin."));
         body_->requestLayout();
         scroll_->contentChanged();
         ST_LOG_INFO("library", "{} tab: {} items, {} shown, built in {:.1f} ms (model {:.1f} ms, order {:.1f} ms)",
@@ -1092,6 +1120,15 @@ private:
         std::vector<uint32_t> order;
         for (const auto& r : model_.order(q)) order.push_back(r.item);
         const bool none = order.empty() && !blank(filter_);
+        // The toolbar's count: the whole tab (in the open folder), and how many of them the search leaves.
+        if (blank(filter_)) {
+            unfiltered_ = order.size();
+        } else if (unfiltered_ == SIZE_MAX) {
+            libview::Query all = q;
+            all.filter.clear();
+            unfiltered_ = model_.order(all).size();
+        }
+        syncCount(order.size(), unfiltered_);
         view_->setCells(cells_, std::move(order));
         orderMs_ = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         if (noMatch_ && noMatch_->visible() != none) noMatch_->setVisible(none);
@@ -1107,6 +1144,7 @@ private:
             noMatch_->setVisible(none);
             if (body_) body_->requestLayout();
         }
+        syncCount(table_->displayedTracks().size(), table_->tracks().size());
     }
 
     // The tab's items and their cells. "Son çalınanlar" reads: the collection's own last play here (libraryRecents),
@@ -1298,6 +1336,7 @@ private:
         }
         cells_ = std::move(cells);
         model_ = libview::Model(std::move(items), i18n::localeName());
+        unfiltered_ = SIZE_MAX;
     }
 
     void openCell(uint32_t i) {
@@ -1353,13 +1392,16 @@ private:
     std::shared_ptr<const std::vector<LibraryCell>> cells_;
     std::vector<Act> acts_;
     double orderMs_ = 0;
+    size_t unfiltered_ = SIZE_MAX;        // items of the tab without the search (SIZE_MAX: not counted yet)
     ui::Column* body_ = nullptr;
     LibraryView* view_ = nullptr;
     TrackTable* table_ = nullptr;          // Geçmiş
-    ui::Label* noMatch_ = nullptr;
+    ui::Widget* noMatch_ = nullptr;        // the compact "no results" state
     ui::Label* folderMeta_ = nullptr;
     ui::TextBox* filterBox_ = nullptr;
-    Button *sortBtn_ = nullptr, *gridBtn_ = nullptr, *listBtn_ = nullptr;
+    Button* sortBtn_ = nullptr;
+    ViewToggle* viewToggle_ = nullptr;
+    ui::Label* countLabel_ = nullptr;      // "12 ÇALMA LİSTESİ" in the toolbar
     Lifetime libLife_;
 };
 
