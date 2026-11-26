@@ -1007,6 +1007,11 @@ bool TrackTable::onKeyDown(const ui::KeyEvent& e) {
     }
     const int n = static_cast<int>(view_.size());
     int cur = std::min(anchor_, n - 1);   // the view may have shrunk (filter) since the anchor was set
+    if ((e.vk == VK_UP || e.vk == VK_DOWN) && onEdge && !e.shift && !e.ctrl && !e.alt &&
+        (e.vk == VK_UP ? cur <= 0 : cur >= n - 1)) {
+        const auto edge = onEdge;   // may move the focus away (or rebuild the page)
+        if (edge(e.vk == VK_UP ? -1 : 1)) return true;
+    }
     switch (e.vk) {
     case VK_DOWN: cur = std::min(n - 1, cur + 1); break;
     case VK_UP: cur = std::max(0, cur - 1); break;

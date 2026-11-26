@@ -40,7 +40,10 @@ add_executable(ShadeTube WIN32
     CatalogJson.cpp CatalogJson.h
     Autostart.cpp Autostart.h
     Blacklist.cpp Blacklist.h
+    ArtistPage.cpp
+    BrowseModel.cpp BrowseModel.h
     BrowsePages.cpp
+    BrowseWidgets.cpp BrowseWidgets.h
     CollapsingHeader.cpp CollapsingHeader.h
     CollectionPage.cpp
     CommandPalette.cpp CommandPalette.h
@@ -107,6 +110,7 @@ add_executable(ShadeTube WIN32
     Router.cpp Router.h
     Scrobbler.cpp Scrobbler.h
     SettingsCards.cpp SettingsCards.h
+    SearchPage.cpp
     SettingsPage.cpp
     SettingsWidgets.h
     Shortcuts.cpp Shortcuts.h

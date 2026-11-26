@@ -1922,5 +1922,43 @@
   "Video penceresi açılamadı.": "No se pudo abrir la ventana de video.",
   "Video penceresinde aç": "Abrir en la ventana de video",
   "Video yükleniyor…": "Cargando video…",
-  "Şu an bir şarkı çalmıyor": "No se está reproduciendo nada"
+  "Şu an bir şarkı çalmıyor": "No se está reproduciendo nada",
+  "Arama": "Búsqueda",
+  "Aylık dinleyici": "Oyentes mensuales",
+  "Başlangıç": "Inicio",
+  "Biyografi": "Biografía",
+  "Derlemeler": "Recopilatorios",
+  "Devamını göster": "Leer más",
+  "Diskografi": "Discografía",
+  "Doğrulanmış sanatçı": "Artista verificado",
+  "Doğum yılı": "Nacimiento",
+  "Dünya sıralaması": "Ranking mundial",
+  "En eski": "Más antiguos",
+  "En iyi sonuç": "Mejor resultado",
+  "En yeni": "Más recientes",
+  "En çok dinlendiği şehirler": "Ciudades principales",
+  "Hayranları bunları da dinliyor": "A los fans también les gusta",
+  "Kuruluş": "Formación",
+  "ListenBrainz dinlenmesi": "Escuchas en ListenBrainz",
+  "Popüler sürümler": "Lanzamientos populares",
+  "Popülerlik": "Popularidad",
+  "Sanatçı seçimi": "Selección del artista",
+  "Son çıkan": "Último lanzamiento",
+  "Takipçi": "Seguidores",
+  "Web sitesi": "Sitio web",
+  "Yer aldığı": "Aparece en",
+  "Öne çıktığı çalma listeleri": "Aparece en playlists",
+  "Ülke": "País",
+  "{} aylık dinleyici": {
+    "one": "{} oyente mensual",
+    "other": "{} oyentes mensuales"
+  },
+  "{} dinleyici": {
+    "one": "{} oyente",
+    "other": "{} oyentes"
+  },
+  "{} takipçi": {
+    "one": "{} seguidor",
+    "other": "{} seguidores"
+  }
 }
