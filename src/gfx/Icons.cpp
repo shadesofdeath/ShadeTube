@@ -3,10 +3,12 @@
 #include "core/Log.h"
 #include "core/Resources.h"
 #include "core/Utf.h"
+#include "gfx/IconGrid.h"
 
 #include <shlwapi.h>
 
 #include <cmath>
+#include <format>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -42,21 +44,44 @@ void hookRelease() {
     (void)hook;
 }
 
-std::wstring resolvePath(std::string_view name, int px) {
-    std::string path;
-    if (name.find('/') != std::string_view::npos) {
-        path = std::string(name) + ".svg";
-    } else {
-        const char* grid = px <= 16 ? "16" : px <= 20 ? "20" : "24";
-        path = std::string("icons/") + grid + "/" + std::string(name) + ".svg";
+std::string_view loadFile(std::string_view name, int grid) {
+    return res::load(toWide(std::format("icons/{}/{}.svg", grid, name)));
+}
+
+// The SVG that draws `name` at `px` device pixels: a full asset path ("logo/logo-mark") as it is, an icon from the
+// best grid that has it (icongrid::order), under its current name if `name` is an old one (icongrid::legacy).
+std::string_view loadSource(std::string_view name, int px) {
+    if (name.find('/') != std::string_view::npos) return res::load(toWide(std::string(name) + ".svg"));
+    for (int grid : icongrid::order(px))
+        if (auto data = loadFile(name, grid); !data.empty()) return data;
+    std::string buf;
+    if (const auto current = icongrid::legacy(name, buf); !current.empty())
+        for (int grid : icongrid::order(px))
+            if (auto data = loadFile(current, grid); !data.empty()) return data;
+    return {};
+}
+
+// Below its own size a grid's 1 px strokes would thin out (a 16 px icon drawn at 13 px): keep every stroke at least a
+// device pixel wide, the stroke rule's floor. `unitsPerPx`: viewBox units per device pixel.
+void keepStrokeFloor(ID2D1SvgElement* el, float unitsPerPx) {
+    if (el->IsAttributeSpecified(L"stroke-width")) {
+        float w = 0;
+        if (SUCCEEDED(el->GetAttributeValue(L"stroke-width", &w)) && w > 0 && w < unitsPerPx)
+            el->SetAttributeValue(L"stroke-width", unitsPerPx);
     }
-    return toWide(path);
+    ComPtr<ID2D1SvgElement> child;
+    el->GetFirstChild(&child);
+    while (child) {
+        keepStrokeFloor(child.Get(), unitsPerPx);
+        ComPtr<ID2D1SvgElement> next;
+        el->GetNextChild(child.Get(), &next);
+        child = std::move(next);
+    }
 }
 
 // Rasterises an SVG at `px` x `px` device pixels (or keeps the aspect for non-square documents).
 ComPtr<ID2D1Bitmap1> rasterize(ID2D1DeviceContext5* dc, std::string_view name, int px) {
-    auto data = res::load(resolvePath(name, px));
-    if (data.empty() && name.find('/') == std::string_view::npos) data = res::load(resolvePath(name, 24));
+    const auto data = loadSource(name, px);
     if (data.empty()) {
         ST_LOG_WARN("icons", "missing icon '{}'", std::string(name));
         return nullptr;
@@ -76,6 +101,7 @@ ComPtr<ID2D1Bitmap1> rasterize(ID2D1DeviceContext5* dc, std::string_view name, i
     const float aspect = vb.height > 0 ? vb.width / vb.height : 1.f;
     const UINT32 w = static_cast<UINT32>(std::max(1.f, std::round(px * aspect)));
     const UINT32 h = static_cast<UINT32>(px);
+    if (name.find('/') == std::string_view::npos && vb.height > px) keepStrokeFloor(root.Get(), vb.height / px);
     // Let the viewBox scale the content to the viewport.
     root->SetAttributeValue(L"width", static_cast<float>(w));
     root->SetAttributeValue(L"height", static_cast<float>(h));
@@ -168,7 +194,7 @@ SvgEntry* loadRecolorable(ID2D1DeviceContext5* dc, std::string_view name, const 
     if (e.doc && e.generation == gen) return &e;
     e = {};
     hookRelease();
-    const auto data = res::load(resolvePath(name, 24));
+    const auto data = loadSource(name, 24);
     if (data.empty()) {
         ST_LOG_WARN("icons", "missing icon '{}'", std::string(name));
         return nullptr;

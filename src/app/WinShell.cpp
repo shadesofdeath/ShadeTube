@@ -7,6 +7,7 @@
 #include "core/Log.h"
 #include "core/Resources.h"
 #include "core/Utf.h"
+#include "gfx/IconGrid.h"
 
 #include <d2d1_3.h>
 #include <propvarutil.h>
@@ -335,10 +336,10 @@ bool rasterizeSvg(std::string_view svg, int px, Visit&& visit) {
 
 std::vector<uint32_t> renderGlyph(std::string_view name, int px, uint32_t rgb) {
     if (px <= 0 || px > 256) return {};
-    // The icon grid closest to the size (the same choice gfx::Icons makes), else the 24 px source scaled.
-    const char* grid = px <= 16 ? "16" : px <= 20 ? "20" : "24";
-    std::string_view svg = res::load(toWide(std::format("icons/{}/{}.svg", grid, name)));
-    if (svg.empty()) svg = res::load(toWide(std::format("icons/24/{}.svg", name)));
+    // The icon grid for the size, the same choice gfx::Icons makes (gfx/IconGrid.h).
+    std::string_view svg;
+    for (int grid : gfx::icongrid::order(px))
+        if (svg = res::load(toWide(std::format("icons/{}/{}.svg", grid, name))); !svg.empty()) break;
     if (svg.empty()) return {};
     // The glyphs are single-color (black) shapes: only the coverage matters, the color is ours.
     std::vector<uint32_t> argb(static_cast<size_t>(px) * px);
