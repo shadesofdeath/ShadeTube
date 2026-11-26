@@ -137,6 +137,7 @@ add_executable(ShadeTube WIN32
     VideoMode.cpp VideoMode.h
     VideoView.cpp VideoView.h
     VideoWindow.cpp VideoWindow.h
+    OfficialVideo.cpp OfficialVideo.h OfficialVideoCache.cpp OfficialVideoCache.h
     ShadeTube.manifest
     ${CMAKE_CURRENT_BINARY_DIR}/resources.rc
 )

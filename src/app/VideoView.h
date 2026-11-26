@@ -39,16 +39,19 @@ public:
     LPCWSTR cursor() const override;
     std::wstring tooltip() const override;
 
-    // The pop-out button's rect (Inline, local) and its hover state (painted by video mode).
+    // The pop-out button's rect (Inline, local) and its hover state (painted by video mode); the menu button (video
+    // mode's menu) left of it.
     gfx::Rect popOutRect() const;
     float popOutHover() const { return popHover_; }
+    gfx::Rect menuRect() const;
+    float menuHover() const { return menuHover_; }
     float hoverAmount() const { return hover_; }
 
 private:
     Style style_;
     float valign_ = 0.5f;
-    bool overPop_ = false;
-    ui::Anim hover_, popHover_;
+    bool overPop_ = false, overMenu_ = false;
+    ui::Anim hover_, popHover_, menuHover_;
 };
 
 } // namespace st::app

@@ -1062,6 +1062,7 @@ PlayerBar::PlayerBar()
     // "Video modu" (app/VideoMode): the song's music video where the cover is in Now Playing, or in its own window.
     video_ = add<Button>(ButtonKind::Icon, L"", "video-thin");
     video_->onClick = [] { videomode::toggle(); };
+    video_->onContext = [](const ui::MouseEvent& e) { videomode::showMenu(ctx().window, e.windowPos); };   // video mode's menu
     sync();
 }
 

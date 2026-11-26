@@ -159,6 +159,7 @@ public:
         prev_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "prev-thin", tr(L"Önceki"));
         play_ = controls_->add<OverlayButton>(OverlayButton::Glyph::PlayPause, "", tr(L"Oynat / Duraklat"));
         next_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "next-thin", tr(L"Sonraki"));
+        more_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "more", tr(L"Video seçenekleri"));
         pin_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "pin-thin", tr(L"Her zaman üstte"));
         full_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "expand-thin", tr(L"Tam ekran"));
         close_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "close-thin", tr(L"Kapat"));
@@ -170,6 +171,10 @@ public:
         };
         play_->onClick = [] {
             if (ctx().player) ctx().player->togglePause();
+        };
+        more_->onClick = [this] {   // video mode's menu, under the button
+            const Rect b = more_->toWindow(more_->rect());
+            videomode::showMenu(window(), {b.x, b.bottom() + 4});
         };
         pin_->onClick = [this] { owner_.setOnTop(!owner_.onTop()); };
         full_->onClick = [this] { owner_.toggleFullscreen(); };
@@ -211,7 +216,7 @@ public:
         prev_->setRect({r.w * 0.5f - 22 - 16 - 36, cy - 18, 36, 36});
         next_->setRect({r.w * 0.5f + 22 + 16, cy - 18, 36, 36});
         float x = r.w - 12;
-        for (auto* b : {close_, full_, pin_}) {
+        for (auto* b : {close_, full_, pin_, more_}) {
             x -= 36;
             b->setRect({x, 14, 36, 36});
             x -= 4;
@@ -226,7 +231,7 @@ public:
         const auto* p = ctx().player;
         const double idle = ui::frame::realNow() - lastMove_;
         bool overControl = false;
-        for (const auto* b : {prev_, play_, next_, pin_, full_, close_}) overControl = overControl || b->hovered();
+        for (const auto* b : {prev_, play_, next_, pin_, full_, close_, more_}) overControl = overControl || b->hovered();
         const bool keep = !(p && p->isPlaying()) || overControl;
         if (!keep && idle >= kControlsIdleMs && fade_.target() != 0.f) fade_.to(0, ui::motion::slow);
         if (!keep && idle < kControlsIdleMs) window()->invalidateAfter(kControlsIdleMs - idle + 5);
@@ -256,7 +261,7 @@ private:
     VideoWindow& owner_;
     VideoView* video_;
     Controls* controls_;
-    OverlayButton *prev_, *play_, *next_, *pin_, *full_, *close_;
+    OverlayButton *prev_, *play_, *next_, *pin_, *full_, *close_, *more_;
     ui::Anim fade_{1.f};
     double lastMove_ = 0;
     gfx::Point lastPos_{};

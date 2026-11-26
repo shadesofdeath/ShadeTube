@@ -240,6 +240,7 @@ NowPlayingView::NowPlayingView()
     // hidden while the view is open, so the view has its own.
     videoBtn_ = add<Button>(ButtonKind::Icon, L"", "video-thin");
     videoBtn_->onClick = [] { videomode::toggle(); };
+    videoBtn_->onContext = [](const ui::MouseEvent& e) { videomode::showMenu(ctx().window, e.windowPos); };   // video mode's menu
     // Playback speed: always offered for podcast episodes, for songs once it isn't 1x (keys / palette set it).
     speed_ = add<Button>(ButtonKind::Ghost, speedLabel(1.f));
     speed_->setTooltip(tr(L"Çalma hızı"));

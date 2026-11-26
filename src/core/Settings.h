@@ -137,6 +137,7 @@ struct Settings {
     int videoQuality = 720;              // height cap of the picture stream: 480 / 720 / 1080
     bool rememberVideoMode = false;      // video mode stays on across restarts
     bool videoMode = false;              // it was on (read at startup only with rememberVideoMode)
+    bool videoOfficial = true;           // an Art Track / audio upload shows the artist's official video, aligned
     bool videoOnTop = false;             // the video window stays above other windows
     int videoX = -1, videoY = -1;        // the video window's position (screen px; -1 = next to the main window)
     int videoW = 640, videoH = 360;      // ... and size (DIPs)

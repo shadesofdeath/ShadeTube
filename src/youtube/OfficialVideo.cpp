@@ -20,11 +20,45 @@ using json = nlohmann::json;
 
 namespace {
 
-// Lower-case ASCII, other ASCII punctuation as spaces, runs of spaces collapsed; UTF-8 letters kept as they are.
+// Latin letters with marks (Latin-1 and Latin Extended-A, U+00C0..U+017F) as their base ASCII letter, lower case:
+// "Şımarık", "Sımarık" and "SIMARIK" compare equal (titles on YouTube drop or keep the marks at will). 0 = keep.
+char foldLatin(uint32_t cp) {
+    static const char* const kLatin1 =   // U+00C0 .. U+00FF
+        "aaaaaaaceeeeiiii"   // C0-CF
+        "dnooooo\0ouuuuyts"  // D0-DF (D7 x, DE thorn, DF sharp s)
+        "aaaaaaaceeeeiiii"   // E0-EF
+        "dnooooo\0ouuuuyty"; // F0-FF
+    static const char* const kExtA =     // U+0100 .. U+017F
+        "aaaaaaccccccccdd"   // 100-10F
+        "ddeeeeeeeeeegggg"   // 110-11F
+        "gggghhhhiiiiiiii"   // 120-12F
+        "iiiijjkkklllllll"   // 130-13F
+        "lllnnnnnnnnnoooo"   // 140-14F
+        "oooorrrrrrssssss"   // 150-15F
+        "ssttttttuuuuuuuu"   // 160-16F
+        "uuuuwwyyyzzzzzzs";  // 170-17F
+    if (cp >= 0xC0 && cp <= 0xFF) return kLatin1[cp - 0xC0];
+    if (cp >= 0x100 && cp <= 0x17F) return kExtA[cp - 0x100];
+    return 0;
+}
+
+// Lower-case ASCII (marked Latin letters folded to it), other ASCII punctuation as spaces, runs of spaces collapsed;
+// other UTF-8 letters (Cyrillic, CJK...) kept as they are.
 std::string normalize(std::string_view s) {
     std::string out;
     bool space = true;
-    for (unsigned char c : s) {
+    for (size_t i = 0; i < s.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(s[i]);
+        // A two-byte UTF-8 letter in the folded range.
+        if ((c & 0xE0) == 0xC0 && i + 1 < s.size() && (static_cast<unsigned char>(s[i + 1]) & 0xC0) == 0x80) {
+            const uint32_t cp = (static_cast<uint32_t>(c & 0x1F) << 6) | (static_cast<unsigned char>(s[i + 1]) & 0x3F);
+            if (const char f = foldLatin(cp)) {
+                out += f;
+                space = false;
+                ++i;
+                continue;
+            }
+        }
         const bool word = c >= 0x80 || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
         if (word) {
             out += (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : static_cast<char>(c);
@@ -309,8 +343,12 @@ std::vector<OfficialCandidate> findOfficialVideos(YoutubeExplode::YoutubeClient&
         req.body = body.dump();
         const auto resp = http::send(std::move(req), ct);
         if (resp.isSuccessStatusCode()) {
-            ranked = rankOfficialVideos(q, parseMusicVideoSearch(resp.body));
+            auto items = parseMusicVideoSearch(resp.body);
+            const size_t found = items.size();
+            ranked = rankOfficialVideos(q, std::move(items));
             drop(ranked);
+            ST_LOG_DEBUG("video", "YouTube Music video search \"{}\": {} result(s), {} acceptable", body["query"].get<std::string>(), found,
+                         ranked.size());
         } else {
             ST_LOG_WARN("video", "YouTube Music video search: HTTP {}", resp.statusCode);
         }
@@ -332,8 +370,10 @@ std::vector<OfficialCandidate> findOfficialVideos(YoutubeExplode::YoutubeClient&
                 if (c.thumbnailUrl.empty() || (th.resolution().width() >= 160 && th.resolution().width() <= 480)) c.thumbnailUrl = th.url();
             found.push_back(std::move(c));
         }
+        const size_t n = found.size();
         ranked = rankOfficialVideos(q, std::move(found));
         drop(ranked);
+        ST_LOG_DEBUG("video", "YouTube video search: {} result(s), {} acceptable", n, ranked.size());
     }
     return ranked;
 }
