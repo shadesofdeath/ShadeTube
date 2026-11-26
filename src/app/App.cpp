@@ -615,6 +615,7 @@ void App::showShell() {
     else if (options_.route.rfind("podcasts:", 0) == 0) start = {RouteKind::Podcasts, options_.route.substr(9)};
     else if (options_.route.rfind("smart:", 0) == 0) start = {RouteKind::SmartList, options_.route.substr(6)};
     else if (options_.route == "releases") start = {RouteKind::NewReleases};
+    else if (options_.route.rfind("profile:", 0) == 0) start = {RouteKind::Profile, options_.route.substr(8)};
     else if (options_.route == "settings") start = {RouteKind::Settings};
     else if (options_.route.rfind("settings:", 0) == 0) start = {RouteKind::Settings, options_.route.substr(9)};
     startRoute_ = start;

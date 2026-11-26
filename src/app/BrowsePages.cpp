@@ -9,6 +9,7 @@
 #include "app/Pages.h"
 #include "app/SmartListsPage.h"
 #include "app/PlaylistTransfer.h"
+#include "app/PodcastsSpotify.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -19,6 +20,7 @@
 #include "gfx/Theme.h"
 #include "musicbrainz/MusicBrainz.h"
 #include "spotify/Session.h"
+#include "spotify/SpotifyApi.h"
 #include "ui/Popups.h"
 #include "ui/Window.h"
 
@@ -131,6 +133,38 @@ MediaCard* addArtistCard(ui::Grid* grid, const Artist& a) {
     const std::string id = a.id;
     card->previewTarget = preview::collectionTarget({RouteKind::Artist, id}, toWide(a.name), a.images);
     card->onOpen = [id] { ctx().router->navigate({RouteKind::Artist, id}); };
+    return card;
+}
+
+// A Spotify playlist found by search or on a profile: opens the playlist page (open / play / keep offline / export).
+MediaCard* addPlaylistCard(ui::Grid* grid, const Playlist& p) {
+    std::wstring sub = tr(L"Çalma listesi");
+    if (!p.ownerName.empty()) sub += L" · " + toWide(p.ownerName);
+    auto* card = grid->add<MediaCard>(toWide(p.name), sub, p.images, MediaCard::Shape::Square, Placeholder::Playlist);
+    const Route open{RouteKind::Playlist, p.id};
+    card->previewTarget = preview::collectionTarget(open, toWide(p.name), p.images);
+    card->onOpen = [open] { ctx().router->navigate(open); };
+    card->onPlay = [open] { ctx().router->navigate({open.kind, open.id + "#play"}); };
+    card->onContext = [open, offline = sync::Target{sync::Kind::Playlist, p.id, p.name, p.images}](gfx::Point wp) {
+        showPlaylistCardMenu(open, offline, wp);
+    };
+    return card;
+}
+
+// A podcast found on Spotify: the Podcastler page resolves it to its public feed (or says it has none, 3.17).
+MediaCard* addShowCard(ui::Grid* grid, const PodcastShow& s) {
+    auto* card = grid->add<MediaCard>(toWide(s.name), s.publisher.empty() ? std::wstring(tr(L"Podcast")) : toWide(s.publisher),
+                                      s.images);
+    card->onOpen = [s] {
+        spotifyshows::remember(s);   // its name and publisher: what the directory is searched for
+        ctx().router->navigate({RouteKind::Podcasts, s.id});
+    };
+    return card;
+}
+
+MediaCard* addProfileCard(ui::Grid* grid, const Profile& p) {
+    auto* card = grid->add<MediaCard>(toWide(p.name), tr(L"Profil"), p.images, MediaCard::Shape::Circle, Placeholder::Artist);
+    card->onOpen = [id = p.id] { ctx().router->navigate({RouteKind::Profile, id}); };
     return card;
 }
 
@@ -624,42 +658,107 @@ private:
               });
     }
 
+    // ---- results ------------------------------------------------------------------------------------------------
+    // The overview (searchDesktop / MusicBrainz) fills every kind; with Spotify each kind's tab then pages on with its
+    // own query ("Daha fazla yükle"). MusicBrainz has no playlists, podcasts or profiles: those tabs are not offered.
+    enum class Tab { All, Tracks, Albums, Artists, Playlists, Shows, Profiles };
+    static constexpr int kOverviewLimit = 12, kPageLimit = 30;
+
+    static spotify::SearchKind kindOf(Tab t) {
+        switch (t) {
+        case Tab::Albums: return spotify::SearchKind::Albums;
+        case Tab::Artists: return spotify::SearchKind::Artists;
+        case Tab::Playlists: return spotify::SearchKind::Playlists;
+        case Tab::Shows: return spotify::SearchKind::Shows;
+        case Tab::Profiles: return spotify::SearchKind::Profiles;
+        default: return spotify::SearchKind::Tracks;
+        }
+    }
+    size_t countOf(Tab t) const {
+        const auto& R = results_;
+        switch (t) {
+        case Tab::Tracks: return R.tracks.size();
+        case Tab::Albums: return R.albums.size();
+        case Tab::Artists: return R.artists.size();
+        case Tab::Playlists: return R.playlists.size();
+        case Tab::Shows: return R.shows.size();
+        case Tab::Profiles: return R.profiles.size();
+        default: return 0;
+        }
+    }
+    std::vector<Tab> availableTabs() const {
+        if (!api_) return {Tab::All, Tab::Tracks, Tab::Albums, Tab::Artists};
+        return {Tab::All, Tab::Tracks, Tab::Albums, Tab::Artists, Tab::Playlists, Tab::Shows, Tab::Profiles};
+    }
+    static std::wstring tabLabel(Tab t) {
+        switch (t) {
+        case Tab::Tracks: return tr(L"Şarkılar");
+        case Tab::Albums: return tr(L"Albümler");
+        case Tab::Artists: return tr(L"Sanatçılar");
+        case Tab::Playlists: return tr(L"Çalma listeleri");
+        case Tab::Shows: return tr(L"Podcastler");
+        case Tab::Profiles: return tr(L"Profiller");
+        default: return tr(L"Tümü");
+        }
+    }
+
     void runSearch(const std::wstring& q) {
         if (q.empty()) return;
         query_ = q;
         linkShown_ = false;
-        life_.renew();
+        life_.renew();   // drops a search or a "load more" still running
         auto* c = resetContent(20.f);
         c->setPadding(gfx::metrics::pageX, 20, 48);
         c->add<SkeletonBlock>(6);
         scroll_->contentChanged();
         const std::string query = toUtf8(q);
         spotify::Api* api = source::activeApi();
-        async(Priority::High, life_.ref(), [query, api] { return source::search(api, query, 12); },
-              [this](Result<SearchResults> r) {
+        async(Priority::High, life_.ref(), [query, api] { return source::search(api, query, kOverviewLimit); },
+              [this, api](Result<SearchResults> r) {
                   if (!r) {
                       showError(toWide(r.errorMessage()), [this] { runSearch(query_); });
                       return;
                   }
                   results_ = std::move(*r);
+                  api_ = api;
+                  // A full overview row means there is more of that kind: its tab pages on from there.
+                  for (int k = 0; k < kKinds; ++k) {
+                      more_[k] = {};
+                      const size_t n = countOf(static_cast<Tab>(k + 1));
+                      if (api_ && n >= static_cast<size_t>(kOverviewLimit)) more_[k].nextOffset = static_cast<int>(n);
+                  }
+                  const auto tabs = availableTabs();
+                  if (std::find(tabs.begin(), tabs.end(), tab_) == tabs.end()) tab_ = Tab::All;
                   showResults(tab_);
               });
     }
 
-    void showResults(int tab) {
+    void selectTab(Tab t) {
+        Dispatcher::post([this, t, ref = life_.ref()] {   // the clicked tab / link is rebuilt with the content
+            if (!ref.expired()) showResults(t);
+        });
+    }
+
+    void playTracks(int i) {
+        RecentSearches::get().record(query_);
+        ctx().player->playContext(results_.tracks, i, {"search", tr(L"Arama sonuçları")});
+    }
+
+    void showResults(Tab tab) {
         tab_ = tab;
+        grid_ = nullptr;
+        table_ = nullptr;
+        moreButton_ = nullptr;
         auto* c = resetContent(24.f);
         c->setPadding(gfx::metrics::pageX, 16, 48);
-        auto* tabs =
-            c->add<Tabs>(std::vector<std::wstring>{tr(L"Tümü"), tr(L"Şarkılar"), tr(L"Albümler"), tr(L"Sanatçılar")});
-        tabs->select(tab, false);
-        tabs->onSelect = [this](int i) {
-            Dispatcher::post([this, i, ref = life_.ref()] {
-                if (!ref.expired()) showResults(i);
-            });
-        };
+        const auto tabs = availableTabs();
+        std::vector<std::wstring> labels;
+        for (const Tab t : tabs) labels.push_back(tabLabel(t));
+        auto* tabRow = c->add<Tabs>(std::move(labels));
+        tabRow->select(static_cast<int>(std::find(tabs.begin(), tabs.end(), tab) - tabs.begin()), false);
+        tabRow->onSelect = [this, tabs](int i) { selectTab(tabs[static_cast<size_t>(i)]); };
         const auto& R = results_;
-        if (R.tracks.empty() && R.albums.empty() && R.artists.empty()) {
+        if (R.empty()) {
             c->add<MessagePanel>(
                 "search", tr(L"Sonuç bulunamadı"),
                 i18n::format(tr(L"\"{}\" için bir şey bulamadık. Yazımı kontrol et ya da başka bir şey dene."),
@@ -667,51 +766,149 @@ private:
             contentReady();
             return;
         }
-        auto playTracks = [q = query_](std::vector<Track> tracks, int i) {
-            RecentSearches::get().record(q);
-            ctx().player->playContext(std::move(tracks), i, {"search", tr(L"Arama sonuçları")});
-        };
         auto addTracks = [&](size_t limit, bool header) {
             TrackTable::Options o;
             o.showAdded = false;
             o.showHeader = header;
             auto* table = c->add<TrackTable>(o);
-            std::vector<Track> shown(R.tracks.begin(), R.tracks.begin() + std::min(limit, R.tracks.size()));
-            table->setTracks(shown);
-            table->onPlay = [shown, playTracks](int i) { playTracks(shown, i); };
+            table->setTracks(std::vector<Track>(R.tracks.begin(), R.tracks.begin() + std::min(limit, R.tracks.size())));
+            table->onPlay = [this](int i) { playTracks(i); };   // the shown rows are the first ones of results_
+            return table;
         };
-        if (tab == 0) {
-            if (!R.artists.empty()) {
-                c->add<SectionHeader>(tr(L"Sanatçılar"), L"", tr(L"Tümünü gör"))->onLink = [this] { showResults(3); };
-                auto* g = addCardRow(c, 150, 1);
-                for (const auto& a : R.artists) rememberCard(addArtistCard(g, a));
-            }
+        auto section = [&](Tab t, bool cards) {
+            c->add<SectionHeader>(tabLabel(t), L"", tr(L"Tümünü gör"))->onLink = [this, t] { selectTab(t); };
+            return cards ? addCardRow(c, 150, 1) : nullptr;
+        };
+        if (tab == Tab::All) {
+            if (!R.artists.empty())
+                for (auto* g = section(Tab::Artists, true); const auto& a : R.artists) rememberCard(addArtistCard(g, a));
             if (!R.tracks.empty()) {
-                c->add<SectionHeader>(tr(L"Şarkılar"), L"", tr(L"Tümünü gör"))->onLink = [this] { showResults(1); };
+                section(Tab::Tracks, false);
                 addTracks(5, false);
             }
-            if (!R.albums.empty()) {
-                c->add<SectionHeader>(tr(L"Albümler"), L"", tr(L"Tümünü gör"))->onLink = [this] { showResults(2); };
-                auto* g = addCardRow(c, 150, 1);
-                for (const auto& a : R.albums) rememberCard(addAlbumCard(g, a));
-            }
-        } else if (tab == 1) {
-            addTracks(R.tracks.size(), true);
-        } else if (tab == 2) {
-            auto* g = addCardRow(c, 150, 0);
-            for (const auto& a : R.albums) rememberCard(addAlbumCard(g, a));
-        } else {
-            auto* g = addCardRow(c, 150, 0);
-            for (const auto& a : R.artists) rememberCard(addArtistCard(g, a));
+            if (!R.albums.empty())
+                for (auto* g = section(Tab::Albums, true); const auto& a : R.albums) rememberCard(addAlbumCard(g, a));
+            if (!R.playlists.empty())
+                for (auto* g = section(Tab::Playlists, true); const auto& p : R.playlists) rememberCard(addPlaylistCard(g, p));
+            if (!R.shows.empty())
+                for (auto* g = section(Tab::Shows, true); const auto& s : R.shows) rememberCard(addShowCard(g, s));
+            if (!R.profiles.empty())
+                for (auto* g = section(Tab::Profiles, true); const auto& p : R.profiles) rememberCard(addProfileCard(g, p));
+            contentReady();
+            return;
         }
+        if (countOf(tab) == 0) {
+            c->add<MessagePanel>("search", tr(L"Sonuç bulunamadı"),
+                                 i18n::format(tr(L"\"{}\" için bu türde bir sonuç yok."), {query_}));
+            contentReady();
+            return;
+        }
+        if (tab == Tab::Tracks) table_ = addTracks(R.tracks.size(), true);
+        else grid_ = addCardRow(c, 150, 0);
+        appendCards(tab, 0);
+        // "Daha fazla yükle" while the kind has more (Spotify).
+        auto* foot = c->add<ui::Box>();
+        moreButton_ = foot->add<Button>(ButtonKind::Secondary, tr(L"Daha fazla yükle"), "chevron-down");
+        moreButton_->onClick = [this] { loadMore(tab_); };
+        foot->hitTestVisible = false;
+        foot->onPreferredHeight = [](float) { return 56.f; };
+        foot->onLayout = [b = moreButton_](ui::Box& box) {
+            const float w = b->naturalWidth();
+            b->setRect({box.rect().w * 0.5f - w * 0.5f, 8, w, 40});
+        };
+        syncMoreButton();
         contentReady();
     }
+
+    // Cards for the items of `tab` from index `from` on (the grid of the tab on screen).
+    void appendCards(Tab tab, size_t from) {
+        const auto& R = results_;
+        if (tab == Tab::Tracks) {
+            if (table_) table_->setTracks(R.tracks);
+            return;
+        }
+        if (!grid_) return;
+        auto each = [&](const auto& list, auto add) {
+            for (size_t i = from; i < list.size(); ++i) rememberCard(add(grid_, list[i]));
+        };
+        switch (tab) {
+        case Tab::Albums: each(R.albums, [](ui::Grid* g, const Album& a) { return addAlbumCard(g, a); }); break;
+        case Tab::Artists: each(R.artists, addArtistCard); break;
+        case Tab::Playlists: each(R.playlists, addPlaylistCard); break;
+        case Tab::Shows: each(R.shows, addShowCard); break;
+        case Tab::Profiles: each(R.profiles, addProfileCard); break;
+        default: break;
+        }
+    }
+
+    void syncMoreButton() {
+        if (!moreButton_ || tab_ == Tab::All) return;
+        const auto& m = more_[static_cast<int>(tab_) - 1];
+        moreButton_->setLabel(m.loading ? tr(L"Yükleniyor…") : tr(L"Daha fazla yükle"));
+        moreButton_->setEnabled(!m.loading);
+        if (auto* foot = moreButton_->parent()) foot->setVisible(m.nextOffset >= 0);
+        scroll_->contentChanged();
+    }
+
+    // The next page of one kind (Spotify): appended to results_ (rows already listed skipped) and to the grid when
+    // that tab is still on screen.
+    void loadMore(Tab tab) {
+        if (tab == Tab::All || !api_) return;
+        auto& m = more_[static_cast<int>(tab) - 1];
+        if (m.loading || m.nextOffset < 0) return;
+        m.loading = true;
+        syncMoreButton();
+        const std::string query = toUtf8(query_);
+        const int offset = m.nextOffset;
+        const auto kind = kindOf(tab);
+        async(Priority::High, life_.ref(),
+              [api = api_, kind, query, offset] { return api->searchMore(kind, query, offset, kPageLimit); },
+              [this, tab](Result<spotify::SearchBatch> r) {
+                  auto& mm = more_[static_cast<int>(tab) - 1];
+                  mm.loading = false;
+                  if (!r) {
+                      ST_LOG_WARN("search", "more results failed: {}", r.errorMessage());
+                      toast(tr(L"Daha fazla sonuç yüklenemedi"), true);
+                      syncMoreButton();
+                      return;
+                  }
+                  const size_t before = countOf(tab);
+                  auto merge = [](auto& into, auto& more) {
+                      for (auto& v : more)
+                          if (std::none_of(into.begin(), into.end(), [&](const auto& o) { return o.id == v.id; }))
+                              into.push_back(std::move(v));
+                  };
+                  auto& R = results_;
+                  merge(R.tracks, r->results.tracks);
+                  merge(R.albums, r->results.albums);
+                  merge(R.artists, r->results.artists);
+                  merge(R.playlists, r->results.playlists);
+                  merge(R.shows, r->results.shows);
+                  merge(R.profiles, r->results.profiles);
+                  // A page that adds nothing new ends it (the ranking moved, or Spotify repeats its last page).
+                  mm.nextOffset = countOf(tab) > before ? r->nextOffset : -1;
+                  if (tab_ == tab) appendCards(tab, before);
+                  syncMoreButton();
+                  invalidate();
+              });
+    }
+
+    static constexpr int kKinds = 6;   // Tab::Tracks .. Tab::Profiles
+    struct More {
+        int nextOffset = -1;   // -1 = nothing more
+        bool loading = false;
+    };
 
     ui::TextBox* box_;
     std::wstring query_, pending_;
     double pendingAt_ = 0;
     SearchResults results_;
-    int tab_ = 0;
+    spotify::Api* api_ = nullptr;   // the source the results came from (nullptr = MusicBrainz)
+    std::array<More, kKinds> more_{};
+    Tab tab_ = Tab::All;
+    ui::Grid* grid_ = nullptr;      // the open kind tab's cards / songs (appended to by loadMore)
+    TrackTable* table_ = nullptr;
+    Button* moreButton_ = nullptr;
     bool linkShown_ = false;   // the content is the LinkHint row
 };
 
@@ -1641,10 +1838,152 @@ private:
     ArtistHero* hero_ = nullptr;   // the current content's header (content is rebuilt only by build())
 };
 
+// ===================================================================================================
+// Profile: a Spotify user found by search, with their public playlists (paged like the search tabs).
+
+class ProfileHeader : public ui::Widget {
+public:
+    explicit ProfileHeader(const Profile& p) : profile_(p) {
+        hitTestVisible = false;
+        std::wstring meta;
+        auto add = [&](const std::wstring& part) { meta += (meta.empty() ? L"" : L" · ") + part; };
+        if (p.followers >= 0) add(i18n::plural(L"{} takipçi", static_cast<long long>(p.followers)));
+        if (p.publicPlaylists > 0) add(i18n::plural(L"{} herkese açık çalma listesi", p.publicPlaylists));
+        meta_ = gfx::Text(meta, type::body);
+        name_ = gfx::Text(toWide(p.name), type::displayM);
+    }
+    float preferredHeight(float) override { return kAvatar + 8; }
+    void paint(Canvas& c) override {
+        const Rect r = rect();
+        const auto& col = colors();
+        drawArtwork(c, profile_.images, {r.x, r.y, kAvatar, kAvatar}, kAvatar * 0.5f, Placeholder::Artist, true);
+        const float tx = r.x + kAvatar + 28, tw = std::max(0.f, r.right() - tx);
+        const float cy = r.y + kAvatar * 0.5f;
+        c.text(toUpperTr(tr(L"Profil")), type::monoLabel, {tx, cy - 50, tw, 14}, col.fgSecondary);
+        c.text(name_, {tx, cy - 32, tw, 48}, col.fgPrimary);
+        if (!meta_.empty()) c.text(meta_, {tx, cy + 22, tw, 22}, col.fgSecondary);
+    }
+
+private:
+    static constexpr float kAvatar = 136;
+    Profile profile_;
+    gfx::Text name_, meta_;
+};
+
+class ProfileView : public ScrollPage {
+public:
+    explicit ProfileView(std::string id) : id_(std::move(id)) {
+        showSkeleton(4);
+        load();
+    }
+
+private:
+    struct Loaded {
+        Profile profile;
+        spotify::ProfilePlaylists first;
+    };
+
+    void load() {
+        spotify::Api* api = source::activeApi();
+        if (!api) {
+            auto* c = resetContent();
+            c->setPadding(gfx::metrics::pageX, 20, 48);
+            c->add<MessagePanel>("user", tr(L"Spotify'a bağlı değilsin"), tr(L"Profilleri görmek için Spotify hesabınla bağlan."));
+            contentReady();
+            return;
+        }
+        api_ = api;
+        async(Priority::High, life_.ref(),
+              [api, id = id_] {
+                  Loaded l;
+                  l.profile = api->profile(id);
+                  l.first = api->profilePlaylists(id, 0, kPage);
+                  return l;
+              },
+              [this](Result<Loaded> r) {
+                  if (!r) {
+                      showError(r.errorMessage().find("404") != std::string::npos ? tr(L"Bu profil bulunamadı.")
+                                                                                   : toWide(r.errorMessage()),
+                                [this] {
+                                    showSkeleton(4);
+                                    load();
+                                });
+                      return;
+                  }
+                  build(std::move(*r));
+              });
+    }
+
+    void build(Loaded l) {
+        if (l.profile.publicPlaylists < 0) l.profile.publicPlaylists = l.first.total;
+        playlists_ = std::move(l.first.playlists);
+        next_ = l.first.nextOffset;
+        auto* c = resetContent(24.f);
+        c->setPadding(gfx::metrics::pageX, 28, 48);
+        c->add<ProfileHeader>(l.profile);
+        if (playlists_.empty()) {
+            c->add<MessagePanel>("playlist", tr(L"Herkese açık çalma listesi yok"),
+                                 tr(L"Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış."));
+            contentReady();
+            return;
+        }
+        c->add<SectionHeader>(tr(L"Herkese açık çalma listeleri"));
+        grid_ = addCardRow(c, 150, 0);
+        for (const auto& p : playlists_) addPlaylistCard(grid_, p);
+        auto* foot = c->add<ui::Box>();
+        more_ = foot->add<Button>(ButtonKind::Secondary, tr(L"Daha fazla yükle"), "chevron-down");
+        more_->onClick = [this] { loadMore(); };
+        foot->hitTestVisible = false;
+        foot->onPreferredHeight = [](float) { return 56.f; };
+        foot->onLayout = [b = more_](ui::Box& box) {
+            const float w = b->naturalWidth();
+            b->setRect({box.rect().w * 0.5f - w * 0.5f, 8, w, 40});
+        };
+        foot->setVisible(next_ >= 0);
+        contentReady();
+    }
+
+    void loadMore() {
+        if (loading_ || next_ < 0 || !api_) return;
+        loading_ = true;
+        more_->setLabel(tr(L"Yükleniyor…"));
+        more_->setEnabled(false);
+        async(Priority::High, life_.ref(), [api = api_, id = id_, offset = next_] { return api->profilePlaylists(id, offset, kPage); },
+              [this](Result<spotify::ProfilePlaylists> r) {
+                  loading_ = false;
+                  more_->setLabel(tr(L"Daha fazla yükle"));
+                  more_->setEnabled(true);
+                  if (!r) {
+                      toast(tr(L"Daha fazla sonuç yüklenemedi"), true);
+                      return;
+                  }
+                  const size_t before = playlists_.size();
+                  for (auto& p : r->playlists)
+                      if (std::none_of(playlists_.begin(), playlists_.end(), [&](const Playlist& o) { return o.id == p.id; }))
+                          playlists_.push_back(std::move(p));
+                  next_ = playlists_.size() > before ? r->nextOffset : -1;
+                  for (size_t i = before; i < playlists_.size(); ++i) addPlaylistCard(grid_, playlists_[i]);
+                  if (auto* foot = more_->parent()) foot->setVisible(next_ >= 0);
+                  scroll_->contentChanged();
+                  invalidate();
+              });
+    }
+
+    static constexpr int kPage = 50;
+    std::string id_;
+    spotify::Api* api_ = nullptr;
+    std::vector<Playlist> playlists_;
+    int next_ = -1;
+    bool loading_ = false;
+    ui::Grid* grid_ = nullptr;
+    Button* more_ = nullptr;
+};
+
 } // namespace
 
 std::unique_ptr<Page> makeSearchPage(const std::string& q) { return std::make_unique<SearchPage>(q); }
 std::unique_ptr<Page> makeLibraryPage(const std::string& id) { return std::make_unique<LibraryPage>(id); }
 std::unique_ptr<Page> makeArtistPage(const std::string& id) { return std::make_unique<ArtistView>(id); }
+std::unique_ptr<Page> makeProfilePage(const std::string& id) { return std::make_unique<ProfileView>(id); }
 
 } // namespace st::app

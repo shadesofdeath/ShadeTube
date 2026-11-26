@@ -12,7 +12,8 @@
 
 namespace st::app {
 
-enum class RouteKind { Home, Search, Library, Liked, Playlist, Album, Artist, Downloads, Settings, Stats, LocalFiles, Radio, Podcasts, SmartList, NewReleases };
+enum class RouteKind { Home, Search, Library, Liked, Playlist, Album, Artist, Downloads, Settings, Stats, LocalFiles, Radio, Podcasts, SmartList, NewReleases,
+                       Profile /* a Spotify user's public playlists; id = spotify:user:<name> */ };
 
 struct Route {
     RouteKind kind = RouteKind::Home;
