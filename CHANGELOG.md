@@ -2,6 +2,18 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.11.0 — unreleased
+
+- **Song credits**: see who made a song (performers and the instruments they played, writers, producers, engineers)
+  and the label it came from, in Now Playing's About tab and through "Credits" in any song's menu. They come from
+  Spotify when you're connected and from MusicBrainz otherwise (also for your own files); every credited artist opens
+  their artist page.
+- **Wrong lyrics? Pick the right ones**: when the lyrics shown don't belong to the song, "Wrong lyrics?" in Now
+  Playing (or the search button in full-screen lyrics) lists what LRCLIB has for it, with each version's length
+  against the song's, synced or plain, and a preview, under a search you can edit. Or use Spotify's lyrics, load your
+  own .lrc / .txt file, or turn lyrics off for that song. ShadeTube remembers your pick for the song, and you can go
+  back to the automatic choice at any time.
+
 ## 0.10.0 — 2026-11-23
 
 - **A new Now Playing**: the whole window becomes a slowly drifting gradient made from the cover's colors (text stays
