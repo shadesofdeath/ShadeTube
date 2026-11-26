@@ -752,19 +752,17 @@ float ShelfSkeleton::preferredHeight(float width) { return 48 + 16 + cardWidth(w
 
 void ShelfSkeleton::paint(Canvas& c) {
     const Rect r = rect();
-    const double now = ui::frame::now();
-    c.skeleton({r.x, r.y + 10, 200, 22}, 2, now);
+    ui::paintSkeleton(c, this, {r.x, r.y + 10, 200, 22}, gfx::radii().badge);
     c.hline(r.x, r.right(), r.y + 44, colors().hairDefault);
     const int n = columns(r.w);
     const float cw = cardWidth(r.w);
     const float y = r.y + 48 + 16;
     for (int i = 0; i < n; ++i) {
         const float x = r.x + i * (cw + kCardGap);
-        c.skeleton({x, y, cw, cw}, circles_ ? cw * 0.5f : 2.f, now);
-        c.skeleton({x, y + cw + 12, std::round(cw * (0.72f - 0.08f * (i % 3))), 12}, 2, now);
-        c.skeleton({x, y + cw + 32, std::round(cw * 0.45f), 10}, 2, now);
+        ui::paintSkeleton(c, this, {x, y, cw, cw}, circles_ ? cw * 0.5f : gfx::radii().art);
+        ui::paintSkeleton(c, this, {x, y + cw + 12, std::round(cw * (0.72f - 0.08f * (i % 3))), 12}, gfx::radii().badge);
+        ui::paintSkeleton(c, this, {x, y + cw + 32, std::round(cw * 0.45f), 10}, gfx::radii().badge);
     }
-    ui::frame::requestNext();
 }
 
 float TopSkeleton::preferredHeight(float width) {
@@ -774,15 +772,13 @@ float TopSkeleton::preferredHeight(float width) {
 
 void TopSkeleton::paint(Canvas& c) {
     const Rect r = rect();
-    const double now = ui::frame::now();
     const float hero = r.w >= 720 ? 216.f : r.w >= 480 ? 176.f : 148.f;
-    c.skeleton({r.x, r.y, r.w, hero}, 2, now);
+    ui::paintSkeleton(c, this, {r.x, r.y, r.w, hero}, gfx::radii().surface);
     const int cols = r.w >= 880 ? 4 : r.w >= 600 ? 3 : 2;
     const float w = std::floor((r.w - metrics::gridGap * (cols - 1)) / cols), h = quickTileH();
     for (int i = 0; i < cols * 2; ++i)
-        c.skeleton({r.x + (i % cols) * (w + metrics::gridGap), r.y + hero + metrics::sectionGap + (i / cols) * (h + metrics::gridGap), w, h},
-                   2, now);
-    ui::frame::requestNext();
+        ui::paintSkeleton(c, this, {r.x + (i % cols) * (w + metrics::gridGap), r.y + hero + metrics::sectionGap + (i / cols) * (h + metrics::gridGap), w, h},
+                          gfx::radii().surface);
 }
 
 // =====================================================================================================================
