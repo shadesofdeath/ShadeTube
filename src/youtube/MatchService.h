@@ -118,6 +118,12 @@ public:
     VideoStreamInfo videoStream(const std::string& videoId, int maxRows, const VideoDecoders& decoders, double durationSec,
                                 bool bypassCache, const CT& ct = {});
 
+    // Video mode's official video (app/OfficialVideo): the smallest audio-only stream of `videoId` in `codec` ("opus",
+    // "mp4a.40.2": the codec of the stream the engine plays, so both soundtracks carry the same decoder delay), else the
+    // smallest of any codec (Opus / WebM only with allowWebm). Its sound is aligned with the song's. YouTube only, tried
+    // like an audio URL; not cached (the decision it serves is).
+    StreamInfo soundtrackStream(const std::string& videoId, const std::string& codec, bool allowWebm, const CT& ct = {});
+
     // Candidates for the "wrong match?" picker (best first; includes the current match).
     std::vector<Match> candidates(const catalog::Track& track, const CT& ct = {});
 
@@ -149,8 +155,11 @@ public:
 
 private:
     void load();
-    StreamInfo youtubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct);
-    StreamInfo pickYoutubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct);
+    // smallestOf (soundtrackStream): the lowest bit rate in that codec (else any) instead of the best stream.
+    StreamInfo youtubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct,
+                             const std::string* smallestOf = nullptr);
+    StreamInfo pickYoutubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct,
+                                 const std::string* smallestOf = nullptr);
     // Starts a new YouTube session unless one started after `failedAt` (that one is new enough) or in the last 20 s.
     // True when the session is newer than `failedAt`, i.e. resolving again is worth it.
     bool renewYoutubeSession(std::chrono::system_clock::time_point failedAt, const std::string& why);

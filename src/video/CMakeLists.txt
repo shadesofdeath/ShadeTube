@@ -6,6 +6,8 @@ add_library(st_video STATIC
     Fmp4Index.cpp Fmp4Index.h           # sidx segment index of a fragmented MP4: seeks without scanning (pure)
     VideoDecoder.cpp VideoDecoder.h     # download -> MF Source Reader (DXVA) -> NV12 slots, own thread
     VideoPlayer.cpp VideoPlayer.h       # UI side: scheduler + GPU NV12 -> BGRA -> ID2D1Bitmap1
+    Soundtrack.cpp Soundtrack.h         # an audio stream decoded whole to 12 kHz mono (the official video's alignment)
+    AudioAlign.cpp AudioAlign.h         # song <-> music video soundtrack alignment, the time map (pure)
 )
 target_link_libraries(st_video
     PUBLIC st_core st_gfx

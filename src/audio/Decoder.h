@@ -17,6 +17,7 @@
 namespace st::audio {
 
 class ProgressiveBuffer;
+struct ByteStreamView;
 
 class Decoder {
 public:
@@ -30,8 +31,10 @@ public:
     // Creates media source + source reader over the buffer. On failure returns the HRESULT and sets
     // `unsupported` when the failure means "no byte-stream handler / decoder for this format".
     // `targetRate` (0 = native): the sample rate to decode to, so tracks of different rates share one output format.
+    // `view` (optional): the source reads this view of the buffer instead (video mode's soundtracks: a fragmented MP4's
+    // init boxes with the edit list freed, see video/Fmp4Index).
     HRESULT open(const std::shared_ptr<ProgressiveBuffer>& buffer, const std::string& mimeType, bool& unsupported,
-                 uint32_t targetRate = 0);
+                 uint32_t targetRate = 0, std::shared_ptr<const ByteStreamView> view = nullptr);
     void close();
     bool isOpen() const { return reader_ != nullptr; }
 

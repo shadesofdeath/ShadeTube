@@ -20,7 +20,7 @@ bool isWebm(const std::string& mime) { return mime.find("webm") != std::string::
 } // namespace
 
 HRESULT Decoder::open(const std::shared_ptr<ProgressiveBuffer>& buffer, const std::string& mimeType,
-                      bool& unsupported, uint32_t targetRate) {
+                      bool& unsupported, uint32_t targetRate, std::shared_ptr<const ByteStreamView> view) {
     close();
     unsupported = false;
     targetRate_ = targetRate;
@@ -28,7 +28,7 @@ HRESULT Decoder::open(const std::shared_ptr<ProgressiveBuffer>& buffer, const st
     std::string mime = mimeType.substr(0, mimeType.find(';'));
     while (!mime.empty() && mime.back() == ' ') mime.pop_back();
 
-    HRESULT hr = createMfByteStream(buffer, mime, &stream_);
+    HRESULT hr = createMfByteStream(buffer, mime, &stream_, std::move(view));
     if (FAILED(hr)) return hr;
 
     ComPtr<IMFSourceResolver> resolver;
