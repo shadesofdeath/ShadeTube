@@ -152,7 +152,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   requested pixel size** and keeps D2D bitmaps in a GPU LRU with a byte budget (64 MB; eviction stops at bitmaps
   painted in the last two frames, so a screen needing more goes over it instead of thrashing). D2D's texture cache is
   capped at 24 MB. Requests from widgets that went off-screen are skipped.
-- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held. Every download
+- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held (the built-in Opus /
+  Vorbis decoders add ~0.1-0.2 MB per track, 3.42). Every download
   above 1 MB is buffered in a memory-mapped temporary file (`FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE`)
   and a local file is mapped read-only as it is, so their pages belong to the file cache, not the private commit, and
   Windows can drop them under pressure. A heap block is the fallback when no temporary file can be created.
@@ -1998,10 +1999,13 @@ statically (`external/libopus` 1.6.1 decoder, `opusfile` 0.12, `libvorbis` 1.3.7
   packet its duration from the block sizes (`(previous + current) / 4`, the first only primes) and marks the first
   frame of every chained stream as a discontinuity; `LiveDecoder` runs `VorbisPacketDecoder`. Ogg FLAC / Speex are
   still refused.
-- **Cost**: Release exe +0.30 MB (12 032 512 → 12 346 368 bytes; libopus decoder ~170 KB, libvorbis ~110 KB,
-  opusfile / libogg / demuxer / resampler the rest). Memory per playing Opus track: the opusfile or demuxer state and
-  libopus decoder (~30 KB) plus, when resampling, a 115 KB kernel table; CPU for a 160 kbps stream ≈ 0.3 % of a core
-  in Release (plain C, no SIMD).
+- **Cost** (measured 2026-11-27, Release): the exe grew 470 KB (12 032 512 → 12 503 040 bytes with this round's
+  exclusive mode; the four libraries are nearly all of it). Playing a 90 s 160 kbps file in a sandboxed app, commit
+  was 65.4 MB with Opus (built in) against 69.7 MB with the same AAC through Media Foundation (fewer DLLs mapped:
+  images 220.6 vs 244.5 MB); per track the decoder holds ~0.1-0.2 MB, plus a ~120 KB kernel table while resampling.
+  Decoding (codecs_test --bench): Opus 0.15 % of a core (650x real time), Vorbis q5 0.11 %, AAC through MF 0.20 %;
+  resampling 44.1 ↔ 48 kHz adds ~0.6 % (plain C, no SIMD; MF's own resampler is cheaper, ours keeps the timing
+  exact).
 - **Tests**: `codecs_test` (5.2) on ffmpeg-made chirp fixtures (`tests/codecs/fixtures`, `make_fixtures.py`):
   lengths, alignment with the formula (best lag 0), seeks against the full decode, resampling, downmix, tags, the
   demuxer on hand-built / truncated / damaged input, live Ogg parsing + decoding, a short engine run; `audio_test
@@ -2103,7 +2107,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, seeks beyond the download, pause, gapless, crossfade, the other container, memory) | network; `[--webm] [--exclusive] [videoA] [videoB]` (`--webm`: everything on Opus / WebM, the built-in decoder; `--exclusive`: WASAPI exclusive mode) |
-| `codecs_test` | built-in Opus / Vorbis (3.42) on ffmpeg-made chirp fixtures: `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.43 on the default device, ~15 s) |
+| `codecs_test` | built-in Opus / Vorbis (3.42) on ffmpeg-made chirp fixtures: `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.43 on the default device, ~15 s); `--live <url>` (a station's state for 15 s); `--bench <file> [rate]` (decode speed) |
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, `refreshEntry` = what a scan stores, folder tree (natural order, covers, nested / drive roots, 50 000 files timed), files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |

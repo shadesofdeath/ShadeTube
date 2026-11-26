@@ -17,7 +17,9 @@
 //   --exclusive instead (takes the default device for ~15 s): exclusive mode at the file's own rate, a second engine
 //      refused (Busy, shared instead), the device released while paused, a 44.1 -> 48 kHz handoff reopening it, a
 //      crossfade keeping the rate, the preview voice, switching back to shared mode while playing.
-//   codecs_test [--exclusive] [fixtures dir]
+//   --live <url>: a station through the engine, its state twice a second for 15 s.
+//   --bench <file> [rate]: decode speed of a file through the Decoder (Release builds: the CPU cost while playing).
+//   codecs_test [--exclusive | --live <url> | --bench <file> [rate]] [fixtures dir]
 #include "audio/AudioEngine.h"
 #include "audio/Decoder.h"
 #include "audio/LiveDecoder.h"
@@ -800,6 +802,17 @@ void watchLive(const std::string& url) {
     }
 }
 
+// ---- --bench <file> [rate]: decode speed of a file through the Decoder (what a core spends per second of audio) -------
+
+void bench(const fs::path& file, uint32_t rate) {
+    const auto t0 = std::chrono::steady_clock::now();
+    const Decoded d = decode(file, RatePolicy{rate});
+    const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    const double audio = d.rate ? double(d.pcm.size() / 2) / d.rate : 0;
+    std::printf("  %ls: built-in %d, %u Hz out, %.1f s of audio in %.3f s = %.0fx real time (%.2f %% of a core while playing)\n",
+                file.filename().c_str(), d.builtIn, d.rate, audio, s, audio / s, 100 * s / std::max(audio, 1e-9));
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -807,15 +820,22 @@ int main(int argc, char** argv) {
     st::log::init();
     bool exclusive = false;
     std::string liveUrl;
+    fs::path benchFile;
+    uint32_t benchRate = 0;
     g_dir = fs::path(ST_CODECS_FIXTURES);
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--exclusive") exclusive = true;
         else if (std::string(argv[i]) == "--live" && i + 1 < argc) liveUrl = argv[++i];
-        else g_dir = fs::path(argv[i]);
+        else if (std::string(argv[i]) == "--bench" && i + 1 < argc) {
+            benchFile = argv[++i];
+            if (i + 1 < argc) benchRate = static_cast<uint32_t>(std::atoi(argv[++i]));
+        } else g_dir = fs::path(argv[i]);
     }
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     MFStartup(MF_VERSION, MFSTARTUP_LITE);
-    if (!liveUrl.empty()) {
+    if (!benchFile.empty()) {
+        bench(benchFile, benchRate);
+    } else if (!liveUrl.empty()) {
         watchLive(liveUrl);
     } else if (exclusive) {
         if (AudioEngine::outputDevices().empty()) std::printf("no audio device: --exclusive skipped\n");
