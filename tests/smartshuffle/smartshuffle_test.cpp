@@ -316,6 +316,10 @@ void testPlayer(const fs::path& tmp) {
         CHECK(!queuedOf("own3") && !queuedOf("rec0"));
         p.playNext(T("next1", "Next 1", "Z"));
         p.enqueue({T("end1", "End 1", "Z")});
+        // Sıraya ekle plays after the songs already queued, before the context's next one (Spotify's queue).
+        CHECK(upcomingIds(p).size() >= 3 && upcomingIds(p)[0] == "next1" && upcomingIds(p)[1] == "end1");
+        p.enqueue({T("end2", "End 2", "Z"), T("end3", "End 3", "Z")});
+        CHECK(upcomingIds(p)[2] == "end2" && upcomingIds(p)[3] == "end3" && !queuedOf(upcomingIds(p)[4]));
         CHECK(p.insertAt(p.currentOrderIndex() + 2, {T("drop1", "Drop 1", "Z")}) == 1);
         CHECK(p.insertAt(p.currentOrderIndex() + 3, {T("rec9", "Rec 9", "Y", true)}) == 1);
         CHECK(queuedOf("next1") && queuedOf("end1") && queuedOf("drop1") && !queuedOf("rec9"));
@@ -326,7 +330,7 @@ void testPlayer(const fs::path& tmp) {
             restored.restoreSession();
             int q = 0;
             for (const auto& t : restored.items()) q += t.queued ? 1 : 0;
-            CHECK(q == 3);
+            CHECK(q == 5);
         }
         pumpUntil([] { return false; }, 200);
     }

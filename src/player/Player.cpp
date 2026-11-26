@@ -354,12 +354,21 @@ void Player::enqueue(const std::vector<Track>& tracks) {
         playContext(tracks, 0, {"queue", tr(L"Sıra")});
         return;
     }
+    // The user's queue plays before the rest of the context (as Spotify's does): after the run of queued songs that
+    // follows the current one, in front of the context's next song. Nothing queued yet: right after the current one.
+    int at = std::clamp(pos_ + 1, 0, static_cast<int>(order_.size()));
+    while (at < static_cast<int>(order_.size()) && items_[order_[at]].queued) ++at;
+    int added = 0;
     for (const auto& t : tracks) {
         if (!t.playable) continue;
         items_.push_back(t);
         items_.back().queued = true;
-        order_.push_back(static_cast<int>(items_.size()) - 1);
+        order_.insert(order_.begin() + at + added, static_cast<int>(items_.size()) - 1);
+        ++added;
     }
+    if (added == 0) return;
+    // What plays next may have changed: prepare again (the prefetch tick does).
+    if (prepared_ && prepared_->orderIndex >= at) dropPrepared();
     notify();
 }
 
