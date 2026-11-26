@@ -37,15 +37,6 @@ int64_t steadyNowMs() {
     return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
 }
 
-std::string categoriesKey(const std::vector<std::string>& cats) {
-    std::string key = "c:";   // never empty, so "" can mean "not requested yet"
-    for (const auto& c : cats) {
-        key += c;
-        key.push_back(',');
-    }
-    return key;
-}
-
 int64_t secondsToMs(double s) { return static_cast<int64_t>(std::llround(s * 1000.0)); }
 
 std::string stringField(const nlohmann::json& obj, const char* name) {
@@ -79,7 +70,41 @@ std::vector<SponsorBlock::Segment> keepCategories(std::vector<SponsorBlock::Segm
     return segs;
 }
 
+bool sameSegments(const std::vector<SponsorBlock::Segment>& a, const std::vector<SponsorBlock::Segment>& b) {
+    return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](const auto& x, const auto& y) {
+        return x.startMs == y.startMs && x.endMs == y.endMs && x.category == y.category;
+    });
+}
+
 } // namespace
+
+std::string SponsorBlock::categoriesKey(const std::vector<std::string>& cats) {
+    std::string key = "c:";   // never empty, so "" can mean "not requested yet"
+    for (const auto& c : cats) {
+        key += c;
+        key.push_back(',');
+    }
+    return key;
+}
+
+std::string SponsorBlock::segmentsToJson(const std::vector<Segment>& raw) {
+    nlohmann::json j = nlohmann::json::array();
+    for (const auto& s : raw) j.push_back({s.startMs, s.endMs, s.category, s.videoDurationMs});
+    return j.dump();
+}
+
+std::vector<SponsorBlock::Segment> SponsorBlock::segmentsFromJson(std::string_view text) {
+    std::vector<Segment> out;
+    const auto j = nlohmann::json::parse(text.begin(), text.end(), nullptr, false);
+    if (!j.is_array()) return out;
+    for (const auto& e : j) {
+        if (!e.is_array() || e.size() < 4 || !e[0].is_number_integer() || !e[1].is_number_integer() || !e[2].is_string() ||
+            !e[3].is_number_integer())
+            return {};
+        out.push_back({e[0].get<int64_t>(), e[1].get<int64_t>(), e[2].get<std::string>(), e[3].get<int64_t>()});
+    }
+    return out;
+}
 
 SponsorBlock::SponsorBlock() : categories(defaultCategories()) {}
 SponsorBlock::~SponsorBlock() = default;   // life_ dies with us: an in-flight lookup's result is dropped
@@ -123,19 +148,30 @@ void SponsorBlock::ensureFetched() {
         state_ = State::Ready;
         return;
     }
-    state_ = State::Loading;
+    // A copy from an earlier session (a cached song): skips right away, also offline; the lookup refreshes it.
+    bool fromStore = false;
+    if (stored)
+        if (const auto json = stored(videoId_, cats)) {
+            apply(segmentsFromJson(*json));
+            fromStore = true;
+            ST_LOG_INFO("sponsorblock", "{}: {} stored segment(s) to skip", videoId_, segments_.size());
+        }
+    state_ = fromStore ? State::Ready : State::Loading;
     st::async(
         Priority::High, life_.ref(),
         [id = videoId_, wanted = categories] { return fetchSegments(id, wanted, true); },
-        [this, id = videoId_, key = std::move(key)](Result<std::vector<Segment>> r) {
+        [this, id = videoId_, key = std::move(key), cats, fromStore](Result<std::vector<Segment>> r) {
             if (id != videoId_) return;   // belt and braces: renew() already guards this
             if (!r) {
+                ST_LOG_WARN("sponsorblock", "lookup failed for {}: {}{}", id, r.errorMessage(), fromStore ? " (the stored segments stay)" : "");
+                if (fromStore) return;   // Ready with the stored ones; no retry loop
                 state_ = State::Failed;
                 failedAtMs_ = steadyNowMs();
-                ST_LOG_WARN("sponsorblock", "lookup failed for {}: {}", id, r.errorMessage());
                 return;
             }
-            apply(*r);
+            // Unchanged stored segments keep their armed state (one the user seeked back into stays unskipped).
+            if (!fromStore || !sameSegments(normalize(*r, videoDurationMs_), segments_)) apply(*r);
+            if (onFetched) onFetched(id, cats, segmentsToJson(*r));
             storeCache(key, std::move(*r));
             state_ = State::Ready;
             ST_LOG_INFO("sponsorblock", "{}: {} segment(s) to skip", id, segments_.size());
@@ -192,6 +228,8 @@ std::vector<SponsorBlock::Segment> SponsorBlock::knownSegments(const std::string
     if (!enabled || videoId.empty()) return {};
     if (videoId == videoId_ && state_ == State::Ready) return segments_;
     if (const auto* hit = findCache(videoId + '\n' + categoriesKey(categories))) return normalize(*hit, videoDurationMs);
+    if (stored)
+        if (const auto json = stored(videoId, categoriesKey(categories))) return normalize(segmentsFromJson(*json), videoDurationMs);
     return {};
 }
 

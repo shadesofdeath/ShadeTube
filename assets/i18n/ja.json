@@ -1772,5 +1772,11 @@
   "Ülke": "国",
   "{} aylık dinleyici": "月間リスナー {}人",
   "{} dinleyici": "リスナー {}人",
-  "{} takipçi": "フォロワー {}人"
+  "{} takipçi": "フォロワー {}人",
+  "Şarkı önbelleği": "曲のキャッシュ",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "再生中に最後まで読み込まれた曲はこのPCに保存され、もう一度再生するとインターネットがなくてもすぐに始まります。上限に達すると、いちばん長く再生されていない曲から削除されます。ダウンロードした曲はここで容量を使いません。",
+  "Önbellekteki şarkılar": "キャッシュ内の曲",
+  "Henüz şarkı yok.": "まだ曲はありません。",
+  "{} · {} yer kaplıyor.": "{} · {}を使用中。",
+  "Şarkı önbelleği temizlendi": "曲のキャッシュをクリアしました"
 }

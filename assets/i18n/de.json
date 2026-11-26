@@ -1960,5 +1960,11 @@
   "{} takipçi": {
     "one": "{} Follower",
     "other": "{} Follower"
-  }
+  },
+  "Şarkı önbelleği": "Song-Cache",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "Vollständig geladene Songs werden auf diesem PC gespeichert: Beim nächsten Abspielen starten sie sofort, auch ohne Internet. Ist die Grenze erreicht, werden zuerst die am längsten nicht gespielten entfernt. Deine heruntergeladenen Songs belegen hier keinen Platz.",
+  "Önbellekteki şarkılar": "Songs im Cache",
+  "Henüz şarkı yok.": "Noch keine Songs.",
+  "{} · {} yer kaplıyor.": "{} · {} belegt.",
+  "Şarkı önbelleği temizlendi": "Song-Cache geleert"
 }

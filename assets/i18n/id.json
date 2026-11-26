@@ -1772,5 +1772,11 @@
   "Ülke": "Negara",
   "{} aylık dinleyici": "{} pendengar bulanan",
   "{} dinleyici": "{} pendengar",
-  "{} takipçi": "{} pengikut"
+  "{} takipçi": "{} pengikut",
+  "Şarkı önbelleği": "Cache lagu",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "Lagu yang sudah termuat penuh saat diputar disimpan di komputer ini: saat diputar lagi, langsung mulai, bahkan tanpa internet. Saat batas tercapai, lagu yang paling lama tidak diputar dihapus lebih dulu. Lagu yang kamu unduh tidak memakan ruang di sini.",
+  "Önbellekteki şarkılar": "Lagu di cache",
+  "Henüz şarkı yok.": "Belum ada lagu.",
+  "{} · {} yer kaplıyor.": "{} · memakan {}.",
+  "Şarkı önbelleği temizlendi": "Cache lagu dihapus"
 }

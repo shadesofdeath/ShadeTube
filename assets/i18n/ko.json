@@ -1772,5 +1772,11 @@
   "Ülke": "국가",
   "{} aylık dinleyici": "월별 청취자 {}명",
   "{} dinleyici": "청취자 {}명",
-  "{} takipçi": "팔로워 {}명"
+  "{} takipçi": "팔로워 {}명",
+  "Şarkı önbelleği": "곡 캐시",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "재생하면서 끝까지 불러온 곡은 이 PC에 저장돼요. 다시 재생하면 인터넷 없이도 바로 시작돼요. 한도에 도달하면 가장 오래 재생하지 않은 곡부터 삭제돼요. 다운로드한 곡은 여기서 공간을 차지하지 않아요.",
+  "Önbellekteki şarkılar": "캐시에 있는 곡",
+  "Henüz şarkı yok.": "아직 곡이 없어요.",
+  "{} · {} yer kaplıyor.": "{} · {} 사용 중.",
+  "Şarkı önbelleği temizlendi": "곡 캐시를 지웠어요"
 }

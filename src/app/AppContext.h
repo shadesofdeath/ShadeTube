@@ -120,6 +120,7 @@ private:
 struct AppContext {
     youtube::MatchService* matcher = nullptr;
     player::Player* player = nullptr;
+    player::AudioCache* audioCache = nullptr;   // song cache: played streams on disk (owned by App; file work on workers)
     ui::Window* window = nullptr;
     Router* router = nullptr;
     spotify::Session* session = nullptr;        // the user's Spotify session (nullptr only during teardown)

@@ -140,6 +140,8 @@ struct Settings {
     bool videoOnTop = false;             // the video window stays above other windows
     int videoX = -1, videoY = -1;        // the video window's position (screen px; -1 = next to the main window)
     int videoW = 640, videoH = 360;      // ... and size (DIPs)
+    // Song cache (player/AudioCache): played streams kept on disk up to this many MB; 0 = off.
+    int audioCacheMb = 1024;
 
     static Settings& get();
     void load();

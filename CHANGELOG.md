@@ -21,6 +21,11 @@ All notable changes to ShadeTube, newest first.
   new ones arrive), and typing back shows earlier answers at once. Move through the results with the arrow keys, Enter
   plays or opens, Ctrl+Tab switches the chips. Recent searches now remember the artists, albums and songs you opened,
   with their covers.
+- **Song cache**: songs you have played are kept on this PC, so playing them again starts instantly, downloads
+  nothing and works without internet, with the same loudness and SponsorBlock skips. Up to 1 GB by default (500 MB to
+  5 GB, or off) in Settings › Library and storage, where you also see how much it holds and can clear it; the songs
+  you haven't played for the longest make room first, and it never fills a nearly full disk. Downloading a song you
+  have played converts the copy on disk, even offline, and the cached copy then goes away.
 
 ## 0.10.0 — 2026-11-23
 

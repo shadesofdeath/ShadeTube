@@ -2125,5 +2125,11 @@
     "few": "{} подписчика",
     "many": "{} подписчиков",
     "other": "{} подписчика"
-  }
+  },
+  "Şarkı önbelleği": "Кэш треков",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "Полностью загруженные треки сохраняются на этом компьютере: при повторном воспроизведении они запускаются сразу, даже без интернета. При достижении лимита первыми удаляются те, что дольше всего не звучали. Скачанные треки здесь места не занимают.",
+  "Önbellekteki şarkılar": "Треки в кэше",
+  "Henüz şarkı yok.": "Треков пока нет.",
+  "{} · {} yer kaplıyor.": "{} · занимают {}.",
+  "Şarkı önbelleği temizlendi": "Кэш треков очищен"
 }

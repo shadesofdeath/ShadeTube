@@ -80,7 +80,8 @@ ShadeTube/
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core)
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
-│   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore
+│   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
+│                                cache, 3.42)
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
 │   video/       st_video        video mode's picture: VideoDecoder (MF + DXVA), SyncScheduler, VideoPlayer, Fmp4Index
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
@@ -110,6 +111,7 @@ ShadeTube/
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, collections,
                                  downloads, headers, icons, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, browse, collections,
+└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiocache, audiodsp, collections,
                                  downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, sponsorblock,
@@ -156,7 +158,9 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 - Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held. Every download
   above 1 MB is buffered in a memory-mapped temporary file (`FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE`)
   and a local file is mapped read-only as it is, so their pages belong to the file cache, not the private commit, and
-  Windows can drop them under pressure. A heap block is the fallback when no temporary file can be created.
+  Windows can drop them under pressure. A heap block is the fallback when no temporary file can be created. The song
+  cache (3.42) copies a complete stream from that mapping to its file and plays it from a read-only mapping: it adds
+  only its index (~0.3 KB a song).
 - GPU device: created with `D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS` (no driver worker threads:
   ~20 MB less commit on Intel UHD). A window's swap chain is created by its first frame, never for a hidden window.
 - Pages are destroyed on navigation; history keeps the route and scroll offset, never widgets. Now Playing drops its
@@ -232,7 +236,8 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 
 1. A list calls `Player::playContext(tracks, index, context)`.
 2. Downloaded tracks and local files play straight from disk (`localFileFor` / local-file resolvers).
-3. Otherwise `youtube::MatchService::resolve(track)`: the persistent `spotifyId → videoId` cache
+3. Otherwise the song cache (3.42) when it holds the track's video in the current quality's format, else
+   `youtube::MatchService::resolve(track)`: the persistent `spotifyId → videoId` cache
    (`cache\matches.json`, manual picks pinned), else `YoutubeExplode::Music::TrackMatcher::find({title, artists,
    duration, album})`; then the manifest → best audio stream (AAC/MP4 preferred; Opus/WebM when the OS decodes it
    and quality is High; Normal = ≤ 128 kbps AAC; DRC "stable volume" variants only when nothing else exists). Stream
@@ -607,7 +612,8 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
 `spotify-hashes.json`, `library-recents.json`,
 `update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `themes\` (custom color themes, 3.35 Theme
 studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
-`local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
+`local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`, `audio` = the song cache, 3.42), `logs\shadetube.log`
+and `crashes\`. Downloads
 go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
 ### 3.15 Drag and drop
@@ -2096,6 +2102,63 @@ biography with a gradient over its opaque fill instead of a layer (14 -> 7 ms fr
 
 **Dev**: `SHADETUBE_SPOTIFY_DEMO=<folder>` with an `artist.json` (a raw `queryArtistOverview` answer) shows it for any
 `artist:spotify:artist:<id>` route without a session (5.4).
+### 3.42 Song cache
+
+`player/AudioCache` keeps the streams of played songs on disk (`cache\audio`), so a song heard before starts from the
+file without a single request, also offline. Until 0.10.0 every play downloaded the stream again: `MatchService`'s
+"stream cache" only remembers stream URLs (until they expire, ~5 h) and the engine's buffer is a temporary file deleted
+with the track.
+
+- **What is kept**: the YouTube or backup-server (Piped / Invidious) stream of a queue item (current or preloaded, not
+  a song preview) that arrived completely while it played. `ProgressiveBuffer` calls `StreamSource::onComplete` once
+  on its download thread with the whole buffer (never for a cancelled or failed download; readers are untouched) and
+  `AudioCache::store` copies it byte for byte to `<videoId>-<itag>.m4a|.webm`. A song skipped before its download
+  completed is not kept. Podcasts, radio, local files and downloads never get here (they are on disk already), nor
+  SoundCloud stand-ins (no video id). The entry (`index.json`) holds what a play needs without the network: the format
+  (MIME type, codec, bit rate, itag), YouTube's `loudnessDb` (normalisation), the match (title, channel, duration,
+  score), the catalog tracks it played for and the video's SponsorBlock segments.
+- **Lookup** (`Player::resolveSong`, on the worker that used to resolve): the video the track plays (a listen-together
+  session pin, a manual or persisted match, `Track::videoId`: what `MatchService::resolve` would pick) in the format
+  the current stream choice picks. The "profile" is MatchService's own pair of flags, Opus allowed or not × High /
+  Normal quality; a format is served only for the profiles that picked it, so a quality change never serves another
+  format while online. A hit plays like a download (mapped read-only) with the match and the loudness gain, and nothing
+  is resolved. Otherwise the usual resolve; when that fails (offline, YouTube refusing), any cached format of the song
+  (the track's video, else the video the track last played from; Opus only while the engine decodes it); when it picked
+  a format another quality setting cached, that file (no download). The player's `currentFromCache()` tells which.
+- **Safety**: a stream is written as `.part`, flushed and renamed, so a partial download is never served. Every lookup
+  checks the length and a sampled FNV-1a hash (the length, the first and last 64 KB, 16 blocks of 4 KB across the
+  file: at most 192 KB read) and drops an entry that fails. `load()` drops entries whose file is gone or has
+  another length and files no entry knows (a crash's `.part`). A cached file that fails in the engine is removed by
+  the next resolve's worker and the song is resolved again from the network at the same position.
+- **Size**: `Settings::audioCacheMb` (Ayarlar › Kitaplık ve depolama › *Şarkı önbelleği*: Kapalı / 500 MB / 1 GB,
+  the default / 2 GB / 5 GB; any value in `settings.json`). The least recently played go first (a lookup counts), one
+  stream may take at most a quarter of the limit, and the cache never leaves less than 1 GB free on its volume
+  (`kMinFreeBytes`): on a nearly full disk it evicts before writing, or empties itself and writes nothing. *Kapalı*
+  empties it, *Önbellekteki şarkılar › Temizle* clears it (both on a worker). Uninstalling with *Ayarları ve önbelleği
+  de sil* removes it with the data folder.
+- **Downloads**: a download of a song whose stream the cache holds in the format the download would pick (the same
+  profile; passthrough only MP4) is converted from that file: no stream request, also offline, and the SponsorBlock cuts
+  come from the kept segments when the lookup fails. A finished download removes the video's cached streams (a song is
+  never kept twice; the download plays first anyway, `localFileFor`).
+- **SponsorBlock**: `SponsorBlock::stored` / `onFetched` (wired by App, the class stays standalone): every successful
+  lookup is kept with the video's entries, or held for one stored later in the run (the lookup lands before the stream
+  is complete). A video's kept segments apply as soon as it starts, also offline; the lookup still runs and replaces
+  them when they changed (unchanged ones keep their armed state), and a failed lookup keeps them.
+- **Unchanged behaviour**: a cached next item is preloaded from its file (gapless, crossfade), seeks work as in a
+  download, a preview reads the cache but never adds to it, video mode resolves its picture from the known match as
+  before, and a listen-together guest's session pin picks the host's video, which may be cached. Rows are dimmed only
+  for catalog reasons (`Track::playable`) and the blocklist: the app has no offline state that dims songs, so there
+  was nothing to light up for cached ones.
+- **Memory and threads**: the index only (~0.3 KB a song). `store` copies from the buffer's mapped temporary file and
+  a cached song plays from a read-only mapping: file cache pages, no private commit. File work runs on workers and
+  download threads; `index.json` (tmp + rename) is rewritten after stores and removals, and after lookups and
+  SponsorBlock updates by App's housekeeping on a worker (and at exit). The Settings rows read in-memory stats.
+- **Measured** (2026-11-26, Debug build, Get Lucky 4 MB Opus, from the command to the engine's first sound): first play
+  after a restart with the match known: network 1.2-2.5 s (manifest, URL check, first range), song cache 40-80 ms
+  (0.9 s once, on a busy startup). Replay in the same session: network 80-110 ms (its URL is still cached), song cache
+  under 16 ms (the tick's resolution; 234 ms once). The stream was stored about 1 s after it started playing.
+- **Dev**: `SHADETUBE_OFFLINE=1` (5.4) cuts the shared transport off; `songcache` log lines; `player` lines "playing
+  after N ms (network | song cache | preloaded | file | station | feed)"; `audiocache_test` (5.2).
 
 ## 4. Coding conventions
 
@@ -2188,6 +2251,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `review_test` | year in review (`app/YearReview`) on fixed synthetic histories: periods (a year, the last 12 months, a running year), time / streams / tops and their order, months, weekdays, hours (a play across midnight split), dayparts, 7-day blocks, streak, busiest day, discoveries, first stream, local days on another time zone, genre shares / coverage / minimum, which periods qualify, timing with 300 000 plays | offline |
 | `video_test` | video mode: picture stream choice on manifest fixtures (cap, H.264 first, VP9 / AV1 only with a decoder, fps, upscales, portrait, muxed fallback), the still-picture check, the sidx / edit-list index on made-up boxes, the A/V scheduler on a fake clock with a fake decoder (1× / 0.5× / 2× / 3× in sync to a frame, pause, seeks both ways, a decoder that can't keep up, the video ending first), a generated H.264 MP4 decoded in software and with DXVA + the video processor (every frame's colors, seeks, 2×, the idle release) | offline; `live [<id>…]` (the picture streams and still-picture verdicts of songs as MatchService matches them, one stream played on the GPU against a real-time clock, a seek); `play <id>`; `fetch <id> <file>`; `file <path> [<start s>]`; `mfurl <path>` (MF's own source on a file) |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
+| `audiocache_test` | song cache (`player/AudioCache`, 3.42): profiles / formats / offline fallbacks, what is not cacheable, the index across runs (match, loudness, tracks, SponsorBlock data); `.part` leftovers, orphans, gone / short files, damaged head / tail / sampled block / truncation dropped at lookup; LRU under a small limit, a lower limit, the quarter rule, off, a nearly full disk (free-space probe); `ProgressiveBuffer`'s completion hook against an in-process ranged HTTP server (exact bytes once, after a far seek, never when cancelled); the engine storing a streamed WAV and playing the file; a real `Player` with `SHADETUBE_OFFLINE` (cached songs with their match, a gapless preload from the cache, crossfade, a preview, another quality once resolving fails, a damaged file dropped) | offline (own temp profile); needs an audio device |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.32): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
 | `icons_test` | the icon set (3.42) through `gfx::Icons`: every file in every grid (viewBox = grid, path / rect / circle only, black only, the grid's stroke width, parsed by `ID2D1SvgDocument`, no `-thin` files), the grid order and legacy names, `-thin` aliases drawing the same masks, whole-pixel strokes at each grid's own size, the ink of a stroke from 9 to 36 px (≥ 1 px, then px / 16), `heart-filled` covering `heart`, the `downloaded` check cut out | offline; `--sheet <dir>` (contact sheets: all icons at 12-24 DIP × 80-175 % in dark / light / nord / pastel / sepia, each grid magnified, off / on pairs) |
 
@@ -2233,6 +2297,7 @@ apps*).
 | `SHADETUBE_DATA_DIR` | profile folder instead of `%LOCALAPPDATA%\ShadeTube` (app and tests) |
 | `SHADETUBE_I18N_DIR` | folder with `<code>.json` read instead of the embedded translation |
 | `SHADETUBE_FORCE_ALT=1` | skip YoutubeExplode while a backup source is set (tests the Piped / Invidious path) |
+| `SHADETUBE_OFFLINE=1` | the shared transport (`http::client()`, `getLimited()`: YouTube, SponsorBlock, covers, Spotify, lyrics, MusicBrainz) goes through a proxy name that never resolves, so every request fails as on a PC without a connection (the song cache's offline plays, 3.42). The engine's stream downloads and the private WinHTTP sessions (backup servers, radio, podcasts, listen together) are not affected |
 | `SHADETUBE_UPDATE_URL` | replaces the GitHub latest-release URL (mock server) |
 | `SHADETUBE_VERSION_OVERRIDE` | pretend the running exe has this version (update tests) |
 | `SHADETUBE_INSTALL_DIR`, `SHADETUBE_SHORTCUT_DIR`, `SHADETUBE_UNINSTALL_KEY` | installer locations (key always under HKCU) |
@@ -2366,6 +2431,12 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   added as hand-made SVG files instead of a drawing in `tools/icons.py` gets neither the hinting nor the 12 / 14 / 18
   grids (it still draws from its 16 / 20 / 24 files; `tools/icons.py` keeps such files and lists them, `--check`
   fails on them): add the drawing.
+- **Song cache** (3.42): the sampled hash notices a truncated or replaced file and damage in the sampled regions, not
+  a changed byte between them (the decoder then fails and the file is dropped, or the sound has a glitch). Offline a
+  song plays from the cache only when its video is known for that track id (it played, or was matched, under the same
+  id); a song whose last match was a "this play only" stand-in plays its cached video only once resolving failed. A
+  cached song plays on after its video was taken down on YouTube. `SHADETUBE_OFFLINE` simulates the shared transport
+  only (no firewall test was possible without admin rights).
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
   of the rest the GPU driver; about 13 MB once nothing has been on screen for 30 s (0.6.0 stayed at 63 MB). WARP
   software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now

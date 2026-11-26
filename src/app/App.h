@@ -107,6 +107,7 @@ private:
 
     LaunchOptions options_;
     std::unique_ptr<youtube::MatchService> matcher_;
+    std::unique_ptr<player::AudioCache> audioCache_;   // outlives player_ (its download threads store into it)
     std::unique_ptr<player::Player> player_;
     SponsorBlock sponsor_;               // UI thread; follows player_->currentMatch()
     std::unique_ptr<spotify::Session> session_;

@@ -33,6 +33,7 @@
 #include "gfx/Icons.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
+#include "player/AudioCache.h"
 #include "ui/Popups.h"
 #include "ui/Window.h"
 
@@ -149,11 +150,17 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     yto.language = i18n::code();
     yto.region = Settings::get().region;
     matcher_ = std::make_unique<youtube::MatchService>(YoutubeExplode::YoutubeClient(yto));
+    // Song cache: read on a worker right away (a play before that loads it on its own worker).
+    audioCache_ = std::make_unique<player::AudioCache>(paths::cacheDir() / L"audio");
+    audioCache_->setLimit(int64_t{Settings::get().audioCacheMb} << 20);
+    background(Priority::Low, [cache = audioCache_.get()] { cache->load(); });
     player_ = std::make_unique<player::Player>(*matcher_);
+    player_->setCache(audioCache_.get());
 
     auto& c = ctx();
     c.matcher = matcher_.get();
     c.player = player_.get();
+    c.audioCache = audioCache_.get();
     c.themeOverride = options_.theme;   // main.cpp already loaded the palette for it
     c.applyTheme = [this] { applyTheme(); };
     c.restartApp = [this] { restart(); };
@@ -514,6 +521,8 @@ App::~App() {
     discord_.reset();   // joins the RPC thread promptly; closing the pipe removes the presence
     matcher_.reset();
     c.matcher = nullptr;
+    audioCache_.reset();   // after the player: its download threads are joined (flushes the index)
+    c.audioCache = nullptr;
     session_.reset();
     c.session = nullptr;
 }
@@ -720,6 +729,13 @@ void App::wirePlayer() {
         for (auto& hook : ctx().trackChangedHooks) hook(t);
     };
     player_->onError = [](const std::wstring& msg) { toast(msg, true); };
+    // A song in the song cache keeps its video's SponsorBlock segments: an offline play skips the same parts.
+    sponsor_.stored = [this](const std::string& videoId, const std::string& key) {
+        return audioCache_ ? audioCache_->sponsor(videoId, key) : std::nullopt;
+    };
+    sponsor_.onFetched = [this](const std::string& videoId, const std::string& key, const std::string& json) {
+        if (audioCache_) audioCache_->setSponsor(videoId, key, json);
+    };
     // Song preview (app/Preview): about 35 % in, past a SponsorBlock segment this session already knows of the video.
     player_->previewStartFor = [this](const catalog::Track&, const youtube::Match* m, int64_t durationMs) {
         std::vector<std::pair<int64_t, int64_t>> skip;
@@ -969,6 +985,8 @@ void App::housekeeping() {
         if (player_ && player_->onChanged) player_->onChanged();
     }
     if (matcher_) matcher_->flush();
+    // The song cache's index: plays and SponsorBlock data only mark it (written on a worker).
+    if (audioCache_ && audioCache_->dirty()) background(Priority::Low, [cache = audioCache_.get()] { cache->flush(); });
     if (session_) session_->maybeRefresh();
     // Dev: --open-link, once a saved Spotify session has finished connecting (its login re-applies the start route).
     if (!options_.openLink.empty() && session_ && session_->state() != spotify::SessionState::Connecting)
@@ -1252,6 +1270,7 @@ void App::persist() {
     ctx().library.saveIfDirty();
     ctx().downloads.saveIfDirty();
     if (matcher_) matcher_->flush();
+    if (audioCache_) audioCache_->flush();
     for (auto& hook : ctx().persistHooks) hook();
     Settings::get().save();
 }

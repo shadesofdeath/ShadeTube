@@ -37,6 +37,7 @@ Track::Track(const StreamSource& source, int64_t startMs, std::atomic<int64_t>* 
         live_->start();
     } else {
         buffer_ = std::make_shared<ProgressiveBuffer>(source.url, source.localPath, source.contentLength, memCounter);
+        if (source.onComplete && source.localPath.empty()) buffer_->setOnComplete(source.onComplete);
         durationMs_.store(std::max<int64_t>(0, source.durationMsHint));
         if (startMs > 0) {
             seekPending_ = true;
