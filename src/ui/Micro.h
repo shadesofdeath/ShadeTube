@@ -86,6 +86,17 @@ void levels(double t, float out[4]);
 void paintEqualizer(gfx::Canvas& c, Widget* owner, const gfx::Rect& box, const gfx::Color& color, bool playing);
 
 // ---------------------------------------------------------------------------------------------------
+// Loading placeholders. One soft band of light crosses the whole window (gfx::skeletonBand: every block on screen
+// shimmers in step instead of each running its own sweep) and rests between crossings. Without micro-interactions the
+// blocks are static and ask for no frames. While the band runs, a painted block asks `owner`'s window for a repaint
+// every skeleton::kFrameMs (a slow, soft band needs no more than ~30 frames a second); blocks scrolled away, covered
+// pages and hidden windows ask nothing.
+namespace skeleton {
+inline constexpr double kFrameMs = 33;
+}
+void paintSkeleton(gfx::Canvas& c, Widget* owner, const gfx::Rect& r, float radius);
+
+// ---------------------------------------------------------------------------------------------------
 // Like / unlike feedback of a heart. Like (220 ms): the filled heart grows out of the outline, the glyph pops to 116 %
 // and back, and six thin ticks fly out and fade. Unlike (160 ms): the fill shrinks back into the outline with a slight
 // dip. Nothing runs without micro-interactions.

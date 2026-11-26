@@ -12,6 +12,7 @@
 #include "core/Paths.h"
 #include "core/Settings.h"
 #include "core/Utf.h"
+#include "player/AudioCache.h"
 #include "ui/Window.h"
 #include "youtube/MatchService.h"
 
@@ -44,22 +45,54 @@ std::wstring sanitizeName(const std::string& s) {
 }
 
 // SponsorBlock segments of the matched video to cut out of the MP3 (worker thread; blocking, k-anonymity
-// hash-prefix lookup only). Never throws: a failed lookup just means an untrimmed download.
-std::vector<std::pair<int64_t, int64_t>> sponsorCuts(const youtube::Match& m) {
+// hash-prefix lookup only). Never throws: a failed lookup just means an untrimmed download, unless the song cache kept
+// the video's segments (a song played before, downloaded offline).
+std::vector<std::pair<int64_t, int64_t>> sponsorCuts(const youtube::Match& m, const player::AudioCache* cache) {
     std::vector<std::pair<int64_t, int64_t>> cuts;
     if (m.videoId.empty()) return cuts;
+    const auto categories = SponsorBlock::defaultCategories();
+    std::vector<SponsorBlock::Segment> raw;
     try {
-        const auto segs = SponsorBlock::normalize(
-            SponsorBlock::fetchSegments(m.videoId, SponsorBlock::defaultCategories(), /*hashPrefix=*/true),
-            int64_t{m.durationSec} * 1000);
-        for (const auto& seg : segs) cuts.emplace_back(seg.startMs, seg.endMs);
-        ST_LOG_INFO("downloads", "sponsorblock: {} segment(s) to cut from {}", cuts.size(), m.videoId);
+        raw = SponsorBlock::fetchSegments(m.videoId, categories, /*hashPrefix=*/true);
     } catch (const std::exception& e) {
-        ST_LOG_WARN("downloads", "sponsorblock lookup failed, downloading untrimmed: {}", e.what());
+        const auto stored = cache ? cache->sponsor(m.videoId, SponsorBlock::categoriesKey(categories)) : std::nullopt;
+        if (!stored) {
+            ST_LOG_WARN("downloads", "sponsorblock lookup failed, downloading untrimmed: {}", e.what());
+            return cuts;
+        }
+        ST_LOG_WARN("downloads", "sponsorblock lookup failed ({}): using the segments the song cache kept", e.what());
+        raw = SponsorBlock::segmentsFromJson(*stored);
     } catch (...) {
         ST_LOG_WARN("downloads", "sponsorblock lookup failed, downloading untrimmed");
+        return cuts;
     }
+    for (const auto& seg : SponsorBlock::normalize(std::move(raw), int64_t{m.durationSec} * 1000)) cuts.emplace_back(seg.startMs, seg.endMs);
+    ST_LOG_INFO("downloads", "sponsorblock: {} segment(s) to cut from {}", cuts.size(), m.videoId);
     return cuts;
+}
+
+// The song cache's copy of the stream this download would fetch (the track's known video in the format the download's
+// stream choice picks), so the download needs no stream request. Worker thread.
+struct CachedSource {
+    youtube::Resolved resolved;
+    std::wstring path;
+};
+std::optional<CachedSource> cachedForDownload(youtube::MatchService& matcher, player::AudioCache* cache, const Track& t, bool mp3,
+                                              bool lowQ) {
+    if (!cache) return std::nullopt;
+    std::optional<youtube::Match> m = matcher.cachedMatch(t.id);
+    if (!m && !t.videoId.empty()) {
+        m.emplace();
+        m->videoId = t.videoId;
+        m->title = t.name;
+        m->score = 100;
+        m->manual = true;
+    }
+    if (!m) return std::nullopt;
+    auto hit = cache->find(m->videoId, player::AudioCache::profile(/*allowWebm=*/mp3, lowQ), {});
+    if (!hit || (!mp3 && hit->song.mimeType != "audio/mp4")) return std::nullopt;
+    ST_LOG_INFO("downloads", "\"{}\" converted from the song cache ({})", t.name, hit->song.key);
+    return CachedSource{{*m, hit->song.stream()}, std::move(hit->path)};
 }
 } // namespace
 
@@ -235,6 +268,7 @@ void DownloadManager::startNext() {
     const Track track = job->track;
     const std::string trackId = track.id;
     auto* matcher = ctx().matcher;
+    auto* cache = ctx().audioCache;
     const int kbps = Settings::get().downloadMp3Kbps;
     const bool mp3 = kbps > 0;
     const bool trim = mp3 && Settings::get().sponsorBlockEnabled;   // passthrough can't be cut (no re-encode)
@@ -254,23 +288,27 @@ void DownloadManager::startNext() {
 
     async(
         Priority::Low, life_.ref(),
-        [matcher, track, kbps, mp3, trim, lowQ, target, cancel, trackId, lyricsQuery]() -> Out {
+        [matcher, cache, track, kbps, mp3, trim, lowQ, target, cancel, trackId, lyricsQuery]() -> Out {
             Out o;
             o.path = target;
             try {
                 std::error_code ec;
                 std::filesystem::create_directories(std::filesystem::path(target).parent_path(), ec);
-                const auto resolved = matcher->resolve(track, /*allowWebm=*/mp3, lowQ);
+                // A song the song cache holds in the format this download would pick is converted from that file (no
+                // stream request, also offline). Passthrough keeps only an MP4 as .m4a.
+                const auto cached = cachedForDownload(*matcher, cache, track, mp3, lowQ);
+                const auto resolved = cached ? cached->resolved : matcher->resolve(track, /*allowWebm=*/mp3, lowQ);
 
                 audio::DownloadRequest req;
                 req.url = resolved.stream.url;
+                if (cached) req.localPath = cached->path;
                 req.mimeType = resolved.stream.mimeType;
                 req.contentLength = resolved.stream.contentLength;
                 req.outPath = target;
                 req.mp3Kbps = kbps;
                 // YouTube's loudness (vs. -14 LUFS) as a ReplayGain 2 track gain (to -18 LUFS).
                 if (resolved.stream.loudnessDb) req.replayGainDb = static_cast<float>(-4.0 - *resolved.stream.loudnessDb);
-                if (trim && !cancel->load()) req.cutMs = sponsorCuts(resolved.match);
+                if (trim && !cancel->load()) req.cutMs = sponsorCuts(resolved.match, cache);
                 req.title = track.name;
                 req.artist = track.artistLine();
                 req.album = track.album.name;
@@ -300,6 +338,8 @@ void DownloadManager::startNext() {
                     o.cutSegments = stats.segmentsCut;
                     o.cutMs = stats.cutMs;
                     if (lyr) writeLyricsSidecar(target, *lyr, track);
+                    // The download plays from now on (Player::localFileFor): the song is never kept twice.
+                    if (cache) cache->removeVideo(resolved.match.videoId);
                 }
             } catch (const std::exception& e) {
                 o.status = audio::DownloadStatus::NetworkError;

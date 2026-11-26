@@ -75,6 +75,7 @@ private:
     std::wstring error_;         // last failure ("" = fine)
     double lastFetch_ = -1e12, retryAt_ = 0;   // ui::frame::realNow() ms
     Lifetime life_;
+    Lifetime fetchLife_;   // the buddylist request in flight (another Spotify account drops it)
 };
 
 // ---- New releases ---------------------------------------------------------------------------------------------------

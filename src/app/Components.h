@@ -4,6 +4,7 @@
 #include "app/DragDrop.h"
 #include "app/Preview.h"
 #include "app/PageTransition.h"
+#include "app/TrackColumns.h"
 #include "gfx/Text.h"
 #include "ui/Anim.h"
 #include "ui/Controls.h"
@@ -143,10 +144,40 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------
+// Badges: one look for every mark next to a song (track tables, the queue panel, the player bar, Now Playing).
+//  - Text badges: 14 DIP, the badge radius, a 1 px outline and mono 9 text. Neutral: hairline.strong / fg.secondary
+//    ("ENGELLİ", "YEREL", "KULLANILAMIYOR"); Accent: the accent's outline and text over accent.tint06 ("ÖNERİLEN"
+//    with its sparkle, a listen-together guest's "+ AD").
+//  - Explicit: the spec's filled "E" square (fg at 14 %).
+//  - Downloaded: a 12 DIP accent disc with a check.
+// They sit on the title line after the title, in this order: E, downloaded, recommended / added by, blocked, local.
+namespace badge {
+enum class Tone { Neutral, Accent };
+inline constexpr float kH = 14, kGap = 6, kMark = 12;
+// Width of a text badge with `label` (and an 8 DIP icon before it).
+float width(gfx::Text& label, bool icon = false);
+// Draws a text badge with its left edge at x, centered on cy; returns its width.
+float draw(Canvas& c, float x, float cy, gfx::Text& label, Tone tone, std::string_view icon = {});
+float drawExplicit(Canvas& c, float x, float cy);      // returns its width (14)
+float drawDownloaded(Canvas& c, float x, float cy);    // returns its width (12)
+// The shared labels (created once): "ENGELLİ", "YEREL", "KULLANILAMIYOR".
+gfx::Text& blockedLabel();
+gfx::Text& localLabel();
+gfx::Text& unavailableLabel();
+} // namespace badge
+
+// ---------------------------------------------------------------------------------------------------
 // Virtualized track table (spec: Track row). Rows are painted from the model: no per-row widgets.
 // Rows can be dragged (app/DragDrop): the pressed row, or the whole selection when the pressed row is part of it, onto
 // the sidebar's playlists / Liked Songs or the queue panel. Escape cancels the drag. A reorderable table (a playlist the
 // user may edit) also takes its own rows: they move in front of the row under the pointer (a line shows where).
+//
+// Columns (app/TrackColumns): # | title block | album | added | plays | actions | duration | more. The optional columns
+// give way to the title as the table narrows; which of them a list shows is the user's (the column header's context
+// menu, Settings::trackColumns). Clicking a column header sorts by it (asc -> desc -> the list's own order); the page
+// hears it through onSortChanged and keeps its sort menu in step. The hover actions (add to queue, more) fade and slide
+// into room reserved for them, so nothing moves. The header sticks to the top of the page while the table scrolls
+// under it, unless a collapsing page header docks it (CollapseBar: setHeaderDocked).
 class TrackTable : public ui::Widget, public DropTarget, public PreviewSource {
 public:
     ~TrackTable() override;
@@ -156,6 +187,8 @@ public:
         bool showAdded = true;
         bool albumNumbering = false;   // show track numbers instead of the row index
         bool showHeader = true;
+        bool markLocal = true;         // the "YEREL" badge on local files (off where every row is one: Yerel dosyalar)
+        bool markDownloaded = true;    // the "downloaded" disc (off where every row is one: İndirilenler)
     };
     explicit TrackTable(Options opts);
 
@@ -165,19 +198,28 @@ public:
     // Visible tracks in display order (after sort/filter) — this is what gets queued on play.
     std::vector<catalog::Track> displayedTracks() const;
     void setFilter(const std::wstring& text);
-    enum class SortKey { None, Title, Album, Added, Duration };
+    enum class SortKey { None, Title, Album, Added, Duration, Plays };
     void setSort(SortKey key, bool descending);
     SortKey sortKey() const { return sortKey_; }
     bool sortDescending() const { return sortDesc_; }
+    bool hasPlays() const { return hasPlays_; }   // some row has a play count (SortKey::Plays means something)
     void setPlaylistId(std::string id) { playlistId_ = std::move(id); }
     void setLoadingRows(int n) { loadingRows_ = n; requestLayout(); }   // skeleton rows at the end
 
     std::function<void(int displayIndex)> onPlay;   // index into displayedTracks()
     std::function<void()> onNearEnd;                 // request next page
+    // Up on the first row / Down on the last (-1 / +1) is offered here first: true takes the key (a page moving the
+    // keyboard on to what is above / below the list). Unset: the cursor stays.
+    std::function<bool(int dir)> onEdge;
+    // The sort changed from a column header click (key, descending): the page's sort menu / label follows. Not called
+    // for setSort() itself.
+    std::function<void(SortKey, bool)> onSortChanged;
     // "Geliştir" (app/SmartShuffle): recommended rows get "+" (add it to the list) and "×" (hide it) in place of the
     // heart when these are set; `key` is the collection they were recommended for (the track menu's entries).
     std::function<void(const catalog::Track&)> onAddRecommended, onHideRecommended;
     void setRecommendKey(std::string key) { recommendKey_ = std::move(key); }
+    // A label chip after the title (accent tint, mono, upper case as given; "" = none): a blend's "AYŞE" / "ORTAK".
+    std::function<std::wstring(const catalog::Track&)> chipFor;
 
     // Reordering by drag (needs onReorder). Only in the list's own order ("Özel sıra"), unfiltered and with no
     // "Geliştir" recommendations between the rows.
@@ -209,7 +251,21 @@ public:
         float titleY, titleH, artistY, artistH;
     };
     static RowMetrics rowMetrics();
-    void paintHeader(Canvas& c, const Rect& r);      // also used for the sticky copy
+    // The column header in r (r.x / r.w: the table's own columns are used; r.y / r.h: where). Also the docked copy
+    // (CollapseBar) and the sticky copy.
+    void paintHeader(Canvas& c, const Rect& r);
+    // A collapsing page header docks this table's column header under its bar and paints it (CollapseBar::attach):
+    // the table then doesn't stick its own copy to the page's top.
+    void setHeaderDocked(bool docked) { headerDocked_ = docked; }
+    // Input on the docked copy (window DIPs; the CollapseBar forwards what lands on it): a left press sorts by the
+    // column under it, a right press opens the columns menu; hover lights the sortable label.
+    bool headerPress(gfx::Point windowPos, bool right);
+    void headerHover(gfx::Point windowPos);
+    void headerLeave();
+    bool headerHot() const { return headerHot_ >= 0; }   // a sortable label is under the pointer
+    // Placeholder rows (loading) in this table's geometry: art + title / artist bars, an album bar and the duration.
+    // Also the shared SkeletonRows (app/PageWidgets).
+    static void paintSkeletonRows(Canvas& c, ui::Widget* owner, const Rect& area, int rows, int seed, bool art);
 
     float preferredHeight(float width) override;
     void paint(Canvas& c) override;
@@ -217,39 +273,50 @@ public:
     void onMouseUp(const ui::MouseEvent& e) override;
     void onMouseMove(const ui::MouseEvent& e) override;
     void onMouseLeave() override;
-    // Keyboard (focused: owns its keys like before): Up/Down/PageUp/PageDown/Home/End move the selection cursor,
-    // Enter plays it, menu key / Shift+F10 opens the track menu, Ctrl+A selects all.
+    // Keyboard (focused: owns its keys like before): Up/Down/PageUp/PageDown/Home/End move the selection cursor
+    // (Shift extends it), Enter plays it, menu key / Shift+F10 opens the track menu, Ctrl+A selects all, Escape clears a
+    // selection of several rows.
     bool onKeyDown(const ui::KeyEvent& e) override;
     Rect focusRect() const override;
     LPCWSTR cursor() const override;
 
 private:
-    struct Columns {
-        float num, title, album, added, dur, heart;   // x positions (local)
-        float titleW, albumW, addedW;
-    };
+    enum class Hit { None, Number, Artist, Heart, Queue, More, RecAdd, RecHide };
     struct RowText {
-        gfx::Text title, artist, album, added, dur, num;
-        bool blocked = false;   // kara liste (cached with the texts; see blockRev_)
+        gfx::Text title, artist, album, added, dur, num, plays;
+        // Natural widths, measured once: a gfx::Text keeps one layout per width, so measuring at another width than
+        // the one it is drawn at would lay the text out again on every frame.
+        float titleW = 0, artistW = 0;
+        bool blocked = false;     // kara liste (cached with the texts; see blockRev_)
+        bool downloaded = false;  // DownloadManager::isDownloaded, re-read when dlRev changes
+        uint64_t dlRev = 0;
     };
-    Columns columns() const;
-    int rowAt(float y) const;        // display index or -1
+    trackcols::Layout columns() const;
+    uint32_t wantedColumns() const;   // what this table may show x what the user picked
+    int rowAt(float y) const;         // display index or -1 (the sticky header's band is no row)
     Rect rowRect(int i) const;
     RowText& rowText(int displayIndex);
     void rebuildView();
-    void paintRow(Canvas& c, int i, const Rect& r, const Columns& col);
-    bool heartHit(int i, gfx::Point p) const;
-    bool recAddHit(int i, gfx::Point p) const;       // "+" of a recommended row (onAddRecommended set)
-    bool recHideHit(int i, gfx::Point p) const;      // "×" of a recommended row (onHideRecommended set)
-    bool artistHit(int i, gfx::Point p);
+    void paintRow(Canvas& c, int i, const Rect& r, const trackcols::Layout& col);
+    void paintSelection(Canvas& c, int first, int last);   // the selected runs among the visible rows
+    Hit hitAt(int i, gfx::Point p);
+    int headerColumnAt(float x) const;    // SortKey under local x (as int), -1 = none
     void headerClick(float x);
+    void showColumnsMenu(gfx::Point windowPos);
+    void sortBy(SortKey key, bool descending);   // setSort + onSortChanged
+    void setHover(int row, Hit hit);
+    bool multiSelect() const { return selected_.size() > 1; }
     std::vector<catalog::Track> dragTracks() const;   // what a drag from pressRow_ carries
     std::vector<int> dragRows() const;                // the same rows as tracks_ indices
     std::vector<catalog::Track> selectedOwnRows() const;   // selection minus recommendations (display order)
+    std::vector<catalog::Track> selectedTracks() const;    // the whole selection (display order)
     int dropIndexAt(gfx::Point windowPos) const;      // insertion row under the pointer (0..view_.size())
     void autoScroll(gfx::Point windowPos);            // scrolls the page while a drag rests near its edge
     // onRemove for the track menu (dropped once the table is gone).
     std::function<void(const std::vector<catalog::Track>&)> menuRemove();
+    // Dev: SHADETUBE_LIST_DEMO (docs/DEVELOPMENT.md 5.4) runs its steps on the first table that gets rows.
+    void scheduleDemo();
+    void runDemoStep(const std::string& step);
 
     Options opts_;
     std::vector<catalog::Track> tracks_;
@@ -258,9 +325,10 @@ private:
     SortKey sortKey_ = SortKey::None;
     bool sortDesc_ = false;
     std::unordered_set<int> selected_;   // tracks_ indices
-    int anchor_ = -1;
+    int anchor_ = -1;                // keyboard cursor / range anchor (display index)
     int hover_ = -1;
-    bool hoverHeart_ = false, hoverArtist_ = false, hoverRecAdd_ = false, hoverRecHide_ = false;
+    Hit hoverHit_ = Hit::None;
+    int headerHot_ = -1;             // SortKey (as int) of the column header label under the pointer
     std::string recommendKey_;
     int pressRow_ = -1;
     gfx::Point pressPos_{};          // window DIPs of the press (drag threshold)
@@ -272,7 +340,7 @@ private:
     std::unordered_map<int, RowText> texts_;
     bool textsCompact_ = false;      // the density the cached rows' text styles are for
     uint64_t blockRev_ = 0;          // blacklist::revision() the cached rows were built with
-    gfx::Text blockedBadge_;         // "ENGELLİ"
+    uint64_t dlRev_ = 1;             // bumped when the downloads change (rows re-read their mark)
     ui::HoverFade hoverFade_;        // the hovered row's background and glyphs fade in / out (ui/Micro)
     std::string popId_;              // the track whose heart was just clicked: its like / unlike feedback
     ui::HeartPop pop_;
@@ -280,8 +348,21 @@ private:
     bool curLiked_ = false;          // elsewhere pops its row's heart too)
     bool nearEndSignaled_ = false;
     bool reorderable_ = false;
+    bool headerDocked_ = false;
+    bool hasPlays_ = false;          // some row has a play count (the Dinlenme column may show)
+    int rangeFrom_ = -1;             // where a Shift range starts (display index)
+    mutable std::string userColsSrc_;   // Settings::trackColumns as last parsed
+    mutable uint32_t userCols_ = 0;
+    mutable bool userColsRead_ = false;
+    struct HeaderTexts {
+        gfx::Text num, title, album, added, plays, dur, count;
+        int64_t countN = -1;
+        bool made = false;
+    } hdr_;
+    float stickyY_ = -1;             // local y of the sticky header copy at the last paint (-1: not stuck)
     std::vector<int> reorderRows_;   // tracks_ indices this table's own drag moves (empty: it can't reorder)
     int dropAt_ = -1;                // insertion line while its own rows are dragged over it
+    ui::Anim dropY_;                 // the line glides between slots
     double lastScrollTick_ = 0;
     Lifetime life_;                  // posted onReorder / onRemove calls die with the table
 };

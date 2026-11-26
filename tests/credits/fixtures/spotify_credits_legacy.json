@@ -1,0 +1,17 @@
+{
+  "trackUri": "spotify:track:4u7EnebtmKWzUH433cf5Qv",
+  "trackTitle": "Bohemian Rhapsody - Remastered 2011",
+  "roleCredits": [
+    { "roleTitle": "Performers",
+      "artists": [ { "uri": "spotify:artist:1dfeR4HaWDbWqFHLkxsg1d", "name": "Queen", "imageUri": "https://i.scdn.co/image/x",
+                     "subroles": [ "main artist" ], "weight": 0.98 } ] },
+    { "roleTitle": "Writers",
+      "artists": [ { "uri": "", "creatorUri": "spotify:artist:2qCdWVPhRbA4G9cvhI7mHn", "name": "Freddie Mercury",
+                     "subroles": [ "composer", "lyricist" ], "weight": 0.5 } ] },
+    { "roleTitle": "Producers",
+      "artists": [ { "name": "Roy Thomas Baker", "subroles": [ "producer" ] },
+                   { "uri": "spotify:artist:1dfeR4HaWDbWqFHLkxsg1d", "name": "Queen", "subroles": [] } ] }
+  ],
+  "extendedCredits": [],
+  "sourceNames": [ "EMI", "" ]
+}

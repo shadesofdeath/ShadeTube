@@ -4,13 +4,16 @@
 //
 // Routes (Route{RouteKind::Podcasts, id}): "" = the Podcastler page; "search:<text>" = directory results;
 // "feed:<feed URL>" = a show; "apple:<directory id>" = a show from the directory (its feed looked up first);
-// "new" = new episodes of the subscriptions; "downloads" = downloaded episodes.
+// "new" = new episodes of the subscriptions; "downloads" = downloaded episodes; "spotify:show:<id>" = a Spotify show
+// (its public feed, else why it can't play); "spotify" = the shows followed on Spotify, to import (app/PodcastsSpotify).
 #include "app/PodcastUi.h"
 
 #include "app/CollapsingHeader.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/Podcasts.h"
+#include "app/PodcastsSpotify.h"
+#include "app/Source.h"
 #include "app/Updater.h"
 #include "player/Player.h"
 #include "core/I18n.h"
@@ -33,7 +36,9 @@
 #include <deque>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace st::app {
 
@@ -58,12 +63,7 @@ void repaint() {
 }
 
 // The directory's store for charts and search: Windows' home location, else the app region.
-std::string homeCountry() {
-    wchar_t geo[16] = {};
-    if (GetUserDefaultGeoName(geo, 16) == 3 && iswalpha(geo[0]) && iswalpha(geo[1])) return toUtf8(toUpperTr(geo));
-    if (const auto& r = Settings::get().region; r.size() == 2) return r;
-    return "US";
-}
+std::string homeCountry() { return podcastDirectoryCountry(); }
 
 fs::path downloadsRoot() {
     const auto& s = Settings::get();
@@ -733,7 +733,7 @@ NotesCache& notesCache() {
 // ===================================================================================================
 // The page
 
-enum class View { Home, Search, Show, New, Downloads };
+enum class View { Home, Search, Show, New, Downloads, SpotifyShow, SpotifyImport };
 
 std::wstring podcastError(const std::string& raw) {
     if (raw.find("local network") != std::string::npos) return tr(L"Bu adres yerel ağda; yalnızca RSS adresiyle eklenen podcastler yerel ağdan çalar.");
@@ -783,6 +783,7 @@ public:
         parseRoute(id);
         enableCollapse();   // a show's header collapses into a compact bar (app/CollapsingHeader)
         podcast::store().subscribe(subs_.ref(), [this] { scheduleStoreRebuild(); });
+        spotifyshows::subscribe(subs_.ref(), [this] { scheduleSpotifyRefresh(); });
         build();
     }
     ~PodcastsPage() override { cts_->cancel(); }
@@ -790,7 +791,7 @@ public:
     // Page transitions: a show's header cover (HeaderCover, which the collapsing bar moves; while its feed loads: where
     // it will be).
     bool coverSlot(SharedCover& out) override {
-        if (view_ != View::Show) return false;
+        if (view_ != View::Show && !(view_ == View::SpotifyShow && header_)) return false;
         if (header_) return headerCoverSlot(out);
         return loadingCoverSlot(out);
     }
@@ -816,6 +817,15 @@ private:
             arg_ = id.substr(prefix.size());
             return true;
         };
+        if (id.rfind("spotify:show:", 0) == 0) {
+            view_ = View::SpotifyShow;
+            spotifyUri_ = id;
+            return;
+        }
+        if (id == "spotify") {
+            view_ = View::SpotifyImport;
+            return;
+        }
         if (starts("feed:")) view_ = View::Show;
         else if (starts("apple:")) {
             view_ = View::Show;
@@ -839,16 +849,38 @@ private:
         header_ = nullptr;
         list_ = nullptr;
         empty_ = nullptr;
-        body_ = searchSec_ = progressSec_ = newSec_ = subsSec_ = chartsSec_ = nullptr;
+        body_ = searchSec_ = progressSec_ = newSec_ = subsSec_ = chartsSec_ = spotifySec_ = nullptr;
+        importRows_.clear();
+        importSummary_ = nullptr;
+        importButton_ = nullptr;
+        waitingForLink_ = false;
         switch (view_) {
         case View::Show: buildShowLoading(); return;
         case View::New:
         case View::Downloads: buildEpisodePage(); return;
+        case View::SpotifyShow: buildSpotifyShow(); return;
+        case View::SpotifyImport: buildSpotifyImport(); return;
         default: buildHome(); return;
         }
     }
 
     ui::Column* sectionColumn(ui::Column* parent) { return parent->add<ui::Column>(16.f); }
+
+    // A row of chips / buttons, left to right, 8 DIP apart.
+    static void layoutChips(ui::Box* row, float h = 32.f) {
+        row->hitTestVisible = false;
+        row->onPreferredHeight = [h](float) { return h; };
+        row->onLayout = [h](ui::Box& b) {
+            float x = 0;
+            for (const auto& child : b.children()) {
+                if (!child->visible()) continue;
+                auto* btn = static_cast<Button*>(child.get());
+                const float w = btn->naturalWidth();
+                btn->setRect({x, 0, w, h});
+                x += w + 8;
+            }
+        };
+    }
 
     void buildHome() {
         auto* c = resetContent(24.f);
@@ -880,24 +912,20 @@ private:
         refresh->onClick = [] { refreshSubscriptions(true); };
         auto* downloads = chips->add<Button>(ButtonKind::Chip, tr(L"İndirilen bölümler"), "download");
         downloads->onClick = [] { ctx().router->navigate({RouteKind::Podcasts, "downloads"}); };
-        chips->onPreferredHeight = [](float) { return 32.f; };
-        chips->onLayout = [](ui::Box& b) {
-            float x = 0;
-            for (const auto& child : b.children()) {
-                auto* btn = static_cast<Button*>(child.get());
-                const float w = btn->naturalWidth();
-                btn->setRect({x, 0, w, 32});
-                x += w + 8;
-            }
-        };
+        if (source::loggedIn()) {
+            auto* spotify = chips->add<Button>(ButtonKind::Chip, tr(L"Spotify podcastlerini içe aktar"), "spotify-link");
+            spotify->onClick = [] { ctx().router->navigate({RouteKind::Podcasts, "spotify"}); };
+        }
+        layoutChips(chips);
         body_ = c->add<ui::Column>(gfx::metrics::sectionGap);
         c->setSpacingBefore(body_, 8);
         searchSec_ = sectionColumn(body_);
         progressSec_ = sectionColumn(body_);
         newSec_ = sectionColumn(body_);
         subsSec_ = sectionColumn(body_);
+        spotifySec_ = sectionColumn(body_);
         chartsSec_ = sectionColumn(body_);
-        for (auto* s : {searchSec_, progressSec_, newSec_}) s->setVisible(false);   // empty sections take no gap
+        for (auto* s : {searchSec_, progressSec_, newSec_, spotifySec_}) s->setVisible(false);   // empty sections take no gap
         buildStoreSections();
         loadCharts();
         if (!query_.empty()) startSearch(query_);
@@ -937,7 +965,40 @@ private:
             }
         }
         loadNew();
+        buildSpotifySection();
         scroll_->contentChanged();
+    }
+
+    // "Spotify'daki podcastlerin" (a Spotify session): the followed shows as cards saying what they resolved to; the
+    // lookups of those not resolved yet run in the background. "İçe aktar" opens the preview.
+    void buildSpotifySection() {
+        if (view_ != View::Home || !spotifySec_) return;
+        using spotifyshows::ListState;
+        spotifyshows::ensureFollowed();
+        spotifySec_->clearChildren();
+        const auto state = spotifyshows::listState();
+        const auto& shows = spotifyshows::followed();
+        const bool visible = state != ListState::NoSession && !(state == ListState::Ready && shows.empty());
+        spotifySec_->setVisible(visible);
+        if (!visible) return;
+        auto* h = spotifySec_->add<SectionHeader>(tr(L"Spotify'daki podcastlerin"),
+                                                  shows.empty() ? std::wstring() : i18n::number(static_cast<int>(shows.size())),
+                                                  tr(L"İçe aktar"));
+        h->onLink = [] { ctx().router->navigate({RouteKind::Podcasts, "spotify"}); };
+        if (state == ListState::Failed) {
+            spotifySec_->add<ui::Label>(tr(L"Spotify podcastlerin yüklenemedi."), type::secondary, ui::Tone::Secondary);
+            return;
+        }
+        if (shows.empty()) {
+            spotifySec_->add<SkeletonBlock>(0);
+            return;
+        }
+        auto* grid = addCardRow(spotifySec_, 150, 1);
+        for (const auto& s : shows) {
+            auto* card = grid->add<MediaCard>(toWide(s.name), spotifyshows::cardSubtitle(s), s.images);
+            card->onOpen = [id = s.id] { ctx().router->navigate({RouteKind::Podcasts, id}); };
+        }
+        spotifyshows::resolveAll(shows);
     }
 
     void scheduleStoreRebuild() {
@@ -948,8 +1009,30 @@ private:
             if (ref.expired()) return;
             rebuildPosted_ = false;
             if (view_ == View::Home) buildStoreSections();
-            else if (view_ == View::Show && header_) header_->setSubscribed(podcast::store().isSubscribed(show_.feedUrl));
+            else if ((view_ == View::Show || view_ == View::SpotifyShow) && header_)
+                header_->setSubscribed(podcast::store().isSubscribed(show_.feedUrl));
             else if (view_ == View::Downloads) buildEpisodePage();
+            else if (view_ == View::SpotifyImport) refreshImport();
+            invalidate();
+        });
+    }
+
+    // The followed list arrived or a lookup finished: only what shows Spotify's shows.
+    void scheduleSpotifyRefresh() {
+        if (spotifyPosted_) return;
+        spotifyPosted_ = true;
+        Dispatcher::post([ref = subs_.ref(), this] {
+            if (ref.expired()) return;
+            spotifyPosted_ = false;
+            if (view_ == View::Home) {
+                buildSpotifySection();
+                scroll_->contentChanged();
+            } else if (view_ == View::SpotifyImport) {
+                refreshImport();
+            } else if (view_ == View::SpotifyShow && waitingForLink_) {
+                const auto l = spotifyshows::lookup(spotifyUri_);
+                if (l != spotifyshows::Lookup::Pending && l != spotifyshows::Lookup::Unknown) build();
+            }
             invalidate();
         });
     }
@@ -987,14 +1070,20 @@ private:
         const std::string cc = homeCountry();
         chartsSec_->add<SectionHeader>(tr(L"Popüler podcastler"), toUpperTr(tr(L"Apple Podcasts listesi")));
         auto* grid = addCardRow(chartsSec_, 150, 0);
-        auto* skeleton = chartsSec_->add<SkeletonBlock>(0);
+        auto* skeleton = chartsSec_->add<SkeletonCards>(1, 150.f);   // a row of cards while the chart loads
         auto cts = cts_;
         async(
             Priority::Normal, life_.ref(), [cc, cts] { return podcast::Client::shared().topCharts(cc, 30, cts->token()); },
             [this, grid, skeleton](Result<std::vector<DirectoryEntry>> r) {
                 chartsSec_->removeChild(skeleton);
                 if (!r || r->empty()) {
-                    chartsSec_->add<ui::Label>(tr(L"Popüler podcastler yüklenemedi."), type::secondary, ui::Tone::Secondary);
+                    errorState(chartsSec_, r ? std::wstring(tr(L"Popüler podcastler yüklenemedi.")) : toWide(r.errorMessage()),
+                               [this, ref = life_.ref()] {   // after the click: the retry clears this section
+                                   Dispatcher::post([this, ref] {
+                                       if (!ref.expired()) loadCharts();
+                                   });
+                               })
+                        ->setCompact(true);
                 } else {
                     for (const auto& e : *r) addDirectoryCard(grid, e);
                 }
@@ -1034,7 +1123,7 @@ private:
         searchSec_->clearChildren();
         searchSec_->add<SectionHeader>(i18n::format(tr(L"“{}” için sonuçlar"), {toWide(text)}), toUpperTr(tr(L"Apple Podcasts dizini")));
         auto* grid = addCardRow(searchSec_, 150, 0);
-        auto* skeleton = searchSec_->add<SkeletonBlock>(0);
+        auto* skeleton = searchSec_->add<SkeletonCards>(1, 150.f);
         scroll_->contentChanged();
         searchLife_.renew();
         const std::string cc = homeCountry();
@@ -1042,8 +1131,12 @@ private:
             Priority::High, searchLife_.ref(), [text, cc] { return podcast::Client::shared().search(text, cc, 30); },
             [this, grid, skeleton](Result<std::vector<DirectoryEntry>> r) {
                 searchSec_->removeChild(skeleton);
-                if (!r) searchSec_->add<ui::Label>(tr(L"Arama yapılamadı. Bağlantını kontrol et."), type::secondary, ui::Tone::Secondary);
-                else if (r->empty()) searchSec_->add<ui::Label>(tr(L"Podcast bulunamadı"), type::secondary, ui::Tone::Secondary);
+                if (!r) errorState(searchSec_, toWide(r.errorMessage()), [this, ref = life_.ref()] {
+                    Dispatcher::post([this, ref] {
+                        if (!ref.expired()) startSearch(query_);
+                    });
+                })->setCompact(true);
+                else if (r->empty()) noResultsState(searchSec_, tr(L"Podcast bulunamadı"));
                 else
                     for (const auto& e : *r) addDirectoryCard(grid, e);
                 scroll_->contentChanged();
@@ -1069,12 +1162,12 @@ private:
         c->add<ui::Label>(toUpperTr(downloads ? tr(L"Bu bilgisayarda") : tr(L"Aboneliklerinden")), type::monoLabel, ui::Tone::Tertiary);
         if (downloads) {
             const auto list = podcast::store().downloaded();
-            if (list.empty()) c->add<MessagePanel>("download", tr(L"İndirilen bölüm yok"), tr(L"Bir bölümün yanındaki ok ile çevrimdışı dinlemek için indir."));
+            if (list.empty()) emptyState(c, "download", tr(L"İndirilen bölüm yok"), tr(L"Bir bölümün yanındaki ok ile çevrimdışı dinlemek için indir."));
             else c->add<EpisodeList>(EpisodeList::Options{true, true})->setEpisodes(list);
             contentReady();
             return;
         }
-        auto* skeleton = c->add<SkeletonBlock>(4);
+        auto* skeleton = c->add<SkeletonRows>(6);   // episode rows while the feeds are read
         const auto subs = podcast::store().subscriptions();
         std::unordered_map<std::string, bool> played;
         async(
@@ -1082,7 +1175,7 @@ private:
             [this, c, skeleton](Result<std::vector<Episode>> r) {
                 c->removeChild(skeleton);
                 if (!r || r->empty())
-                    c->add<MessagePanel>("offline", tr(L"Yeni bölüm yok"), tr(L"Abone olduğun podcastlerin bölümleri burada görünür."));
+                    emptyState(c, "podcast", tr(L"Yeni bölüm yok"), tr(L"Abone olduğun podcastlerin bölümleri burada görünür."));
                 else c->add<EpisodeList>(EpisodeList::Options{true, true})->setEpisodes(std::move(*r));
                 scroll_->contentChanged();
                 contentReady();
@@ -1157,6 +1250,19 @@ private:
                                  podcast::Client::shared().dropCachedFeed(show_.feedUrl);
                                  build();
                              }});
+            if (!spotifyUri_.empty()) {   // opened as a Spotify show: this feed is the directory's match for it
+                items.push_back(ui::MenuItem::sep());
+                items.push_back({tr(L"Spotify'da aç"), "external-link", L"", [url = spotifyshows::webUrl(spotifyUri_)] {
+                                     ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+                                 }});
+                items.push_back({tr(L"Yanlış podcast mi?"), "swap-match", L"", [this] {
+                                     spotifyshows::reject(spotifyUri_);
+                                     toast(tr(L"Eşleşme kaldırıldı"));
+                                     Dispatcher::post([this, ref = subs_.ref()] {
+                                         if (!ref.expired()) build();
+                                     });
+                                 }});
+            }
             ui::Menu::open(ctx().window, {b.x, b.bottom() + 4}, std::move(items));
         };
         header_->order_->onClick = [this] {
@@ -1215,6 +1321,244 @@ private:
         if (const auto* cur = ctx().player ? ctx().player->current() : nullptr; cur && catalog::isPodcastId(cur->id))
             if (const Episode* e = podcast::store().find(cur->id)) mine = e->feedUrl == show_.feedUrl;
         header_->play_->setPlaying(mine && ctx().player->isPlaying());
+    }
+
+    // ---- Spotify shows -----------------------------------------------------------------------------------------------
+    // The show as Spotify names it: seen this session, else what the store kept with its last lookup.
+    std::optional<catalog::PodcastShow> spotifyInfo() const {
+        if (const auto* s = spotifyshows::known(spotifyUri_)) return *s;
+        if (const auto* l = podcast::store().spotifyLink(spotifyUri_); l && !l->showName.empty()) {
+            catalog::PodcastShow s;
+            s.id = spotifyUri_;
+            s.name = l->showName;
+            s.publisher = l->showPublisher;
+            if (!l->showImage.empty()) s.images.push_back({l->showImage, 0, 0});
+            return s;
+        }
+        return std::nullopt;
+    }
+
+    // A matched show is its feed's page; one without a public feed says so; else the lookup runs (urgent) and the page
+    // waits for it on a skeleton (scheduleSpotifyRefresh rebuilds once there is a verdict).
+    void buildSpotifyShow() {
+        using spotifyshows::Lookup;
+        const Lookup l = spotifyshows::lookup(spotifyUri_);
+        if (l == Lookup::Matched) {
+            arg_ = podcast::store().spotifyLink(spotifyUri_)->feedUrl;
+            buildShowLoading();
+            return;
+        }
+        if (l == Lookup::NoFeed) return buildSpotifyUnavailable();
+        if (l == Lookup::Failed) {
+            showError(tr(L"Podcast dizinine ulaşılamadı. Bağlantını kontrol edip tekrar dene."), [this] { lookUpAgain(); });
+            return;
+        }
+        showSkeleton(6);
+        waitingForLink_ = true;
+        if (l == Lookup::Pending) return;
+        if (auto info = spotifyInfo()) return spotifyshows::resolve(*info, true);
+        spotify::Api* api = source::activeApi();
+        if (!api) {
+            waitingForLink_ = false;
+            showError(tr(L"Bu podcasti açmak için Spotify'a bağlan."), [this] { build(); });
+            return;
+        }
+        async(Priority::High, life_.ref(), [api, uri = spotifyUri_] { return api->show(uri); },
+              [this](Result<catalog::PodcastShow> r) {
+                  if (!r) {
+                      waitingForLink_ = false;
+                      showError(tr(L"Podcast yüklenemedi. Bağlantını kontrol edip tekrar dene."), [this] { build(); });
+                      return;
+                  }
+                  spotifyshows::resolve(*r, true);
+              });
+    }
+
+    void lookUpAgain() {
+        if (auto info = spotifyInfo()) spotifyshows::resolve(*info, true, true);
+        build();
+    }
+
+    // No public feed: the show as Spotify has it, why it can't play here and what the user can do instead.
+    void buildSpotifyUnavailable() {
+        const auto info = spotifyInfo();
+        const std::wstring name = info ? toWide(info->name) : std::wstring();
+        const std::wstring publisher = info ? toWide(info->publisher) : std::wstring();
+        const std::vector<catalog::Image> images = info ? info->images : std::vector<catalog::Image>{};
+        auto* c = resetContent(20.f);
+        auto* head = c->add<ui::Box>();
+        head->hitTestVisible = false;
+        head->onPreferredHeight = [](float) { return 184.f; };
+        head->onPaint = [name, publisher, images, title = gfx::Text(name, type::displayS), sub = gfx::Text(publisher, type::body)](
+                            ui::Box& b, Canvas& cv) mutable {
+            const Rect r = b.rect();
+            const auto& col = colors();
+            drawArtwork(cv, images, {r.x, r.y, 184, 184}, gfx::radii().art, Placeholder::Album);
+            const float tx = r.x + 184 + 28, tw = std::max(0.f, r.right() - tx);
+            cv.text(toUpperTr(tr(L"Podcast")) + L" · SPOTIFY", type::monoLabel, {tx, r.y + 72, tw, 14}, col.fgSecondary);
+            cv.text(title, {tx, r.y + 92, tw, 44}, col.fgPrimary);
+            cv.text(sub, {tx, r.y + 140, tw, 22}, col.fgSecondary);
+        };
+        auto* heading = c->add<ui::Label>(tr(L"Bu podcast ShadeTube'da çalınamaz"), type::sectionTitle);
+        c->setSpacingBefore(heading, 32);
+        auto* why = c->add<ui::Label>(tr(L"Herkese açık bir RSS beslemesi bulunamadı; büyük olasılıkla yalnızca Spotify'da yayınlanıyor. "
+                                         L"ShadeTube Spotify'ın sesini çalamaz, podcastleri herkese açık beslemelerinden çalar."),
+                                      type::secondary, ui::Tone::Secondary);
+        why->setWrap(true);
+        if (const auto* l = podcast::store().spotifyLink(spotifyUri_); l && !l->rejectedFeed.empty())
+            c->add<ui::Label>(tr(L"Dizinin önerdiği eşleşmeyi yanlış olarak işaretledin."), type::caption, ui::Tone::Tertiary);
+        auto* row = c->add<ui::Box>();
+        auto* open = row->add<Button>(ButtonKind::Secondary, tr(L"Spotify'da aç"), "external-link");
+        open->onClick = [url = spotifyshows::webUrl(spotifyUri_)] { ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL); };
+        if (!name.empty()) {
+            auto* search = row->add<Button>(ButtonKind::Ghost, tr(L"Apple Podcasts'ta ara"), "search");
+            search->onClick = [q = info->name] { ctx().router->navigate({RouteKind::Podcasts, "search:" + q}); };
+            auto* again = row->add<Button>(ButtonKind::Ghost, tr(L"Tekrar ara"), "refresh");
+            again->onClick = [this] {
+                Dispatcher::post([this, ref = subs_.ref()] {
+                    if (!ref.expired()) lookUpAgain();
+                });
+            };
+        }
+        auto* add = row->add<Button>(ButtonKind::Ghost, tr(L"RSS adresiyle ekle"), "plus");
+        add->onClick = [] { promptAddFeed(); };
+        layoutChips(row, 40.f);
+        c->setSpacingBefore(row, 16);
+        contentReady();
+    }
+
+    // ---- Spotify import preview -----------------------------------------------------------------------------------
+    void buildSpotifyImport() {
+        using spotifyshows::ListState;
+        spotifyshows::ensureFollowed();
+        importState_ = spotifyshows::listState();
+        const auto& shows = spotifyshows::followed();
+        auto* c = resetContent(20.f);
+        auto* top = c->add<ui::Box>();
+        auto* title = top->add<ui::Label>(tr(L"Spotify podcastlerin"), type::displayS);
+        title->setVAlign(gfx::VAlign::Center);
+        auto* back = top->add<Button>(ButtonKind::Ghost, tr(L"Podcastler"), "arrow-back");
+        back->onClick = [] { ctx().router->navigate({RouteKind::Podcasts}); };
+        top->onPreferredHeight = [](float) { return 56.f; };
+        top->onLayout = [title, back](ui::Box& b) {
+            const float w = b.rect().w, h = b.rect().h, bw = back->naturalWidth();
+            back->setRect({w - bw, h * 0.5f - 18, bw, 36});
+            title->setRect({0, 0, std::max(0.f, w - bw - 24), h});
+        };
+        std::wstring kicker = L"SPOTIFY";
+        if (!shows.empty()) kicker += L" · " + toUpperTr(i18n::plural(L"{} podcast", static_cast<long long>(shows.size())));
+        c->add<ui::Label>(kicker, type::monoLabel, ui::Tone::Tertiary);
+        auto* note = c->add<ui::Label>(tr(L"ShadeTube Spotify'ın sesini çalamaz: podcastler herkese açık RSS beslemelerinden çalar. Her podcast "
+                                          L"Apple Podcasts dizininde adı ve yayıncısıyla aranır; eşleşenlerden seçtiklerine abone olursun."),
+                                       type::secondary, ui::Tone::Secondary);
+        note->setWrap(true);
+        switch (importState_) {
+        case ListState::NoSession:
+            c->add<MessagePanel>("spotify-link", tr(L"Spotify'a bağlı değilsin"),
+                                 tr(L"Spotify'da takip ettiğin podcastleri görmek için Spotify hesabınla bağlan."));
+            return contentReady();
+        case ListState::Loading:
+            c->add<SkeletonBlock>(4);
+            return contentReady();
+        case ListState::Failed:
+            c->add<MessagePanel>("warning", tr(L"Spotify podcastlerin yüklenemedi."), tr(L"Bağlantını kontrol edip tekrar dene."),
+                                 tr(L"Tekrar dene"), [] { spotifyshows::ensureFollowed(true); });
+            return contentReady();
+        case ListState::Ready: break;
+        }
+        if (shows.empty()) {
+            c->add<MessagePanel>("podcast", tr(L"Spotify'da takip ettiğin podcast yok"),
+                                 tr(L"Spotify'da bir podcasti takip ettiğinde burada görünür."));
+            return contentReady();
+        }
+        auto* actions = c->add<ui::Box>();
+        importButton_ = actions->add<Button>(ButtonKind::Primary, L"", "plus");
+        importButton_->onClick = [this] {
+            std::vector<std::string> uris;
+            for (const auto* row : importRows_)
+                if (row->checked() && spotifyshows::importable(row->show().id)) uris.push_back(row->show().id);
+            spotifyshows::importShows(uris);
+            updateImportSummary();
+        };
+        auto* all = actions->add<Button>(ButtonKind::Ghost, tr(L"Tümünü seç"), "check");
+        all->onClick = [this] { selectAllImports(true); };
+        auto* none = actions->add<Button>(ButtonKind::Ghost, tr(L"Seçimi temizle"), "close");
+        none->onClick = [this] { selectAllImports(false); };
+        layoutChips(actions, 40.f);
+        importSummary_ = c->add<ui::Label>(L"", type::caption, ui::Tone::Tertiary);
+        auto* list = c->add<ui::Column>(0.f);
+        for (const auto& s : shows) {
+            auto* row = list->add<spotifyshows::ShowRow>(s);
+            const std::string uri = s.id;
+            row->setChecked(spotifyshows::importable(uri) && !unchecked_.contains(uri));
+            row->onCheck = [this, uri](bool on) {
+                if (on) unchecked_.erase(uri);
+                else unchecked_.insert(uri);
+                updateImportSummary();
+            };
+            row->onOpen = [uri] { ctx().router->navigate({RouteKind::Podcasts, uri}); };
+            importRows_.push_back(row);
+        }
+        spotifyshows::resolveAll(shows);
+        updateImportSummary();
+        contentReady();
+    }
+
+    void selectAllImports(bool on) {
+        for (auto* row : importRows_) {
+            const std::string& uri = row->show().id;
+            if (on) unchecked_.erase(uri);
+            else unchecked_.insert(uri);
+            row->setChecked(on && spotifyshows::importable(uri));
+        }
+        updateImportSummary();
+    }
+
+    // Lookups finished / subscriptions changed: the rows in place (a new list or list state: rebuilt).
+    void refreshImport() {
+        if (importState_ != spotifyshows::listState() || importRows_.size() != spotifyshows::followed().size()) {
+            build();
+            return;
+        }
+        for (auto* row : importRows_) {
+            row->refresh();
+            row->setChecked(spotifyshows::importable(row->show().id) && !unchecked_.contains(row->show().id));
+        }
+        updateImportSummary();
+    }
+
+    void updateImportSummary() {
+        using spotifyshows::Lookup;
+        int matched = 0, subscribed = 0, noFeed = 0, pending = 0, failed = 0, selected = 0;
+        for (const auto* row : importRows_) {
+            const std::string& uri = row->show().id;
+            switch (spotifyshows::lookup(uri)) {
+            case Lookup::Matched:
+                if (spotifyshows::subscribed(uri)) ++subscribed;
+                else ++matched;
+                if (row->checked() && spotifyshows::importable(uri)) ++selected;
+                break;
+            case Lookup::NoFeed: ++noFeed; break;
+            case Lookup::Failed: ++failed; break;
+            default: ++pending; break;
+            }
+        }
+        std::wstring s;
+        auto part = [&](int n, const std::wstring& text) {
+            if (n > 0) s += (s.empty() ? L"" : L" · ") + text;
+        };
+        part(matched, i18n::plural(L"{} abone olunabilir", matched));
+        part(subscribed, i18n::plural(L"{} zaten abonelik", subscribed));
+        part(noFeed, i18n::plural(L"{} herkese açık beslemesiz", noFeed));
+        part(pending, i18n::plural(L"{} aranıyor", pending));
+        part(failed, i18n::plural(L"{} kontrol edilemedi", failed));
+        if (importSummary_) importSummary_->setText(toUpperTr(s));
+        if (importButton_) {
+            importButton_->setLabel(i18n::format(tr(L"Seçilenlere abone ol ({})"), {std::to_wstring(selected)}));
+            importButton_->setEnabled(selected > 0 && !spotifyshows::importing());
+            if (auto* p = importButton_->parent()) p->requestLayout();
+        }
+        scroll_->contentChanged();
     }
 
 public:
@@ -1308,7 +1652,16 @@ private:
     ui::Label* empty_ = nullptr;
     std::wstring filter_;
     bool newestFirst_ = true;
-    bool rebuildPosted_ = false;
+    bool rebuildPosted_ = false, spotifyPosted_ = false;
+    // Spotify (app/PodcastsSpotify): the show this page stands for, the home section, the import preview.
+    std::string spotifyUri_;
+    bool waitingForLink_ = false;   // a SpotifyShow page on its skeleton until the lookup has a verdict
+    ui::Column* spotifySec_ = nullptr;
+    std::vector<spotifyshows::ShowRow*> importRows_;
+    ui::Label* importSummary_ = nullptr;
+    Button* importButton_ = nullptr;
+    spotifyshows::ListState importState_ = spotifyshows::ListState::NoSession;
+    std::unordered_set<std::string> unchecked_;   // shows the user took out of the import
     std::shared_ptr<CancelSource> cts_ = std::make_shared<CancelSource>();
     Lifetime subs_, searchLife_, newLife_;
 };

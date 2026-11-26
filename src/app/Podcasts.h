@@ -138,6 +138,24 @@ bool playedAt(int64_t positionMs, int64_t durationMs);
 std::string mimeFor(const Episode& e);
 bool isHttpUrl(std::string_view url);
 
+// ---- Spotify shows -> public feeds -----------------------------------------------------------------------------------
+// ShadeTube never plays Spotify's audio. A show the user follows on Spotify (or finds in its search) plays through its
+// public RSS feed, looked up in Apple's directory by the show's name and publisher. A show with no convincing entry
+// (a Spotify exclusive, a show only on Spotify's own hosting) has no feed: it is listed as unavailable.
+//
+// matchScore: how surely a directory entry is the Spotify show, 0..100. Names and publishers are compared word by word,
+// case / accent / I-ı insensitive, ignoring "the", "a" and "podcast": the same name scores 100 (with the same or an
+// unknown publisher), a name contained in the other one with at least half its length scores 72..95, words in common
+// less; a different publisher takes 25-30 off, and a short generic name ("The Daily") with a different publisher is
+// never a match. kMatchMin and up is the same show.
+inline constexpr int kMatchMin = 70;
+int matchScore(std::string_view name, std::string_view publisher, const DirectoryEntry& candidate);
+// The highest scoring candidate with a feed (the directory's order breaks ties), not `rejectedFeed`; nullopt = none
+// reaches kMatchMin. `score` (optional) receives its score.
+std::optional<DirectoryEntry> bestMatch(std::string_view name, std::string_view publisher,
+                                        const std::vector<DirectoryEntry>& candidates, std::string_view rejectedFeed = {},
+                                        int* score = nullptr);
+
 // ---- Downloads -------------------------------------------------------------------------------------------------------
 // <root>\Podcasts\<show>\<yyyy-mm-dd> <title>.<ext> (sanitized; the date is left out when unknown; ext by the media
 // type / URL, .mp3 by default).
@@ -166,6 +184,13 @@ public:
     std::vector<DirectoryEntry> search(const std::string& term, const std::string& country, int limit, const CancellationToken& ct = {});
     std::vector<DirectoryEntry> topCharts(const std::string& country, int limit, const CancellationToken& ct = {});
     std::string lookupFeed(const std::string& appleId, const CancellationToken& ct = {});   // "" = no feed
+    // The public feed of a Spotify show (bestMatch over the directory's answers for its name: the `country` store,
+    // then the US one). nullopt = the directory has no such show. These searches keep at least kPoliteGap between
+    // their requests (the directory allows about 20 a minute; cached answers don't wait); they throw PodcastError
+    // when the directory can't be asked, which is not a verdict.
+    static constexpr auto kPoliteGap = std::chrono::milliseconds(3200);
+    std::optional<DirectoryEntry> findFeed(const std::string& name, const std::string& publisher, const std::string& country,
+                                           const std::string& rejectedFeed = {}, const CancellationToken& ct = {});
     // A show's feed: the disk copy while it is younger than kFeedTtl (unless `refresh`), else downloaded and parsed
     // (and kept). `allowLocal`: the feed may be on this machine / its network.
     Show feed(const std::string& feedUrl, bool refresh, bool allowLocal, const CancellationToken& ct = {});
@@ -209,6 +234,18 @@ struct Subscription {
     int64_t seenUntil = 0;          // newest episode date the user has seen: later episodes are new
     int newEpisodes = 0;            // episodes published after seenUntil (as of the last refresh)
     bool manual = false;            // added by its feed URL (may live on the local network)
+};
+
+// What a Spotify show (spotify:show:<id>) resolved to: its public feed, or none.
+struct SpotifyLink {
+    std::string showName, showPublisher, showImage;   // the show as Spotify names it (pages render it without a session)
+    std::string feedUrl;            // "" = no public feed was found
+    std::string appleId;
+    std::string title, author, image;                 // the directory entry it matched
+    int score = 0;                  // matchScore of that entry
+    int64_t checkedAt = 0;          // unix seconds of the lookup
+    std::string rejectedFeed;       // a match the user called wrong: never picked again for this show
+    bool matched() const { return !feedUrl.empty(); }
 };
 
 // What the user did with an episode. Only episodes with a state are kept (with their metadata).
@@ -271,6 +308,17 @@ public:
     std::string downloadedFile(const std::string& id) const;   // "" = none
     std::vector<Episode> downloaded() const;                   // newest download first
 
+    // Spotify shows -> feeds (newest kMaxSpotifyLinks kept). A link is fresh while it has a feed, or for
+    // kSpotifyRecheckSec after a lookup that found none (a show may get a public feed later). Changes are saved like the
+    // rest but call no listener (app/PodcastsSpotify notifies its own).
+    static constexpr size_t kMaxSpotifyLinks = 2000;
+    static constexpr int64_t kSpotifyRecheckSec = 7 * 86400;
+    const SpotifyLink* spotifyLink(const std::string& showUri) const;
+    bool spotifyLinkFresh(const std::string& showUri, int64_t now) const;
+    void setSpotifyLink(const std::string& showUri, SpotifyLink link);
+    // The user says the match is wrong: no feed for this show from now on (until a later lookup finds another one).
+    void rejectSpotifyLink(const std::string& showUri, int64_t now);
+
     uint64_t revision() const { return revision_; }   // bumps on every change that lists show (not on positions)
     void subscribe(std::weak_ptr<const void> owner, std::function<void()> fn);
 
@@ -290,6 +338,7 @@ private:
     std::vector<Episode> queue_;
     std::unordered_map<std::string, Episode> known_;
     std::vector<std::string> knownOrder_;
+    std::unordered_map<std::string, SpotifyLink> spotify_;
     uint64_t revision_ = 0;
     bool dirty_ = false;
     std::vector<std::pair<std::weak_ptr<const void>, std::function<void()>>> listeners_;

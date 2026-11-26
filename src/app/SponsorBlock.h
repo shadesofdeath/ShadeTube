@@ -22,6 +22,7 @@
 #include "core/Async.h"
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -65,6 +66,17 @@ public:
 
     bool enabled = true;
     std::vector<std::string> categories;   // SponsorBlock category ids; defaults to defaultCategories()
+
+    // Copies kept beyond this session (App: with the song cache's copy of the video, so a cached song played offline
+    // still skips). `key` names the categories, `json` is segmentsToJson() of the raw segments. `stored` (UI thread,
+    // must not block) is asked when a video's segments are not in the session cache: what it returns applies at once,
+    // the lookup still runs and replaces them when they differ, and a failed lookup keeps them. `onFetched` gets every
+    // successful lookup.
+    std::function<std::optional<std::string>(const std::string& videoId, const std::string& key)> stored;
+    std::function<void(const std::string& videoId, const std::string& key, const std::string& json)> onFetched;
+    static std::string segmentsToJson(const std::vector<Segment>& raw);
+    static std::vector<Segment> segmentsFromJson(std::string_view json);   // empty for malformed input
+    static std::string categoriesKey(const std::vector<std::string>& categories);
 
     // music_offtopic, sponsor, selfpromo, interaction: never music by definition. intro/outro/preview/filler
     // are left out because in music videos they often overlap real music (song intro under a logo, outro

@@ -1,6 +1,7 @@
 // Download sync engine and its UI (see DownloadSync.h; rules and planning: SyncRules.h).
 #include "app/DownloadSync.h"
 
+#include "app/Accounts.h"
 #include "app/AppContext.h"
 #include "app/Blacklist.h"
 #include "app/Components.h"
@@ -387,6 +388,7 @@ void beginListing(const Rule& r) {
     const Kind kind = r.kind;
     const CT ct = e.cts ? e.cts->token() : CT{};
     auto cts = e.cts;
+    const std::string user = accounts::currentUser();   // the account the listing runs under
     async(
         Priority::Low, e.life.ref(),
         [api, id, kind, pause, ct] {
@@ -395,9 +397,13 @@ void beginListing(const Rule& r) {
             if (!api) throw spotify::ApiError(401, "not logged in");
             return listSpotifyPlaylist(api, id, kind == Kind::Liked, ct);
         },
-        [id, startedAt, cts](Result<Listing> res) {
-            if (res) return onListed(id, std::move(*res), startedAt);
-            if (cts && cts->isCancellationRequested()) {   // logged out / removed meanwhile: not the rule's fault
+        [id, startedAt, cts, user](Result<Listing> res) {
+            const bool switched = id.rfind("spotify:", 0) == 0 && accounts::currentUser() != user;   // pages of two accounts
+            if (res && !switched) {
+                if (Rule* rr = findRule(engine().state, id); rr && accountBound(*rr) && rr->account.empty()) rr->account = user;
+                return onListed(id, std::move(*res), startedAt);
+            }
+            if (switched || (cts && cts->isCancellationRequested())) {   // logged out / switched / removed meanwhile: not the rule's fault
                 auto& en = engine();
                 en.listing.clear();
                 if (en.running && en.cts == cts) en.cts = std::make_shared<CTS>();   // the rest of the pass goes on
@@ -418,7 +424,7 @@ void listNext() {
         e.pass.pop_front();
         const Rule* r = findRule(e.state, id);
         if (!r) continue;
-        if (isSpotifyRule(*r) && (!source::loggedIn() || nowUnix() < e.spotifyRetryAt)) continue;
+        if (!listableBy(*r, accounts::currentUser()) || (isSpotifyRule(*r) && nowUnix() < e.spotifyRetryAt)) continue;
         e.listing = id;
         notify();
         return beginListing(*r);
@@ -466,7 +472,7 @@ void tick() {
     std::vector<std::string> due;
     std::optional<Snapshot> snap;
     for (const auto& r : e.state.rules) {
-        if (isSpotifyRule(r) && (!source::loggedIn() || now < e.spotifyRetryAt)) continue;
+        if (!listableBy(r, accounts::currentUser()) || (isSpotifyRule(r) && now < e.spotifyRetryAt)) continue;
         bool isPending = false;
         if (r.lastSync != 0 && now - r.lastSync >= kPendingRelistSec && now >= r.retryAt) {
             if (!snap) snap = snapshot();
@@ -491,6 +497,7 @@ void onLibraryChanged() {
     auto* sess = ctx().session;
     Rule* liked = findRule(e.state, kSpotifyLikedId);
     if (!liked || !sess || !sess->loggedIn() || !sess->library().loaded || liked->lastSync == 0) return;
+    if (!listableBy(*liked, accounts::currentUser())) return;   // another account's Liked Songs
     const auto& ids = sess->library().likedIds;
     const std::unordered_set<std::string> have(liked->trackIds.begin(), liked->trackIds.end());
     bool changed = std::any_of(liked->trackIds.begin(), liked->trackIds.end(), [&](const std::string& id) { return !ids.contains(id); });
@@ -579,7 +586,9 @@ std::wstring errorText(ListError e) {
 
 // "412 / 430 şarkı · 12 iniyor · 2 hata · 3 saat önce"
 std::wstring statusLine(const Rule& r, const Status& st) {
-    if (!st.sourceReady) return tr(L"Spotify'a bağlanınca senkronize edilir");
+    if (!st.sourceReady)
+        return source::loggedIn() ? tr(L"Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir")
+                                  : tr(L"Spotify'a bağlanınca senkronize edilir");
     if (r.lastSync == 0) {
         if (st.listing) return tr(L"Liste alınıyor…");
         if (st.error != ListError::None) return errorText(st.error);
@@ -767,7 +776,7 @@ Status statusOf(const Rule& r, const Snapshot& snap) {
     Status st;
     st.synced = true;
     st.listing = engine().listing == r.id;
-    st.sourceReady = !isSpotifyRule(r) || source::loggedIn();
+    st.sourceReady = listableBy(r, accounts::currentUser());
     st.progress = progress(r, snap.lookup());
     st.error = r.error;
     st.lastSync = r.lastSync;
@@ -836,6 +845,7 @@ void enable(const Target& t) {
     r.name = t.name;
     r.images = t.images;
     r.addedAt = nowUnix();
+    if (accountBound(r)) r.account = accounts::currentUser();   // this account's collection
     e.state.rules.push_back(std::move(r));
     ST_LOG_INFO("sync", "rule {} added", t.id);
     save();
@@ -1164,6 +1174,12 @@ void initDownloadSync() {
         });
         sess->subscribePlaylistEdits(e.life.ref(), [](const spotify::PlaylistEdit& ed) { sync::markChanged(ed.uri); });
     }
+    // Another Spotify account: a Spotify list being fetched stops (its next pages would come from the other account).
+    // The rules stay in this PC's sync.json; each Spotify Liked Songs / playlist rule is listed only with its own account.
+    ctx().accountLeaveHooks.push_back([] {
+        auto& en = sync::engine();
+        if (en.cts && !en.listing.empty() && en.listing.rfind("spotify:", 0) == 0) en.cts->cancel();
+    });
 }
 
 } // namespace st::app

@@ -3,16 +3,17 @@
 // MusicBrainz pages. parse() only recognizes the text; opening it (pages, playback) is app/LinkOpener.
 //
 // Accepted (the whole trimmed text must be the link; scheme and "www." optional, query and fragment ignored):
-//   open.spotify.com/[intl-xx/][embed/]{track,album,playlist,artist}/<22-char base62 id>, the legacy
-//   /user/<name>/playlist/<id>, and spotify:{track,album,playlist,artist}:<id> (also spotify:user:<name>:playlist:<id>);
+//   open.spotify.com/[intl-xx/][embed/]{track,album,playlist,artist,show}/<22-char base62 id>, the legacy
+//   /user/<name>/playlist/<id>, /user/<name>[/...] (a profile), and spotify:{track,album,playlist,artist,show}:<id>
+//   (also spotify:user:<name>:playlist:<id> and spotify:user:<name>);
 //   youtube.com / m. / music. / youtube-nocookie.com: /watch?v=<id>, /shorts/<id>, /embed/<id>, /live/<id>, /v/<id>,
 //   and youtu.be/<id> (11-char video ids); youtube.com / music.youtube.com /playlist?list=<id> (imported as a local
 //   playlist: app/PlaylistTransfer);
 //   musicbrainz.org/{release-group,release,artist,recording}/<mbid>[/...];
-//   shadetube://jam/<base64url token>[/] (a listen-together invite; app/JamInvite decodes the token). Any other
-//   shadetube: link is Unsupported.
-// Links of those services to things ShadeTube can't open (podcasts, users, YouTube channels,
-// spotify.link short links...) parse as Kind::Unsupported, so the caller can say so instead of searching for a URL.
+//   shadetube://jam/<base64url token>[/] (a listen-together invite; app/JamInvite decodes the token) and
+//   shadetube://blend/<base64url token>[/] (a Blend invite). Any other shadetube: link is Unsupported.
+// Links of those services to things ShadeTube can't open (podcast episodes, YouTube channels, spotify.link short
+// links...) parse as Kind::Unsupported, so the caller can say so instead of searching for a URL.
 //
 // Standalone (tests/links compiles it): the standard library only.
 #include <string>
@@ -36,6 +37,9 @@ enum class Kind {
     MbRecording,        // a song: played
     Unsupported,        // a known service, but nothing ShadeTube opens
     JamInvite,          // shadetube://jam/<token>: a "Birlikte dinle" invite (app/Together; id = the whole link)
+    BlendInvite,        // shadetube://blend/<token>: a Blend invite (app/Blends; id = the whole link)
+    SpotifyShow,        // a podcast: opened in Podcastler through its public feed (app/PodcastsSpotify)
+    SpotifyUser,        // a profile (id = the username as the link has it, percent-encoding kept)
 };
 
 struct Link {
@@ -52,6 +56,7 @@ Link parse(std::string_view text);
 Link parse(std::wstring_view text);   // UTF-16 text from the search box / clipboard
 
 bool isSpotifyId(std::string_view s);   // 22 base62 characters
+bool isSpotifyUsername(std::string_view s);   // 1..128 of [A-Za-z0-9._+-] and %XX escapes
 bool isVideoId(std::string_view s);     // 11 characters of [A-Za-z0-9_-]
 bool isPlaylistId(std::string_view s);  // 12..64 characters of [A-Za-z0-9_-] (PL..., OLAK5uy_..., RD...)
 bool isMbid(std::string_view s);        // 8-4-4-4-12 hex (either case)

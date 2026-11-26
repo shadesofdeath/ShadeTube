@@ -2,11 +2,13 @@
 // opener uses.
 //
 //   spotify     : open.spotify.com URLs (intl-xx, embed, legacy user playlists, query / fragment, http, no scheme,
-//                 play.spotify.com) and spotify: URIs; invalid ids; podcasts, users and short links as Unsupported
+//                 play.spotify.com) and spotify: URIs; shows and profiles (show/, user/<name>, spotify:show:, spotify:user:);
+//                 invalid ids / usernames; episodes and short links as Unsupported
 //   youtube     : watch?v= (any parameter order, &list= / &t=), youtu.be, shorts, embed, live, m. / music. hosts,
 //                 youtube-nocookie; /playlist?list= (YouTube and YouTube Music); channels as Unsupported; invalid ids
 //   musicbrainz : release-group, release, artist, recording (+ sub pages); upper-case MBIDs normalized
-//   invites     : shadetube://jam/<token> listen-together invites (case, trailing slash, brackets), broken ones
+//   invites     : shadetube://jam/<token> listen-together invites and shadetube://blend/<token> Blend invites (case,
+//                 trailing slash, brackets), broken ones
 //   not links   : plain text, text around a link, other hosts, empty input, the UTF-16 overload
 //   video song  : "Artist - Title (Official Video)" + channel -> artist / title
 //   spotify ids : base62 <-> gid (librespot's vector), invalid input, the metadata JSON parser (synthetic fixture)
@@ -70,10 +72,21 @@ static void testSpotify() {
     expect("SPOTIFY:Playlist:5sWHDYs0csV6RS48xBl0tH", Kind::SpotifyPlaylist, id);
     expect("spotify:artist:5sWHDYs0csV6RS48xBl0tH", Kind::SpotifyArtist, id);
     expect("spotify:user:someone:playlist:5sWHDYs0csV6RS48xBl0tH", Kind::SpotifyPlaylist, id);
+    // Podcasts (opened through their public feed) and profiles.
+    expect("https://open.spotify.com/show/5sWHDYs0csV6RS48xBl0tH?si=abc", Kind::SpotifyShow, id);
+    expect("https://open.spotify.com/intl-tr/show/5sWHDYs0csV6RS48xBl0tH", Kind::SpotifyShow, id);
+    expect("https://open.spotify.com/embed-podcast/show/5sWHDYs0csV6RS48xBl0tH", Kind::SpotifyShow, id);
+    expect("spotify:show:5sWHDYs0csV6RS48xBl0tH", Kind::SpotifyShow, id);
+    expect("https://open.spotify.com/user/someone", Kind::SpotifyUser, "someone");
+    expect("https://open.spotify.com/user/31abcdefghijklmnopqrstuvwxy?si=1", Kind::SpotifyUser, "31abcdefghijklmnopqrstuvwxy");
+    expect("https://open.spotify.com/user/some.one_2-x/playlists", Kind::SpotifyUser, "some.one_2-x");
+    expect("spotify:user:spotify", Kind::SpotifyUser, "spotify");
+    expect("spotify:user:some%2Bname", Kind::SpotifyUser, "some%2Bname");
+    expect("spotify:user:bad%2", Kind::Unsupported);
+    expect("https://open.spotify.com/user/bad!name", Kind::Unsupported);
+    expect("https://open.spotify.com/show/tooShort", Kind::Unsupported);
     // Known service, nothing to open.
     expect("https://open.spotify.com/episode/5sWHDYs0csV6RS48xBl0tH", Kind::Unsupported);
-    expect("https://open.spotify.com/show/5sWHDYs0csV6RS48xBl0tH", Kind::Unsupported);
-    expect("https://open.spotify.com/user/someone", Kind::Unsupported);
     expect("https://open.spotify.com/", Kind::Unsupported);
     expect("https://open.spotify.com/track/tooShort", Kind::Unsupported);
     expect("https://open.spotify.com/track/5sWHDYs0csV6RS48xBl0t!", Kind::Unsupported);
@@ -89,7 +102,10 @@ static void testSpotify() {
     CHECK(links::parse(std::string_view("spotify:track:5sWHDYs0csV6RS48xBl0tH")).spotifyUri() ==
           "spotify:track:5sWHDYs0csV6RS48xBl0tH");
     CHECK(links::parse(std::string_view("https://youtu.be/dQw4w9WgXcQ")).spotifyUri().empty());
-    CHECK(links::parse(std::string_view("https://open.spotify.com/show/5sWHDYs0csV6RS48xBl0tH")).service == Service::Spotify);
+    CHECK(links::parse(std::string_view("https://open.spotify.com/show/5sWHDYs0csV6RS48xBl0tH")).spotifyUri() ==
+          "spotify:show:5sWHDYs0csV6RS48xBl0tH");
+    CHECK(links::parse(std::string_view("https://open.spotify.com/user/someone")).spotifyUri() == "spotify:user:someone");
+    CHECK(links::isSpotifyUsername("a") && !links::isSpotifyUsername("") && !links::isSpotifyUsername(std::string(129, 'a')));
 }
 
 static void testYouTube() {
@@ -183,6 +199,14 @@ static void testJamInvites() {
     expect("shadetube://other/thing", Kind::Unsupported);
     CHECK(links::parse(std::string_view("shadetube://jam/x")).service == Service::ShadeTube);
     CHECK(links::parse(std::string_view("join " + link)).kind == Kind::None);   // text around it: searched
+    // Blend invites: the same token shape under their own prefix.
+    const std::string blend = "shadetube://blend/" + token;
+    expect(blend.c_str(), Kind::BlendInvite, blend.c_str());
+    CHECK(links::parse(std::string_view(blend + "/")).kind == Kind::BlendInvite);
+    CHECK(links::parse(std::string_view("SHADETUBE://BLEND/" + token)).kind == Kind::BlendInvite);
+    CHECK(links::parse(std::string_view("\"" + blend + "\"")).service == Service::ShadeTube);
+    expect("shadetube://blend/short", Kind::Unsupported);
+    expect(("shadetube://blend/" + token + "!").c_str(), Kind::Unsupported);
 }
 
 static void song(const char* title, const char* channel, const char* artist, const char* name) {

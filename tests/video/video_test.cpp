@@ -1281,7 +1281,7 @@ int main(int argc, char** argv) {
     const std::string mode = argc > 1 ? argv[1] : "";
 
     // "official": only the official video's offline checks; "alignraw": none (a dev mode on files).
-    const bool offline = mode != "alignraw" && mode != "official" && mode != "officiallive";
+    const bool offline = mode != "alignraw" && mode != "official" && mode != "officiallive" && mode != "head" && mode != "soundtrack";
     if (offline) {
         testSelection();
         testStatic();
@@ -1312,7 +1312,7 @@ int main(int argc, char** argv) {
         alignAndReport(readRaw(argv[2]), readRaw(argv[3]), st::video::kSoundtrackRate);
     }
     if (mode == "live" || mode == "play" || mode == "fetch" || mode == "file" || mode == "mfurl" || mode == "soundtrack" ||
-        mode == "officiallive") {
+        mode == "officiallive" || mode == "head") {
         yte::YoutubeClientOptions o;
         o.httpClient = st::http::client();
         st::youtube::MatchService service{yte::YoutubeClient(o)};
@@ -1386,7 +1386,9 @@ int main(int argc, char** argv) {
                 const bool best = codec.starts_with("best");
                 const auto s = best ? service.stream(ids[0], codec == "bestopus", false, false) : service.soundtrackStream(ids[0], codec, true);
                 std::printf("  %s: %s, %lld bytes\n", ids[0].c_str(), s.mimeType.c_str(), static_cast<long long>(s.contentLength));
+                const double t0 = nowMs();
                 const auto t = st::video::decodeSoundtrack({s.url, L"", s.contentLength, s.mimeType});
+                std::printf("  downloaded and decoded in %.0f ms\n", nowMs() - t0);
                 FILE* out = _wfopen(fs::path(ids[1]).c_str(), L"wb");
                 if (out) {
                     fwrite(t.mono.data(), sizeof(float), t.mono.size(), out);
@@ -1398,6 +1400,19 @@ int main(int argc, char** argv) {
                 std::printf("  FAIL  %s: %s\n", ids[0].c_str(), e.what());
                 ++g_failures;
             }
+        } else if (mode == "head" && ids.size() >= 2) {   // dev: the first 64 KB of a video's audio stream [codec]
+            const auto s = service.soundtrackStream(ids[0], ids.size() > 2 ? ids[2] : "mp4a.40.2", true);
+            auto buf = std::make_shared<st::audio::ProgressiveBuffer>(s.url, L"", s.contentLength, nullptr);
+            buf->start();
+            const int64_t len = buf->waitForLength();
+            std::vector<uint8_t> head(static_cast<size_t>(std::clamp<int64_t>(len, 0, 64 * 1024)));
+            const bool ok = !head.empty() && buf->read(0, head.data(), head.size()) == st::audio::ProgressiveBuffer::ReadStatus::Ok;
+            if (ok)
+                if (FILE* out = _wfopen(fs::path(ids[1]).c_str(), L"wb")) {
+                    fwrite(head.data(), 1, head.size(), out);
+                    fclose(out);
+                }
+            std::printf("  %s itag %d %s: %s\n", ids[0].c_str(), s.itag, s.codec.c_str(), ok ? "written" : "failed");
         } else if (mode == "officiallive" && ids.size() >= 3) {
             // dev: the official video of a song as the app finds it: <artist> <title> <the song's upload> [codec]
             const std::string codec = ids.size() > 3 ? ids[3] : "opus";

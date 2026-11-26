@@ -50,8 +50,11 @@ void remove(const Entry& entry);              // exactly this entry (the "Kaldı
 bool empty();
 uint64_t revision();   // bumps on every change (views that cache the blocked state compare it)
 
-void load();                                            // paths::appData()/blacklist.json; once (later calls no-op)
-void setStoreFile(const std::filesystem::path& file);   // tests: use another file (drops the state, loads that file)
+void load();                                            // the store file (default paths::appData()/blacklist.json); once
+void setStoreFile(const std::filesystem::path& file);   // use another file (drops the state, loads that file)
+// Another Spotify account became active (app/Accounts: each account has its own list): setStoreFile + the change
+// listeners, so the player and the lists follow the other list at once.
+void switchStoreFile(const std::filesystem::path& file);
 void onChanged(std::function<void()> fn);               // after every change (UI thread); never unregistered
 
 } // namespace st::app::blacklist

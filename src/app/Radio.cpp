@@ -1,6 +1,7 @@
 // Spotify radio, endless playback and the kara liste's player wiring (see Radio.h).
 #include "app/Radio.h"
 
+#include "app/Accounts.h"
 #include "app/AppContext.h"
 #include "app/Blacklist.h"
 #include "app/Source.h"
@@ -294,7 +295,9 @@ void endlessCheck(bool fromPlayer) {
 }
 
 void initPlaybackFeatures() {
-    blacklist::load();
+    // The active Spotify account's own list (app/Accounts); the profile's without an account.
+    blacklist::setStoreFile(accounts::file(L"blacklist.json"));
+    ctx().accountEnterHooks.push_back([] { blacklist::switchStoreFile(accounts::file(L"blacklist.json")); });
     if (auto* p = ctx().player) {
         p->shouldSkip = [](const Track& t) { return blacklist::isBlocked(t); };
         p->onQueueLow = [] { endlessCheck(true); };

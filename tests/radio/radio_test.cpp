@@ -2,7 +2,7 @@
 //
 //   parsing : saved radio-browser.info responses (tests/radio/fixtures): stations, tags, countries, servers;
 //             malformed JSON, wrong shapes, entries without a uuid / stream
-//   filter  : the codec filter (MP3 / AAC / AAC+ in; OGG, FLAC, video, unknown, non-HTTP and HLS out), the codec
+//   filter  : the codec filter (MP3 / AAC / AAC+ / OGG in; Ogg FLAC, FLAC, video, unknown, non-HTTP and HLS out), the codec
 //             badge, the stream URL and media type
 //   mapping : station -> catalog::Track (id, title, artist line, favicon, no duration), station ids, genre labels
 //   store   : favorites / recent / queue round trip, order and bounds (the queue window of a long list), registry
@@ -153,7 +153,11 @@ static void testFilter() {
     CHECK(radio::playable(with("MP3")));
     CHECK(radio::playable(with("AAC")));
     CHECK(radio::playable(with("AAC+")));
-    CHECK(!radio::playable(with("OGG")));
+    CHECK(radio::playable(with("OGG")));   // Ogg Opus / Vorbis (built-in decoders)
+    CHECK(!radio::playable(with("OGG", false, "https://s.example/stream.flac")));   // Ogg FLAC
+    radio::Station oggFlac = with("OGG");
+    oggFlac.name = "Paradise FLAC";
+    CHECK(!radio::playable(oggFlac));
     CHECK(!radio::playable(with("FLAC")));
     CHECK(!radio::playable(with("AAC,H.264")));
     CHECK(!radio::playable(with("UNKNOWN")));
@@ -166,10 +170,11 @@ static void testFilter() {
     CHECK(radio::playable(fallback) && radio::streamUrl(fallback) == "http://s.example/raw");
 
     const auto kept = radio::filterPlayable({with("MP3"), with("OGG"), with("AAC+"), with("AAC", true)});
-    CHECK(kept.size() == (radio::kPlayHls ? 3u : 2u));
+    CHECK(kept.size() == (radio::kPlayHls ? 4u : 3u));
     // Every station of a saved response passes or fails for its codec only.
     for (const auto& s : radio::parseStations(readFixture("topclick.json")))
-        CHECK(radio::playable(s) == ((s.codec == "MP3" || s.codec == "AAC" || s.codec == "AAC+") && (!s.hls || radio::kPlayHls)));
+        CHECK(radio::playable(s) == ((s.codec == "MP3" || s.codec == "AAC" || s.codec == "AAC+" || (s.codec == "OGG" && !radio::saysFlac(s))) &&
+                                     (!s.hls || radio::kPlayHls)));
 
     CHECK(radio::codecBadge(with("MP3")) == "MP3 · 128");
     radio::Station he = with("AAC+");

@@ -91,7 +91,9 @@ Invite newInvite(std::string broker) {
     return i;
 }
 
-std::string formatInvite(const Invite& invite) {
+namespace {
+
+std::string formatWith(const Invite& invite, std::string_view prefix) {
     if (invite.roomId.size() != kRoomIdBytes || invite.key.size() != kKeyBytes) return {};
     const auto url = mqtt::parseBrokerUrl(invite.broker);
     if (!url) return {};
@@ -104,24 +106,34 @@ std::string formatInvite(const Invite& invite) {
     p.insert(p.end(), invite.roomId.begin(), invite.roomId.end());
     p.insert(p.end(), invite.key.begin(), invite.key.end());
     p.insert(p.end(), rest.begin(), rest.end());
-    return std::string(kInvitePrefix) + base64url(p);
+    return std::string(prefix) + base64url(p);
 }
 
-bool looksLikeInvite(std::string_view text) {
+std::string_view unwrap(std::string_view text) {
     std::string_view s = trim(text);
     while (s.size() >= 2 && ((s.front() == '<' && s.back() == '>') || (s.front() == '"' && s.back() == '"') ||
                              (s.front() == '\'' && s.back() == '\'')))
         s = trim(s.substr(1, s.size() - 2));
-    return startsWithNoCase(s, kInvitePrefix);
+    return s;
 }
 
-std::optional<Invite> parseInvite(std::string_view text) {
-    std::string_view s = trim(text);
-    while (s.size() >= 2 && ((s.front() == '<' && s.back() == '>') || (s.front() == '"' && s.back() == '"') ||
-                             (s.front() == '\'' && s.back() == '\'')))
-        s = trim(s.substr(1, s.size() - 2));
-    if (!startsWithNoCase(s, kInvitePrefix)) return std::nullopt;
-    s.remove_prefix(kInvitePrefix.size());
+std::optional<Invite> parseWith(std::string_view text, std::string_view prefix);
+
+} // namespace
+
+std::string formatInvite(const Invite& invite) { return formatWith(invite, kInvitePrefix); }
+std::string formatBlendInvite(const Invite& invite) { return formatWith(invite, kBlendPrefix); }
+bool looksLikeInvite(std::string_view text) { return startsWithNoCase(unwrap(text), kInvitePrefix); }
+bool looksLikeBlendInvite(std::string_view text) { return startsWithNoCase(unwrap(text), kBlendPrefix); }
+std::optional<Invite> parseInvite(std::string_view text) { return parseWith(text, kInvitePrefix); }
+std::optional<Invite> parseBlendInvite(std::string_view text) { return parseWith(text, kBlendPrefix); }
+
+namespace {
+
+std::optional<Invite> parseWith(std::string_view text, std::string_view prefix) {
+    std::string_view s = unwrap(text);
+    if (!startsWithNoCase(s, prefix)) return std::nullopt;
+    s.remove_prefix(prefix.size());
     while (!s.empty() && s.back() == '/') s.remove_suffix(1);
     if (s.empty() || s.size() > 512) return std::nullopt;
     const auto bytes = fromBase64url(s);
@@ -138,7 +150,10 @@ std::optional<Invite> parseInvite(std::string_view text) {
     return i;
 }
 
+} // namespace
+
 std::string topicBase(const Bytes& roomId) { return "shadetube/jam/v1/" + toHex(sha256(roomId)); }
+std::string blendTopicBase(const Bytes& blendId) { return "shadetube/blend/v1/" + toHex(sha256(blendId)); }
 
 std::string roomTag(const Bytes& roomId) { return toHex(sha256(roomId)).substr(0, 8); }
 

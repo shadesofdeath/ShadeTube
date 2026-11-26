@@ -156,13 +156,13 @@ public:
         isDragRegion = true;   // the picture moves the window (full screen: client area, see VideoFrame)
         video_ = add<VideoView>(VideoView::Style::Window);
         controls_ = add<Controls>();
-        prev_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "prev-thin", tr(L"Önceki"));
+        prev_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "prev", tr(L"Önceki"));
         play_ = controls_->add<OverlayButton>(OverlayButton::Glyph::PlayPause, "", tr(L"Oynat / Duraklat"));
-        next_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "next-thin", tr(L"Sonraki"));
+        next_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "next", tr(L"Sonraki"));
         more_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "more", tr(L"Video seçenekleri"));
-        pin_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "pin-thin", tr(L"Her zaman üstte"));
-        full_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "expand-thin", tr(L"Tam ekran"));
-        close_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "close-thin", tr(L"Kapat"));
+        pin_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "pin", tr(L"Her zaman üstte"));
+        full_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "expand", tr(L"Tam ekran"));
+        close_ = controls_->add<OverlayButton>(OverlayButton::Glyph::Icon, "close", tr(L"Kapat"));
         prev_->onClick = [] {
             if (ctx().player) ctx().player->previous();
         };
@@ -191,7 +191,7 @@ public:
         const auto* p = ctx().player;
         play_->setPlaying(p && p->isPlaying());
         pin_->setActive(owner_.onTop());
-        full_->setIcon(owner_.fullscreen() ? "collapse-thin" : "expand-thin");
+        full_->setIcon(owner_.fullscreen() ? "collapse" : "expand");
         full_->setTooltip(owner_.fullscreen() ? tr(L"Tam ekrandan çık") : tr(L"Tam ekran"));
         const bool song = p && p->current();
         prev_->setEnabled(song);

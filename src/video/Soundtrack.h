@@ -1,12 +1,11 @@
 #pragma once
 // Video mode's official-video alignment (app/OfficialVideo): a YouTube audio stream decoded whole to mono PCM at a low
 // sample rate, for video/AudioAlign. The stream is fetched with the audio module's ranged download (ProgressiveBuffer,
-// no read-ahead window: a 48 kbps soundtrack of a 4 minute song is ~1.4 MB) and decoded by its Media Foundation Source
-// Reader (audio::Decoder) opened as the engine opens it, so the timeline is the engine's own: samples are placed by the
-// first sample's time stamp and counted from there, decoder delays included (measured 2026-11-26 on one video: AAC-LC
-// comes out 36 ms after Opus, HE-AAC 96 ms; the caller therefore decodes both soundtracks in the codec the engine plays,
-// MatchService::soundtrackStream). An MP4 with an edit list, of which Media Foundation presents nothing, is read again
-// with the edit list freed (video/Fmp4Index).
+// no read-ahead window: a ~50 kbps Opus soundtrack of a 4 minute song is ~1.4 MB) and decoded by the engine's own
+// audio::Decoder, so the timeline is the engine's: samples are placed by the first sample's time stamp and counted
+// from there, as the engine does. The caller reads Opus (the smallest stream, MatchService::soundtrackStream): the
+// built-in decoder trims its pre-skip, so the timeline is the presentation one the picture runs on as well (measured
+// before that, Media Foundation's Opus came out 6.5 ms late and AAC-LC 36 ms after it, HE-AAC 96 ms).
 //
 // Worker threads only (blocks on the network; initialises COM / Media Foundation for the call).
 #include <cstdint>
@@ -20,7 +19,7 @@ struct SoundtrackSource {
     std::string url;
     std::wstring localPath;        // tests / dev: a local file instead of the URL
     int64_t contentLength = 0;     // bytes (0 = probed)
-    std::string mimeType;          // "audio/mp4" | "audio/webm"
+    std::string mimeType;          // "audio/webm" | "audio/mp4"
 };
 
 constexpr int kSoundtrackRate = 12000;
@@ -31,8 +30,8 @@ struct Soundtrack {
     double seconds() const { return sampleRate > 0 ? static_cast<double>(mono.size()) / sampleRate : 0; }
 };
 
-// Always kSoundtrackRate (the Source Reader's resampler, else a plain decimation here). Throws std::runtime_error when
-// the download or the decoder fails or `cancelled` (optional, polled between samples) says so.
+// Always kSoundtrackRate (decoded at the stream's own rate, then a plain decimation). Throws std::runtime_error when the
+// download or the decoder fails or `cancelled` (optional, polled between samples) says so.
 Soundtrack decodeSoundtrack(const SoundtrackSource& source, const std::function<bool()>& cancelled = {});
 
 } // namespace st::video

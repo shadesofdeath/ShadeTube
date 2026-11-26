@@ -158,9 +158,6 @@ void findOfficial() {
     officialvideo::Song song;
     song.track = *t;
     song.audioVideoId = s.matchId;
-    const auto& played = p->currentStream();
-    song.codec = played.codec.empty() ? std::string("opus") : played.codec;
-    song.allowWebm = played.mimeType.find("webm") != std::string::npos;
     const std::string id = s.matchId;
     officialvideo::decide(song, s.life.ref(), [id](Result<OfficialDecision> r) {
         auto& s = videomode::S();
@@ -390,9 +387,6 @@ std::optional<officialvideo::Song> songNow() {
     officialvideo::Song song;
     song.track = *t;
     song.audioVideoId = id;
-    const auto& played = p->currentStream();
-    song.codec = played.codec.empty() ? std::string("opus") : played.codec;
-    song.allowWebm = played.mimeType.find("webm") != std::string::npos;
     return song;
 }
 
@@ -412,7 +406,7 @@ void showMenu(ui::Window* window, gfx::Point anchor) {
     auto& s = S();
     std::vector<ui::MenuItem> items;
     {
-        ui::MenuItem it{windowOpen() ? tr(L"Video penceresini kapat") : tr(L"Video penceresinde aç"), "pop-out-thin", {}, [] { toggleWindow(); }};
+        ui::MenuItem it{windowOpen() ? tr(L"Video penceresini kapat") : tr(L"Video penceresinde aç"), "pop-out", {}, [] { toggleWindow(); }};
         it.enabled = offered();
         items.push_back(std::move(it));
     }
@@ -447,7 +441,7 @@ void showMenu(ui::Window* window, gfx::Point anchor) {
         items.push_back(std::move(it));
     }
     items.push_back(ui::MenuItem::sep());
-    items.push_back({s.on ? tr(L"Video modunu kapat") : tr(L"Video modunu aç"), "video-thin", {}, [] { toggle(); }});
+    items.push_back({s.on ? tr(L"Video modunu kapat") : tr(L"Video modunu aç"), "video", {}, [] { toggle(); }});
     ui::Menu::open(window, anchor, std::move(items));
 }
 
@@ -542,7 +536,7 @@ void paintPopOut(gfx::Canvas& c, const VideoView& view, const Rect& picture) {
     Rect b = view.popOutRect();
     b = {std::min(b.x, picture.right() - 12 - b.w), std::max(b.y, picture.y + 12), b.w, b.h};
     c.fillCircle({b.cx(), b.cy()}, b.w * 0.5f, Color{0, 0, 0, (0.45f + 0.2f * view.popOutHover()) * a});
-    c.icon("pop-out-thin", b.center(16, 16), Color{1, 1, 1, 0.92f * a});
+    c.icon("pop-out", b.center(16, 16), Color{1, 1, 1, 0.92f * a});
     // Video mode's menu, left of it.
     const Rect m{b.x - 8 - b.w, b.y, b.w, b.h};
     c.fillCircle({m.cx(), m.cy()}, m.w * 0.5f, Color{0, 0, 0, (0.45f + 0.2f * view.menuHover()) * a});
@@ -802,6 +796,7 @@ void initVideoMode() {
             s.window.reset();
         }
         videomode::dropPlayer("exit");
+        officialvideo::shutdown();   // its lookups use the MatchService App destroys next
         auto& set = Settings::get();
         set.videoMode = s.on;
     });

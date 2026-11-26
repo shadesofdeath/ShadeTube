@@ -25,7 +25,9 @@
 #include <chrono>
 #include <cmath>
 #include <format>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 
 namespace st::app::officialvideo {
 
@@ -34,6 +36,35 @@ using gfx::Rect;
 namespace type = gfx::type;
 
 namespace {
+
+// Work on the pool: App destroys the MatchService before it joins the pool, so at exit (shutdown()) every lookup is
+// cancelled (its token: the requests; its flag: the downloads and decoding) and awaited before App goes on.
+struct InFlight {
+    std::mutex m;
+    std::condition_variable cv;
+    int count = 0;
+    YoutubeExplode::CancellationTokenSource exit;
+};
+InFlight& flight() {
+    static InFlight f;
+    return f;
+}
+struct Running {
+    Running() {
+        std::lock_guard lock(flight().m);
+        ++flight().count;
+    }
+    ~Running() {
+        {
+            std::lock_guard lock(flight().m);
+            --flight().count;
+        }
+        flight().cv.notify_all();
+    }
+    Running(const Running&) = delete;
+    Running& operator=(const Running&) = delete;
+};
+bool exiting() { return flight().exit.isCancellationRequested(); }
 
 int64_t nowUnix() {
     return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -48,10 +79,11 @@ youtube::OfficialQuery queryOf(const catalog::Track& t) {
     return q;
 }
 
-// A video's soundtrack as alignment features: its smallest stream in the engine's codec.
+// A video's soundtrack as alignment features: its smallest Opus stream, through the engine's built-in decoder (the
+// pre-skip trimmed: the presentation timeline the engine's clock and the picture both run on).
 video::AudioFeatures soundtrackOf(youtube::MatchService& m, const std::string& videoId, const Song& song,
                                   const std::function<bool()>& cancelled) {
-    const auto s = m.soundtrackStream(videoId, song.codec, song.allowWebm);
+    const auto s = m.soundtrackStream(videoId, "opus", true, flight().exit.token());
     const auto t = video::decodeSoundtrack({s.url, L"", s.contentLength, s.mimeType}, cancelled);
     return video::analyzeAudio(t.mono.data(), t.mono.size(), t.sampleRate);
 }
@@ -85,6 +117,8 @@ struct Lookup {
 // candidate (the user's pick); then the decision is manual.
 Lookup search(youtube::MatchService& m, const Song& song, const OfficialDecision* previous, const youtube::OfficialCandidate* only,
               const std::function<bool()>& cancelled) {
+    Running running;
+    if (exiting()) throw std::runtime_error("cancelled");
     Lookup out;
     OfficialDecision& d = out.decision;
     d.audioVideoId = song.audioVideoId;
@@ -99,7 +133,7 @@ Lookup search(youtube::MatchService& m, const Song& song, const OfficialDecision
     } else {
         std::vector<std::string> exclude = d.rejected;
         exclude.push_back(song.audioVideoId);
-        candidates = youtube::findOfficialVideos(m.client(), queryOf(song.track), exclude, song.region);
+        candidates = youtube::findOfficialVideos(m.client(), queryOf(song.track), exclude, song.region, flight().exit.token());
         ST_LOG_INFO("video", "official video of \"{}\": {} candidate(s){}", song.track.name, candidates.size(),
                     candidates.empty() ? std::string() : ", first " + candidates.front().videoId + " \"" + candidates.front().title + "\"");
     }
@@ -140,7 +174,7 @@ Lookup search(youtube::MatchService& m, const Song& song, const OfficialDecision
 }
 
 std::function<bool()> cancelledBy(Lifetime::Ref guard) {
-    return [guard] { return guard.expired(); };
+    return [guard] { return guard.expired() || exiting(); };
 }
 
 } // namespace
@@ -339,7 +373,11 @@ void showPicker(const Song& song, std::function<void()> changed) {
     const std::string exclude = song.audioVideoId;
     const std::string region = Settings::get().region;   // Settings belong to the UI thread
     async(Priority::High, guard->ref(),
-          [matcher, q, exclude, region] { return youtube::findOfficialVideos(matcher->client(), q, {exclude}, region); },
+          [matcher, q, exclude, region] {
+              Running running;
+              if (exiting()) throw std::runtime_error("cancelled");
+              return youtube::findOfficialVideos(matcher->client(), q, {exclude}, region, flight().exit.token());
+          },
           [d, body, song, changed](Result<std::vector<youtube::OfficialCandidate>> r) {
               body->clearChildren();
               const auto* decision = cache().raw(song.track.id);
@@ -372,6 +410,13 @@ void showPicker(const Song& song, std::function<void()> changed) {
               d->requestLayout();
               if (ctx().window) ctx().window->invalidate();
           });
+}
+
+void shutdown() {
+    flight().exit.cancel();
+    std::unique_lock lock(flight().m);
+    if (!flight().cv.wait_for(lock, std::chrono::seconds(10), [] { return flight().count == 0; }))
+        ST_LOG_WARN("video", "official video: {} lookup(s) still running at exit", flight().count);
 }
 
 } // namespace st::app::officialvideo

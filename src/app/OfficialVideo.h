@@ -4,7 +4,7 @@
 //
 //   decide(): the cached decision (app/OfficialVideoCache), else on a worker: candidates (youtube/OfficialVideo:
 //   YouTube Music's OMV-labelled videos, then YouTube's search), the song's own soundtrack and each candidate's (the
-//   smallest stream in the codec the engine plays: video/Soundtrack), aligned (video/AudioAlign). The first candidate
+//   smallest Opus stream: video/Soundtrack), aligned (video/AudioAlign). The first candidate
 //   whose soundtrack is the song's recording wins; none: the cover, as before. Low priority; ~1.3 MB per soundtrack.
 //   showPicker() / reject() / showNone(): "Yanlış video mu?" from video mode's menu (a pick is aligned before it is
 //   used: a video that isn't the song's recording is never shown).
@@ -22,8 +22,6 @@ namespace st::app::officialvideo {
 struct Song {
     catalog::Track track;
     std::string audioVideoId;   // the upload the song streams from (Player::currentMatch)
-    std::string codec;          // of the stream the engine plays ("opus", "mp4a.40.2"): both soundtracks are read in it
-    bool allowWebm = false;
     std::string region;         // the search's country (Settings::region; filled by decide() / the picker)
 };
 
@@ -38,5 +36,9 @@ void showPicker(const Song& song, std::function<void()> changed);
 void reject(const Song& song, std::function<void()> changed);
 
 OfficialVideoCache& cache();
+
+// Exit (video mode's persist hook): cancels the lookups on the pool and waits for them (at most 10 s), since App
+// destroys the MatchService they use before it joins the pool.
+void shutdown();
 
 } // namespace st::app::officialvideo

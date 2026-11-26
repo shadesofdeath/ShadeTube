@@ -58,7 +58,13 @@ Kind spotifyKind(std::string_view type) {
     if (type == "album") return Kind::SpotifyAlbum;
     if (type == "playlist") return Kind::SpotifyPlaylist;
     if (type == "artist") return Kind::SpotifyArtist;
+    if (type == "show") return Kind::SpotifyShow;
     return Kind::None;
+}
+
+Link spotifyUser(std::string_view name) {
+    if (!isSpotifyUsername(name)) return unsupported(Service::Spotify);
+    return make(Kind::SpotifyUser, Service::Spotify, std::string(name));
 }
 
 Link spotifyItem(std::string_view type, std::string_view id) {
@@ -67,9 +73,10 @@ Link spotifyItem(std::string_view type, std::string_view id) {
     return make(k, Service::Spotify, std::string(id));
 }
 
-// spotify:track:<id>, spotify:user:<name>:playlist:<id>
+// spotify:track:<id>, spotify:user:<name>:playlist:<id>, spotify:user:<name>
 Link parseSpotifyUri(std::string_view s) {
     const auto parts = split(s.substr(8), ':');
+    if (parts.size() == 2 && toLower(parts[0]) == "user") return spotifyUser(parts[1]);
     if (parts.size() == 2) return spotifyItem(parts[0], parts[1]);
     if (parts.size() == 4 && toLower(parts[0]) == "user" && toLower(parts[2]) == "playlist")
         return spotifyItem(parts[2], parts[3]);
@@ -85,6 +92,7 @@ Link parseSpotifyPath(std::vector<std::string_view> seg) {
     dropFront([](const std::string& s) { return s == "embed" || s == "embed-podcast"; });
     if (seg.size() >= 2 && spotifyKind(toLower(seg[0])) != Kind::None) return spotifyItem(seg[0], seg[1]);
     if (seg.size() >= 4 && toLower(seg[0]) == "user" && toLower(seg[2]) == "playlist") return spotifyItem(seg[2], seg[3]);
+    if (seg.size() >= 2 && toLower(seg[0]) == "user") return spotifyUser(seg[1]);   // a profile (or one of its lists)
     return unsupported(Service::Spotify);
 }
 
@@ -133,11 +141,28 @@ std::string Link::spotifyUri() const {
     case Kind::SpotifyAlbum: return "spotify:album:" + id;
     case Kind::SpotifyPlaylist: return "spotify:playlist:" + id;
     case Kind::SpotifyArtist: return "spotify:artist:" + id;
+    case Kind::SpotifyShow: return "spotify:show:" + id;
+    case Kind::SpotifyUser: return "spotify:user:" + id;
     default: return {};
     }
 }
 
 bool isSpotifyId(std::string_view s) { return s.size() == 22 && std::all_of(s.begin(), s.end(), isAlnum); }
+
+bool isSpotifyUsername(std::string_view s) {
+    if (s.empty() || s.size() > 128) return false;
+    auto hex = [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); };
+    for (size_t i = 0; i < s.size(); ++i) {
+        const char c = s[i];
+        if (c == '%') {
+            if (i + 2 >= s.size() || !hex(s[i + 1]) || !hex(s[i + 2])) return false;
+            i += 2;
+        } else if (!isAlnum(c) && c != '.' && c != '_' && c != '-' && c != '+') {
+            return false;
+        }
+    }
+    return true;
+}
 
 bool isVideoId(std::string_view s) {
     return s.size() == 11 && std::all_of(s.begin(), s.end(), [](char c) { return isAlnum(c) || c == '_' || c == '-'; });
@@ -167,14 +192,16 @@ Link parse(std::string_view text) {
     if (s.empty() || s.find_first_of(kSpace) != std::string_view::npos) return {};
     if (startsWithNoCase(s, "spotify:")) return parseSpotifyUri(s);
     if (startsWithNoCase(s, "shadetube:")) {
-        // shadetube://jam/<token>: the token is base64url (60..400 characters); browsers may add a trailing '/'.
-        constexpr std::string_view jam = "shadetube://jam/";
-        std::string_view token = startsWithNoCase(s, jam) ? s.substr(jam.size()) : std::string_view{};
+        // shadetube://jam/<token> and shadetube://blend/<token>: the token is base64url (60..400 characters); browsers
+        // may add a trailing '/'.
+        constexpr std::string_view jam = "shadetube://jam/", blend = "shadetube://blend/";
+        const bool isBlend = startsWithNoCase(s, blend);
+        std::string_view token = startsWithNoCase(s, jam) ? s.substr(jam.size()) : isBlend ? s.substr(blend.size()) : std::string_view{};
         while (!token.empty() && token.back() == '/') token.remove_suffix(1);
         const bool ok = token.size() >= 60 && token.size() <= 400 && std::all_of(token.begin(), token.end(), [](char c) {
                             return isAlnum(c) || c == '-' || c == '_';
                         });
-        return ok ? make(Kind::JamInvite, Service::ShadeTube, std::string(s)) : unsupported(Service::ShadeTube);
+        return ok ? make(isBlend ? Kind::BlendInvite : Kind::JamInvite, Service::ShadeTube, std::string(s)) : unsupported(Service::ShadeTube);
     }
 
     if (startsWithNoCase(s, "https://")) s.remove_prefix(8);

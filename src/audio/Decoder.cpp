@@ -2,12 +2,17 @@
 
 #include "audio/MfByteStream.h"
 #include "audio/ProgressiveBuffer.h"
+#include "audio/XiphDecoder.h"
+#include "core/Log.h"
 
 #include <mfapi.h>
 #include <mferror.h>
 #include <mfidl.h>
 
+#include <algorithm>
+#include <cmath>
 #include <cstring>
+#include <limits>
 
 using Microsoft::WRL::ComPtr;
 
@@ -19,16 +24,58 @@ constexpr DWORD kAudio = static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM)
 bool isWebm(const std::string& mime) { return mime.find("webm") != std::string::npos; }
 } // namespace
 
+uint32_t RatePolicy::pick(uint32_t native) const {
+    if (fixed) return fixed;
+    if (native == 0 || accepted.empty() || std::find(accepted.begin(), accepted.end(), native) != accepted.end()) return native;
+    uint32_t multiple = 0, above = 0, best = 0;
+    for (const uint32_t r : accepted) {
+        if (r > native && r % native == 0 && (!multiple || r < multiple)) multiple = r;
+        if (r > native && (!above || r < above)) above = r;
+        if (r > best) best = r;
+    }
+    return multiple ? multiple : above ? above : best;
+}
+
+Decoder::Decoder() = default;
+Decoder::~Decoder() { close(); }
+
+bool Decoder::isOpen() const { return reader_ != nullptr || xiph_ != nullptr; }
+
+float Decoder::tagGainDb() const {
+    if (xiph_)
+        if (const auto g = xiph_->replayGainDb()) return *g;
+    return std::numeric_limits<float>::quiet_NaN();
+}
+
 HRESULT Decoder::open(const std::shared_ptr<ProgressiveBuffer>& buffer, const std::string& mimeType,
-                      bool& unsupported, uint32_t targetRate, std::shared_ptr<const ByteStreamView> view) {
+                      bool& unsupported, const RatePolicy& rates) {
     close();
     unsupported = false;
-    targetRate_ = targetRate;
+
+    // Built-in first: Ogg and WebM / Matroska with Opus or Vorbis decode here, whatever Media Foundation has.
+    HRESULT hr = S_OK;
+    if (const XiphDecoder::Kind kind = XiphDecoder::probe(*buffer, hr); kind != XiphDecoder::Kind::None) {
+        auto xiph = std::make_unique<XiphDecoder>();
+        hr = xiph->open(buffer, kind, rates);
+        if (hr == S_OK) {
+            sampleRate_ = xiph->sampleRate();
+            channels_ = xiph->channels();
+            durationHns_ = xiph->durationHns();
+            xiph_ = std::move(xiph);
+            return S_OK;
+        }
+        if (hr == E_ABORT || hr == MF_E_NET_READ) return hr;
+        if (FAILED(hr)) ST_LOG_WARN("audio", "built-in decoder failed (hr=0x{:08X}); trying Media Foundation", static_cast<uint32_t>(hr));
+        // S_FALSE: another codec in an Ogg / Matroska container: Media Foundation may have a handler for it.
+    } else if (FAILED(hr)) {
+        return hr;
+    }
+
     // "audio/mp4; codecs=..." -> "audio/mp4"
     std::string mime = mimeType.substr(0, mimeType.find(';'));
     while (!mime.empty() && mime.back() == ' ') mime.pop_back();
 
-    HRESULT hr = createMfByteStream(buffer, mime, &stream_, std::move(view));
+    hr = createMfByteStream(buffer, mime, &stream_);
     if (FAILED(hr)) return hr;
 
     ComPtr<IMFSourceResolver> resolver;
@@ -56,7 +103,7 @@ HRESULT Decoder::open(const std::shared_ptr<ProgressiveBuffer>& buffer, const st
         close();
         return hr;
     }
-    hr = configureOutput();
+    hr = configureOutput(rates);
     if (FAILED(hr)) {
         unsupported = hr != E_ABORT && hr != MF_E_NET_READ;  // typically MF_E_TOPO_CODEC_NOT_FOUND
         close();
@@ -72,7 +119,7 @@ HRESULT Decoder::open(const std::shared_ptr<ProgressiveBuffer>& buffer, const st
     return S_OK;
 }
 
-HRESULT Decoder::configureOutput() {
+HRESULT Decoder::configureOutput(const RatePolicy& rates) {
     ComPtr<IMFMediaType> native;
     HRESULT hr = reader_->GetNativeMediaType(kAudio, 0, &native);
     if (FAILED(hr)) return hr;
@@ -94,7 +141,8 @@ HRESULT Decoder::configureOutput() {
         if (SUCCEEDED(h)) h = reader_->SetCurrentMediaType(kAudio, nullptr, type.Get());
         return h;
     };
-    const UINT32 rate = targetRate_ && targetRate_ != nativeRate ? targetRate_ : 0;
+    const UINT32 target = rates.pick(nativeRate);
+    const UINT32 rate = target && target != nativeRate ? target : 0;
     hr = E_FAIL;
     if (rate) hr = trySet(2, rate);
     if (FAILED(hr) && nativeChannels != 2) hr = trySet(2, 0);
@@ -111,6 +159,7 @@ HRESULT Decoder::configureOutput() {
 }
 
 void Decoder::close() {
+    xiph_.reset();
     reader_.Reset();
     if (source_) source_->Shutdown();
     source_.Reset();
@@ -119,6 +168,7 @@ void Decoder::close() {
 }
 
 HRESULT Decoder::seek(int64_t hns) {
+    if (xiph_) return xiph_->seek(hns);
     if (!reader_) return MF_E_NOT_INITIALIZED;
     PROPVARIANT pos;
     PropVariantInit(&pos);
@@ -130,6 +180,7 @@ HRESULT Decoder::seek(int64_t hns) {
 Decoder::Status Decoder::read(std::vector<float>& out, int64_t& timestampHns, bool& formatChanged, HRESULT& hr) {
     timestampHns = -1;
     formatChanged = false;
+    if (xiph_) return xiph_->read(out, timestampHns, hr);
     if (!reader_) {
         hr = MF_E_NOT_INITIALIZED;
         return Status::Error;
