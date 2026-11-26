@@ -178,6 +178,19 @@ FriendPanel::FriendPanel() : title_(tr(L"Arkadaş etkinliği"), type::title) {
     ctx().housekeepingHooks.push_back([this, ref = life_.ref()] {
         if (!ref.expired()) tick();
     });
+    // Another Spotify account (app/Accounts): its friends, not the previous account's. The list empties at once and the
+    // other account's comes with the next fetch (right away while the panel is on screen).
+    ctx().accountEnterHooks.push_back([this, ref = life_.ref()] {
+        if (ref.expired()) return;
+        fetchLife_.renew();
+        inFlight_ = false;
+        loaded_ = false;
+        error_.clear();
+        lastFetch_ = -1e12;
+        retryAt_ = 0;
+        setFriends({});
+        tick();
+    });
 }
 
 void FriendPanel::refreshIfStale() {
@@ -201,7 +214,7 @@ void FriendPanel::fetch() {
     if (!api) return;
     inFlight_ = true;
     invalidate();
-    async(Priority::Normal, life_.ref(), [api] { return api->friendActivity(); },
+    async(Priority::Normal, fetchLife_.ref(), [api] { return api->friendActivity(); },
           [this](Result<std::vector<spotify::FriendActivity>> r) {
               inFlight_ = false;
               loaded_ = true;

@@ -75,7 +75,7 @@ ShadeTube/
 │                                Resources, Utf, I18n, CrashHandler
 │   catalog/     st_catalog      source-independent models (Track, Album, Artist, Playlist, Page<T>, ...), Credits
 │   musicbrainz/ st_musicbrainz  MusicBrainz, Cover Art Archive, ListenBrainz, Wikidata client (rate limit, disk cache)
-│   spotify/     st_spotify      Totp, Auth, SpotifyApi (Pathfinder + spclient), HashRegistry, Session
+│   spotify/     st_spotify      Totp, Auth, SpotifyApi (Pathfinder + spclient), HashRegistry, Session, Accounts
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core)
@@ -108,17 +108,19 @@ ShadeTube/
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
 │                                Preview + PreviewSession (song preview, 3.30),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
+│                                Accounts (several Spotify accounts, 3.42), SongNotification + SongNotifier (3.43)
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, collections,
                                  downloads, headers, icons, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, browse, collections,
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiocache, audiodsp, collections,
+└─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiodsp, collections,
                                  downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  credits, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  downloads, headers, jam, library, links, lists, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
-                                 remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, sponsorblock,
+                                 remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, songnotify, sponsorblock,
                                  spotify, stats, sync, tags, theme, updater, video, winshell, ytstreams
 ```
 
@@ -297,7 +299,8 @@ The user signs in to **their own** account and ShadeTube reads **their own** dat
 web player uses. Audio never comes from Spotify. Flow (`src/spotify/`, `app/LoginWindow`, `app/Source`):
 
 1. **Login**: a WebView2 window opens `accounts.spotify.com`; when Spotify sets the long-lived `sp_dc` cookie it is
-   captured and stored DPAPI-encrypted in `spotify.dat` (never in `settings.json`).
+   captured and stored DPAPI-encrypted in the account's `accounts\<id>\spotify.dat` (never in `settings.json`).
+   Several accounts can be signed in and switched without a new login (3.42).
 2. **Token** (`Auth`, `Totp`): a RFC 6238 TOTP (CNG HMAC-SHA1) over Spotify's server time, with the secret from a
    public gist (baked-in fallback), signs `GET open.spotify.com/api/token`. The web-player token is refreshed
    before it expires (`Session::maybeRefresh`, from the app's housekeeping tick).
@@ -608,8 +611,10 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 
 ### 3.14 User data
 
-Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `spotify.dat` and
-`scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
+Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `accounts.json` and
+`accounts\<id>\` (one folder per Spotify account, 3.42: `spotify.dat` (DPAPI), its login's `webview2\`, and its
+`listening.json`, `listening-imported.json`, `blacklist.json`, `new-releases.json`, `smart-lists.json`,
+`library-recents.json`, which sit in the root itself while there is no account), `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
 `listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
 `radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json` (timing offsets and lyrics picks;
 `lyrics\` holds picked .lrc / .txt copies, 3.42), `smart-lists.json`, `jam.json`
@@ -620,6 +625,7 @@ studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyr
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`, `audio` = the song cache, 3.42), `logs\shadetube.log`
 and `crashes\`. Downloads
 studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, credits, `mb`,
+studio), `shell\` (the notification icon, the song notification's cover `now-playing-{0,1}.png`, 3.43), `cache\` (images, `matches.json`, lyrics, `mb`,
 `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
 go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
@@ -2329,6 +2335,108 @@ Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two di
   Virtualization is unchanged: rows are painted from the model, only the visible ones.
 - Dev: `SHADETUBE_LIST_DEMO` (5.4) selects rows, sorts through the header path, sets the columns, queues rows, opens
   the queue, scrolls, shows a reorder drag in place and fakes play counts for `--screenshot`.
+### 3.42 Several Spotify accounts
+
+Several Spotify accounts on one PC, switched without logging in again (`spotify/Accounts` = the store,
+`spotify/Session` = the switch, `app/Accounts` = what is per account + the UI; `accounts_test`).
+
+- **Layout.** Per-account subfolders rather than keyed files: everything of an account sits in
+  `<data>\accounts\<id>\` (id: 8 random hex digits, made up locally, never derived from the Spotify user): its
+  `spotify.dat` (DPAPI sp_dc), `webview2\` (the WebView2 profile of the login that produced it) and its per-account
+  files. `<data>\accounts.json` lists the accounts (id, the Spotify user `spotify:user:<name>` once known, user name,
+  display name, avatar URL, added / last used) and the active one, written with a flushed rename. Removing or moving a
+  folder is the whole account; a damaged list is kept as `accounts.json.bad` and rebuilt from the folders (nothing is
+  deleted then); folders not in a trusted list (a login that never finished) and the WebView2 profile of signed-out
+  accounts are removed at startup.
+- **Per account / per PC.** Per account (`accounts::perAccountFiles()`; a name also covers its `.old` / `.bak` / `.tmp`
+  siblings): `listening.json` + `listening-imported.json` (stats, the year in review, the Library's play recency),
+  `blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`. In memory, the Session keeps the
+  library snapshot (playlists, folders, saved albums, followed artists, liked ids) per account and parks the one it
+  leaves for an instant switch back (a reload follows); Home and the friend activity reload. Per PC (the root):
+  settings, themes, downloads (`downloads.json`, the files), `sync.json`, local files, `library.json` (local likes and
+  playlists, the local play history), podcasts, radio, lyrics offsets, caches, `palette-recent.json`,
+  `recent-searches.json`, Last.fm / ListenBrainz (`scrobble.dat`), the phone remote. **Decision for stats, smart lists
+  and the blocklist: per account** - they describe a person's listening (two people on one PC each get their own Wrapped,
+  mixes and blocks); the cost is that one person with two accounts sees two histories. Sync rules stay in one
+  `sync.json` (the downloaded files are shared) but a Spotify Liked Songs / playlist rule carries the Spotify user it
+  belongs to (`"acct"`; a rule from before is stamped by its first listing) and is listed only while that account is
+  active; on another account it waits like a Spotify rule while logged out, keeping its track ids, so nothing of it is
+  dropped. Albums are the same for everyone. One Liked Songs rule per PC (its id is Spotify's collection URI).
+- **Data folder of the moment** (`Session::dataDir()`): the active account's folder; the root while there are no
+  accounts (MusicBrainz only). Signing out keeps the account's record and folder (only `spotify.dat` and `webview2\`
+  go) and, when no other account is signed in, it stays the active one: MusicBrainz mode keeps showing its history,
+  and a later sign in to the same Spotify user (matched by user id) finds everything again. The very first account in
+  a profile adopts the root's per-account files (they were that person's); later accounts start empty.
+- **Migration** (`AccountStore::load`): a 0.10 profile (`spotify.dat` in the root, no `accounts.json`) becomes account 1
+  in place, by renames: the cookie, `webview2\` and the per-account files move into its folder, the list is written,
+  the profile (name, avatar) fills in at the first connect. A crash half way is recovered from the folders at the next
+  start. MusicBrainz-only profiles keep their root files until their first login.
+- **Login** (`Session::beginLogin` / `finishLogin`, `app/LoginWindow`): every login gets a new account folder and
+  its WebView2 user data folder there, so the login window starts with an empty cookie jar: it neither signs the other
+  accounts out nor picks up one of their `sp_dc` again. The captured cookie connects first (token + profile); if the
+  Spotify user is already known, that account signs in again (its cookie replaced) and the new folder is deleted
+  (retried while WebView2's browser process still holds it, else at the next start); otherwise the folder becomes a
+  new account. A failed connect discards the folder and leaves the current account alone.
+- **Switch** (`Session::switchTo`): the target's token and profile are fetched on a worker with a throwaway `Api`
+  while the current account stays on; then, in one UI turn: `onAccountLeaving` (App: `ctx().accountLeaveHooks` - every
+  feature saves to the old folder and drops work in flight), the snapshot parked, the Session's lifetime renewed (no
+  continuation of the old account lands), credentials / profile / snapshot swapped, `accounts.json` saved,
+  `onAccountEntered` (`accountEnterHooks` - every feature loads from the new folder), the notification, a library
+  reload. The App then rebuilds the page on screen when it shows account data (not Settings, Downloads, local files,
+  podcasts, radio or Stats, which follow their own notifications). The player is not touched: the song and the queue
+  play on. The listening history writes what it stored to the old file and carries the play in progress over
+  (`ListenStats::detach` / `attach`: it is stored in the history that is active when it ends); a running history import
+  is dropped from memory (its file is already written in the old account's folder). New releases cancel a refresh in
+  flight; a Spotify sync listing in flight is cancelled (its next pages would come from the other account) and a
+  listing that finished under another account is not applied.
+- **Sign out** (`Session::signOut`, "Çıkış yap"): only that account - its cookie and login profile go. For the active
+  one, the most recently used other signed-in account takes over (a normal switch: the music plays on); with none left
+  the App pauses, leaves Now Playing and shows the connect screen as before. A start whose active account has no
+  cookie but another one is signed in switches to that one.
+- **UI.** The title bar's source tag (`SPOTIFY · <NAME>`) is a button (`accounts::AccountChip`, mono label, hover pill,
+  chevron) opening the account menu: the signed-in accounts (the active one checked, "Bağlanıyor…" while a switch
+  connects), "Hesap ekle…", "Hesapları yönet" (Settings › Spotify hesabı), "Çıkış yap". Settings › Spotify hesabı lists
+  the other signed-in accounts (avatar, name, user name, "Geç", "Çıkış yap") and "Başka bir hesap ekle". The command
+  palette has "Hesaba geç: <name>" per other account and "Spotify hesabı ekle". A switch toasts "<name> hesabına
+  geçildi", a failure (an expired cookie) says to sign in again.
+- **Dev**: `SHADETUBE_ACCOUNT_DEMO` (5.4) scripts menu / switch / sign out / add. The live checks were done with one
+  real account (migration of a 0.10 profile copy, connect, a switch to a second record holding the same cookie while a
+  song played); `accounts_test` drives the Session with a fake connect (two users, add, switch, re-login, failed
+  switch, sign out hand-over, restart).
+
+### 3.43 Song-change notification
+
+Ayarlar › Pencere ve sistem › "Şarkı değişince bildirim göster" (`Settings.songNotifications`, off by default;
+`app/SongNotification` = the rules + the toast XML, standalone, `songnotify_test`; `app/SongNotifier.cpp` = the app part).
+
+- **Mechanism.** The app's other notifications (new releases, background errors) are tray balloons, which have no
+  buttons and only an icon. This one is a WinRT `ToastNotification` (C++/WinRT like SMTC) for the app's AUMID
+  (`installer::appUserModelId()`): the cover as `appLogoOverride`, title, artist, album as attribution, "Sonraki" and
+  "Beğen" buttons (Beğen only when the song can be liked and isn't), silent, tag `song` / group `now-playing` so each
+  song replaces the previous one (one entry in the notification center), `ExpirationTime` = when the song would end
+  (1-15 min), and the group removed from the notification center when ShadeTube quits. The cover is decoded at 256 px
+  (`ImageCache::decodePixels`) and written as `<data>\shell\now-playing-{0,1}.png` (two files in turn). Buttons come
+  back through the toast's `Activated` event (in process, posted to the UI thread; the notification object is kept
+  alive): "next" skips only if that song is still playing, "like" likes that song, the body brings the app back
+  (`show-window`). An unpackaged app needs its AUMID to be known to the shell: the Start menu shortcut carrying it
+  (`installer::ensureStartShortcut`) does that; without it (e.g. a test AUMID) `Show` fails with 0x80070490 and the
+  tray balloon is used instead (title and artist, no buttons, no cover). Notifications turned off for ShadeTube in
+  Windows are respected (no fallback).
+- **When** (`songnotify::decide`; a change is judged `kDebounceMs` = 1.5 s after it happened and only if that song is
+  still current, so skipping through songs gives one notification): never when a ShadeTube window is in view - the
+  foreground window is ours, or one of our thread's top-level windows (main window, mini player, video window) is
+  shown, not minimized, not cloaked (another virtual desktop) and not under the foreground window by 90 % of its area
+  (a window above the foreground one in the z-order, like the always-on-top mini player, counts as in view). So the mini
+  player on screen, which shows the song and gets the app's toasts, means no notification. Not for a change within
+  3 s of a command from Windows' media controls (SMTC buttons: media keys, the flyout, the lock screen; and the taskbar
+  thumbnail buttons): Windows' own media overlay / the thumbnail shows the new song. **Decision on hotkeys**: skips
+  through ShadeTube's global hotkeys do notify (nothing else shows the song then); a burst of them is one notification
+  thanks to the debounce. Not as a listen-together guest while changes come in a burst (2 within 10 s: joining,
+  catching up, the host skipping around); a host's single change does notify. Not while Windows says the user is busy
+  (`SHQueryUserNotificationState` other than "accepts": a full-screen app or game, presentation mode, quiet hours, a
+  locked screen); Focus assist / Do not disturb itself is left to Windows, which holds toasts back. Not for the same song
+  again (repeat one, a re-resolve), radio stations, podcast episodes or a song paused by then. The verdict is logged
+  (`songnotify` lines).
 
 ## 4. Coding conventions
 
@@ -2369,7 +2477,7 @@ $env:SHADETUBE_DATA_DIR = "$env:TEMP\shadetube-dev"
 `altsource_test`, `playback_test`, `stats_test`, `localfiles_test` and `updater_test` switch to their own profile
 automatically; for the others set the variable yourself (`mb_test` clears the profile's `cache\mb` by default). To get
 a Spotify session in a sandbox, run the app once with the variable set and sign in: the live `spotify_test` modes
-read the same `spotify.dat` (or `SHADETUBE_SPDC`). Note that the single-instance check is shared: without
+read the active account's `accounts\<id>\spotify.dat` (a 0.10 root `spotify.dat` too; or `SHADETUBE_SPDC`). Note that the single-instance check is shared: without
 `--preview` or `--screenshot`, a sandboxed launch just brings an already running ShadeTube to the front.
 
 ### 5.2 Test programs
@@ -2394,8 +2502,10 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads) |
 | `smartlists_test` | smart lists on synthetic histories: each list's rules and minimums, streams only, podcast / radio ids out, session-based mixes, day seeds, year lists, fresh-song blending, trim, timing with 300 000 plays | offline |
-| `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), timings with 300 000 imported plays | offline |
-| `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files) | offline |
+| `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), an account switch (`detach` / `attach`: stored plays to the old file, the play in progress carried over), timings with 300 000 imported plays | offline |
+| `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files), Spotify rules bound to their account (listable only with it, the `"acct"` round trip, old files) | offline |
+| `accounts_test` | several Spotify accounts (3.42): a 0.10 single-account profile migrated in place (cookie, `webview2\`, per-account files moved, shared files left, idempotent), a MusicBrainz-only profile's first login adopting its files (later ones not), leftover login folders, sign out keeping the data, a damaged `accounts.json` rebuilt from the folders, ids that would leave `accounts\`; the `Session` with a fake connect: add a second account (the first stays signed in), leave / enter hooks around the data folder change, quick switch, re-login of a known user, a closed login window, a failed switch, sign out handing over, the next start | offline (per-process temp profile) |
+| `songnotify_test` | song-change notification (3.43): every rule and their order (in view, Windows' media overlay window, a guest's sync burst, busy, paused, repeat), XML escaping, the cover's file URI, the toast with / without cover and "Beğen", hostile tags, every variant parsed by WinRT's `XmlDocument` | offline |
 | `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
@@ -2518,6 +2628,8 @@ apps*).
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
 | `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
+| `SHADETUBE_ACCOUNT_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.42): `menu[=x,y]` (the account menu at window DIPs, default under the title bar's tag), `switch[=<id>]` (the next signed-in account, or that one), `signout[=<id>]` (the active one), `add` (the login window), `log` (the active account and its data folder). E.g. `switch@8000;menu@11000` with `--screenshot 12000` |
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.36) |
 | `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.37) |
 | `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
@@ -2565,6 +2677,22 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
 - **Lyrics picker** (3.42): LRCLIB's free-text search returns at most 20 records; the Spotify choice needs a Spotify
   track and a session. A picked record is cached in `cache\lyrics` (pruned with the cache), so it is fetched again by
   id when the cache was cleared.
+- **Several Spotify accounts** (3.42): verified live with one real account only (a 0.10 profile migrated, connected, a
+  switch to a second record holding the same cookie while a song played); two different real accounts were not
+  available, so the second login's own cookie jar and a re-login matched by user id are covered by `accounts_test`
+  (fake connect) only. A request in flight at the very moment of a switch (e.g. a like or a playlist edit queued a
+  split second before) still goes out with whichever token the worker reads. One Spotify Liked Songs sync rule per PC
+  (bound to the account that made it); Last.fm / ListenBrainz, the phone remote's pairing, listen together's name and
+  `library.json`'s local play history stay per PC; the Settings' expanded sidebar folders are shared (folder ids differ
+  per account, so they don't clash). Signed-out accounts keep their folder (history, blocklist) for a later sign in;
+  there is no "forget this account's data" yet.
+- **Song notification** (3.43): needs the app's AUMID to be known to the shell (the Start menu shortcut the app keeps);
+  otherwise it falls back to a tray balloon without cover or buttons. The buttons reach the app through the toast's
+  in-process event (no COM activator is registered): once ShadeTube has quit, its entry is removed from the notification
+  center; an entry left behind by a crash doesn't reach a new ShadeTube. "In view" is a heuristic (the foreground window covering 90 % of ours);
+  a ShadeTube window hidden behind several smaller windows counts as in view. Verified live: the toast with the cover,
+  the replacement per song, "Sonraki" from the toast, the mini player suppressing it, the balloon fallback; the "Beğen"
+  button was not clicked live (on a Spotify track it writes to the real account).
 - **YouTube** matching can pick the wrong video (*Wrong match?* fixes it per track), and stream access depends on
   YoutubeExplode keeping up with YouTube changes.
 - **Public Piped / Invidious instances are volatile**: the built-in list goes stale, and many instances serve search

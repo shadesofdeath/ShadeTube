@@ -32,6 +32,14 @@ bool hasPrefix(const std::string& s, const char* p) { return s.rfind(p, 0) == 0;
 
 bool isSpotifyRule(const Rule& r) { return hasPrefix(r.id, "spotify:"); }
 
+bool accountBound(const Rule& r) { return isSpotifyRule(r) && r.kind != Kind::Album; }
+
+bool listableBy(const Rule& r, const std::string& user) {
+    if (!isSpotifyRule(r)) return true;
+    if (user.empty()) return false;
+    return !accountBound(r) || r.account.empty() || r.account == user;
+}
+
 const Rule* findRule(const State& s, const std::string& id) {
     for (const auto& r : s.rules)
         if (r.id == id) return &r;
@@ -87,6 +95,7 @@ json toJson(const State& s) {
             e["fails"] = r.failures;
             e["retry"] = r.retryAt;
         }
+        if (!r.account.empty()) e["acct"] = r.account;   // absent before 0.11
         rules.push_back(std::move(e));
     }
     json attempts = json::object();
@@ -119,6 +128,7 @@ State stateFromJson(const json& j) {
             r.errorDetail = e.value("ed", "");
             r.failures = std::max(0, e.value("fails", 0));
             r.retryAt = e.value("retry", int64_t{0});
+            if (auto ac = e.find("acct"); ac != e.end() && ac->is_string() && accountBound(r)) r.account = ac->get<std::string>();
             if (auto ex = e.find("ex"); ex != e.end() && ex->is_array())   // absent before 0.6
                 for (const auto& x : *ex) {
                     if (!x.is_array() || x.size() != 4 || !x[0].is_string() || x[0].get<std::string>().empty()) continue;

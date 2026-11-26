@@ -1,4 +1,5 @@
 // Settings page and the page factory.
+#include "app/Accounts.h"
 #include "app/LyricsService.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -268,6 +269,8 @@ private:
                     if (ctx().startSpotifyLogin) ctx().startSpotifyLogin();
                 };
             }
+            // The other accounts on this PC (Geç / Çıkış yap) and "Hesap ekle" (app/Accounts).
+            accounts::buildSettingsRows(c, rebuilder());
         }
 
         c = card("connections", "link", tr(L"Bağlantılar"), tr(L"Last.fm ve ListenBrainz scrobble, Discord durumu"));
@@ -386,6 +389,7 @@ private:
             toggle(c, tr(L"Görev çubuğunda ilerlemeyi göster"),
                    tr(L"Çalan şarkının konumu görev çubuğu düğmesinde görünür: çalarken yeşil, duraklatınca sarı."),
                    s.taskbarProgress, [](bool v) { Settings::get().taskbarProgress = v; });
+            buildSongNotificationRow(c, rebuilder());   // app/SongNotifier.cpp
             buildStartupRows(c, rebuilder());
         }
 

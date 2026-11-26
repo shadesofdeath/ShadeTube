@@ -2220,5 +2220,24 @@
     "other": "{} елементів"
   },
   "Çevrimdışısın": "Немає з’єднання з інтернетом",
-  "Şarkı ara": "Знайти треки"
+  "Şarkı ara": "Знайти треки",
+  "{} hesabına geçildi": "Акаунт перемкнено: {}",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "Не вдалося перемкнутися на {}. Можливо, сеанс завершився: увійди знову в налаштуваннях.",
+  "{} hesabından çıkış yapıldı": "Вихід з акаунта {} виконано",
+  "Hesap ekle…": "Додати акаунт…",
+  "Hesapları yönet": "Керувати акаунтами",
+  "Bu PC'de oturumu açık": "Вхід виконано на цьому ПК",
+  "Geç": "Перемкнути",
+  "Bu PC'deki diğer hesaplar": "Інші акаунти на цьому ПК",
+  "Başka bir hesap ekle": "Додати ще один акаунт",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "Перемикайся між акаунтами без повторного входу: музика й черга грають далі. Кожен акаунт має власну бібліотеку, статистику прослуховувань, чорний список і новинки; налаштування, теми, завантаження й локальні файли спільні.",
+  "Hesap ekle": "Додати акаунт",
+  "{} hesabına geçiliyor…": "Перемикання на {}…",
+  "Hesaplar": "Акаунти",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Не вдалося підключитися до Spotify. Спробуй ще раз трохи згодом.",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Список іншого акаунта Spotify: синхронізується, коли перемкнешся на цей акаунт",
+  "Hesaba geç: {}": "Змінити акаунт: {}",
+  "Spotify hesabı ekle": "Додати акаунт Spotify",
+  "Şarkı değişince bildirim göster": "Сповіщати про зміну треку",
+  "ShadeTube penceresi görünmüyorken yeni bir şarkı başlayınca kapağı, adı ve sanatçısıyla bir Windows bildirimi çıkar; Sonraki ve Beğen düğmeleriyle. Mini oynatıcı ekrandayken, medya tuşlarıyla geçişlerde (Windows şarkıyı kendisi gösterir) ve tam ekran uygulamalarda çıkmaz.": "Коли починається новий трек, а вікна ShadeTube не видно, Windows покаже сповіщення з обкладинкою, назвою й виконавцем і кнопками «Наступний» і «Вподобати». Не з'являється, поки на екрані мініплеєр, під час перемикання медіаклавішами (Windows сама показує трек) і в повноекранних застосунках."
 }

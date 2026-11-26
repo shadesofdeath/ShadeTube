@@ -2049,5 +2049,24 @@
     "other": "{} itens"
   },
   "Çevrimdışısın": "Você está offline",
-  "Şarkı ara": "Pesquisar músicas"
+  "Şarkı ara": "Pesquisar músicas",
+  "{} hesabına geçildi": "Agora você está na conta {}",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "Não foi possível mudar para {}. A sessão pode ter expirado: entre de novo em Configurações.",
+  "{} hesabından çıkış yapıldı": "Você saiu da conta {}",
+  "Hesap ekle…": "Adicionar conta…",
+  "Hesapları yönet": "Gerenciar contas",
+  "Bu PC'de oturumu açık": "Conectada neste PC",
+  "Geç": "Trocar",
+  "Bu PC'deki diğer hesaplar": "Outras contas neste PC",
+  "Başka bir hesap ekle": "Adicionar outra conta",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "Troque de conta sem entrar de novo; a música e a fila continuam tocando. Cada conta tem a própria biblioteca, estatísticas de audição, lista de bloqueio e lançamentos; configurações, temas, downloads e arquivos locais são compartilhados.",
+  "Hesap ekle": "Adicionar conta",
+  "{} hesabına geçiliyor…": "Mudando para {}…",
+  "Hesaplar": "Contas",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "Não foi possível conectar ao Spotify. Tente de novo daqui a pouco.",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Lista de outra conta do Spotify: sincroniza quando você mudar para essa conta",
+  "Hesaba geç: {}": "Trocar de conta: {}",
+  "Spotify hesabı ekle": "Adicionar uma conta do Spotify",
+  "Şarkı değişince bildirim göster": "Notificar quando a música mudar",
+  "ShadeTube penceresi görünmüyorken yeni bir şarkı başlayınca kapağı, adı ve sanatçısıyla bir Windows bildirimi çıkar; Sonraki ve Beğen düğmeleriyle. Mini oynatıcı ekrandayken, medya tuşlarıyla geçişlerde (Windows şarkıyı kendisi gösterir) ve tam ekran uygulamalarda çıkmaz.": "Quando uma música nova começa e nenhuma janela do ShadeTube está à vista, uma notificação do Windows mostra a capa, o título e o artista, com os botões Próxima e Curtir. Não aparece com o miniplayer na tela, ao trocar com as teclas de mídia (o Windows já mostra a música) nem em apps em tela cheia."
 }

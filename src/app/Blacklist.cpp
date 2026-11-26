@@ -357,6 +357,14 @@ void setStoreFile(const std::filesystem::path& file) {
     readFile();
 }
 
+void switchStoreFile(const std::filesystem::path& file) {
+    if (state().loaded && file == state().file) return;
+    setStoreFile(file);
+    auto ls = state().listeners;   // a listener may register another one
+    for (auto& fn : ls)
+        if (fn) fn();
+}
+
 void onChanged(std::function<void()> fn) {
     if (fn) state().listeners.push_back(std::move(fn));
 }

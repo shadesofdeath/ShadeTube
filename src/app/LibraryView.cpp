@@ -1,6 +1,7 @@
 #include "app/LibraryView.h"
 
 #include "app/Display.h"
+#include "app/Accounts.h"
 #include "app/DownloadSync.h"
 #include "core/Dispatcher.h"
 #include "core/I18n.h"
@@ -650,7 +651,7 @@ std::mutex& saveMutex() {   // the exit save and a background one never write th
     static std::mutex m;
     return m;
 }
-std::filesystem::path recentsFile() { return paths::appData() / L"library-recents.json"; }
+std::filesystem::path recentsFile() { return accounts::file(L"library-recents.json"); }   // per account (app/Accounts)
 
 // Housekeeping: at most every 30 s, written on a worker; on exit (`now`) at once.
 void saveRecents(bool now) {
@@ -697,6 +698,12 @@ void initLibraryViews() {
     });
     ctx().housekeepingHooks.push_back([] { saveRecents(false); });
     ctx().persistHooks.push_back([] { saveRecents(true); });
+    // Another Spotify account: what this one played goes to its folder, the other one's comes back.
+    ctx().accountLeaveHooks.push_back([] { saveRecents(true); });
+    ctx().accountEnterHooks.push_back([] {
+        recentsState().recents = libview::Recents::load(recentsFile());
+        recentsState().dirty = false;
+    });
 }
 
 } // namespace st::app

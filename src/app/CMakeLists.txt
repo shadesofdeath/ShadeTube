@@ -33,6 +33,7 @@ set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/resources.rc PROPERTIES 
 add_executable(ShadeTube WIN32
     main.cpp
     AboutSettings.cpp
+    Accounts.cpp Accounts.h
     AltSourceSettings.cpp
     App.cpp App.h
     AudioSettings.cpp
@@ -120,6 +121,8 @@ add_executable(ShadeTube WIN32
     Shell.cpp Shell.h
     ShareCard.cpp ShareCard.h
     SmartMix.cpp SmartMix.h
+    SongNotification.cpp SongNotification.h
+    SongNotifier.cpp
     SmartShuffle.cpp SmartShuffle.h
     SmartLists.cpp SmartLists.h
     SmartListsPage.cpp SmartListsPage.h

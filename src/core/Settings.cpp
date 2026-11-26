@@ -142,6 +142,7 @@ void Settings::load() {
     read(j, "miniOnTop", miniOnTop);
     read(j, "miniPlaces", miniPlaces);
     read(j, "taskbarProgress", taskbarProgress);
+    read(j, "songNotifications", songNotifications);
     read(j, "previewMode", previewMode);
     if (previewMode != "hold" && previewMode != "menu" && previewMode != "off") previewMode = "hold";
     read(j, "videoQuality", videoQuality);
@@ -243,6 +244,7 @@ void Settings::save() const {
         {"miniOnTop", miniOnTop},
         {"miniPlaces", miniPlaces},
         {"taskbarProgress", taskbarProgress},
+        {"songNotifications", songNotifications},
         {"previewMode", previewMode},
         {"videoQuality", videoQuality},
         {"rememberVideoMode", rememberVideoMode},

@@ -12,6 +12,8 @@
 //               kind, clock going back), backoff steps (429: at least 10 min)
 //   exclude   : songs taken out of a rule (once, left out of listings / plans / progress, round trip, an old file,
 //               tolerant parsing), letting them back in
+//   accounts  : Spotify Liked Songs / playlist rules bound to one account (listable only with it; not stamped = any),
+//               albums and local rules for everyone, the "acct" round trip, old files
 //
 // Runs in a temp folder: the user's profile is never touched.
 #include "app/SyncRules.h"
@@ -385,6 +387,51 @@ static void testExclude(const fs::path& dir) {
     CHECK(ids(withoutExcluded(r, {track("a"), track("b")})) == std::vector<std::string>({"a", "b"}));
 }
 
+// Several Spotify accounts: Liked Songs / playlist rules belong to one account, albums and local rules to anyone.
+static void testAccounts(const fs::path& dir) {
+    std::printf("accounts:\n");
+    Rule liked;
+    liked.id = kSpotifyLikedId;
+    liked.kind = Kind::Liked;
+    Rule pl;
+    pl.id = "spotify:playlist:p1";
+    pl.kind = Kind::Playlist;
+    Rule album;
+    album.id = "spotify:album:x";
+    album.kind = Kind::Album;
+    Rule local;
+    local.id = kLocalLikedId;
+    local.kind = Kind::Liked;
+    Rule mb;
+    mb.id = "0b8a2c55-1d7e-4c3f-9c1e-2a8b3e9f0d11";
+    mb.kind = Kind::Album;
+    CHECK(accountBound(liked) && accountBound(pl) && !accountBound(album) && !accountBound(local) && !accountBound(mb));
+    // Not stamped yet (a rule from before 0.11): any session lists it (and stamps it).
+    CHECK(listableBy(liked, "spotify:user:alice") && listableBy(liked, "spotify:user:bob"));
+    CHECK(!listableBy(liked, ""));   // logged out
+    liked.account = pl.account = "spotify:user:alice";
+    CHECK(listableBy(liked, "spotify:user:alice") && !listableBy(liked, "spotify:user:bob"));
+    CHECK(listableBy(pl, "spotify:user:alice") && !listableBy(pl, "spotify:user:bob"));
+    CHECK(listableBy(album, "spotify:user:bob") && !listableBy(album, ""));
+    CHECK(listableBy(local, "") && listableBy(local, "spotify:user:bob") && listableBy(mb, ""));
+    // Round trip; old files (no "acct") load as not stamped; an account on an album rule is ignored.
+    State s;
+    s.rules = {liked, pl, album};
+    s.rules[2].account = "spotify:user:alice";
+    const auto file = dir / L"sync-accounts.json";
+    CHECK(saveState(s, file));
+    const State r = loadState(file);
+    CHECK(r.rules.size() == 3);
+    CHECK(r.rules[0].account == "spotify:user:alice" && r.rules[1].account == "spotify:user:alice");
+    CHECK(r.rules[2].account.empty());
+    auto j = toJson(s);
+    j["rules"][0].erase("acct");
+    CHECK(stateFromJson(j).rules[0].account.empty());
+    // A rule another account can't list still keeps its songs wanted (nothing is dropped while it waits).
+    s.rules[0].trackIds = {"t1", "t2"};
+    CHECK(wantedIds(s.rules).contains("t1"));
+}
+
 int main() {
     SetConsoleOutputCP(CP_UTF8);
     wchar_t tmp[MAX_PATH];
@@ -402,6 +449,7 @@ int main() {
     testProgress();
     testSchedule();
     testExclude(dir);
+    testAccounts(dir);
 
     fs::remove_all(dir, ec);
     if (g_failures) {

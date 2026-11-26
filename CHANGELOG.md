@@ -49,6 +49,16 @@ All notable changes to ShadeTube, newest first.
 - **Loading, empty and error states everywhere**: soft placeholder shapes that shimmer together while pages load (still
   with reduced motion), friendly empty pages with one useful action, and clear error and offline messages with a retry
   button.
+- **Several Spotify accounts**: add more accounts and switch between them from the account menu in the title bar (click
+  "SPOTIFY · your name"), Settings › Spotify account or the command palette, without logging in again. The music and
+  the queue keep playing. Each account keeps its own library, playlists, friend activity, new releases, listening stats,
+  smart lists and blocklist; settings, themes, downloads and local files are shared. Signing in to another account
+  never signs the others out, and "Log out" leaves only that account (another one takes over). Your current account
+  moves over on its own, with all its history.
+- **Song notifications**: turn on Settings › Window and system › "Notify when the song changes" to get a Windows
+  notification with the cover, title and artist, plus Next and Like buttons, when a new song starts while ShadeTube is
+  out of sight. Each song replaces the last one; nothing shows while the mini player is on screen, when you skip with
+  the media keys (Windows shows the song itself) or in full-screen apps.
 
 ## 0.10.0 — 2026-11-23
 

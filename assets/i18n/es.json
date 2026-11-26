@@ -2049,5 +2049,24 @@
     "other": "{} elementos"
   },
   "Çevrimdışısın": "No tienes conexión",
-  "Şarkı ara": "Buscar canciones"
+  "Şarkı ara": "Buscar canciones",
+  "{} hesabına geçildi": "Ahora usas la cuenta {}",
+  "{} hesabına geçilemedi. Oturumun süresi dolmuş olabilir: Ayarlar'dan yeniden giriş yap.": "No se pudo cambiar a {}. Puede que su sesión haya caducado: vuelve a iniciar sesión en Configuración.",
+  "{} hesabından çıkış yapıldı": "Sesión cerrada en {}",
+  "Hesap ekle…": "Añadir cuenta…",
+  "Hesapları yönet": "Gestionar cuentas",
+  "Bu PC'de oturumu açık": "Sesión iniciada en este PC",
+  "Geç": "Cambiar",
+  "Bu PC'deki diğer hesaplar": "Otras cuentas en este PC",
+  "Başka bir hesap ekle": "Añadir otra cuenta",
+  "Hesaplar arasında yeniden giriş yapmadan geçersin; çalan müzik ve sıra devam eder. Her hesabın kitaplığı, dinleme istatistikleri, kara listesi ve yeni çıkanları ayrı tutulur; ayarlar, temalar, indirmeler ve yerel dosyalar ortaktır.": "Cambia de cuenta sin volver a iniciar sesión; la música y la cola siguen sonando. Cada cuenta guarda su biblioteca, sus estadísticas de escucha, su lista de bloqueo y sus novedades; la configuración, los temas, las descargas y los archivos locales se comparten.",
+  "Hesap ekle": "Añadir cuenta",
+  "{} hesabına geçiliyor…": "Cambiando a {}…",
+  "Hesaplar": "Cuentas",
+  "Spotify'a bağlanılamadı. Biraz sonra yeniden dene.": "No se pudo conectar con Spotify. Vuelve a intentarlo en un momento.",
+  "Başka bir Spotify hesabının listesi: o hesaba geçince senkronize edilir": "Lista de otra cuenta de Spotify: se sincroniza cuando cambies a esa cuenta",
+  "Hesaba geç: {}": "Cambiar de cuenta: {}",
+  "Spotify hesabı ekle": "Añadir una cuenta de Spotify",
+  "Şarkı değişince bildirim göster": "Avisar cuando cambie la canción",
+  "ShadeTube penceresi görünmüyorken yeni bir şarkı başlayınca kapağı, adı ve sanatçısıyla bir Windows bildirimi çıkar; Sonraki ve Beğen düğmeleriyle. Mini oynatıcı ekrandayken, medya tuşlarıyla geçişlerde (Windows şarkıyı kendisi gösterir) ve tam ekran uygulamalarda çıkmaz.": "Cuando empieza una canción y no se ve ninguna ventana de ShadeTube, una notificación de Windows muestra su portada, título y artista, con los botones Siguiente y Me gusta. No aparece con el minirreproductor en pantalla, al cambiar con las teclas multimedia (Windows ya muestra la canción) ni en apps a pantalla completa."
 }
