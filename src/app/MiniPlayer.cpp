@@ -71,11 +71,11 @@ void applyBorder(HWND hwnd) {
 
 const char* modeIcon(Mode m) {
     switch (m) {
-    case Mode::Strip: return "mini-strip-thin";
-    case Mode::Square: return "mini-square-thin";
-    case Mode::Wide: return "mini-wide-thin";
+    case Mode::Strip: return "mini-strip";
+    case Mode::Square: return "mini-square";
+    case Mode::Wide: return "mini-wide";
     }
-    return "mini-wide-thin";
+    return "mini-wide";
 }
 
 std::wstring modeName(Mode m) {
@@ -219,17 +219,17 @@ public:
         time_.setOptions(right);
         volValue_.setOptions(right);
         // The player bar's thin outline set.
-        shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle-thin");
-        prev_ = add<Button>(ButtonKind::Icon, L"", "prev-thin");
+        shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle");
+        prev_ = add<Button>(ButtonKind::Icon, L"", "prev");
         play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
-        next_ = add<Button>(ButtonKind::Icon, L"", "next-thin");
-        repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat-thin");
-        heart_ = add<Button>(ButtonKind::Icon, L"", "heart-thin");
+        next_ = add<Button>(ButtonKind::Icon, L"", "next");
+        repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat");
+        heart_ = add<Button>(ButtonKind::Icon, L"", "heart");
         seek_ = add<ui::Slider>(ui::Slider::Look::Wave);
         seek_->hitPadding = 4;
-        modeBtn_ = add<Button>(ButtonKind::Icon, L"", "mini-square-thin");
-        expand_ = add<Button>(ButtonKind::Icon, L"", "expand-thin");
-        close_ = add<Button>(ButtonKind::Icon, L"", "close-thin");
+        modeBtn_ = add<Button>(ButtonKind::Icon, L"", "mini-square");
+        expand_ = add<Button>(ButtonKind::Icon, L"", "expand");
+        close_ = add<Button>(ButtonKind::Icon, L"", "close");
         grips_ = add<SquareGrips>();   // last: above everything at the edges
         for (auto* b : {modeBtn_, expand_, close_}) b->setIconSize(14);
         prev_->setTooltip(tr(L"Önceki"));
@@ -320,13 +320,13 @@ public:
         seek_->setLive(live_);
         const auto shuffleMode = smartshuffle::mode();
         shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
-        shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart-thin" : "shuffle-thin");
+        shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart" : "shuffle");
         shuffle_->setTooltip(smartshuffle::modeLabel(shuffleMode));
         const auto rep = p ? p->repeat() : RepeatMode::Off;
         repeat_->setActive(rep != RepeatMode::Off);
-        repeat_->setIcon(rep == RepeatMode::One ? "repeat-one-thin" : "repeat-thin");
+        repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
         const bool liked = t && (live_ ? radio::store().isFavorite(radio::uuidOf(t->id)) : ctx().library.isLiked(t->id));
-        heart_->setIcon(liked ? "heart-liked-thin" : "heart-thin");
+        heart_->setIcon(liked ? "heart-filled" : "heart");
         heart_->setActive(liked);
         heart_->setTooltip(!live_ ? std::wstring(tr(L"Beğen")) : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
         heart_->setVisible(mode_ == Mode::Wide && t && (live_ || ctx().library.canLike(t->id)));

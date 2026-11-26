@@ -58,6 +58,9 @@ struct StreamSource {
     uint64_t tag = 0;             // opaque caller id, echoed back in events
     bool live = false;            // endless internet-radio stream (url = station / playlist / HLS URL)
     bool allowLocalNetwork = false;   // live: may reach this machine / its network (a test server); else public only
+    // A download (url) that arrived completely: called once on its download thread with the whole stream, valid only
+    // during the call (the song cache keeps a copy, player/AudioCache). Not for local files or live streams.
+    std::function<void(const uint8_t* data, int64_t length)> onComplete;
 };
 
 enum class State { Idle, Loading, Playing, Paused, Ended, Error };

@@ -1923,6 +1923,50 @@
   "Video penceresinde aç": "Open in the video window",
   "Video yükleniyor…": "Loading video…",
   "Şu an bir şarkı çalmıyor": "Nothing is playing right now",
+  "Arama": "Search",
+  "Aylık dinleyici": "Monthly listeners",
+  "Başlangıç": "Started",
+  "Biyografi": "Biography",
+  "Derlemeler": "Compilations",
+  "Devamını göster": "Read more",
+  "Diskografi": "Discography",
+  "Doğrulanmış sanatçı": "Verified artist",
+  "Doğum yılı": "Born",
+  "Dünya sıralaması": "World rank",
+  "En eski": "Oldest",
+  "En iyi sonuç": "Top result",
+  "En yeni": "Newest",
+  "En çok dinlendiği şehirler": "Top cities",
+  "Hayranları bunları da dinliyor": "Fans also like",
+  "Kuruluş": "Formed",
+  "ListenBrainz dinlenmesi": "ListenBrainz listens",
+  "Popüler sürümler": "Popular releases",
+  "Popülerlik": "Popularity",
+  "Sanatçı seçimi": "Artist pick",
+  "Son çıkan": "Latest release",
+  "Takipçi": "Followers",
+  "Web sitesi": "Website",
+  "Yer aldığı": "Appears on",
+  "Öne çıktığı çalma listeleri": "Featured in playlists",
+  "Ülke": "Country",
+  "{} aylık dinleyici": {
+    "one": "{} monthly listener",
+    "other": "{} monthly listeners"
+  },
+  "{} dinleyici": {
+    "one": "{} listener",
+    "other": "{} listeners"
+  },
+  "{} takipçi": {
+    "one": "{} follower",
+    "other": "{} followers"
+  },
+  "Şarkı önbelleği": "Song cache",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "Songs that loaded completely while playing are kept on this computer: played again, they start right away, even without internet. At the limit, the ones not played for the longest are removed first. Songs you downloaded take no space here.",
+  "Önbellekteki şarkılar": "Songs in the cache",
+  "Henüz şarkı yok.": "No songs yet.",
+  "{} · {} yer kaplıyor.": "{} · {} used.",
+  "Şarkı önbelleği temizlendi": "Song cache cleared",
   "\"{}\" için bu türde bir sonuç yok.": "No results of this kind for \"{}\".",
   "Abone olunacak podcast yok": "No podcasts to subscribe to",
   "Apple Podcasts'ta ara": "Search Apple Podcasts",
@@ -1981,10 +2025,6 @@
     "other": "Subscribed to {} podcasts"
   },
   "{} podcast'e abone olundu, {} podcast eklenemedi": "Subscribed to {} podcasts, {} couldn't be added",
-  "{} takipçi": {
-    "one": "{} follower",
-    "other": "{} followers"
-  },
   "{} abone olunabilir": {
     "one": "{} available",
     "other": "{} available"

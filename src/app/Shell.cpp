@@ -983,17 +983,17 @@ PlayerBar::PlayerBar()
     seek_ = add<ui::Slider>(ui::Slider::Look::Wave);
     seek_->hitPadding = 4;
     seek_->onCommit = [](float f) { ctx().player->seek(static_cast<int64_t>(f * ctx().player->durationMs())); };
-    shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle-thin");
-    prev_ = add<Button>(ButtonKind::Icon, L"", "prev-thin");
+    shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle");
+    prev_ = add<Button>(ButtonKind::Icon, L"", "prev");
     play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
-    next_ = add<Button>(ButtonKind::Icon, L"", "next-thin");
-    repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat-thin");
-    heart_ = add<Button>(ButtonKind::Icon, L"", "heart-thin");
-    lyrics_ = add<Button>(ButtonKind::Icon, L"", "lyrics-thin");
-    queue_ = add<Button>(ButtonKind::Icon, L"", "queue-thin");
+    next_ = add<Button>(ButtonKind::Icon, L"", "next");
+    repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat");
+    heart_ = add<Button>(ButtonKind::Icon, L"", "heart");
+    lyrics_ = add<Button>(ButtonKind::Icon, L"", "lyrics");
+    queue_ = add<Button>(ButtonKind::Icon, L"", "queue");
     knob_ = add<ui::Knob>();
-    mini_ = add<Button>(ButtonKind::Icon, L"", "mini-player-thin");
-    expand_ = add<Button>(ButtonKind::Icon, L"", "expand-thin");
+    mini_ = add<Button>(ButtonKind::Icon, L"", "mini-player");
+    expand_ = add<Button>(ButtonKind::Icon, L"", "expand");
     // Playback speed: always offered for podcast episodes, for songs only once it isn't 1x (keys / palette set it).
     speed_ = add<Button>(ButtonKind::Ghost, speedLabel(1.f));
     speed_->setTooltip(tr(L"Çalma hızı"));
@@ -1012,14 +1012,14 @@ PlayerBar::PlayerBar()
         ui::Menu::open(ctx().window, {br.x, br.y - 6}, std::move(items));
     };
     // "Birlikte dinle" (app/Together): the panel's button; during a session a pill that names it.
-    jam_ = add<Button>(ButtonKind::Icon, L"", "users-thin");
+    jam_ = add<Button>(ButtonKind::Icon, L"", "users");
     jam_->setTooltip(tr(L"Birlikte dinle"));
     jam_->onClick = [] { commands::run("listen-together"); };
-    jamLabel_ = add<Button>(ButtonKind::Ghost, L"", "users-thin");
+    jamLabel_ = add<Button>(ButtonKind::Ghost, L"", "users");
     jamLabel_->setTooltip(tr(L"Birlikte dinle"));
     jamLabel_->onClick = [] { commands::run("listen-together"); };
     jamLabel_->setVisible(false);
-    sleep_ = add<Button>(ButtonKind::Icon, L"", "clock-thin");
+    sleep_ = add<Button>(ButtonKind::Icon, L"", "clock");
     sleep_->setTooltip(tr(L"Uyku zamanlayıcı"));
     sleep_->onClick = [this] {
         const Rect br = sleep_->toWindow(sleep_->rect());
@@ -1035,7 +1035,7 @@ PlayerBar::PlayerBar()
     mini_->setTooltip(tr(L"Mini oynatıcı"));
     expand_->setTooltip(tr(L"Tam ekran"));
     heart_->setTooltip(tr(L"Beğen"));
-    heart_->setHeart("heart-thin", "heart-liked-thin");   // the like feedback (ui::HeartPop) when it changes
+    heart_->setHeart("heart", "heart-filled");   // the like feedback (ui::HeartPop) when it changes
 
     shuffle_->onClick = [] { smartshuffle::cycleMode(); };   // off -> shuffle -> smart shuffle
     prev_->onClick = [] { ctx().player->previous(); };
@@ -1060,7 +1060,7 @@ PlayerBar::PlayerBar()
     knob_->setValue(Settings::get().volume);
     knob_->onChange = [](float v) { ctx().player->setVolume(v); };
     // "Video modu" (app/VideoMode): the song's music video where the cover is in Now Playing, or in its own window.
-    video_ = add<Button>(ButtonKind::Icon, L"", "video-thin");
+    video_ = add<Button>(ButtonKind::Icon, L"", "video");
     video_->onClick = [] { videomode::toggle(); };
     sync();
 }
@@ -1068,7 +1068,7 @@ PlayerBar::PlayerBar()
 void PlayerBar::setNowPlayingMode(bool on) {
     nowPlaying_ = on;
     heart_->setVisible(!on);
-    expand_->setIcon(on ? "collapse-thin" : "expand-thin");
+    expand_->setIcon(on ? "collapse" : "expand");
     lyrics_->setActive(on);
     requestLayout();
 }
@@ -1099,13 +1099,13 @@ void PlayerBar::sync() {
     seek_->setLive(live_);
     const auto shuffleMode = smartshuffle::mode();
     shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
-    shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart-thin" : "shuffle-thin");
+    shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart" : "shuffle");
     shuffle_->setTooltip(smartshuffle::modeLabel(shuffleMode));
     const auto rep = p ? p->repeat() : RepeatMode::Off;
     repeat_->setActive(rep != RepeatMode::Off);
-    repeat_->setIcon(rep == RepeatMode::One ? "repeat-one-thin" : "repeat-thin");
+    repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
     const bool liked = t && (live_ ? radio::store().isFavorite(radio::uuidOf(t->id)) : ctx().library.isLiked(t->id));
-    heart_->setIcon(liked ? "heart-liked-thin" : "heart-thin");
+    heart_->setIcon(liked ? "heart-filled" : "heart");
     heart_->setActive(liked);
     // Liked / unliked while it plays (the heart, a row's heart, Ctrl+L, a menu, the phone): the feedback. Another song
     // just shows its own state.

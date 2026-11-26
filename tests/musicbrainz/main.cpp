@@ -113,6 +113,40 @@ static void offlineTests() {
         auto photos = d::commonsImages(file);
         CHECK(photos.size() == 3);
         CHECK(photos[1].url == "https://commons.wikimedia.org/wiki/Special:FilePath/Tarkan_%289%29.jpg?width=500");
+
+        // The artist page's links: the homepage and the profiles (VK, databases, stores and fan pages left out).
+        const auto links = d::parseArtistLinks(lookup);
+        for (const auto& l : links) std::printf("  link %s %s\n", l.kind.c_str(), l.url.c_str());
+        CHECK(links.size() == 5);
+        if (links.size() == 5) {
+            CHECK(links[0].kind == "website" && links[0].url == "http://www.tarkan.com/");
+            CHECK(links[1].kind == "twitter" && links[2].kind == "facebook" && links[3].kind == "instagram" &&
+                  links[4].kind == "youtube");
+        }
+        const auto rels = d::json::parse(R"({"relations":[
+            {"type":"social network","ended":true,"url":{"resource":"https://instagram.com/old"}},
+            {"type":"social network","url":{"resource":"https://x.com/new"}},
+            {"type":"social network","url":{"resource":"https://notinstagram.com/x"}},
+            {"type":"social network","url":{"resource":"https://www.twitter.com/second"}},
+            {"type":"bandcamp","url":{"resource":"https://artist.bandcamp.com/"}},
+            {"type":"official homepage","url":{"resource":"ftp://example.org/"}}]})");
+        const auto more = d::parseArtistLinks(rels);
+        CHECK(more.size() == 2 && more[0].kind == "twitter" && more[0].url == "https://x.com/new" && more[1].kind == "bandcamp");
+        CHECK(d::parseArtistLinks(d::json::object()).empty());
+
+        // Wikipedia: the article titles of an entity and the REST summary of an article.
+        const auto entity = d::json::parse(
+            R"j({"entities":{"Q1":{"sitelinks":{"trwiki":{"site":"trwiki","title":"Duman (müzik grubu)"},"enwiki":{"title":"Duman (band)"}}}}})j");
+        CHECK(d::wikipediaTitle(entity, "trwiki") == "Duman (müzik grubu)");
+        CHECK(d::wikipediaTitle(entity, "enwiki") == "Duman (band)");
+        CHECK(d::wikipediaTitle(entity, "dewiki").empty());
+        CHECK(d::wikipediaTitle(fixture("wikidata_entity.json"), "enwiki").empty());
+        const auto summary = d::parseWikipediaSummary(d::json::parse(
+            R"j({"type":"standard","extract":"  Duman, 1999'da kurulan bir rock grubu.\n","content_urls":{"desktop":{"page":"https://tr.wikipedia.org/wiki/Duman_(m%C3%BCzik_grubu)"}}})j"));
+        CHECK(summary.text == "Duman, 1999'da kurulan bir rock grubu.");
+        CHECK(summary.url == "https://tr.wikipedia.org/wiki/Duman_(m%C3%BCzik_grubu)");
+        CHECK(d::parseWikipediaSummary(d::json::parse(R"({"type":"disambiguation","extract":"Duman may refer to:"})")).text.empty());
+        CHECK(d::parseWikipediaSummary(d::json::parse(R"({"type":"standard","extract":"   "})")).text.empty());
     }
     // Release groups
     {

@@ -4,6 +4,28 @@ All notable changes to ShadeTube, newest first.
 
 ## 0.11.0 — unreleased
 
+- **One thin icon style everywhere**: the player bar's light outline icons now run through the whole app — sidebar,
+  title bar, page headers, menus, song rows, cards, settings, toasts, the queue, Now Playing, the mini player, the
+  command palette, the taskbar buttons and the phone remote. Every icon has the same line weight and size and is drawn
+  to the pixel grid, so it stays sharp at 100 % and every interface scale. Only "on" states are filled: a liked song's
+  heart (now the same solid heart in the player bar as in the lists), a downloaded song's check disc and the
+  playing bars. The big play buttons in page headers got the player bar's outline play / pause.
+- **A new artist page**: the artist's wide header photo behind the name, verified badge, monthly listeners and
+  followers, and play, shuffle, follow, radio and block side by side. Popular songs (five, or ten with "Show more") sit
+  next to the artist's own pick and the newest release. The discography switches between popular releases, albums,
+  singles and EPs, compilations and "appears on" with chips, and "See all" opens the whole group as a grid you can sort
+  by newest, oldest or name. Below: fans also like, playlists featuring the artist, and an About card with the
+  biography (from Wikipedia without Spotify), top cities, genres and links to the artist's website and social profiles.
+- **A new search**: a top result card in the artwork's colors beside the top songs, then a row per kind of result, with
+  chips to show one kind. Results update as you type without flashing empty (the previous results stay dimmed until the
+  new ones arrive), and typing back shows earlier answers at once. Move through the results with the arrow keys, Enter
+  plays or opens, Ctrl+Tab switches the chips. Recent searches now remember the artists, albums and songs you opened,
+  with their covers.
+- **Song cache**: songs you have played are kept on this PC, so playing them again starts instantly, downloads
+  nothing and works without internet, with the same loudness and SponsorBlock skips. Up to 1 GB by default (500 MB to
+  5 GB, or off) in Settings › Library and storage, where you also see how much it holds and can clear it; the songs
+  you haven't played for the longest make room first, and it never fills a nearly full disk. Downloading a song you
+  have played converts the copy on disk, even offline, and the cached copy then goes away.
 - **Search finds playlists, podcasts and profiles**: with Spotify connected, search has Playlists, Podcasts and
   Profiles tabs next to Songs, Albums and Artists, and the "All" overview shows them too. Every tab loads more with
   "Load more". Playlists open as usual, a profile opens a page with that person's public playlists, and a podcast

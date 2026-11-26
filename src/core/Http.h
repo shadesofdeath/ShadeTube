@@ -21,6 +21,12 @@ using YoutubeExplode::Http::HttpResponse;
 
 std::shared_ptr<YoutubeExplode::Http::IHttpClient> client();
 
+// Dev / tests: SHADETUBE_OFFLINE=1 makes the shared transport (client(), getLimited(): YouTube, SponsorBlock, covers,
+// Spotify, lyrics...) go through a proxy that refuses every connection, as if the PC were offline. The playback
+// engine's own stream downloads and the other private WinHTTP sessions (backup servers, radio, podcasts, listen
+// together) are not affected. Read once per process.
+bool simulatedOffline();
+
 HttpResponse send(HttpRequest request, const CancellationToken& ct = {});
 HttpResponse get(std::string url, Headers headers = {}, const CancellationToken& ct = {});
 HttpResponse postForm(std::string url, const std::vector<std::pair<std::string, std::string>>& form,

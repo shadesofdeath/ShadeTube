@@ -124,7 +124,7 @@ class SidebarEdge;
 
 // The player bar (88 DIP): track info on the left, the transport row above the wave seek row in the center (elapsed
 // time · wave · total time), the other controls on the right. Every control uses the thin outline icon set
-// (icons/*/<name>-thin.svg) and the outline play button; a track change slides the info over (TrackSwap).
+// (assets/icons, as the whole app) and the outline play button; a track change slides the info over (TrackSwap).
 class PlayerBar : public ui::Widget {
 public:
     PlayerBar();

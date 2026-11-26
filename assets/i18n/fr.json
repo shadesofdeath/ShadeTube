@@ -1923,6 +1923,50 @@
   "Video penceresinde aç": "Ouvrir dans la fenêtre vidéo",
   "Video yükleniyor…": "Chargement de la vidéo…",
   "Şu an bir şarkı çalmıyor": "Rien n'est en cours de lecture",
+  "Arama": "Recherche",
+  "Aylık dinleyici": "Auditeurs mensuels",
+  "Başlangıç": "Début",
+  "Biyografi": "Biographie",
+  "Derlemeler": "Compilations",
+  "Devamını göster": "Lire la suite",
+  "Diskografi": "Discographie",
+  "Doğrulanmış sanatçı": "Artiste vérifié",
+  "Doğum yılı": "Naissance",
+  "Dünya sıralaması": "Classement mondial",
+  "En eski": "Plus anciens",
+  "En iyi sonuç": "Meilleur résultat",
+  "En yeni": "Plus récents",
+  "En çok dinlendiği şehirler": "Villes principales",
+  "Hayranları bunları da dinliyor": "Les fans aiment aussi",
+  "Kuruluş": "Formation",
+  "ListenBrainz dinlenmesi": "Écoutes ListenBrainz",
+  "Popüler sürümler": "Sorties populaires",
+  "Popülerlik": "Popularité",
+  "Sanatçı seçimi": "Choix de l'artiste",
+  "Son çıkan": "Dernière sortie",
+  "Takipçi": "Abonnés",
+  "Web sitesi": "Site web",
+  "Yer aldığı": "Apparaît sur",
+  "Öne çıktığı çalma listeleri": "Présent dans les playlists",
+  "Ülke": "Pays",
+  "{} aylık dinleyici": {
+    "one": "{} auditeur mensuel",
+    "other": "{} auditeurs mensuels"
+  },
+  "{} dinleyici": {
+    "one": "{} auditeur",
+    "other": "{} auditeurs"
+  },
+  "{} takipçi": {
+    "one": "{} abonné",
+    "other": "{} abonnés"
+  },
+  "Şarkı önbelleği": "Cache des titres",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "Les titres chargés en entier sont conservés sur cet ordinateur : réécoutés, ils démarrent aussitôt, même sans Internet. À la limite, ceux qui n'ont pas été écoutés depuis le plus longtemps sont supprimés en premier. Tes titres téléchargés ne prennent pas de place ici.",
+  "Önbellekteki şarkılar": "Titres en cache",
+  "Henüz şarkı yok.": "Aucun titre pour l'instant.",
+  "{} · {} yer kaplıyor.": "{} · {} utilisés.",
+  "Şarkı önbelleği temizlendi": "Cache des titres vidé",
   "\"{}\" için bu türde bir sonuç yok.": "Aucun résultat de ce type pour « {} ».",
   "Abone olunacak podcast yok": "Aucun podcast auquel s'abonner",
   "Apple Podcasts'ta ara": "Rechercher dans Apple Podcasts",
@@ -1981,10 +2025,6 @@
     "other": "Abonné à {} podcasts"
   },
   "{} podcast'e abone olundu, {} podcast eklenemedi": "Abonné à {} podcasts, {} n'ont pas pu être ajoutés",
-  "{} takipçi": {
-    "one": "{} abonné",
-    "other": "{} abonnés"
-  },
   "{} abone olunabilir": {
     "one": "{} disponible",
     "other": "{} disponibles"

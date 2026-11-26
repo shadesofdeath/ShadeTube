@@ -8,7 +8,7 @@ foreach(_file fonts/BricolageGrotesque.ttf fonts/JetBrainsMono.ttf tokens/tokens
     string(APPEND _rc "\"${_file}\" RCDATA \"${_assets}/${_file}\"\n")
     list(APPEND _rc_deps ${_assets}/${_file})
 endforeach()
-foreach(_grid 16 20 24)
+foreach(_grid 12 14 16 18 20 24)
     foreach(_icon check chevron-right plus info error warning queue playlist)
         string(APPEND _rc "\"icons/${_grid}/${_icon}.svg\" RCDATA \"${_assets}/icons/${_grid}/${_icon}.svg\"\n")
         list(APPEND _rc_deps ${_assets}/icons/${_grid}/${_icon}.svg)

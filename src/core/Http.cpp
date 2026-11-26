@@ -1,5 +1,6 @@
 #include "core/Http.h"
 
+#include "core/Log.h"
 #include "core/Utf.h"
 
 #include <winsock2.h>
@@ -74,9 +75,16 @@ struct Handle {
     operator HINTERNET() const { return h; }
 };
 
+// SHADETUBE_OFFLINE: a proxy whose name never resolves (".invalid", RFC 6761), so every request fails the way it does
+// on a PC without a connection: at the name lookup.
+constexpr char kDeadProxy[] = "http://shadetube-offline.invalid:9";
+
 HINTERNET limitedSession() {
     static const HINTERNET s = [] {
         const std::wstring agent = toWide(kUserAgent);
+        if (simulatedOffline())
+            return WinHttpOpen(agent.c_str(), WINHTTP_ACCESS_TYPE_NAMED_PROXY, toWide(kDeadProxy + 7).c_str(),
+                               WINHTTP_NO_PROXY_BYPASS, 0);
         HINTERNET h = WinHttpOpen(agent.c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
         if (!h)   // WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY needs Windows 8.1+
             h = WinHttpOpen(agent.c_str(), WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
@@ -97,8 +105,19 @@ std::wstring queryHeader(HINTERNET req, DWORD info) {
 
 } // namespace
 
+bool simulatedOffline() {
+    static const bool offline = [] {
+        wchar_t v[8] = {};
+        const bool on = GetEnvironmentVariableW(L"SHADETUBE_OFFLINE", v, 8) > 0 && v[0] == L'1';
+        if (on) ST_LOG_WARN("http", "SHADETUBE_OFFLINE: every request of the shared transport fails as if offline");
+        return on;
+    }();
+    return offline;
+}
+
 std::shared_ptr<YoutubeExplode::Http::IHttpClient> client() {
-    static const auto instance = YoutubeExplode::Http::createDefaultHttpClient({std::chrono::seconds(20), {}, {}});
+    static const auto instance = YoutubeExplode::Http::createDefaultHttpClient(
+        {std::chrono::seconds(20), simulatedOffline() ? std::string(kDeadProxy) : std::string{}, {}});
     return instance;
 }
 

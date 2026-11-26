@@ -153,6 +153,8 @@ void Settings::load() {
     read(j, "videoY", videoY);
     read(j, "videoW", videoW);
     read(j, "videoH", videoH);
+    read(j, "audioCacheMb", audioCacheMb);
+    audioCacheMb = std::clamp(audioCacheMb, 0, 100 * 1024);
     volume = std::clamp(volume, 0.0f, 1.0f);
 }
 
@@ -249,6 +251,7 @@ void Settings::save() const {
         {"videoY", videoY},
         {"videoW", videoW},
         {"videoH", videoH},
+        {"audioCacheMb", audioCacheMb},
     };
     // Write-then-rename so a crash never leaves a truncated settings file.
     const auto path = paths::settingsFile();

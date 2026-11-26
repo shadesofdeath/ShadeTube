@@ -1,10 +1,12 @@
 #pragma once
-// SVG icons from assets/icons/{16,20,24}. Each icon is rasterised ONCE per pixel size into a small
-// alpha mask (ID2D1SvgDocument -> bitmap) and then drawn with FillOpacityMask using any brush, so
-// tinting/animated colors cost nothing and memory stays tiny (24x24 mask = 2.3 KB).
+// SVG icons from assets/icons/{12,14,16,18,20,24} (one thin-outline set, written by tools/icons.py; the rules are in
+// docs/DEVELOPMENT.md "Icons"). Each icon is rasterised ONCE per pixel size into a small alpha mask
+// (ID2D1SvgDocument -> bitmap) and then drawn with FillOpacityMask using any brush, so tinting/animated colors cost
+// nothing and memory stays tiny (24x24 mask = 2.3 KB).
 //
-// Names: "play" (auto-picks the 16/20/24 source by size) or a full asset path without extension,
-// e.g. "animations/equalizer/frame-03", "logo/logo-mark" (drawn in its own colors via drawColored).
+// Names: "play" (picks the pixel grid for the size, gfx/IconGrid.h; strokes stay >= 1 device pixel; the old
+// "<name>-thin" names still work) or a full asset path without extension, e.g. "animations/equalizer/frame-03",
+// "logo/logo-mark" (drawn in its own colors via drawColored).
 #include "gfx/Device.h"
 #include "gfx/Types.h"
 

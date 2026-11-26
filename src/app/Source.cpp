@@ -38,4 +38,10 @@ catalog::ArtistPage artistPage(spotify::Api* api, const std::string& id, const C
     return mb::artistPage(id, ct);
 }
 
+std::vector<catalog::Album> artistReleases(spotify::Api* api, const std::string& artistId, catalog::ReleaseGroup group,
+                                           const CT& ct) {
+    if (api && isSpotifyId(artistId)) return api->artistReleases(artistId, group, 300, ct);
+    return {};   // MusicBrainz' artistPage lists every release group already
+}
+
 } // namespace st::app::source
