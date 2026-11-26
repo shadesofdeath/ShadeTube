@@ -74,8 +74,11 @@ static bool has(const fs::path& p) {
     return fs::exists(p, ec);
 }
 
-static const std::vector<std::wstring> kPerAccount = {L"listening.json", L"listening-imported.json", L"blacklist.json",
-                                                      L"new-releases.json", L"smart-lists.json", L"library-recents.json"};
+// The same list as app/Accounts.cpp's perAccountFiles() (that file needs the UI, so it is not compiled here).
+static const std::vector<std::wstring> kPerAccount = {L"listening.json",        L"listening-imported.json",
+                                                      L"listening-lastfm.json", L"listening-listenbrainz.json",
+                                                      L"blacklist.json",        L"new-releases.json",
+                                                      L"smart-lists.json",      L"library-recents.json"};
 
 static void testMigration() {
     std::printf("migration of a single-account profile:\n");
@@ -85,6 +88,9 @@ static void testMigration() {
     put(root / L"listening.json", "{\"v\":1}");
     put(root / L"listening.json.old", "old");
     put(root / L"listening-imported.json", "imported");
+    put(root / L"listening-lastfm.json", "lastfm");          // imported histories with their cursors (3.42)
+    put(root / L"listening-lastfm.json.old", "lastfm old");
+    put(root / L"listening-listenbrainz.json", "listenbrainz");
     put(root / L"blacklist.json", "{\"version\":1}");
     put(root / L"new-releases.json", "{}");
     put(root / L"library-recents.json", "{}");
@@ -106,7 +112,8 @@ static void testMigration() {
     CHECK(!has(root / L"spotify.dat"));
     CHECK(has(d / L"webview2" / L"EBWebView" / L"Local State"));
     CHECK(!has(root / L"webview2"));
-    for (const wchar_t* f : {L"listening.json", L"listening.json.old", L"listening-imported.json", L"blacklist.json",
+    for (const wchar_t* f : {L"listening.json", L"listening.json.old", L"listening-imported.json", L"listening-lastfm.json",
+                             L"listening-lastfm.json.old", L"listening-listenbrainz.json", L"blacklist.json",
                              L"new-releases.json", L"library-recents.json"}) {
         CHECK(has(d / f));
         CHECK(!has(root / f));

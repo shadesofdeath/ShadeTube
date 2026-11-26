@@ -101,7 +101,8 @@ ShadeTube/
 │                                pages: Home, Search, Artist, BrowsePages (library), Collection, NowPlaying, Downloads,
 │                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
 │                                ConnectScreen, MiniPlayer (+ MiniLayout, its geometry)
-│                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats, LibrarySort +
+│                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats + HistoryImport +
+│                                ScrobbleImport (Spotify / Last.fm / ListenBrainz history, 3.8, 3.42), LibrarySort +
 │                                LibraryView (Library views, 3.22), Display (interface scale + list density, 3.25),
 │                                TrackColumns (the track table's columns, the queue's sections; lists, 3.42),
 │                                CollapsingHeader + HeaderCollapse (collapsing page headers, 3.38),
@@ -128,6 +129,7 @@ ShadeTube/
                                  credits, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  downloads, headers, jam, library, links, lists, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  codecs, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
+                                 downloads, headers, history, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, songnotify, sponsorblock,
                                  spotify, stats, sync, tags, theme, updater, video, winshell, ytstreams
@@ -486,7 +488,8 @@ error and backoff, plus per-track download attempts.
   formats adds nothing and plays heard in ShadeTube are not doubled. Imported plays live in
   `listening-imported.json` (flat, delta-coded, about 12 bytes a play; at most 2 million), written only by an import,
   *İçe aktarılanları kaldır* or a clear; the regular 30 s saves never touch it. Plays stored while an import runs are
-  carried over. In memory both histories share one index and one time-ordered play list (imported plays flagged).
+  carried over. In memory all histories share one index and one time-ordered play list (imported plays flagged, with
+  their source). Last.fm and ListenBrainz scrobbles come the same way into their own files: 3.42.
 - **Artwork for names without covers** (imported songs, plain-text credits): the top entries on screen are looked up
   once through the catalog search (Spotify while logged in, else MusicBrainz, one request at a time) and remembered in
   `cache\stats-artwork.json` (misses for 30 days).
@@ -629,7 +632,8 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `accounts.json` and
 `accounts\<id>\` (one folder per Spotify account, 3.42: `spotify.dat` (DPAPI), its login's `webview2\`, and its
-`listening.json`, `listening-imported.json`, `blacklist.json`, `new-releases.json`, `smart-lists.json`,
+`listening.json`, `listening-imported.json`, `listening-lastfm.json`, `listening-listenbrainz.json`, `blacklist.json`,
+`new-releases.json`, `smart-lists.json`,
 `library-recents.json`, which sit in the root itself while there is no account), `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
 `listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
 `radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json` (timing offsets and lyrics picks;
@@ -2369,8 +2373,9 @@ Several Spotify accounts on one PC, switched without logging in again (`spotify/
   deleted then); folders not in a trusted list (a login that never finished) and the WebView2 profile of signed-out
   accounts are removed at startup.
 - **Per account / per PC.** Per account (`accounts::perAccountFiles()`; a name also covers its `.old` / `.bak` / `.tmp`
-  siblings): `listening.json` + `listening-imported.json` (stats, the year in review, the Library's play recency),
-  `blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`. In memory, the Session keeps the
+  siblings): `listening.json` + `listening-imported.json` + `listening-lastfm.json` + `listening-listenbrainz.json`
+  (stats, the year in review, the Library's play recency; the imported histories with their import cursors, 3.42 Last.fm
+  and ListenBrainz history import), `blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`. In memory, the Session keeps the
   library snapshot (playlists, folders, saved albums, followed artists, liked ids) per account and parks the one it
   leaves for an instant switch back (a reload follows); Home and the friend activity reload. Per PC (the root):
   settings, themes, downloads (`downloads.json`, the files), `sync.json`, local files, `library.json` (local likes and
@@ -2741,6 +2746,104 @@ pages each, a show, Spotify's public profile and its playlists, a missing profil
 directory, with the saved session or, without one, an **anonymous** web-player token (no account: Pathfinder search,
 show details and public profiles answer it; it finds only well-known profiles). `podcasts_test` covers the matching, the
 link store and (`live`) `findFeed` with its request spacing.
+### 3.42 Last.fm and ListenBrainz history import
+
+Stats › *İçe aktar* (a menu: Spotify, Last.fm, ListenBrainz) and, until something is imported, three cards in a row
+("Spotify geçmişini getir" and its two new neighbours) bring scrobbles into the listening stats (3.8). `app/ScrobbleImport`
+(standalone: core + ListenStats + HistoryImport's ZIP reader) fetches / reads them; `ListenStats::buildImport` matches,
+dedupes, times and stores them; `app/StatsPage.cpp` has the dialog, the cards, the progress banner and the job thread.
+
+- **Last.fm API**: `user.getRecentTracks`, 200 a page, by user name (pre-filled: the account this history imported
+  from last, else the connected scrobbling account; see "Several Spotify accounts" below). Last.fm hands out listening history only with an API key and the app has none of its own: it uses
+  the key of Settings › Bağlantılar (the scrobbler's, 3.10); without one, or after Last.fm refused it, the dialog asks
+  for it and stores it there (key only: scrobbling still needs the secret and the login; a new key drops the old
+  key's secret and session). Under a fixed `to` (the run's start) the newest
+  page is fetched first only for the page count (and kept), then the pages from the oldest to the newest: whatever the
+  import has behind it is always one stretch from the start. Errors: 6 (no such user), 17 (private), 10 / 26 (key),
+  29 (rate limit); the now-playing entry and undated scrobbles are left out; a single scrobble comes as an object.
+- **ListenBrainz API**: `GET /1/user/<name>/listens?min_ts=<t>&count=1000` moves forward from the oldest listen
+  (`/listen-count` first, for the progress total); a page's last second is asked again (`min_ts` = its newest - 1) so
+  listens sharing it are never lost (the repeats are duplicates). The connected account's token is sent along.
+- **Politeness**: one request at a time, at least 250 ms apart; HTTP 429 / 503 and Last.fm's error 29 wait for
+  `Retry-After` (seconds or an HTTP date) or ListenBrainz's `X-RateLimit-Reset-In`, else a backoff; `X-RateLimit-Remaining`
+  0 holds the next request until the window resets; network errors, 5xx and Last.fm's 8 / 11 / 16 are retried with a
+  backoff of 2 s doubling to 60 s, 6 times. A rate-limit wait shows in the banner. The job runs on its own thread
+  (`st-history-import`, minutes of network would otherwise hold a pool worker); "Durdur" cancels it (the request in
+  flight is aborted through its CancellationToken), exit cancels and joins it.
+- **Batches, cursors, resume**: rows go into a compact `ListenStats::ImportBatch` (each distinct song once, 24 bytes a
+  play) and every 20 000 rows `buildImport` merges them and writes the source's file (`runJob`), so memory holds one
+  batch and an import that stops (Durdur, an error, the app closing) keeps every batch so far. API imports store a
+  cursor per account in their file's `"sync"` (everything the account scrobbled before `next` is imported; never past
+  the run's start, whatever a wrong client clock stamped on a listen); the next
+  run starts from the cursor minus 14 days (scrobbles that reach the service late carry older times: the overlap is
+  read again and deduplicated), so it fetches only what is new (live: 656 listens in one request after a 75 725-listen
+  import). File imports have no cursor.
+- **Files** (`.csv .tsv .txt .json` for Last.fm, `.zip .jsonl .json` for ListenBrainz): lastfm-to-csv (benjaminbenben:
+  `artist,album,track,"14 Nov 2023, 22:13"`, no header, BOM), CSV / TSV with a header (Ghan's `uts,utc_time,artist,
+  artist_mbid,album,album_mbid,track,track_mbid`; lastfmstats.com's `Artist;Album;AlbumId;Track;Date#<user>` in ms; the
+  delimiter is guessed), JSON (lastfmstats' `{"username","scrobbles":[..]}`, Ghan's raw API pages `[[track..]..]`,
+  saved replies), the ListenBrainz export ZIP (`listens/<year>/<month>.jsonl`; `user`, `feedback`, `pinned_recording`
+  skipped), a `.jsonl` or an older JSON array of listens. JSON is read with a SAX handler that builds each object alone
+  and hands a scrobble record out as soon as it closes, never attaching it to its parent, so the arrays around records
+  stay empty (a 64 MB, 100 000-scrobble Ghan file reads with +0.2 MB private memory); it gives up after 200 000 nodes
+  without a record (a file that isn't a history). CSV / JSON lines go a line at a time, a ZIP a month at a time. Records
+  of the other service are skipped (and the file reported as no history of this one).
+- **Matching the songs** (`Resolver` in buildImport, against everything known): the same id is that song (a
+  ListenBrainz-mapped recording MBID = a MusicBrainz track here, a Spotify URI); an artist or album with a known id
+  (MBIDs: Last.fm's artist MBIDs, ListenBrainz's mapped artists and release groups) takes the known name ("Mazhar Fuat
+  Özkan" with MFÖ's MBID files under MFÖ); a credit "A feat. B" / "A & B" / "A, B" / "A x B" whose first part is a known
+  artist (and the whole credit is not) or makes a known song is split, so it files under A like the plays heard here.
+  Everything else groups by folded name + first artist as always (3.8). ListenBrainz's mapped artists (MusicBrainz's
+  credit) are used when present, else the client's `artist_names`; MBIDs become ids the way MusicBrainz songs have them
+  here (recording / artist / release group), which also makes the entries open their pages. Covers: Last.fm's 300 px
+  image (not its placeholder star), Cover Art Archive for mapped listens. Songs without an id get the
+  `import:<hash of name|artist>` id the Spotify account data uses.
+- **Duplicates** (every source and this PC at once, per song): two measured plays (this PC, Spotify's files) as before
+  (overlap / same end, 3.8). A scrobble on either side carries only its start: it is a play already known when both
+  started within half the song's length (a measured play's own length; for a scrobble the song's known length, else
+  unknown: 30 s), clamped to 30 s .. 2 min. ShadeTube's own scrobble starts a few seconds after the play it records;
+  Spotify's scrobble is the real start while its file gives end minus time played (later by any pause); the same
+  scrobble on Last.fm and ListenBrainz has the same second. Two real plays of one song are at least half its length
+  apart (a scrobble needs half the song), so a song repeated is not merged. Plays left out as duplicates are not stored,
+  so removing a source can take a play another source also had: a removal forgets the other sources' cursors, and
+  their next import reads the whole account again and brings those back.
+- **Minutes**: scrobbles carry no listening time. A scrobble lasts its song's length when some source knows it
+  (ShadeTube's catalog, ListenBrainz's `duration_ms` / `duration`), else the longest play of it measured here or in
+  Spotify's history when that is at least a minute, else 3:30 (`listen::kScrobbleDefaultMs`); never past the start of
+  the next play in the merged history (any source: a radio's scrobbles a minute apart count a minute each), and never
+  under what makes it a stream (30 s, or half a song shorter than a minute; a scrobble means it was listened to). The
+  estimate is stored with the play; it is not recomputed when later imports add plays around it.
+- **Storage**: `listening-lastfm.json`, `listening-listenbrainz.json` next to `listening-imported.json` (Spotify),
+  the same flat format plus `"sync"`. Each is removable on its own (Geçmişi temizle › *İçe aktarılan … geçmişini
+  kaldır*); plays carry their source (`ListenStats::Play::source`), counts per source (`importedCount(source)`). The
+  imported files are read with a SAX reader (no document tree, no copy of the index), which made the 75 725-listen
+  import 3× faster and smaller.
+- **Several Spotify accounts** (Several Spotify accounts section): the imported files are siblings of the store's
+  `listening.json` (`ListenStats::importedFileFor`), so they follow the active account like the main history: in
+  `accounts\<id>\`, in the profile root without an account (MusicBrainz / YouTube Music), all four in
+  `accounts::perAccountFiles()` (a 0.10 profile's `listening-imported.json` moves into the first account as before; so
+  would Last.fm / ListenBrainz files a root profile already has). `detach()` writes a removal not saved yet for each
+  source, empties the imported plays, counts and cursors with the rest; `attach()` + `readFile()` bring the next
+  account's back. A running import is stopped by the leave hook before `detach()`: the Last.fm / ListenBrainz job is
+  cancelled and joined (its last batch and cursor land in the account being left, ~1 s), a Spotify pool job stops
+  reading; its result arrives superseded and changes nothing in the new account (`ImportResult::file` is compared, so
+  the new account's file is not marked for a rewrite); a toast says it stopped because of the switch. Back on that
+  account, an API import resumes from its cursor. **Pre-filled user name: per account** - the account this history
+  imported from last (its cursors, moved last on every import, live in the account's own file); only a history that
+  never imported from the service gets the PC's scrobbling login (Settings › Bağlantılar, `scrobble.dat`, stays one
+  per PC as the accounts feature left it), so on a shared PC one person's Last.fm is not offered to another person's
+  history that has its own. The Last.fm API key is the PC's too.
+- **Measured** (Release, this PC, `history_test live lb <user>`, public accounts): 75 725 listens (32 847 songs) in 77
+  requests and 4 batches, 41 s, peak +61 MB private (process peak commit 87 MB), the next run 1 request / 0.5 s;
+  220 287 listens (219 827 plays after duplicates, 33 760 songs) in 222 requests and 12 batches, 308 s (the network:
+  ~1.4 s a page), peak +70 MB private (process 105 MB), the next run 1 request / 0.7 s. The peak is the history's index
+  built once more for a batch's merge (the store keeps its own until the result is installed); the rows never exceed
+  one batch. Offline (Release): a 64.5 MB Ghan JSON of 100 000 scrobbles reads in 1.0 s with no measurable memory
+  growth; 100 000 listens through `runJob` in 6 batches in 2.0 s. A Debug build is 3-25× slower and needs about twice
+  the memory.
+- **Dev**: `SHADETUBE_IMPORT_SCROBBLES` starts an import once the history is loaded, `SHADETUBE_IMPORT_DIALOG` opens
+  the dialog (5.4); `history_test` (5.2) replays fake Last.fm / ListenBrainz servers, reads every export format from
+  `tests/history/fixtures` (`make_fixtures.py` regenerates them) and runs live imports.
 
 ## 4. Coding conventions
 
@@ -2762,7 +2865,7 @@ link store and (`live`) `findFeed` with its request spacing.
   (Enter/Space); give `focusShape()` / `focusRect()` when the default (rect, radius 2) is wrong. Never paint focus
   yourself: the Window draws the ring. Text fields and lists that need every key stay non-activatable. Callbacks
   that may navigate (and so destroy the widget) are called through a local copy.
-- App files that tests compile directly (`Blacklist`, `ListenStats`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
+- App files that tests compile directly (`Blacklist`, `ListenStats`, `HistoryImport`, `ScrobbleImport`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
   `SponsorBlock`, `Smtc`, `Updater`, `Installer`, `LibrarySort`, `RemoteHttp`, `RemoteAuth`, `RemoteApi`,
   `RemoteState`, `RemoteServer`, the `Jam*` core, `HeaderCollapse`) must stay standalone: no `App`, `AppContext` or UI headers.
 
@@ -2811,6 +2914,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files), Spotify rules bound to their account (listable only with it, the `"acct"` round trip, old files) | offline |
 | `accounts_test` | several Spotify accounts (3.42): a 0.10 single-account profile migrated in place (cookie, `webview2\`, per-account files moved, shared files left, idempotent), a MusicBrainz-only profile's first login adopting its files (later ones not), leftover login folders, sign out keeping the data, a damaged `accounts.json` rebuilt from the folders, ids that would leave `accounts\`; the `Session` with a fake connect: add a second account (the first stays signed in), leave / enter hooks around the data folder change, quick switch, re-login of a known user, a closed login window, a failed switch, sign out handing over, the next start | offline (per-process temp profile) |
 | `songnotify_test` | song-change notification (3.43): every rule and their order (in view, Windows' media overlay window, a guest's sync burst, busy, paused, repeat), XML escaping, the cover's file URI, the toast with / without cover and "Beğen", hostile tags, every variant parsed by WinRT's `XmlDocument` | offline |
+| `history_test` | Last.fm / ListenBrainz import (`app/ScrobbleImport`, 3.42): dates, Retry-After, Last.fm track objects and pages (now playing, images, MBIDs, a single-object page, errors), ListenBrainz listens (mapped artists, artist_names, durations, covers), every export format (lastfm-to-csv, Ghan CSV / JSON, lastfmstats CSV / JSON, the ListenBrainz ZIP / JSONL / old JSON; other files and the other service's left out), fake Last.fm / ListenBrainz servers (oldest-first paging, 429 + Retry-After, error 8, 503, X-RateLimit, the resume overlap, cancel, unknown user / private / bad key / no key / no network), one history from this PC + Spotify + Last.fm + ListenBrainz counted once (pauses, repeats, credit splitting, MBID matching, estimated minutes, removal per source, incremental runs, persistence), resume after a cancel, an account switch (each account's imported files and cursors, a running import stopped into the account left and resumed when back, the superseded result not touching the new account, a pending removal written by `detach`, the pre-filled account), 100 000-scrobble files and `runJob` (time, peak memory) | offline; sections by name (`timing dates records files lastfm lb merge resume accounts`); `live lb <user> [<max>]`, `live lastfm <user> [<max>]` (key in `SHADETUBE_LASTFM_KEY`): a real import into a temp store, then again (only the new) |
 | `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
@@ -2913,6 +3017,9 @@ apps*).
 | `SHADETUBE_PLAY_FILES` | `path\|path`: plays these audio files / folders at startup as if dropped on the window (a track playing in a sandbox, e.g. generated WAVs next to a `cover.png`) |
 | `SHADETUBE_PLAYER_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after startup: `play`, `pause`, `next`, `prev`, `like` (the current song), `seekfocus` (keyboard focus on the seek wave), `seek=<seconds>`, `hover=<x>,<y>` (a simulated pointer at window DIPs, e.g. over the seek wave or the play button). With `--screenshot`: `seek@2500=70;pause@3000`, or `next@4500` and a capture at 4620 ms for the middle of a track change |
 | `SHADETUBE_IMPORT_HISTORY` | `<file>[;<file>…]`: import these Spotify history files (JSON / ZIP) once the stats are loaded |
+| `SHADETUBE_IMPORT_SCROBBLES` | `lastfm:<user>`, `listenbrainz:<user>`, `lastfm-file:<file>[;<file>…]` or `listenbrainz-file:<file>[;<file>…]`: that import once the stats are loaded (3.42; Last.fm uses the stored API key) |
+| `SHADETUBE_IMPORT_DIALOG` | `lastfm` or `listenbrainz`: that import dialog opens once the stats are loaded (screenshots) |
+| `SHADETUBE_LASTFM_KEY` | a Last.fm API key for `history_test live lastfm` (never printed) |
 | `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
 | `SHADETUBE_LIBRARY_VIEW` | `<grid\|list>[:<recents\|added\|alpha\|creator>[:<filter>]]`: the Library page's view, sort and search (not saved) |
@@ -3095,6 +3202,16 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   id); a song whose last match was a "this play only" stand-in plays its cached video only once resolving failed. A
   cached song plays on after its video was taken down on YouTube. `SHADETUBE_OFFLINE` simulates the shared transport
   only (no firewall test was possible without admin rights).
+- **Last.fm / ListenBrainz import** (3.42): Last.fm gives listening history only with an API key, and the app has none
+  of its own: the user's key from Settings › Connections is used (the dialog asks for one, and again after the key was
+  refused). The Last.fm path was tested against fake servers built from the API's documented replies (and the field
+  names two public exporters read); against the live API only up to its key check (a bogus key: error 10, reported,
+  not retried) - no real import ran (no key in this environment). Duplicates are recognised by start time: a ListenBrainz copy that
+  another importer stamped with the end time, or a Spotify play paused for more than half the song, counts twice.
+  Scrobbles' minutes are estimates (3.42). Plays submitted to a service with old timestamps more than 14 days after
+  they happened (a late bulk import into ListenBrainz) are missed by the incremental runs; removing and importing the
+  source again reads everything. Plays left out as duplicates are not kept, so removing a source drops plays the
+  others also had until those are imported again (their cursors are reset for that).
 - **Memory** (Release, Intel iGPU, empty profile): about 45 MB private commit on screen and idle (0.6.0: 63 MB), most
   of the rest the GPU driver; about 13 MB once nothing has been on screen for 30 s (0.6.0 stayed at 63 MB). WARP
   software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now

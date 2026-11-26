@@ -88,6 +88,15 @@ All notable changes to ShadeTube, newest first.
   (you pick which), the ones you already follow, and the ones with no public feed. Spotify exclusives can't play in
   ShadeTube, so they are shown as "Only on Spotify" with a link to open them there instead of quietly disappearing. A
   wrong match can be undone from the show's menu ("Wrong podcast?").
+- **Last.fm and ListenBrainz history in Stats**: next to "Spotify geçmişini getir", bring in years of scrobbles from
+  Last.fm (any public profile by user name, with the API key from Settings › Connections, or a lastfm-to-csv /
+  lastfmstats / Ghan export file) and ListenBrainz (any profile by user name, or the export ZIP). Big histories come in
+  the background with progress and a stop button; whatever was fetched stays, and the next import picks up where the
+  last one stopped and only fetches what is new. A play that ShadeTube scrobbled, that is in your Spotify history and
+  that is also on Last.fm and ListenBrainz counts once, and imported songs join the same songs, artists and albums in
+  the top lists, the year in review and smart lists. Each source can be removed on its own, and with several Spotify
+  accounts every account keeps its own imports (an import running when you switch stops and continues when you're
+  back on that account).
 
 ## 0.10.0 — 2026-11-23
 

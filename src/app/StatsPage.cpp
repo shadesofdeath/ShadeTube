@@ -10,6 +10,8 @@
 #include "app/ListenStats.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/ScrobbleImport.h"
+#include "app/Scrobbler.h"
 #include "app/SettingsWidgets.h"
 #include "app/SmartListsPage.h"
 #include "app/Source.h"
@@ -31,6 +33,7 @@
 #include <wrl/client.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -38,6 +41,7 @@
 #include <exception>
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -492,15 +496,37 @@ void enrich(StatsArtist& ar, std::vector<ArtWant>& wants) {
     else if (!artKnown(key)) wants.push_back({key, ArtKind::Artist, {}, ar.artist.name});
 }
 
-// ---- Spotify history import ------------------------------------------------------------------------------------
+// ---- history import (Spotify's files: app/HistoryImport; Last.fm / ListenBrainz: app/ScrobbleImport) ---------------
+
+// Stops a running import: file reading between records, the network at once (the request in flight is aborted).
+struct ImportCancel {
+    std::atomic<bool> flag{false};
+    YoutubeExplode::CancellationTokenSource cts;
+    void cancel() {
+        flag = true;
+        cts.cancel();
+    }
+};
 
 struct ImportProgress {
     bool active = false;
-    bool merging = false;    // files read: deduplicating and saving
-    int done = 0, total = 0; // documents
+    bool merging = false;              // read / fetched: deduplicating and saving (a batch of it)
+    ImportSource source = ImportSource::Spotify;
+    bool files = true;                 // from files, else the service's API
+    int done = 0, total = 0;           // Spotify: documents
+    size_t rows = 0, expected = 0;     // Last.fm / ListenBrainz: scrobbles so far / expected (0 = unknown)
+    double fraction = 0;
+    int waitingS = 0;                  // waiting for the service's rate limit
+    bool stopping = false;             // "Durdur" pressed: what was fetched so far is being kept
+    bool switched = false;             // stopped by an account switch: it belongs to the account left
+    std::shared_ptr<ImportCancel> cancel;
 };
 ImportProgress g_import;
 std::vector<std::pair<Lifetime::Ref, std::function<void()>>> g_importWatchers;
+// Last.fm / ListenBrainz imports run for minutes on the network: their own thread (not a pool worker), joined when the
+// result lands, and cancelled + joined at exit.
+std::thread g_importThread;
+bool g_lastfmKeyRejected = false;   // the last Last.fm import was refused for its API key: the dialog asks for one again
 
 void watchImport(Lifetime::Ref owner, std::function<void()> fn) {
     std::erase_if(g_importWatchers, [](const auto& w) { return w.first.expired(); });
@@ -514,21 +540,77 @@ void importChanged() {
         if (!owner.expired() && fn) fn();
 }
 
-// Parses the files and merges them into the history on a worker; the page follows g_import. The result always lands
-// (the job outlives the page): ListenStats::finishImport installs it and notifies.
+void stopImport() {
+    if (!g_import.active || !g_import.cancel || g_import.stopping) return;
+    g_import.stopping = true;
+    g_import.cancel->cancel();
+    importChanged();
+}
+
+// Exit and account switches: a running import stops at once and its Last.fm / ListenBrainz job is waited for, so the
+// batches it committed (and its cursor) are in the files of the history it was importing into before that history
+// goes. A Spotify import (a pool job) stops reading; a merge already under way still writes into its own account's file.
+void stopImportNow() {
+    if (g_import.cancel) g_import.cancel->cancel();
+    if (g_importThread.joinable()) g_importThread.join();
+}
+
+// The toast after an import an account switch stopped.
+void switchedToast() { toast(tr(L"İçe aktarma hesap değiştiği için durdu. Getirilenler o hesabın geçmişinde kalır.")); }
+
+std::wstring serviceName(scrobbles::Service s) { return s == scrobbles::Service::LastFm ? L"Last.fm" : L"ListenBrainz"; }
+
+std::string trimmedUtf8(const std::wstring& text) {
+    std::string s = toUtf8(text);
+    while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+    size_t i = 0;
+    while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) ++i;
+    return s.substr(i);
+}
+
+bool refuseImport() {
+    const auto& s = store();
+    if (s.canImport() && !g_import.active) return false;
+    toast(s.importing() || g_import.active ? tr(L"Bir içe aktarma zaten sürüyor") : tr(L"Geçmiş içe aktarılamadı"),
+          !(s.importing() || g_import.active));
+    return true;
+}
+
+// The toast after an import: what was added, else why nothing was.
+void importToast(size_t added, size_t duplicates, size_t rows, bool cancelled, const std::wstring& problem, bool noHistory) {
+    if (added > 0) {
+        std::wstring msg = cancelled ? i18n::plural(L"İçe aktarma durduruldu: {} dinleme eklendi", static_cast<long long>(added))
+                                     : i18n::plural(L"{} dinleme içe aktarıldı", static_cast<long long>(added));
+        if (duplicates > 0) msg += L" · " + i18n::plural(L"{} dinleme zaten vardı", static_cast<long long>(duplicates));
+        toast(msg, false, true);
+        if (!problem.empty()) toast(problem, true);
+    } else if (!problem.empty()) {
+        toast(problem, true);
+    } else if (cancelled) {
+        toast(tr(L"İçe aktarma durduruldu"));
+    } else if (rows > 0) {
+        toast(tr(L"Yeni dinleme yok: bu geçmiş zaten içe aktarılmış"));
+    } else if (noHistory) {
+        toast(tr(L"Seçilen dosyalarda Spotify dinleme geçmişi bulunamadı"), true);
+    } else {
+        toast(tr(L"Yeni dinleme yok"));
+    }
+}
+
+// Spotify: parses the files and merges them into the history on a worker; the page follows g_import. The result always
+// lands (the job outlives the page): ListenStats::finishImport installs it and notifies.
 void startImport(std::vector<std::filesystem::path> files) {
     auto& s = store();
-    if (files.empty()) return;
-    if (!s.canImport()) {
-        toast(s.importing() ? tr(L"Bir içe aktarma zaten sürüyor") : tr(L"Geçmiş içe aktarılamadı"), !s.importing());
-        return;
-    }
+    if (files.empty() || refuseImport()) return;
     auto base = std::make_shared<ListenStats::ImportBase>(s.beginImport());
     if (base->importedFile.empty()) {
         toast(tr(L"Geçmiş içe aktarılamadı"), true);
         return;
     }
-    g_import = {true, false, 0, 0};
+    auto cancel = std::make_shared<ImportCancel>();
+    g_import = {};
+    g_import.active = true;
+    g_import.cancel = cancel;
     importChanged();
     struct Outcome {
         history::Result parsed;
@@ -537,15 +619,19 @@ void startImport(std::vector<std::filesystem::path> files) {
     static Lifetime life;   // the process
     async(
         Priority::Normal, life.ref(),
-        [base, files = std::move(files)]() {
+        [base, cancel, files = std::move(files)]() {
             Outcome o;
-            o.parsed = history::read(files, [](int done, int total) {
-                Dispatcher::post([done, total] {
-                    g_import.done = done;
-                    g_import.total = total;
-                    importChanged();
-                });
-            });
+            o.parsed = history::read(
+                files,
+                [](int done, int total) {
+                    Dispatcher::post([done, total] {
+                        g_import.done = done;
+                        g_import.total = total;
+                        importChanged();
+                    });
+                },
+                &cancel->flag);
+            if (o.parsed.cancelled) return o;   // stopped while reading: nothing merged
             Dispatcher::post([] {
                 g_import.merging = true;
                 importChanged();
@@ -555,13 +641,21 @@ void startImport(std::vector<std::filesystem::path> files) {
             return o;
         },
         [](Result<Outcome> r) {
+            const bool switched = g_import.switched;
             g_import = {};
             auto& s = store();
-            if (!r) {
-                ST_LOG_ERROR("stats", "import failed: {}", r.errorMessage());
+            if (switched) {   // another account's history by now (detach() dropped this import)
+                if (r) s.finishImport(std::move(r->result));   // superseded: nothing lands here
+                importChanged();
+                switchedToast();
+                return;
+            }
+            if (!r || r->parsed.cancelled) {
+                if (!r) ST_LOG_ERROR("stats", "import failed: {}", r.errorMessage());
                 s.cancelImport();
                 importChanged();
-                toast(tr(L"Geçmiş içe aktarılamadı"), true);
+                if (r) toast(tr(L"İçe aktarma durduruldu"));
+                else toast(tr(L"Geçmiş içe aktarılamadı"), true);
                 return;
             }
             const auto& parsed = r->parsed;
@@ -572,40 +666,153 @@ void startImport(std::vector<std::filesystem::path> files) {
             if (ok && added > 0) {
                 s.saveAsync();   // the imported file is written already; this PC's plays may be pending too
                 g_lastSaveMs = steadyMs();
-                std::wstring msg = i18n::plural(L"{} dinleme içe aktarıldı", static_cast<long long>(added));
-                if (duplicates > 0) msg += L" · " + i18n::plural(L"{} dinleme zaten vardı", static_cast<long long>(duplicates));
-                toast(msg, false, true);
-            } else if (ok && rows > 0) {
-                toast(tr(L"Yeni dinleme yok: bu geçmiş zaten içe aktarılmış"));
-            } else if (ok) {
-                toast(tr(L"Seçilen dosyalarda Spotify dinleme geçmişi bulunamadı"), true);
-            } else {
-                toast(tr(L"Geçmiş içe aktarılamadı"), true);
             }
+            importToast(added, duplicates, rows, false, ok ? std::wstring() : std::wstring(tr(L"Geçmiş içe aktarılamadı")), true);
             if (!parsed.errors.empty()) toast(i18n::plural(L"{} dosya okunamadı", static_cast<long long>(parsed.errors.size())), true);
         });
 }
 
+// Why an API import stopped, in the UI language ("" = it didn't).
+std::wstring fetchProblem(scrobbles::Service service, const scrobbles::FetchResult& f) {
+    using E = scrobbles::FetchError;
+    const bool lastfm = service == scrobbles::Service::LastFm;
+    switch (f.error) {
+    case E::None:
+    case E::Cancelled: return {};
+    case E::NotFound: return i18n::format(tr(L"Bu kullanıcı {}'de bulunamadı"), {serviceName(service)});
+    case E::Private: return tr(L"Bu Last.fm profilinin dinlemeleri gizli");
+    case E::BadKey:
+        return lastfm ? tr(L"Last.fm API anahtarı geçersiz. last.fm/api/account/create sayfasındaki anahtarı kontrol et.")
+                      : tr(L"Token geçersiz. listenbrainz.org/settings sayfasındaki kullanıcı token'ını kopyala.");
+    case E::NoKey: return tr(L"Last.fm dinlemeleri yalnızca bir API anahtarıyla verir");
+    case E::Network:
+        return lastfm ? tr(L"Last.fm'e ulaşılamadı. İnternet bağlantını kontrol et.")
+                      : tr(L"ListenBrainz'e ulaşılamadı. İnternet bağlantını kontrol et.");
+    case E::RateLimited:
+    case E::Server: return i18n::format(tr(L"{} şu anda yanıt vermiyor. Biraz sonra tekrar dene."), {serviceName(service)});
+    }
+    return {};
+}
+
+// Last.fm / ListenBrainz: an account's history over the API (`files` empty) or export files, in batches on its own
+// thread (app/ScrobbleImport's runJob); the page follows g_import.
+void startScrobbleImport(scrobbles::Service service, std::string user, std::vector<std::filesystem::path> files) {
+    auto& s = store();
+    if (refuseImport()) return;
+    const ImportSource source = scrobbles::sourceOf(service);
+    auto base = std::make_shared<ListenStats::ImportBase>(s.beginImport(source));
+    if (base->importedFile.empty()) {
+        toast(tr(L"Geçmiş içe aktarılamadı"), true);
+        return;
+    }
+    auto job = std::make_shared<scrobbles::Job>();
+    job->service = service;
+    job->files = std::move(files);
+    if (job->files.empty()) {
+        job->request.service = service;
+        job->request.user = user;
+        job->request.since = s.importCursor(source, user);
+        if (const auto* sc = ctx().scrobbler) {
+            if (service == scrobbles::Service::LastFm) {
+                job->request.apiKey = sc->lastfmApiKey();
+            } else if (sc->listenbrainzConnected() && foldForSearch(toWide(sc->listenbrainzUser())) == foldForSearch(toWide(user))) {
+                job->request.token = sc->listenbrainzToken();   // the connected account
+            }
+        }
+    }
+    auto cancel = std::make_shared<ImportCancel>();
+    g_import = {};
+    g_import.active = true;
+    g_import.source = source;
+    g_import.files = !job->files.empty();
+    g_import.cancel = cancel;
+    importChanged();
+    ST_LOG_INFO("stats", "import from {} ({}), from {}", toUtf8(serviceName(service)), job->files.empty() ? "account" : "files",
+                job->request.since);
+    if (g_importThread.joinable()) g_importThread.join();
+    g_importThread = std::thread([base, job, cancel] {
+        SetThreadDescription(GetCurrentThread(), L"st-history-import");
+        using clk = std::chrono::steady_clock;
+        clk::time_point last{};
+        bool lastMerging = false;
+        int lastWait = 0;
+        // Progress at most ~7 times a second (and at once when a batch starts / ends or a rate-limit wait changes).
+        const auto progress = [&](const scrobbles::JobProgress& p) {
+            const auto now = clk::now();
+            if (p.merging == lastMerging && p.waitingS == lastWait && now - last < std::chrono::milliseconds(150)) return;
+            last = now;
+            lastMerging = p.merging;
+            lastWait = p.waitingS;
+            Dispatcher::post([p] {
+                if (!g_import.active) return;
+                g_import.merging = p.merging;
+                g_import.rows = p.rows;
+                g_import.expected = p.total;
+                g_import.fraction = p.fraction;
+                g_import.waitingS = p.waitingS;
+                importChanged();
+            });
+        };
+        auto out = std::make_shared<scrobbles::JobOutcome>();
+        try {
+            *out = scrobbles::runJob(*base, *job, scrobbles::liveTransport(), progress, cancel->flag, cancel->cts.token());
+        } catch (const std::exception& e) {
+            ST_LOG_ERROR("stats", "import failed: {}", e.what());
+            *out = {};
+            out->error = e.what();
+            out->result.token = base->token;
+            out->result.source = base->source;
+            out->result.file = base->importedFile;
+        }
+        Dispatcher::post([out, service = job->service, files = !job->files.empty()] {
+            if (g_importThread.joinable()) g_importThread.join();   // it has posted this as its last act
+            const bool switched = g_import.switched;
+            g_import = {};
+            auto& s = store();
+            const size_t added = out->added;
+            s.finishImport(std::move(out->result));   // superseded after a switch: nothing lands in the new history
+            importChanged();
+            if (switched) {
+                switchedToast();
+                return;
+            }
+            if (added > 0) {
+                s.saveAsync();
+                g_lastSaveMs = steadyMs();
+            }
+            if (service == scrobbles::Service::LastFm && !files)
+                g_lastfmKeyRejected = out->fetch.error == scrobbles::FetchError::BadKey || out->fetch.error == scrobbles::FetchError::NoKey;
+            std::wstring problem = fetchProblem(service, out->fetch);
+            if (problem.empty() && !out->error.empty()) problem = tr(L"Geçmiş içe aktarılamadı");
+            if (files && problem.empty() && out->files.rows == 0 && !out->cancelled)
+                problem = i18n::format(tr(L"Seçilen dosyalarda {} dinleme geçmişi bulunamadı"), {serviceName(service)});
+            importToast(added, out->duplicates, out->rows, out->cancelled, problem, false);
+            if (files && !out->files.errors.empty())
+                toast(i18n::plural(L"{} dosya okunamadı", static_cast<long long>(out->files.errors.size())), true);
+        });
+    });
+}
+
 // File picker (IFileOpenDialog, multi-select) owned by the main window. Modal: call it posted (outside a widget event).
-void pickHistoryFiles() {
+std::vector<std::filesystem::path> pickFiles(const std::wstring& title, const std::wstring& kind, const wchar_t* pattern) {
+    std::vector<std::filesystem::path> files;
     ComPtr<IFileOpenDialog> dlg;
-    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg)))) return;
+    if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg)))) return files;
     FILEOPENDIALOGOPTIONS opts = 0;
     dlg->GetOptions(&opts);
     dlg->SetOptions(opts | FOS_ALLOWMULTISELECT | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST);
-    const std::wstring history = tr(L"Spotify geçmişi (ZIP, JSON)"), all = tr(L"Tüm dosyalar");
-    const COMDLG_FILTERSPEC types[] = {{history.c_str(), L"*.zip;*.json"}, {all.c_str(), L"*.*"}};
+    const std::wstring all = tr(L"Tüm dosyalar");
+    const COMDLG_FILTERSPEC types[] = {{kind.c_str(), pattern}, {all.c_str(), L"*.*"}};
     dlg->SetFileTypes(2, types);
-    dlg->SetTitle(tr(L"Spotify geçmişini seç"));
+    dlg->SetTitle(title.c_str());
     dlg->SetOkButtonLabel(tr(L"İçe aktar"));
     ComPtr<IShellItem> downloads;   // first time: start in İndirilenler (later Windows remembers the last folder)
     if (SUCCEEDED(SHGetKnownFolderItem(FOLDERID_Downloads, KF_FLAG_DEFAULT, nullptr, IID_PPV_ARGS(&downloads))))
         dlg->SetDefaultFolder(downloads.Get());
-    if (dlg->Show(ctx().window ? ctx().window->hwnd() : nullptr) != S_OK) return;
+    if (dlg->Show(ctx().window ? ctx().window->hwnd() : nullptr) != S_OK) return files;
     ComPtr<IShellItemArray> items;
     DWORD n = 0;
-    if (FAILED(dlg->GetResults(&items)) || FAILED(items->GetCount(&n))) return;
-    std::vector<std::filesystem::path> files;
+    if (FAILED(dlg->GetResults(&items)) || FAILED(items->GetCount(&n))) return files;
     for (DWORD i = 0; i < n; ++i) {
         ComPtr<IShellItem> item;
         PWSTR path = nullptr;
@@ -614,12 +821,131 @@ void pickHistoryFiles() {
             CoTaskMemFree(path);
         }
     }
-    startImport(std::move(files));
+    return files;
 }
 
-void pickHistoryFilesPosted() { Dispatcher::post([] { pickHistoryFiles(); }); }
+void pickHistoryFilesPosted() {
+    Dispatcher::post([] {
+        if (refuseImport()) return;
+        startImport(pickFiles(tr(L"Spotify geçmişini seç"), tr(L"Spotify geçmişi (ZIP, JSON)"), L"*.zip;*.json"));
+    });
+}
+
+void pickScrobbleFilesPosted(scrobbles::Service service) {
+    Dispatcher::post([service] {
+        if (refuseImport()) return;
+        const bool lastfm = service == scrobbles::Service::LastFm;
+        auto files = lastfm ? pickFiles(tr(L"Last.fm dışa aktarmasını seç"), tr(L"Last.fm dışa aktarması (CSV, JSON)"),
+                                        L"*.csv;*.tsv;*.txt;*.json")
+                            : pickFiles(tr(L"ListenBrainz dışa aktarmasını seç"), tr(L"ListenBrainz dışa aktarması (ZIP, JSONL, JSON)"),
+                                        L"*.zip;*.jsonl;*.json");
+        if (!files.empty()) startScrobbleImport(service, {}, std::move(files));
+    });
+}
+
+// "Last.fm geçmişini getir" / "ListenBrainz geçmişini getir": the account, Last.fm's API key when none is stored (or it
+// was refused), where the account's last import got to; or export files.
+// The pre-filled name is per Spotify account: the one this history imported from last (its cursors live in the active
+// account's files), and only for a history that never imported from the service, the PC's scrobbling login (Ayarlar ›
+// Bağlantılar is one per PC: on a shared PC another person's Last.fm is not offered to a history that has its own).
+void openScrobbleDialog(scrobbles::Service service) {
+    if (refuseImport()) return;
+    auto& s = store();
+    const bool lastfm = service == scrobbles::Service::LastFm;
+    const ImportSource source = scrobbles::sourceOf(service);
+    const auto* sc = ctx().scrobbler;
+    std::string user;
+    if (!s.importCursors(source).empty()) user = s.importCursors(source).back().account;   // imported last
+    if (user.empty() && sc)
+        user = lastfm ? (sc->lastfmConnected() ? sc->lastfmUser() : std::string{})
+                      : (sc->listenbrainzConnected() ? sc->listenbrainzUser() : std::string{});
+    const bool needKey = lastfm && (!sc || sc->lastfmApiKey().empty() || g_lastfmKeyRejected);
+    auto* d = ui::Dialog::open(
+        ctx().window, lastfm ? tr(L"Last.fm geçmişini getir") : tr(L"ListenBrainz geçmişini getir"),
+        lastfm ? tr(L"Herkese açık bir Last.fm profilinin tüm dinlemeleri istatistiklere eklenir. Büyük geçmişler birkaç dakika "
+                    L"sürer; sonraki seferlerde yalnızca yeniler gelir.")
+               : tr(L"Bir ListenBrainz profilinin tüm dinlemeleri istatistiklere eklenir. Büyük geçmişler birkaç dakika sürer; "
+                    L"sonraki seferlerde yalnızca yeniler gelir."),
+        520);
+    if (!d) return;
+    auto* name = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Kullanıcı adı"));
+    name->setText(toWide(user));
+    ui::TextBox* key = nullptr;
+    if (needKey) {
+        key = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Last.fm API anahtarı"));
+        if (sc && g_lastfmKeyRejected) {   // the stored one was refused: shown to be corrected
+            key->setText(toWide(sc->lastfmApiKey()));
+            key->setError(true);
+        }
+        auto* hint = d->body()->add<ui::Label>(
+            tr(L"Last.fm dinlemeleri yalnızca bir API anahtarıyla verir: last.fm/api/account/create sayfasından ücretsiz "
+               L"alınır ve Ayarlar › Bağlantılar'a kaydedilir."),
+            type::secondary, ui::Tone::Tertiary);
+        hint->setWrap(true);
+    }
+    auto* status = d->body()->add<ui::Label>(std::wstring(), type::secondary, ui::Tone::Tertiary);
+    status->setWrap(true);
+    auto updateStatus = [status, source](const std::wstring& text) {
+        const int64_t at = store().importCursor(source, trimmedUtf8(text));
+        status->setText(at > 0 ? i18n::format(tr(L"Bu hesabın {} tarihine kadarki dinlemeleri içe aktarıldı: yalnızca sonrası getirilecek."),
+                                              {trDate(at, true)})
+                               : std::wstring());
+    };
+    updateStatus(name->text());
+    name->onChange = [name, updateStatus](const std::wstring& t) {
+        name->setError(false);
+        updateStatus(t);
+    };
+    auto submit = [d, name, key, service] {
+        const std::string u = trimmedUtf8(name->text());
+        if (u.empty()) {
+            name->setError(true);
+            return;
+        }
+        if (key) {
+            const std::string k = trimmedUtf8(key->text());
+            if (k.empty()) {
+                key->setError(true);
+                return;
+            }
+            // Stored for scrobbling too. The same key keeps the stored secret; a new one (none stored, or the stored one
+            // was refused) drops the old secret and session, which belonged to the old key.
+            if (auto* sc = ctx().scrobbler) sc->lastfmSetKeys(k, {});
+        }
+        d->close();
+        startScrobbleImport(service, u, {});
+    };
+    name->onSubmit = [submit](const std::wstring&) { submit(); };
+    if (key) {
+        key->onSubmit = [submit](const std::wstring&) { submit(); };
+        key->onChange = [key](const std::wstring&) { key->setError(false); };
+    }
+    d->addButton(tr(L"Dosyadan…"), ButtonKind::Ghost, [service] { pickScrobbleFilesPosted(service); });
+    d->addButton(tr(L"Vazgeç"), ButtonKind::Ghost, {});
+    d->addButton(tr(L"Getir"), ButtonKind::Primary, submit, false);
+    if (key && !user.empty()) key->focus();
+    else name->focus();
+}
 
 void openSpotifyPrivacy() { openPath(L"https://www.spotify.com/account/privacy/"); }
+
+// "İçe aktar": the three sources.
+void importMenu(Button* anchor) {
+    const Rect r = anchor->toWindow(anchor->rect());
+    ui::MenuItem spotify;
+    spotify.label = tr(L"Spotify geçmişini getir");
+    spotify.icon = "spotify-link";
+    spotify.action = [] { pickHistoryFilesPosted(); };
+    ui::MenuItem lastfm;
+    lastfm.label = tr(L"Last.fm geçmişini getir");
+    lastfm.icon = "link";
+    lastfm.action = [] { openScrobbleDialog(scrobbles::Service::LastFm); };
+    ui::MenuItem lb;
+    lb.label = tr(L"ListenBrainz geçmişini getir");
+    lb.icon = "link";
+    lb.action = [] { openScrobbleDialog(scrobbles::Service::ListenBrainz); };
+    ui::Menu::open(ctx().window, {r.x, r.bottom() + 4}, {spotify, lastfm, lb});
+}
 
 // ---- widgets ------------------------------------------------------------------------------------------------------
 
@@ -969,70 +1295,187 @@ private:
     float fitW_ = -1;
 };
 
-// Progress of a running import (reads g_import; the page repaints it on every change).
+// Progress of a running import (reads g_import; the page repaints it on every change), with "Durdur".
 class ImportBanner : public ui::Widget {
 public:
-    ImportBanner() : text_({}, type::body), count_({}, type::monoLabel) { hitTestVisible = false; }
+    ImportBanner() : text_({}, type::body), count_({}, type::monoLabel) {
+        hitTestVisible = false;
+        stop_ = add<Button>(ButtonKind::Ghost, tr(L"Durdur"), "stop");
+        stop_->setTooltip(tr(L"Getirilenler kalır; sonraki içe aktarma kaldığı yerden sürer"));
+        stop_->onClick = [] { stopImport(); };
+    }
     float preferredHeight(float) override { return 64; }
+    void layout() override {   // children are placed in this widget's own space
+        const float bw = stop_->naturalWidth();
+        stop_->setRect({rect().w - 12 - bw, 12, bw, 40});
+    }
+    // The page calls this on every change of g_import.
+    void refresh() {
+        stop_->setVisible(!g_import.stopping);
+        invalidate();
+    }
     void paint(Canvas& c) override {
         const Rect r = rect();
         const auto& col = colors();
         c.fillRounded(r, gfx::metrics::radiusSurface, col.bgRaised);
-        text_.setText(g_import.merging ? tr(L"Dinlemeler birleştiriliyor…") : tr(L"Spotify geçmişi içe aktarılıyor…"));
-        count_.setText(!g_import.merging && g_import.total > 0 ? std::to_wstring(g_import.done) + L" / " + std::to_wstring(g_import.total) : std::wstring());
+        const bool spotify = g_import.source == ImportSource::Spotify;
+        const auto service = g_import.source == ImportSource::LastFm ? scrobbles::Service::LastFm : scrobbles::Service::ListenBrainz;
+        std::wstring title, count;
+        if (g_import.stopping) title = tr(L"Durduruluyor…");
+        else if (g_import.merging) title = tr(L"Dinlemeler birleştiriliyor…");
+        else if (spotify) title = tr(L"Spotify geçmişi içe aktarılıyor…");
+        else if (g_import.waitingS > 0)
+            title = i18n::format(tr(L"{} istek sınırı: {} sn bekleniyor…"), {serviceName(service), std::to_wstring(g_import.waitingS)});
+        else if (g_import.files)
+            title = service == scrobbles::Service::LastFm ? tr(L"Last.fm dosyaları okunuyor…") : tr(L"ListenBrainz dosyaları okunuyor…");
+        else
+            title = service == scrobbles::Service::LastFm ? tr(L"Last.fm geçmişi getiriliyor…") : tr(L"ListenBrainz geçmişi getiriliyor…");
+        if (spotify && !g_import.merging && g_import.total > 0) count = std::to_wstring(g_import.done) + L" / " + std::to_wstring(g_import.total);
+        else if (!spotify && g_import.rows > 0)
+            count = g_import.expected > 0 ? thousands(static_cast<int64_t>(g_import.rows)) + L" / " + thousands(static_cast<int64_t>(g_import.expected))
+                                          : thousands(static_cast<int64_t>(g_import.rows));
+        text_.setText(title);
+        count_.setText(count);
         const float cw = std::ceil(count_.measure().w);
-        c.icon("spotify-link", {r.x + 20, r.cy() - 11, 20, 20}, accent().base);
-        c.text(text_, {r.x + 52, r.y, r.w - 52 - cw - 40, r.h - 4}, col.fgPrimary, gfx::VAlign::Center);
-        c.text(count_, {r.right() - 20 - cw, r.y, cw, r.h - 4}, col.fgTertiary, gfx::VAlign::Center);
+        const float right = r.right() - (stop_->visible() ? stop_->rect().w + 28 : 20);
+        c.icon(spotify ? "spotify-link" : "link", {r.x + 20, r.cy() - 11, 20, 20}, accent().base);
+        c.text(text_, {r.x + 52, r.y, std::max(0.f, right - cw - 20 - r.x - 52), r.h - 4}, col.fgPrimary, gfx::VAlign::Center);
+        c.text(count_, {right - cw, r.y, cw, r.h - 4}, col.fgTertiary, gfx::VAlign::Center);
         const Rect track{r.x, r.bottom() - 2, r.w, 2};
         c.fillRect(track, col.hairSubtle);
-        const float f = g_import.merging ? 1.f : g_import.total > 0 ? static_cast<float>(g_import.done) / static_cast<float>(g_import.total) : 0.f;
+        const float f = g_import.merging ? 1.f
+                        : spotify        ? (g_import.total > 0 ? static_cast<float>(g_import.done) / static_cast<float>(g_import.total) : 0.f)
+                                         : static_cast<float>(std::clamp(g_import.fraction, 0.0, 1.0));
         c.fillRect({track.x, track.y, track.w * f, track.h}, g_import.merging ? accent().muted : accent().base);
-    }
-
-private:
-    gfx::Text text_, count_;
-};
-
-// Invitation to import Spotify's history (shown until something was imported).
-class ImportCard : public ui::Widget {
-public:
-    ImportCard()
-        : title_(tr(L"Spotify geçmişini getir"), type::sectionTitle),
-          body_(tr(L"Spotify'dan verilerini indir (Hesap › Gizlilik › Verilerini indir: \"Uzun süreli yayın geçmişi\") ve "
-                   L"gelen ZIP dosyasını seç. Yıllar öncesine kadar dinlediklerin istatistiklere eklenir; dosyalar yalnızca "
-                   L"bu bilgisayarda okunur."),
-                type::secondary, {gfx::TextAlign::Leading, true}) {
-        hitTestVisible = false;
-        pick_ = add<Button>(ButtonKind::Primary, tr(L"Dosyaları seç"), "folder");
-        pick_->onClick = [] { pickHistoryFilesPosted(); };
-        ask_ = add<Button>(ButtonKind::Link, tr(L"Spotify'da verilerini iste"), "external-link");
-        ask_->onClick = [] { openSpotifyPrivacy(); };
-    }
-    float preferredHeight(float w) override { return 28 + 26 + 8 + bodyH(w) + 20 + gfx::metrics::pillH + 28; }
-    void layout() override {   // children are placed in this widget's own space
-        const float w = rect().w;
-        const float y = 28 + 26 + 8 + bodyH(w) + 20;
-        const float pw = pick_->naturalWidth();
-        pick_->setRect({28, y, pw, gfx::metrics::pillH});
-        ask_->setRect({28 + pw + 16, y, std::min(ask_->naturalWidth(), std::max(0.f, w - pw - 72)), gfx::metrics::pillH});
-    }
-    void paint(Canvas& c) override {
-        const Rect r = rect();
-        const auto& col = colors();
-        c.fillRounded(r, gfx::metrics::radiusSurface, col.bgRaised);
-        c.icon("spotify-link", {r.x + 28, r.y + 30, 20, 20}, accent().base);
-        c.text(title_, {r.x + 58, r.y + 28, r.w - 86, 26}, col.fgPrimary, gfx::VAlign::Center);
-        c.text(body_, {r.x + 28, r.y + 28 + 26 + 8, textW(r.w), bodyH(r.w)}, col.fgSecondary);
         paintChildren(c);
     }
 
 private:
-    static float textW(float w) { return std::min(720.f, std::max(0.f, w - 56)); }
+    gfx::Text text_, count_;
+    Button* stop_;
+};
+
+// An invitation to import one source's history (shown until something was imported): an icon, a title, what it does,
+// the main action and a link.
+class ImportCard : public ui::Widget {
+public:
+    ImportCard(const char* icon, std::wstring title, std::wstring body, std::wstring action, const char* actionIcon,
+               std::function<void()> onAction, std::wstring link, const char* linkIcon, std::function<void()> onLink)
+        : icon_(icon), title_(std::move(title), type::sectionTitle), body_(std::move(body), type::secondary, {gfx::TextAlign::Leading, true}) {
+        hitTestVisible = false;
+        action_ = add<Button>(ButtonKind::Primary, std::move(action), actionIcon);
+        action_->onClick = [fn = std::move(onAction)] {
+            const auto f = fn;   // may rebuild the page
+            if (f) f();
+        };
+        link_ = add<Button>(ButtonKind::Link, std::move(link), linkIcon);
+        link_->onClick = [fn = std::move(onLink)] {
+            const auto f = fn;
+            if (f) f();
+        };
+    }
+    float preferredHeight(float w) override { return buttonsY(w) + (stacked(w) ? 2 * gfx::metrics::pillH + 8 : gfx::metrics::pillH) + kPad; }
+    void layout() override {   // children are placed in this widget's own space
+        const float w = rect().w, y = buttonsY(w);
+        const float aw = std::min(action_->naturalWidth(), std::max(0.f, w - 2 * kPad));
+        action_->setRect({kPad, y, aw, gfx::metrics::pillH});
+        const float lw = std::min(link_->naturalWidth(), std::max(0.f, w - 2 * kPad));
+        if (stacked(w)) link_->setRect({kPad, y + gfx::metrics::pillH + 8, lw, gfx::metrics::pillH});
+        else link_->setRect({kPad + aw + 16, y, lw, gfx::metrics::pillH});
+    }
+    void paint(Canvas& c) override {
+        const Rect r = rect();
+        const auto& col = colors();
+        c.fillRounded(r, gfx::metrics::radiusSurface, col.bgRaised);
+        c.icon(icon_, {r.x + kPad, r.y + kPad + 2, 20, 20}, accent().base);
+        c.text(title_, {r.x + kPad + 30, r.y + kPad, std::max(0.f, r.w - 2 * kPad - 30), 26}, col.fgPrimary, gfx::VAlign::Center);
+        c.text(body_, {r.x + kPad, r.y + kPad + 26 + 8, textW(r.w), bodyH(r.w)}, col.fgSecondary);
+        paintChildren(c);
+    }
+
+private:
+    static constexpr float kPad = 24;
+    static float textW(float w) { return std::min(720.f, std::max(0.f, w - 2 * kPad)); }
     float bodyH(float w) { return std::ceil(body_.measure(textW(w)).h); }
+    float buttonsY(float w) { return kPad + 26 + 8 + bodyH(w) + 20; }
+    bool stacked(float w) { return stackAll || needsStack(w); }
+
+public:
+    // The link goes under the main button when both don't fit side by side (or, in a row of cards, when that is so
+    // for any of them: `stackAll`).
+    bool needsStack(float w) { return action_->naturalWidth() + 16 + link_->naturalWidth() > w - 2 * kPad; }
+    bool stackAll = false;
+
+private:
+    const char* icon_;
     gfx::Text title_, body_;
-    Button* pick_;
-    Button* ask_;
+    Button* action_;
+    Button* link_;
+};
+
+// The three import cards: side by side when there is room for them, else one under the other.
+class ImportCards : public ui::Widget {
+public:
+    ImportCards() {
+        hitTestVisible = false;
+        cards_[0] = add<ImportCard>(
+            "spotify-link", tr(L"Spotify geçmişini getir"),
+            tr(L"Spotify'dan verilerini indir (Hesap › Gizlilik › Verilerini indir: \"Uzun süreli yayın geçmişi\") ve "
+               L"gelen ZIP dosyasını seç. Yıllar öncesine kadar dinlediklerin istatistiklere eklenir; dosyalar yalnızca "
+               L"bu bilgisayarda okunur."),
+            tr(L"Dosyaları seç"), "folder", [] { pickHistoryFilesPosted(); }, tr(L"Spotify'da verilerini iste"), "external-link",
+            [] { openSpotifyPrivacy(); });
+        cards_[1] = add<ImportCard>(
+            "link", tr(L"Last.fm geçmişini getir"),
+            tr(L"Last.fm'deki dinlemelerin (scrobble) kullanıcı adınla getirilir; burada ya da Spotify'da çaldıklarınla aynı "
+               L"olanlar bir kez sayılır. Dışa aktarma dosyası (CSV, JSON) da seçebilirsin."),
+            tr(L"Last.fm'den getir"), "download", [] { openScrobbleDialog(scrobbles::Service::LastFm); }, tr(L"Dosya seç"), "folder",
+            [] { pickScrobbleFilesPosted(scrobbles::Service::LastFm); });
+        cards_[2] = add<ImportCard>(
+            "link", tr(L"ListenBrainz geçmişini getir"),
+            tr(L"ListenBrainz'deki dinlemelerin kullanıcı adınla getirilir; başka yerden gelenlerle aynı olanlar bir kez "
+               L"sayılır. Dışa aktarma ZIP'ini de seçebilirsin."),
+            tr(L"ListenBrainz'den getir"), "download", [] { openScrobbleDialog(scrobbles::Service::ListenBrainz); }, tr(L"Dosya seç"),
+            "folder", [] { pickScrobbleFilesPosted(scrobbles::Service::ListenBrainz); });
+    }
+    float preferredHeight(float w) override {
+        uniform(w);
+        if (row(w)) {
+            float h = 0;
+            for (auto* c : cards_) h = std::max(h, c->preferredHeight(cardW(w)));
+            return h;
+        }
+        float h = 0;
+        for (auto* c : cards_) h += c->preferredHeight(w);
+        return h + 2 * kGap;
+    }
+    void layout() override {
+        const float w = rect().w;
+        uniform(w);
+        if (row(w)) {
+            const float cw = cardW(w), h = preferredHeight(w);
+            for (int i = 0; i < 3; ++i) cards_[i]->setRect({i * (cw + kGap), 0, cw, h});
+        } else {
+            float y = 0;
+            for (auto* c : cards_) {
+                const float h = c->preferredHeight(w);
+                c->setRect({0, y, w, h});
+                y += h + kGap;
+            }
+        }
+    }
+    void paint(Canvas& c) override { paintChildren(c); }
+
+private:
+    static constexpr float kGap = 16;
+    // Side by side, the cards' buttons sit alike: all stacked when one card has to.
+    void uniform(float w) {
+        const bool any = row(w) && std::any_of(std::begin(cards_), std::end(cards_), [w](ImportCard* c) { return c->needsStack(cardW(w)); });
+        for (auto* c : cards_) c->stackAll = any;
+    }
+    static bool row(float w) { return cardW(w) >= 300; }
+    static float cardW(float w) { return std::floor((w - 2 * kGap) / 3); }
+    ImportCard* cards_[3]{};
 };
 
 class StatsPage : public ScrollPage {
@@ -1052,7 +1495,7 @@ public:
         // An import starting or ending rebuilds (banner, buttons); its progress only repaints the banner.
         watchImport(life_.ref(), [this] {
             if (g_import.active != builtImporting_) scheduleRebuild();
-            else if (banner_) banner_->invalidate();
+            else if (banner_) banner_->refresh();
         });
         rebuild();
         if (g_devScroll > 0) restoreScroll(g_devScroll);
@@ -1120,7 +1563,10 @@ private:
             emptyState(c, "stats", tr(L"Henüz dinleme geçmişi yok"),
                                  tr(L"Şarkı dinledikçe en çok dinlediklerin, toplam süren ve son çalınanlar burada "
                                     L"birikir."));
-            if (!g_import.active && s.canImport()) c->add<ImportCard>();
+            if (!g_import.active && s.canImport()) {
+                auto* cards = c->add<ImportCards>();
+                c->setSpacingBefore(cards, 24);
+            }
             contentReady();
             return;
         }
@@ -1135,8 +1581,8 @@ private:
         if (g_view == View::Year) buildYear(c, years, wants);
         else buildPeriod(c, now, wants);
         if (s.importedCount() == 0 && !g_import.active && s.canImport()) {
-            auto* card = c->add<ImportCard>();
-            c->setSpacingBefore(card, 40);
+            auto* cards = c->add<ImportCards>();
+            c->setSpacingBefore(cards, 40);
         }
         fetchArt(std::move(wants), life_.ref(), [this] { scheduleRebuild(); });
         contentReady();
@@ -1150,9 +1596,9 @@ private:
         title->setVAlign(gfx::VAlign::Top);
         Button* importBtn = nullptr;
         if (!g_import.active && s.canImport()) {
-            importBtn = top->add<Button>(ButtonKind::Ghost, tr(L"İçe aktar"), "spotify-link");
-            importBtn->setTooltip(tr(L"Spotify geçmişini içe aktar"));
-            importBtn->onClick = [] { pickHistoryFilesPosted(); };
+            importBtn = top->add<Button>(ButtonKind::Ghost, tr(L"İçe aktar"), "download");
+            importBtn->setTooltip(tr(L"Spotify, Last.fm veya ListenBrainz geçmişini içe aktar"));
+            importBtn->onClick = [importBtn] { importMenu(importBtn); };
         }
         Button* clearBtn = anything && !g_import.active ? top->add<Button>(ButtonKind::Ghost, tr(L"Geçmişi temizle"), "trash") : nullptr;
         if (clearBtn) clearBtn->onClick = [clearBtn] { clearMenu(clearBtn); };
@@ -1170,11 +1616,15 @@ private:
             title->setRect({0, 0, std::max(0.f, std::min(w * 0.6f, x - 16)), 64});
         };
         const size_t imported = s.importedCount();
+        const bool spotifyOnly = imported == s.importedCount(ImportSource::Spotify);
         auto* note = c->add<ui::Label>(
-            imported > 0 ? i18n::plural(L"Bu bilgisayarda çaldıkların ve Spotify'dan içe aktarılan {} dinleme · 30 saniyeyi "
-                                        L"geçen her çalma bir dinleme sayılır",
-                                        static_cast<long long>(imported))
-                         : std::wstring(tr(L"Bu bilgisayarda çaldıkların · 30 saniyeyi geçen her çalma bir dinleme sayılır")),
+            imported == 0 ? std::wstring(tr(L"Bu bilgisayarda çaldıkların · 30 saniyeyi geçen her çalma bir dinleme sayılır"))
+            : spotifyOnly ? i18n::plural(L"Bu bilgisayarda çaldıkların ve Spotify'dan içe aktarılan {} dinleme · 30 saniyeyi "
+                                         L"geçen her çalma bir dinleme sayılır",
+                                         static_cast<long long>(imported))
+                          : i18n::plural(L"Bu bilgisayarda çaldıkların ve içe aktarılan {} dinleme · 30 saniyeyi geçen her "
+                                         L"çalma bir dinleme sayılır",
+                                         static_cast<long long>(imported)),
             type::secondary, ui::Tone::Tertiary);
         c->setSpacingBefore(note, 4);
     }
@@ -1467,35 +1917,52 @@ private:
         });
     }
 
-    // "Geçmişi temizle": everything, or (when something was imported) a choice.
+    // "Geçmişi temizle": everything, or (when something was imported) a choice of what.
     static void clearMenu(Button* anchor) {
-        if (store().importedCount() == 0) {
+        const auto& s = store();
+        if (s.importedCount() == 0) {
             confirmClear();
             return;
         }
         const Rect r = anchor->toWindow(anchor->rect());
-        ui::MenuItem removeImported;
-        removeImported.label = tr(L"İçe aktarılan geçmişi kaldır");
-        removeImported.icon = "spotify-link";
-        removeImported.action = [] { confirmRemoveImported(); };
+        std::vector<ui::MenuItem> items;
+        for (const ImportSource source : {ImportSource::Spotify, ImportSource::LastFm, ImportSource::ListenBrainz}) {
+            if (s.importedCount(source) == 0) continue;
+            ui::MenuItem item;
+            item.label = source == ImportSource::Spotify  ? tr(L"İçe aktarılan Spotify geçmişini kaldır")
+                         : source == ImportSource::LastFm ? tr(L"İçe aktarılan Last.fm geçmişini kaldır")
+                                                          : tr(L"İçe aktarılan ListenBrainz geçmişini kaldır");
+            item.icon = source == ImportSource::Spotify ? "spotify-link" : "link";
+            item.action = [source] { confirmRemoveImported(source); };
+            items.push_back(std::move(item));
+        }
         ui::MenuItem clearAll;
         clearAll.label = tr(L"Tüm geçmişi temizle");
         clearAll.icon = "trash";
         clearAll.destructive = true;
         clearAll.action = [] { confirmClear(); };
-        ui::Menu::open(ctx().window, {r.x, r.bottom() + 4}, {removeImported, clearAll});
+        items.push_back(std::move(clearAll));
+        ui::Menu::open(ctx().window, {r.x, r.bottom() + 4}, std::move(items));
     }
 
-    static void confirmRemoveImported() {
-        const size_t n = store().importedCount();
+    static void confirmRemoveImported(ImportSource source) {
+        const auto n = static_cast<long long>(store().importedCount(source));
+        const std::wstring body =
+            source == ImportSource::Spotify
+                ? i18n::plural(L"Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların ve "
+                               L"diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca geri gelir.", n)
+            : source == ImportSource::LastFm
+                ? i18n::plural(L"Last.fm'den içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların ve "
+                               L"diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca geri gelir.", n)
+                : i18n::plural(L"ListenBrainz'den içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda "
+                               L"çaldıkların ve diğer kaynaklar kalır; onlarda da olan dinlemeler, onları yeniden içe aktarınca "
+                               L"geri gelir.", n);
         ui::Dialog::confirm(
-            ctx().window, tr(L"İçe aktarılan geçmiş kaldırılsın mı?"),
-            i18n::plural(L"Spotify'dan içe aktarılan {} dinleme istatistiklerden silinecek. Bu bilgisayarda çaldıkların kalır.",
-                         static_cast<long long>(n)),
-            tr(L"Kaldır"),
-            [] {
+            ctx().window, tr(L"İçe aktarılan geçmiş kaldırılsın mı?"), body, tr(L"Kaldır"),
+            [source] {
+                stopImport();
                 auto& s = store();
-                s.removeImported();
+                s.removeImported(source);
                 s.saveAsync();
                 g_lastSaveMs = steadyMs();
                 toast(tr(L"İçe aktarılan geçmiş kaldırıldı"));
@@ -1509,6 +1976,7 @@ private:
             tr(L"İstatistiklerdeki tüm dinlemeler bu bilgisayardan kalıcı olarak silinecek. Bu işlem geri alınamaz."),
             tr(L"Temizle"),
             [] {
+                stopImport();
                 auto& s = store();
                 s.clear(nowUnix());
                 s.saveAsync();
@@ -1580,6 +2048,12 @@ void initListenStats() {
     auto& c = ctx();
     // Another Spotify account: its own history (app/Accounts). The play in progress carries over.
     c.accountLeaveHooks.push_back([] {
+        // A running import belongs to the account being left: stopped and waited for first, so what it fetched (and an
+        // API import's cursor: it resumes there when that account is back) is in that account's files.
+        if (g_import.active) {
+            g_import.switched = g_import.stopping = true;
+            stopImportNow();
+        }
         sample();
         store().detach();
         g_lastSaveMs = steadyMs();
@@ -1602,6 +2076,31 @@ void initListenStats() {
                 }
                 startImport(std::move(files));
             }
+            // SHADETUBE_IMPORT_SCROBBLES = lastfm:<user> | listenbrainz:<user> | lastfm-file:<file>[;<file>...] |
+            // listenbrainz-file:<file>[;<file>...] (dev / tests): that import once the history is loaded.
+            const DWORD m = GetEnvironmentVariableW(L"SHADETUBE_IMPORT_SCROBBLES", buf, 4096);
+            if (m && m < 4096) {
+                const std::wstring v = buf;
+                const size_t colon = v.find(L':');
+                const std::wstring kind = colon == std::wstring::npos ? v : v.substr(0, colon);
+                const std::wstring arg = colon == std::wstring::npos ? std::wstring() : v.substr(colon + 1);
+                const auto service = kind.rfind(L"lastfm", 0) == 0 ? scrobbles::Service::LastFm : scrobbles::Service::ListenBrainz;
+                if (kind.ends_with(L"-file")) {
+                    std::vector<std::filesystem::path> files;
+                    for (size_t at = 0; at <= arg.size();) {
+                        const size_t end = std::min(arg.find(L';', at), arg.size());
+                        if (end > at) files.emplace_back(arg.substr(at, end - at));
+                        at = end + 1;
+                    }
+                    if (!files.empty()) startScrobbleImport(service, {}, std::move(files));
+                } else if (!arg.empty()) {
+                    startScrobbleImport(service, toUtf8(arg), {});
+                }
+            }
+            // SHADETUBE_IMPORT_DIALOG = lastfm | listenbrainz (screenshots): that dialog opens once the history is loaded.
+            const DWORD d = GetEnvironmentVariableW(L"SHADETUBE_IMPORT_DIALOG", buf, 4096);
+            if (d && d < 4096)
+                openScrobbleDialog(std::wstring(buf) == L"lastfm" ? scrobbles::Service::LastFm : scrobbles::Service::ListenBrainz);
         });
     loadArtAsync();
     // A new track: store the previous play, start the next (or continue it: re-resolve / "Yanlış eşleşme?").
@@ -1629,6 +2128,8 @@ void initListenStats() {
     // Exit: the current play is written as it stands (it keeps counting if the app goes on, e.g. a cancelled logoff).
     // Synchronous; a worker save still running is waited for, and an older one landing later is skipped.
     c.persistHooks.push_back([] {
+        // A Last.fm / ListenBrainz import still running: stopped (its batches so far are on disk) before the exit.
+        if (g_importThread.joinable()) stopImportNow();
         sample();
         syncSampleTimer(false);   // the next sample turns it back on if playback goes on
         auto& s = store();

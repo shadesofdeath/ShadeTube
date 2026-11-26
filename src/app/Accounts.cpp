@@ -30,8 +30,11 @@ using ui::ButtonKind;
 namespace type = gfx::type;
 
 const std::vector<std::wstring>& perAccountFiles() {
-    static const std::vector<std::wstring> names = {L"listening.json",    L"listening-imported.json", L"blacklist.json",
-                                                    L"new-releases.json", L"smart-lists.json",        L"library-recents.json"};
+    // The listening history and every imported history next to it (ListenStats::importedFileFor: Spotify, Last.fm and
+    // ListenBrainz, each with its import cursors), then the rest.
+    static const std::vector<std::wstring> names = {L"listening.json",       L"listening-imported.json", L"listening-lastfm.json",
+                                                    L"listening-listenbrainz.json", L"blacklist.json", L"new-releases.json",
+                                                    L"smart-lists.json",     L"library-recents.json"};
     return names;
 }
 

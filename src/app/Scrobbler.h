@@ -118,6 +118,7 @@ public:
     void listenbrainzSetToken(std::string token, std::function<void(bool ok, std::string userOrError)> done);
     bool listenbrainzConnected() const;
     std::string listenbrainzUser() const;
+    std::string listenbrainzToken() const { return lbToken_; }   // for the history import's requests (never logged)
     void listenbrainzDisconnect();
 
     // --- Playback --------------------------------------------------------------------------------------
