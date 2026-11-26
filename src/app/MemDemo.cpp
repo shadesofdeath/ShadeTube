@@ -121,9 +121,10 @@ void report(const std::string& label) {
     out += std::format("icons: {} cached, {:.0f} KB; acrylic {:.0f} KB; audio buffers {:.1f} MB\n", gfx::Icons::count(),
                        gfx::Icons::memoryBytes() / 1024.0, ui::Acrylic::liveBytes() / 1024.0,
                        mb(ctx().player ? ctx().player->bufferedBytes() : 0));
+    ui::Window* mini = g_hooks.miniWindow ? g_hooks.miniWindow() : nullptr;
     out += std::format("widgets: main window tree {}, mini player tree {}; library: {} liked, {} history, {} playlists; "
                        "queue {}\n",
-                       countWidgets(ctx().window ? ctx().window->root() : nullptr), countWidgets(g_hooks.miniWindow && g_hooks.miniWindow() ? g_hooks.miniWindow()->root() : nullptr),
+                       countWidgets(ctx().window ? ctx().window->root() : nullptr), countWidgets(mini ? mini->root() : nullptr),
                        ctx().library.liked().size(), ctx().library.history().size(), ctx().library.playlists().size(),
                        ctx().player ? ctx().player->order().size() : 0);
     out += frameStats();
@@ -143,11 +144,11 @@ void wheel(int notches) {
     GetClientRect(w->hwnd(), &rc);
     POINT pt{static_cast<LONG>(rc.right * 0.6), rc.bottom / 2};
     ClientToScreen(w->hwnd(), &pt);
-    // One notch now, the rest from a timer thread at a wheel's rhythm (the window message loop keeps rendering).
+    // Posted from a short-lived thread at a wheel's rhythm (the window's message loop keeps rendering meanwhile).
     const HWND h = w->hwnd();
     const int n = notches < 0 ? -notches : notches;
     const short delta = static_cast<short>(notches < 0 ? WHEEL_DELTA : -WHEEL_DELTA);
-    CreateThread(
+    const HANDLE thread = CreateThread(
         nullptr, 64 * 1024,
         [](void* p) -> DWORD {
             const auto* a = static_cast<std::tuple<HWND, POINT, int, short>*>(p);
@@ -160,6 +161,7 @@ void wheel(int notches) {
             return 0;
         },
         new std::tuple<HWND, POINT, int, short>(h, pt, n, delta), STACK_SIZE_PARAM_IS_A_RESERVATION, nullptr);
+    if (thread) CloseHandle(thread);
 }
 
 void run(const Step& s) {

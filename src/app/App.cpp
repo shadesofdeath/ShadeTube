@@ -954,7 +954,7 @@ void App::manageMemory() {
         // On screen. Covers of pages left two steps back (and of a closed Now Playing) go once unpainted for a while;
         // then, every kPoolTrimMs, the driver hands back what it keeps of released objects (its pools stay at the peak
         // otherwise: +10-20 MB after browsing or a while of playback on Intel UHD). Neither touches what is painted:
-        // the frame after a trim measured the same as any other (2-3 ms), also in the middle of a page transition.
+        // the frame after a trim measured the same as any other (2-6 ms), also in the middle of a page transition.
         constexpr uint64_t kImageIdleMs = 20'000;
         constexpr double kPoolTrimMs = 10'000;
         gfx::ImageCache::get().expire(kImageIdleMs);
