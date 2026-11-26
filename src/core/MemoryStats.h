@@ -22,4 +22,10 @@ Snapshot take();
 // image 31.7 MB".
 std::string describe(const Snapshot& s);
 
+// A fuller breakdown for dev reports (SHADETUBE_MEM_DEMO's `report` step, app/MemDemo): the private commit split into
+// heaps / thread stacks / other private regions (driver and runtime VirtualAllocs), every heap, every thread's stack,
+// the largest other private regions and mapped views, and the default heap's blocks by size. Walks the heaps (each is
+// locked for a moment): tens of ms, so on request only, never per tick. Multi-line, ends with a newline.
+std::string detailedReport();
+
 } // namespace st::mem
