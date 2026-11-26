@@ -375,9 +375,12 @@ private:
     static std::wstring whyOf(const Info& b) {
         if (b.pending)
             return tr(L"Bir arkadaşın seni bu Blend'e davet etti. Zevkini paylaşınca ikinizin dinlediklerinden ortak bir liste oluşur.");
-        if (b.waiting)
-            return tr(L"Davet bağlantısını bir arkadaşına gönder. O da ShadeTube'da açınca ikinizin son aylarda en çok dinlediklerinden "
-                      L"ortak bir liste oluşur.");
+        if (b.waiting) {
+            std::wstring s;
+            for (const auto& n : b.leftNames) s += i18n::format(tr(L"{} Blend'den ayrıldı."), {n}) + L" ";
+            return s + tr(L"Davet bağlantısını bir arkadaşına gönder. O da ShadeTube'da açınca ikinizin son aylarda en çok "
+                          L"dinlediklerinden ortak bir liste oluşur.");
+        }
         std::wstring s = b.mix.shared > 0
                              ? i18n::plural(L"Önce birlikte sevdiğiniz {} şarkı, sonra sırayla her birinizden birer şarkı.", b.mix.shared)
                              : std::wstring(tr(L"Ortak şarkınız henüz yok: sırayla her birinizden birer şarkı."));

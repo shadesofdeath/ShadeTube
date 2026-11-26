@@ -12,6 +12,8 @@
 //   live       (`blend_test live [wss://broker...]`) two members who are never online together: A shares (retained,
 //              sealed) and goes, B comes later, reads A and shares, A comes back and reads B; both build the same mix.
 //              A member leaving replaces its profile with a sealed "left" record.
+//   retain     (`blend_test retain put <file> [broker]`, later `blend_test retain get <file>`) how long a public broker
+//              keeps a retained record
 #include "app/Blend.h"
 #include "app/JamCrypto.h"
 #include "app/JamInvite.h"
@@ -424,6 +426,40 @@ bool liveBroker(const std::string& broker) {
     return g_failures == before;
 }
 
+// `blend_test retain put <file> [broker]`: shares a sealed profile (retained) in a new blend and writes the invite to
+// <file>; `blend_test retain get <file>`: reads it back later (how long a public broker keeps a retained record).
+int retainProbe(const std::string& mode, const std::string& file, const std::string& brokerArg) {
+    if (mode == "put") {
+        const std::string broker = brokerArg.empty() ? jam::defaultBrokers().front() : brokerArg;
+        const jam::Invite inv = jam::newInvite(broker);
+        const auto p = member("aaaaaaaaaaaaaaaa", "Probe", {"Duman"}, 6);
+        visit(broker, jam::blendTopicBase(inv.roomId), inv.key, p.member, "taste", blend::toJson(p), 1500);
+        std::FILE* f = std::fopen(file.c_str(), "wb");
+        if (!f) return 1;
+        std::fprintf(f, "%s\n%lld\n", jam::formatBlendInvite(inv).c_str(), static_cast<long long>(std::time(nullptr)));
+        std::fclose(f);
+        std::printf("retained record put on %s\n", broker.c_str());
+        return g_failures ? 1 : 0;
+    }
+    std::FILE* f = std::fopen(file.c_str(), "rb");
+    if (!f) return 1;
+    char link[1024] = {}, when[64] = {};
+    std::fgets(link, sizeof link, f);
+    std::fgets(when, sizeof when, f);
+    std::fclose(f);
+    std::string l = link;
+    while (!l.empty() && (l.back() == '\n' || l.back() == '\r')) l.pop_back();
+    const auto inv = jam::parseBlendInvite(l);
+    if (!inv) return 1;
+    const std::string base = jam::blendTopicBase(inv->roomId);
+    const auto got = visit(inv->broker, base, inv->key, "bbbbbbbbbbbbbbbb", "left", json::object(), 4000);
+    const auto recs = records(got, base, inv->key, "bbbbbbbbbbbbbbbb");
+    const long long age = static_cast<long long>(std::time(nullptr)) - std::atoll(when);
+    const bool found = recs.size() == 1 && recs[0].first == "taste";
+    std::printf("after %lld s on %s: the retained record is %s\n", age, inv->broker.c_str(), found ? "still there" : "GONE");
+    return found ? 0 : 1;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -436,6 +472,13 @@ int main(int argc, char** argv) {
     st::log::init();
     const bool live = argc > 1 && std::strcmp(argv[1], "live") == 0;
     int rc = 0;
+    if (argc > 3 && std::strcmp(argv[1], "retain") == 0) {
+        rc = retainProbe(argv[2], argv[3], argc > 4 ? argv[4] : "");
+        st::log::shutdown();
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+        return rc;
+    }
     if (live) {
         std::vector<std::string> brokers;
         for (int i = 2; i < argc; ++i) brokers.emplace_back(argv[i]);

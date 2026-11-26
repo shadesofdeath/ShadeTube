@@ -1430,8 +1430,9 @@ void hostTick() {
     }
     if (g.link == Link::Connected) {
         if (t - g.lastPublish >= kRepublishMs) publishState();
-        // The published position drifted from where the player really is (a rebuffer, a slow start): say so.
-        if (auto* p = player(); p && g.publishDue < 0 && g.published.currentItem() && p->current() &&
+        // The published position drifted from where the player really is (a rebuffer, a slow start): say so. Not for a
+        // station: it has no position to share (its listening time would "drift" from the 0 published, every tick).
+        if (auto* p = player(); p && !p->isLive() && g.publishDue < 0 && g.published.currentItem() && p->current() &&
                                 p->current()->id == g.published.currentItem()->id && hostAdvancing(g.published) &&
                                 p->status() == player::Status::Playing) {
             const int64_t expected = expectedPosition(g.published, t);
