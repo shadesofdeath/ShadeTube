@@ -61,21 +61,36 @@ public:
         for (size_t k = 0; k < buttons_.size(); ++k) buttons_[k]->setActive(static_cast<int>(k) == i);
         if (notify && onSelect) onSelect(i);
     }
-    float preferredHeight(float) override { return 37; }
-    void layout() override {
-        float x = 0;
-        for (auto* b : buttons_) {
-            const float w = b->naturalWidth();
-            b->setRect({x, 0, w, 36});
-            x += w + 24;
-        }
-    }
+    // One line, 24 DIP apart (16 when that doesn't fit); a narrow page (seven search tabs beside a wide sidebar) wraps
+    // them onto more lines.
+    float preferredHeight(float w) override { return place(w, false) * 36.f + 1; }
+    void layout() override { place(rect().w, true); }
     void paint(Canvas& c) override {
         c.hline(rect().x, rect().right(), rect().bottom() - 1, colors().hairDefault);
         paintChildren(c);
     }
 
 private:
+    // Lines used at `width`; `apply` places the buttons.
+    int place(float width, bool apply) {
+        float total = 0;
+        for (auto* b : buttons_) total += b->naturalWidth();
+        const float n = static_cast<float>(buttons_.size());
+        const float gap = total + 24 * (n - 1) <= width ? 24.f : 16.f;
+        float x = 0;
+        int line = 0;
+        for (auto* b : buttons_) {
+            const float w = b->naturalWidth();
+            if (x > 0 && x + w > width && gap == 16.f && total + gap * (n - 1) > width) {
+                x = 0;
+                ++line;
+            }
+            if (apply) b->setRect({x, line * 36.f, w, 36});
+            x += w + gap;
+        }
+        return line + 1;
+    }
+
     std::vector<Button*> buttons_;
 };
 
