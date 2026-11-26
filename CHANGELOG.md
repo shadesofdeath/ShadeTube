@@ -26,10 +26,10 @@ All notable changes to ShadeTube, newest first.
   5 GB, or off) in Settings › Library and storage, where you also see how much it holds and can clear it; the songs
   you haven't played for the longest make room first, and it never fills a nearly full disk. Downloading a song you
   have played converts the copy on disk, even offline, and the cached copy then goes away.
-- **Search finds playlists, podcasts and profiles**: with Spotify connected, search has Playlists, Podcasts and
-  Profiles tabs next to Songs, Albums and Artists, and the "All" overview shows them too. Every tab loads more with
-  "Load more". Playlists open as usual, a profile opens a page with that person's public playlists, and a podcast
-  opens in Podcasts through its public feed.
+- **Search finds playlists, podcasts and profiles**: with Spotify connected, the new search also has Playlists,
+  Podcasts and Profiles chips and rows, and the top result is the one Spotify itself puts first. A kind's own chip loads
+  more with "Load more". Playlists open as usual, a profile opens a page with that person's public playlists, and a
+  podcast opens in Podcasts through its public feed. Pasted Spotify podcast and profile links open them too.
 - **Your Spotify podcasts in Podcasts**: the shows you follow on Spotify appear on the Podcasts page, each matched to
   its public RSS feed by name and publisher. "Import Spotify podcasts" lists them all: the matches to subscribe to
   (you pick which), the ones you already follow, and the ones with no public feed. Spotify exclusives can't play in
