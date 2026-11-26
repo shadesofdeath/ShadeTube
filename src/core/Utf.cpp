@@ -37,6 +37,19 @@ static std::wstring mapCase(std::wstring_view s, DWORD flags) {
 std::wstring toUpperTr(std::wstring_view s) { return mapCase(s, LCMAP_UPPERCASE); }
 std::wstring toLowerTr(std::wstring_view s) { return mapCase(s, LCMAP_LOWERCASE); }
 
+std::wstring toUpperData(std::wstring_view s) {
+    // Catalog text (tags, genres) is mostly English: the UI language's rules would make "turkish" "TURKİSH". Turkish
+    // letters in it mean Turkish text: then the Turkish rules.
+    if (s.find_first_of(L"ğĞşŞıİçÇöÖüÜ") != std::wstring_view::npos) return toUpperTr(s);
+    if (s.empty()) return {};
+    const int n = LCMapStringEx(LOCALE_NAME_INVARIANT, LCMAP_UPPERCASE, s.data(), static_cast<int>(s.size()), nullptr, 0,
+                                nullptr, nullptr, 0);
+    std::wstring out(static_cast<size_t>(n), L'\0');
+    LCMapStringEx(LOCALE_NAME_INVARIANT, LCMAP_UPPERCASE, s.data(), static_cast<int>(s.size()), out.data(), n, nullptr,
+                  nullptr, 0);
+    return out;
+}
+
 std::wstring foldForSearch(std::wstring_view s) {
     std::wstring lower = mapCase(s, LCMAP_LOWERCASE);
     // Decompose, then drop combining marks (ü -> u, ş -> s). ı has no decomposition: map explicitly.

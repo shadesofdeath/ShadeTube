@@ -111,6 +111,38 @@ protected:
 };
 
 // ---------------------------------------------------------------------------------------------------
+// Keyboard stand-in for something a parent paints itself (a text link inside a painted view): an invisible Tab stop
+// at the parent's rect for it. Enter / Space run onActivate; the Window draws the focus ring around it. It takes no
+// pointer input (the parent keeps handling clicks and hover) and hides itself while its rect is empty.
+class FocusProxy : public Widget {
+public:
+    explicit FocusProxy(std::wstring tip = {}) {
+        focusable = true;
+        hitTestVisible = false;
+        setTooltip(std::move(tip));
+    }
+    std::function<void()> onActivateFn;
+    // Parent-local rect of the painted target (empty = not shown now: no Tab stop).
+    void place(const Rect& r) {
+        if (r.w <= 0 || r.h <= 0) {
+            if (visible()) setVisible(false);
+            return;
+        }
+        if (!visible()) setVisible(true);
+        setRect(r);
+    }
+    bool activatable() const override { return true; }
+    bool onActivate() override {
+        if (!onActivateFn) return false;
+        const auto fn = onActivateFn;   // may open a dialog / navigate
+        fn();
+        return true;
+    }
+    Widget* hitTest(gfx::Point) override { return nullptr; }
+    void paint(Canvas&) override {}
+};
+
+// ---------------------------------------------------------------------------------------------------
 // Circular play/pause button with the play <-> pause morph and spring press (motion-spec).
 // Accent: accent.base fill around the same outline glyph in accent.onAccent (page headers).
 // Outline: the thin outline style of the player bar and the mini player: a 1.25 DIP fg.primary ring around an outline

@@ -42,6 +42,8 @@ public:
     // Keeps the current track playing and replaces the rest of the queue with `tracks` (a radio of the song).
     void replaceUpcoming(std::vector<Track> tracks, PlayContext context);
     void playNext(const Track& track);            // insert right after the current item
+    // "Sıraya ekle": after the songs the user already queued behind the current one (Track::queued), before the rest of
+    // the context, so the queue plays first (Spotify's queue).
     void enqueue(const std::vector<Track>& tracks);
     // Inserts tracks (unplayable ones dropped) into the play order at `orderIndex`, clamped between the slot after the
     // current one and the end (drag and drop onto the queue). An empty queue starts playing them; a queue that had run

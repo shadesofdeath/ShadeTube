@@ -281,6 +281,13 @@ NowPlayingView::NowPlayingView()
 
     video_ = add<VideoView>(VideoView::Style::Inline);   // laid over the cover (layout); paints after the track block
 
+    // "Yanlış eşleşme?" under the title: painted by this view, a Tab stop through its proxy.
+    matchFocus_ = add<ui::FocusProxy>(tr(L"Yanlış eşleşme?"));
+    matchFocus_->onActivateFn = [] {
+        if (const auto* t = ctx().player ? ctx().player->current() : nullptr; t && ctx().showMatchPicker) ctx().showMatchPicker(*t);
+    };
+    matchFocus_->setVisible(false);
+
     // ---- tabs, their toolbar and the queue ----
     tabs_ = add<NowPlayingTabs>();
     tabs_->setLabel(Tab::Lyrics, tr(L"Şarkı sözleri"));
@@ -288,6 +295,11 @@ NowPlayingView::NowPlayingView()
     tabs_->setLabel(Tab::About, tr(L"Hakkında"));
     tabs_->onSelect = [this](Tab t) { showTab(t); };
     buildToolbar();
+    pickerFocus_ = add<ui::FocusProxy>(tr(L"Yanlış sözler mi?"));   // the painted link beside the lyrics label
+    pickerFocus_->onActivateFn = [this] {
+        if (const auto* t = ctx().player ? ctx().player->current() : nullptr) showLyricsPicker(*t, lyrics_.lrclibId);
+    };
+    pickerFocus_->setVisible(false);
     queue_ = add<QueuePanel>();
     queue_->setEmbedded(true);
     queue_->setVisible(false);
@@ -601,6 +613,7 @@ void NowPlayingView::syncTabs() {
 void NowPlayingView::showTab(Tab tab) {
     chosen_ = tab;
     syncTabs();
+    if (tab != Tab::Lyrics) pickerFocus_->place({});   // the lyrics header's link is no Tab stop on the other tabs
 }
 
 void NowPlayingView::setTopInset(float inset) {
@@ -960,6 +973,7 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
         }
     }
     c.text(text, type::monoLabel, {r.x, labelY, labelW, 16}, label);
+    pickerFocus_->place(shownTab_ == Tab::Lyrics && kind() == Kind::Song ? pickerRect_ : Rect{});
     // The translation's state on the line below: "ÇEVRİLİYOR…", "ÇEVİRİ ALINAMADI", what is shown.
     if (const std::wstring note = translation_.note(); !note.empty())
         c.text(note, type::monoLabel, {r.x, labelY + 20, r.w, 16}, label);
@@ -988,9 +1002,9 @@ void NowPlayingView::paintLyrics(Canvas& c, const Rect& r) {
         const float a = smooth(static_cast<float>((waited - 350) / 300)) * tabIn_.value();
         c.pushOpacity(a);
         for (int i = 0; i < 5; ++i)
-            c.skeleton({area.x, area.y + 40 + i * 48.f, area.w * (0.4f + 0.1f * ((i * 7) % 4)), 22}, gfx::radii().badge, ui::frame::now());
+            ui::paintSkeleton(c, this, {area.x, area.y + 40 + i * 48.f, area.w * (0.4f + 0.1f * ((i * 7) % 4)), 22}, gfx::radii().badge);
         c.popLayer();
-        ui::frame::requestNext();
+        if (a < 0.999f) ui::frame::requestNext();   // the fade-in; the shimmer paces itself (ui::paintSkeleton)
         return;
     }
     case LyricsState::Missing: {
@@ -1240,11 +1254,10 @@ float NowPlayingView::paintAboutCredits(Canvas& c, float x, float y, float w) {
     y += 24;
     if (state == About::State::Loading) {
         for (int i = 0; i < 3; ++i) {
-            c.skeleton({x, y + 4, w * (0.42f - 0.07f * static_cast<float>(i)), 12}, gfx::radii().badge, ui::frame::now());
-            c.skeleton({x, y + 24, w * 0.26f, 9}, gfx::radii().badge, ui::frame::now());
+            ui::paintSkeleton(c, this, {x, y + 4, w * (0.42f - 0.07f * static_cast<float>(i)), 12}, gfx::radii().badge);
+            ui::paintSkeleton(c, this, {x, y + 24, w * 0.26f, 9}, gfx::radii().badge);
             y += 46;
         }
-        ui::frame::requestNext();
         return y - y0 + 22;
     }
     const catalog::Credits* cr = about_.credits ? &*about_.credits : nullptr;
@@ -1335,8 +1348,7 @@ float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
                 ty += 22;
             }
         } else if (loading) {
-            c.skeleton({tx, ty + 4, tw * 0.45f, 10}, gfx::radii().badge, ui::frame::now());
-            ui::frame::requestNext();
+            ui::paintSkeleton(c, this, {tx, ty + 4, tw * 0.45f, 10}, gfx::radii().badge);
             ty += 22;
         }
         if (!t->album.id.empty()) {
@@ -1352,7 +1364,7 @@ float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
         std::wstring lab = a && a->type == "Group" ? toUpperTr(tr(L"Grup")) : toUpperTr(tr(L"Sanatçı"));
         if (a && !a->country.empty()) lab += L" · " + toWide(a->country);
         if (a && !a->beginYear.empty()) lab += L" · " + toWide(a->beginYear);
-        if (a && !a->tags.empty()) lab += L" · " + toUpperTr(toWide(a->tags[0]));
+        if (a && !a->tags.empty()) lab += L" · " + toUpperData(toWide(a->tags[0]));
         c.text(lab, type::monoLabel, {x, y, w, 14}, label.mulAlpha(fade));
         y += 24;
         const Rect art{x, y, kAboutArt, kAboutArt};
@@ -1367,13 +1379,12 @@ float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
         if (a && a->listenCount > 0)
             meta = i18n::plural(L"{} DİNLENME · LISTENBRAINZ", a->listenCount, {compactCount(a->listenCount)});
         else if (a && !a->disambiguation.empty())
-            meta = toUpperTr(toWide(a->disambiguation));
+            meta = toUpperData(toWide(a->disambiguation));
         if (!meta.empty()) {
             c.text(meta, type::monoMeta, {tx, ty, tw, 18}, col.fgSecondary.mulAlpha(fade));
             ty += 22;
         } else if (loading && !a) {
-            c.skeleton({tx, ty + 4, tw * 0.35f, 10}, gfx::radii().badge, ui::frame::now());
-            ui::frame::requestNext();
+            ui::paintSkeleton(c, this, {tx, ty + 4, tw * 0.35f, 10}, gfx::radii().badge);
             ty += 22;
         }
         if (!t->artists[0].id.empty()) {
@@ -1690,6 +1701,7 @@ void NowPlayingView::paintTrack(Canvas& c) {
                    gfx::VAlign::Center);
         }
     }
+    matchFocus_->place(matchRect_);
     // Times beside the wave: elapsed (fg.secondary) and total; a live stream has none (the "CANLI" badge says it).
     if (!radio::isStationId(t->id)) {
         const int64_t dur = p->durationMs();
@@ -1767,7 +1779,10 @@ void NowPlayingView::paint(Canvas& c) {
         if (seek_->waveMoving()) next = ui::kWaveFrameMs;
         if (shownTab_ == Tab::Lyrics && state_ == LyricsState::Synced) next = std::min(next, 50.0);
         if (driftMs > 0) next = std::min(next, driftMs);
-        if (auto* w = window()) w->invalidateAfter(next);
+        if (auto* w = window()) {   // the flowing wave alone: paced by presentation (~30 fps at any refresh rate)
+            if (next == ui::kWaveFrameMs) w->invalidateAfterShown(next);
+            else w->invalidateAfter(next);
+        }
     }
     if (devLog()) {
         ++framesSinceStats_;

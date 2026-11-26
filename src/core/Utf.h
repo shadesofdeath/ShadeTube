@@ -11,6 +11,9 @@ std::string toUtf8(std::wstring_view wide);
 // Locale-aware (tr-TR) case mapping: i -> İ, ı -> I. Used for mono uppercase labels.
 std::wstring toUpperTr(std::wstring_view s);
 std::wstring toLowerTr(std::wstring_view s);
+// Uppercase for catalog text in mono labels (tags, genres): invariant rules ("turkish rock" -> "TURKISH ROCK", not
+// "TURKİSH"), the Turkish ones when the text has Turkish letters.
+std::wstring toUpperData(std::wstring_view s);
 
 // Accent/case-insensitive fold used for local filtering ("sürüş" matches "SURUS").
 std::wstring foldForSearch(std::wstring_view s);

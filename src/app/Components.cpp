@@ -722,6 +722,7 @@ TrackTable::RowText& TrackTable::rowText(int di) {
         swprintf(num, 16, L"%02d", opts_.albumNumbering ? t.trackNumber : di + 1);
         rt.num = gfx::Text(num, type::monoDuration);
         rt.blocked = blacklist::isBlocked(t);
+        if (chipFor) rt.chip = gfx::Text(chipFor(t), type::monoBadge);   // laid out once with the row (not per frame)
         rt.titleW = std::ceil(rt.title.measure().w);
         rt.artistW = rt.artist.empty() ? 0.f : std::ceil(rt.artist.measure().w);
         it = texts_.emplace(di, std::move(rt)).first;
@@ -843,15 +844,15 @@ void TrackTable::showColumnsMenu(gfx::Point windowPos) {
         }
     };
     std::vector<ui::MenuItem> items;
-    auto item = [&](const wchar_t* label, uint32_t col, bool available) {
+    auto item = [&](std::wstring label, uint32_t col, bool available) {
         if (!available) return;
-        ui::MenuItem it{tr(label), "", L"", [toggle, col] { toggle(col); }};
+        ui::MenuItem it{std::move(label), "", L"", [toggle, col] { toggle(col); }};
         it.checked = (user & col) != 0;
         items.push_back(std::move(it));
     };
-    item(L"Albüm", trackcols::Album, opts_.showAlbum);
-    item(L"Eklenme tarihi", trackcols::Added, opts_.showAdded);
-    item(L"Dinlenme sayısı", trackcols::Plays, hasPlays_);
+    item(tr(L"Albüm"), trackcols::Album, opts_.showAlbum);
+    item(tr(L"Eklenme tarihi"), trackcols::Added, opts_.showAdded);
+    item(tr(L"Dinlenme sayısı"), trackcols::Plays, hasPlays_);
     if (items.empty()) return;
     items.push_back(ui::MenuItem::sep());
     items.push_back({tr(L"Varsayılan sütunlar"), "refresh", L"", [ref = life_.ref(), this] {
@@ -967,12 +968,7 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Layout& cl) {
     if (!addedBy.empty()) badgesW += together::addedBadgeWidth(addedBy) + badge::kGap;
     if (tx.blocked) badgesW += badge::width(badge::blockedLabel()) + badge::kGap;
     if (local) badgesW += badge::width(badge::localLabel()) + badge::kGap;
-    std::optional<gfx::Text> chip;   // chipFor's label (a blend's "whose taste")
-    if (chipFor)
-        if (const std::wstring label = chipFor(t); !label.empty()) {
-            chip.emplace(label, type::monoBadge);
-            badgesW += badge::width(*chip) + badge::kGap;
-        }
+    if (!tx.chip.empty()) badgesW += badge::width(tx.chip) + badge::kGap;   // chipFor's label (a blend's "whose taste")
     const float roomW = std::max(0.f, blockR - x0);
     // Badges keep their room while the title has 120 DIP; below that they go before the title is cut further.
     const bool badges = badgesW > 0 && roomW - badgesW - 8 >= std::min(120.f, tx.titleW);
@@ -988,7 +984,7 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Layout& cl) {
         if (t.explicitContent) bx += badge::drawExplicit(c, bx, cy) + badge::kGap;
         if (tx.downloaded) bx += badge::drawDownloaded(c, bx, cy) + badge::kGap;
         if (t.recommended) bx += smartshuffle::drawBadge(c, bx, cy) + badge::kGap;
-        if (chip) bx += badge::draw(c, bx, cy, *chip, badge::Tone::Accent) + badge::kGap;
+        if (!tx.chip.empty()) bx += badge::draw(c, bx, cy, tx.chip, badge::Tone::Accent) + badge::kGap;
         if (!addedBy.empty()) bx += together::drawAddedBadge(c, bx, cy, addedBy) + badge::kGap;
         if (tx.blocked) bx += badge::draw(c, bx, cy, badge::blockedLabel(), badge::Tone::Neutral) + badge::kGap;
         if (local) badge::draw(c, bx, cy, badge::localLabel(), badge::Tone::Neutral);

@@ -251,6 +251,15 @@ HttpResponse getLimited(const std::string& url, const Limits& limits, const Canc
     WinHttpSetOption(req, WINHTTP_OPTION_DISABLE_FEATURE, &features, sizeof features);
     DWORD decompress = WINHTTP_DECOMPRESSION_FLAG_ALL;   // sends Accept-Encoding; the cap counts decompressed bytes
     WinHttpSetOption(req, WINHTTP_OPTION_DECOMPRESSION, &decompress, sizeof decompress);
+    // Wikimedia (artist photos from Commons via Wikidata) answers a browser-like agent from a non-browser with HTTP 429:
+    // its User-Agent policy wants the client named, as MusicBrainz does (musicbrainz/Net). The redirect to
+    // upload.wikimedia.org keeps the header.
+    auto endsWith = [&host](std::wstring_view s) {
+        return host.size() >= s.size() && _wcsicmp(host.c_str() + host.size() - s.size(), s.data()) == 0;
+    };
+    if (endsWith(L"wikimedia.org") || endsWith(L"wikipedia.org") || endsWith(L"wikidata.org"))
+        WinHttpAddRequestHeaders(req, L"User-Agent: ShadeTube/0.11 ( https://github.com/shadesofdeath/ShadeTube )", static_cast<DWORD>(-1),
+                                 WINHTTP_ADDREQ_FLAG_REPLACE | WINHTTP_ADDREQ_FLAG_ADD);
     if (!WinHttpSendRequest(req, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) throw failed("send");
     if (!WinHttpReceiveResponse(req, nullptr)) throw failed("receive");
 

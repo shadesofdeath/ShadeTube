@@ -1772,7 +1772,6 @@
   "{} · {} yer kaplıyor.": "{} · memakan {}.",
   "Şarkı önbelleği temizlendi": "Cache lagu dihapus",
   "Krediler": "Kredit",
-  "Krediler yükleniyor…": "Memuat kredit…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "Kredit tidak dapat dimuat. Periksa koneksimu.",
   "Bu şarkı için kredi bilgisi yok.": "Tidak ada info kredit untuk lagu ini.",
   "Kaynak": "Sumber",
@@ -2105,5 +2104,6 @@
   "{} · DENENMEDİ": "{} · BELUM DICOBA",
   "{} · GÖSTERİLMİYOR": "{} · TIDAK DITAMPILKAN",
   "{} · RESMİ VİDEO": "{} · VIDEO RESMI",
-  "{} · SESLE EŞLEŞİYOR": "{} · COCOK DENGAN AUDIO"
+  "{} · SESLE EŞLEŞİYOR": "{} · COCOK DENGAN AUDIO",
+  "Dinlenme sayısı": "Jumlah diputar"
 }

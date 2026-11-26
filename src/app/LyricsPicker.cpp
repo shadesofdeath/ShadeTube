@@ -2,6 +2,7 @@
 
 #include "app/AppContext.h"
 #include "app/Components.h"
+#include "app/PageWidgets.h"
 #include "app/InternetRadio.h"
 #include "app/LyricsService.h"
 #include "app/Source.h"
@@ -218,9 +219,11 @@ private:
     void search(const std::wstring& text) {
         life_.renew();
         list_->clearChildren();
+        // The shared states (app/PageWidgets): result-row placeholders while LRCLIB answers, then the results, or the
+        // compact error / no-result state in the list's frame.
+        list_->add<SkeletonLines>(5, 52.f);
         scroll_->contentChanged();
-        status_->setText(tr(L"Aranıyor…"));
-        status_->setVisible(true);
+        status_->setVisible(false);
         requestLayout();
         invalidate();
         const int songSec = track_.durationMs / 1000;
@@ -231,15 +234,24 @@ private:
                   return hits;
               },
               [this, songSec](Result<std::optional<std::vector<lyrics::SearchHit>>> r) {
-                  if (!r || !*r) {
-                      status_->setText(tr(L"LRCLIB'e ulaşılamadı. Bağlantını kontrol et."));
+                  list_->clearChildren();
+                  if (!r || !*r || (*r)->empty()) {
+                      if (!r || !*r) {
+                          auto* p = list_->add<MessagePanel>("offline", tr(L"LRCLIB'e ulaşılamadı. Bağlantını kontrol et."),
+                                                             std::wstring(), tr(L"Tekrar dene"), [this, ref = life_.ref()] {
+                                                                 Dispatcher::post([this, ref] {   // after the click
+                                                                     if (!ref.expired()) search(query_->text());
+                                                                 });
+                                                             });
+                          p->setTone(MessagePanel::Tone::Offline).setCompact(true);
+                      } else {
+                          noResultsState(list_, tr(L"Sonuç bulunamadı. Aramayı değiştirip tekrar dene."));
+                      }
+                      scroll_->contentChanged();
+                      requestLayout();
+                      invalidate();
                       return;
                   }
-                  if ((*r)->empty()) {
-                      status_->setText(tr(L"Sonuç bulunamadı. Aramayı değiştirip tekrar dene."));
-                      return;
-                  }
-                  status_->setVisible(false);
                   const int64_t current = choice_.kind == Kind::Lrclib ? choice_.lrclibId : choice_.kind == Kind::Auto ? shownId_ : 0;
                   for (const auto& h : **r) {
                       auto* row = list_->add<HitRow>(h, songSec, h.id == current);

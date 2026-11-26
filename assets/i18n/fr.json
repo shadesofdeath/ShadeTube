@@ -1957,7 +1957,6 @@
   "{} · {} yer kaplıyor.": "{} · {} utilisés.",
   "Şarkı önbelleği temizlendi": "Cache des titres vidé",
   "Krediler": "Crédits",
-  "Krediler yükleniyor…": "Chargement des crédits…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "Impossible de charger les crédits. Vérifie ta connexion.",
   "Bu şarkı için kredi bilgisi yok.": "Aucun crédit connu pour ce titre.",
   "Kaynak": "Source",
@@ -2326,5 +2325,6 @@
   "{} · DENENMEDİ": "{} · NON TESTÉE",
   "{} · GÖSTERİLMİYOR": "{} · NON AFFICHÉE",
   "{} · RESMİ VİDEO": "{} · CLIP OFFICIEL",
-  "{} · SESLE EŞLEŞİYOR": "{} · CORRESPOND AU SON"
+  "{} · SESLE EŞLEŞİYOR": "{} · CORRESPOND AU SON",
+  "Dinlenme sayısı": "Nombre d'écoutes"
 }

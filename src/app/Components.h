@@ -283,7 +283,7 @@ public:
 private:
     enum class Hit { None, Number, Artist, Heart, Queue, More, RecAdd, RecHide };
     struct RowText {
-        gfx::Text title, artist, album, added, dur, num, plays;
+        gfx::Text title, artist, album, added, dur, num, plays, chip;   // chip: chipFor's label, "" = none
         // Natural widths, measured once: a gfx::Text keeps one layout per width, so measuring at another width than
         // the one it is drawn at would lay the text out again on every frame.
         float titleW = 0, artistW = 0;

@@ -1772,7 +1772,6 @@
   "{} · {} yer kaplıyor.": "{} · {} 사용 중.",
   "Şarkı önbelleği temizlendi": "곡 캐시를 지웠어요",
   "Krediler": "크레딧",
-  "Krediler yükleniyor…": "크레딧 불러오는 중…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "크레딧을 불러오지 못했어요. 연결을 확인하세요.",
   "Bu şarkı için kredi bilgisi yok.": "이 곡의 크레딧 정보가 없어요.",
   "Kaynak": "제공",
@@ -2105,5 +2104,6 @@
   "{} · DENENMEDİ": "{} · 확인 안 함",
   "{} · GÖSTERİLMİYOR": "{} · 표시 안 함",
   "{} · RESMİ VİDEO": "{} · 공식 동영상",
-  "{} · SESLE EŞLEŞİYOR": "{} · 오디오와 일치"
+  "{} · SESLE EŞLEŞİYOR": "{} · 오디오와 일치",
+  "Dinlenme sayısı": "재생 횟수"
 }

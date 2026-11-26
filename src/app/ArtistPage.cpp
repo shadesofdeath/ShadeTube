@@ -126,7 +126,7 @@ public:
         if (page.followers > 0) add(toUpperTr(i18n::plural(L"{} takipçi", page.followers, {compactCount(page.followers)})));
         if (meta.empty() && artist_.listenCount > 0)
             meta = i18n::plural(L"{} DİNLENME · LISTENBRAINZ", artist_.listenCount, {compactCount(artist_.listenCount)});
-        if (meta.empty() && !artist_.disambiguation.empty()) meta = toUpperTr(toWide(artist_.disambiguation));
+        if (meta.empty() && !artist_.disambiguation.empty()) meta = toUpperData(toWide(artist_.disambiguation));
         meta_ = gfx::Text(meta, type::monoMeta);
         sync();
     }
@@ -218,7 +218,7 @@ protected:
             label = artist_.type == "Group" ? toUpperTr(tr(L"Grup")) : toUpperTr(tr(L"Sanatçı"));
             if (!artist_.country.empty()) label += L" · " + toWide(artist_.country);
             if (!artist_.beginYear.empty()) label += L" · " + toWide(artist_.beginYear);
-            if (!artist_.tags.empty()) label += L" · " + toUpperTr(toWide(artist_.tags[0]));
+            if (!artist_.tags.empty()) label += L" · " + toUpperData(toWide(artist_.tags[0]));
         }
         if (blocked()) label.append(L" · ").append(toUpperTr(tr(L"Engelli")));   // kara liste: its songs never play by themselves
         c.text(label, type::monoLabel, {x, r.y + 70, r.right() - x, 14}, accent().base);
@@ -564,11 +564,9 @@ public:
     float preferredHeight(float width) override { return width + 10 + 18 + 4 + 16; }
     void paint(Canvas& c) override {
         const Rect r = rect();
-        const double now = ui::frame::now();
-        c.skeleton({r.x, r.y, r.w, r.w}, gfx::radii().art, now);
-        c.skeleton({r.x, r.y + r.w + 14, std::round(r.w * 0.7f), 12}, gfx::radii().badge, now);
-        c.skeleton({r.x, r.y + r.w + 34, std::round(r.w * 0.4f), 10}, gfx::radii().badge, now);
-        ui::frame::requestNext();
+        ui::paintSkeleton(c, this, {r.x, r.y, r.w, r.w}, gfx::radii().art);
+        ui::paintSkeleton(c, this, {r.x, r.y + r.w + 14, std::round(r.w * 0.7f), 12}, gfx::radii().badge);
+        ui::paintSkeleton(c, this, {r.x, r.y + r.w + 34, std::round(r.w * 0.4f), 10}, gfx::radii().badge);
     }
 };
 
@@ -797,7 +795,7 @@ public:
             wrap.wrap = true;
             bio_ = gfx::Text(toWide(p.bio), type::bodyL, wrap);
             std::wstring head = toUpperTr(tr(L"Biyografi"));
-            if (!p.bioSource.empty()) head += L" · " + toUpperTr(toWide(p.bioSource));
+            if (!p.bioSource.empty()) head += L" · " + toUpperData(toWide(p.bioSource));
             bioHead_ = gfx::Text(head, type::monoLabel);
             more_ = add<Button>(ButtonKind::Link, tr(L"Devamını göster"));
             more_->onClick = [this] {
@@ -819,7 +817,7 @@ public:
                                              type::monoMeta)});
             }
         }
-        for (size_t i = 0; i < a.tags.size() && i < 6; ++i) tags_.emplace_back(toUpperTr(toWide(a.tags[i])), type::monoLabel);
+        for (size_t i = 0; i < a.tags.size() && i < 6; ++i) tags_.emplace_back(toUpperData(toWide(a.tags[i])), type::monoLabel);
         for (const auto& l : p.links) {
             auto* b = add<Button>(ButtonKind::Secondary, linkLabel(l.kind), "arrow-up-right");
             b->setIconSize(14);

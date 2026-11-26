@@ -946,9 +946,9 @@ private:
         const auto& subs = podcast::store().subscriptions();
         subsSec_->add<SectionHeader>(tr(L"Aboneliklerin"), subs.empty() ? std::wstring() : i18n::number(static_cast<int>(subs.size())));
         if (subs.empty()) {
-            subsSec_->add<ui::Label>(tr(L"Henüz aboneliğin yok. Aşağıdaki popüler podcastlerden birini aç ya da yukarıdan ara."), type::secondary,
-                                     ui::Tone::Secondary)
-                ->setWrap(true);
+            emptyState(subsSec_, "podcast", tr(L"Henüz aboneliğin yok. Aşağıdaki popüler podcastlerden birini aç ya da yukarıdan ara."),
+                       {})
+                ->setCompact(true);
         } else {
             auto* grid = addCardRow(subsSec_, 150, 0);
             for (const auto& s : subs) {
@@ -986,11 +986,12 @@ private:
                                                   tr(L"İçe aktar"));
         h->onLink = [] { ctx().router->navigate({RouteKind::Podcasts, "spotify"}); };
         if (state == ListState::Failed) {
-            spotifySec_->add<ui::Label>(tr(L"Spotify podcastlerin yüklenemedi."), type::secondary, ui::Tone::Secondary);
+            errorState(spotifySec_, tr(L"Spotify podcastlerin yüklenemedi."), [] { spotifyshows::ensureFollowed(true); })
+                ->setCompact(true);
             return;
         }
         if (shows.empty()) {
-            spotifySec_->add<SkeletonBlock>(0);
+            spotifySec_->add<SkeletonCards>(1, 150.f);   // a row of cards while the list loads
             return;
         }
         auto* grid = addCardRow(spotifySec_, 150, 1);
@@ -1458,7 +1459,7 @@ private:
                                  tr(L"Spotify'da takip ettiğin podcastleri görmek için Spotify hesabınla bağlan."));
             return contentReady();
         case ListState::Loading:
-            c->add<SkeletonBlock>(4);
+            c->add<SkeletonLines>(6, 64.f, 48.f);   // show rows while Spotify answers
             return contentReady();
         case ListState::Failed:
             c->add<MessagePanel>("warning", tr(L"Spotify podcastlerin yüklenemedi."), tr(L"Bağlantını kontrol edip tekrar dene."),

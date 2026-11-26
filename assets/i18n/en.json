@@ -1957,7 +1957,6 @@
   "{} · {} yer kaplıyor.": "{} · {} used.",
   "Şarkı önbelleği temizlendi": "Song cache cleared",
   "Krediler": "Credits",
-  "Krediler yükleniyor…": "Loading credits…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "Couldn't load the credits. Check your connection.",
   "Bu şarkı için kredi bilgisi yok.": "No credits are known for this song.",
   "Kaynak": "Source",
@@ -2326,5 +2325,6 @@
   "{} · DENENMEDİ": "{} · NOT TRIED",
   "{} · GÖSTERİLMİYOR": "{} · NOT SHOWN",
   "{} · RESMİ VİDEO": "{} · OFFICIAL VIDEO",
-  "{} · SESLE EŞLEŞİYOR": "{} · MATCHES THE AUDIO"
+  "{} · SESLE EŞLEŞİYOR": "{} · MATCHES THE AUDIO",
+  "Dinlenme sayısı": "Play count"
 }

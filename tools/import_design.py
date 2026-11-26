@@ -26,7 +26,7 @@ def clean_svg(src: pathlib.Path, dst: pathlib.Path):
 
 def main():
     for sub in ["icons/12", "icons/14", "icons/16", "icons/18", "icons/20", "icons/24", "logo", "placeholders",
-                "animations/equalizer", "animations/play-pause-morph"]:
+                "animations/equalizer"]:   # (the play / pause morph is drawn in code: its frames are not imported)
         for f in sorted((SRC / sub).glob("*.svg")):
             clean_svg(f, DST / sub / f.name)
     clean_svg(SRC / "logo/app-icon/app-icon.svg", DST / "logo/app-icon.svg")

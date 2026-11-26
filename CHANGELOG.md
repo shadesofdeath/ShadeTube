@@ -67,6 +67,11 @@ All notable changes to ShadeTube, newest first.
 - **Loading, empty and error states everywhere**: soft placeholder shapes that shimmer together while pages load (still
   with reduced motion), friendly empty pages with one useful action, and clear error and offline messages with a retry
   button.
+- **One design across the new features**: the artist, search, YouTube Music, profile, Blend, podcast, credits and
+  lyrics-picker screens share the same loading placeholders and empty / offline states, "Add to queue" now plays your
+  queued songs before the rest of the album or playlist (like Spotify), the queue panel and Now Playing's "Wrong
+  match?" / "Wrong lyrics?" links work with the keyboard, artist photos from Wikipedia load again, and the playing
+  animation no longer wakes high refresh-rate displays more than 30 times a second.
 - **Several Spotify accounts**: add more accounts and switch between them from the account menu in the title bar (click
   "SPOTIFY · your name"), Settings › Spotify account or the command palette, without logging in again. The music and
   the queue keep playing. Each account keeps its own library, playlists, friend activity, new releases, listening stats,

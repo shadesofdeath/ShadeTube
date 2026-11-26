@@ -2192,7 +2192,7 @@ tool writes `assets/icons/<grid>/<name>.svg` for the six grids (`--design <dir>`
   (the Ses settings card; the equalizer bars mean "playing"), `mini-strip`, `mini-square`, `mini-wide`, `video`,
   `pop-out` under their plain names.
 - **Not icons**: the native tray menu has no icons; the placeholders (`assets/placeholders`), the logo and
-  `animations/` are separate (the play-pause morph frames are no longer drawn).
+  `animations/` are separate (the play-pause morph is drawn in code; its unused frames were removed in 0.11.0).
 - **Checks**: `icons_test` (5.2) checks every file against these rules through the app's loader and writes contact
   sheets with `--sheet <dir>` (every icon at 12-24 DIP for 80-175 % in dark, light and preset themes, each grid
   magnified over its pixel grid, off / on pairs).
@@ -2481,7 +2481,9 @@ Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two di
   (`queuelist::Sections`): runs of songs the user queued (`Track::queued`, set by `Player::playNext / enqueue /
   insertAt` except smart shuffle's recommendations, kept in `session.json` as `"q"`) under *SIRADA*, runs from the
   context under *SONRAKİ · <kaynak>*; the first label sits above the list with the count, later ones are 36 DIP header
-  rows inside it. The player's order is unchanged (*Sıraya ekle* still appends): the sections show where things are.
+  rows inside it. *Sıraya ekle* (`Player::enqueue`) puts songs after the *SIRADA* run that follows the playing one, in
+  front of the rest of the context (Spotify's queue: what you queue plays first); *Sonra çal* stays right after the
+  playing song; smart shuffle's recommendations go through `insertAt` and are never marked queued.
   A hovered row trades its duration for "×" (out of the queue). Dragging a row lifts it onto the elevated surface under
   the pointer, leaves a hairline outline in its slot and shows the gliding insertion line. Only visible rows are
   painted; sections cost one pass over the upcoming slots per queue change. The empty queue is the compact empty state.
@@ -2517,6 +2519,31 @@ Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two di
   Row texts measure their natural width once (a `gfx::Text` keeps one layout per width: measuring at another width than
   it is drawn at would lay it out again every frame) and the header labels and badges are laid out once.
   Virtualization is unchanged: rows are painted from the model, only the visible ones.
+- **After the 0.11.0 merge** (the polish pass over the features built on the old design):
+  - Shared states everywhere: Artist / Search skeletons, the YouTube Music moods (tile placeholders: `SkeletonCards` with a
+    tile height), Home's catalog / YouTube Music errors (`errorState`), the Spotify podcasts section (card row
+    placeholder, compact error with retry) and import list (`SkeletonLines`), Podcasts' empty subscriptions, the credits
+    dialog and the lyrics picker (`SkeletonLines` rows, then the compact offline / no-result states, a retry that
+    searches again). Every `Canvas::skeleton` caller is now `ui::paintSkeleton` (Now Playing's lyrics / credits / About,
+    the full-screen lyrics, the playlist details and tag editor covers), so reduced motion stills them all.
+  - Keyboard: Now Playing's painted "Yanlış eşleşme?" / "Yanlış sözler mi?" links are Tab stops through `ui::FocusProxy`
+    (an invisible focusable stand-in at the painted rect; Enter / Space run it, the Window draws the ring); the queue
+    panel is one Tab stop with a row cursor (arrows, PageUp / PageDown, Home / End, Enter plays, Delete removes, Alt +
+    Up / Down moves, the menu key opens the row menu).
+  - Pacing: the seek wave and the playing bars ask for their next frame 25 ms after the current one is *shown*
+    (`Window::invalidateAfterShown`, the frame clock's presentation time) instead of 25 ms after painting began: ~30 fps
+    at 60, 120, 144 and 240 Hz alike (at 120 / 240 Hz it was ~40). Measured at 60 Hz (Debug, *Yerel dosyalar* song
+    list playing, 10 s): 320 frames before, 319 after, 2.9 ms mean frame CPU; the higher refresh rates were not
+    available to measure.
+  - Covers: an open-catalog search that comes up with placeholder art was late, not broken: MusicBrainz answered 503
+    (busy) and the client backed off for several seconds before the results and then their Cover Art Archive covers
+    came. Artist photos from Wikimedia Commons, though, failed for good with HTTP 429: Wikimedia refuses the browser-like
+    agent of the shared transport, so `http::getLimited` names ShadeTube to `*.wikimedia.org` / `wikipedia.org` /
+    `wikidata.org`. The image cache's expiry never drops the current page's covers (only pages two steps back, unpainted
+    for 20 s), so nothing on screen or about to scroll in reloads.
+  - Catalog tags in mono labels use `toUpperData` (invariant casing unless the text has Turkish letters: "TURKISH
+    ROCK", not "TURKİSH ROCK"); the top search result drops a subtitle that only repeats its kind; the Blend chip's
+    label is laid out once per row instead of every frame.
 - Dev: `SHADETUBE_LIST_DEMO` (5.4) selects rows, sorts through the header path, sets the columns, queues rows, opens
   the queue, scrolls, shows a reorder drag in place and fakes play counts for `--screenshot`.
 ### 3.42 Several Spotify accounts
@@ -3499,11 +3526,10 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   recreates the device (tens of ms) and covers reload from the disk cache.
 - **List design (3.42).** The Year and *added by* (collaborative lists) columns are laid out by `app/TrackColumns`
   but never offered: `catalog::Track` carries no release year or adder yet; a catalog that fills them only needs to set
-  the flag in `TrackTable::wantedColumns`. The queue's sections show the player's order as it is: *Sıraya ekle* still
-  appends after the context (a *SIRADA* run at the end), unlike Spotify's queue that plays first. The skeletons of Now
-  Playing, the lyrics view, the playlist details dialog and the tag editor still call `Canvas::skeleton` with their own
-  per-frame requests (window-synced band, but they keep moving with reduced motion). The queue panel takes no keyboard
-  focus (as before). Frame-time measurements on this machine were noisy (parallel builds; the display ran at 60-240 Hz
+  the flag in `TrackTable::wantedColumns`. Turning shuffle on mixes queued songs into the shuffled order like the rest
+  (`rebuildOrder`), unlike Spotify, which keeps its queue first. Every window repaint is a full frame (flip-model swap
+  chain), so the playing bars cannot repaint just their rect; they only ride the ~30 fps cadence the flowing seek wave
+  already causes. Frame-time measurements on this machine were noisy (parallel builds; the display ran at 60-240 Hz
   between runs), so the table's cost is compared in thread cycles of its paint, not in frame gaps.
 - **Memory** (0.11.0, Release, Intel UHD at 2560 × 1440 / 175 %, a 1345 × 712 DIP window, measured with the
   `SHADETUBE_MEM_DEMO` scripts of 3.2; "populated" = 5 000 local songs in 250 folders with covers and 30 000 imported

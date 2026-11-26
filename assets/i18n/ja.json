@@ -1772,7 +1772,6 @@
   "{} · {} yer kaplıyor.": "{} · {}を使用中。",
   "Şarkı önbelleği temizlendi": "曲のキャッシュをクリアしました",
   "Krediler": "クレジット",
-  "Krediler yükleniyor…": "クレジットを読み込み中…",
   "Krediler yüklenemedi. Bağlantını kontrol et.": "クレジットを読み込めませんでした。接続を確認してください。",
   "Bu şarkı için kredi bilgisi yok.": "この曲のクレジット情報はありません。",
   "Kaynak": "提供元",
@@ -2105,5 +2104,6 @@
   "{} · DENENMEDİ": "{} · 未確認",
   "{} · GÖSTERİLMİYOR": "{} · 非表示",
   "{} · RESMİ VİDEO": "{} · 公式動画",
-  "{} · SESLE EŞLEŞİYOR": "{} · 音声と一致"
+  "{} · SESLE EŞLEŞİYOR": "{} · 音声と一致",
+  "Dinlenme sayısı": "再生回数"
 }
