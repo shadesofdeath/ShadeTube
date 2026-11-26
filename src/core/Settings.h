@@ -140,6 +140,9 @@ struct Settings {
     bool videoOnTop = false;             // the video window stays above other windows
     int videoX = -1, videoY = -1;        // the video window's position (screen px; -1 = next to the main window)
     int videoW = 640, videoH = 360;      // ... and size (DIPs)
+    // Track lists' optional columns the user picked in a column header's menu (app/TrackColumns): "album", "added",
+    // "plays", comma separated; "" = the default (all three, where a list has them; plays only with play counts).
+    std::string trackColumns;
 
     static Settings& get();
     void load();

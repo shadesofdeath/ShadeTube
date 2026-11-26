@@ -69,10 +69,19 @@ public:
     ui::Widget* hitTest(gfx::Point) override { return nullptr; }
 
     void setPayload(const DragPayload& p) {
+        in_.snap(0);
+        in_.to(1, ui::motion::microMs(ui::motion::fast), ui::Ease::Decelerate);
         if (p.fromExplorer()) return;
-        title_ = gfx::Text(p.tracks.empty() ? std::wstring() : toWide(p.tracks.front().name), type::body.withSize(13));
-        countText_ = i18n::number(static_cast<int64_t>(p.tracks.size()));
+        title_ = gfx::Text(p.tracks.empty() ? std::wstring() : toWide(p.tracks.front().name), type::body.withSize(13).withWeight(600));
+        // The second line: the artists of one song, "+ n şarkı daha" for several.
+        const size_t n = p.tracks.size();
+        sub_ = gfx::Text(n > 1 ? i18n::plural(L"+ {} şarkı daha", static_cast<int64_t>(n - 1))
+                               : n == 1 ? toWide(p.tracks.front().artistLine()) : std::wstring(),
+                         type::caption);
+        countText_ = i18n::number(static_cast<int64_t>(n));
         count_ = gfx::Text(countText_, type::monoBadge);
+        images_ = p.tracks.empty() ? std::vector<catalog::Image>{} : p.tracks.front().album.images;
+        many_ = n > 1;
     }
 
     void paint(Canvas& c) override {
@@ -81,6 +90,13 @@ public:
         const auto& acc = accent();
         const gfx::Point p = g_drag.pos;
         float x = std::round(p.x + 16), y = std::round(p.y + 12);
+        // It comes in from the pointer: a short fade and a 4 DIP drift (none without micro-interactions).
+        const float a = in_.value();
+        const bool entering = a < 0.999f;
+        if (entering) {
+            c.pushOpacity(a);
+            c.pushTransform(D2D1::Matrix3x2F::Translation(-(1 - a) * 4, -(1 - a) * 4));
+        }
         if (g_drag.explorer) {
             // A playlist file: "Listeyi içe aktar". Over the queue: "Sıraya ekle"; anywhere else the files play at once.
             const bool list = playlistFile(g_drag.payload) != nullptr;
@@ -94,16 +110,38 @@ public:
             c.icon(list ? "list" : queue ? "queue" : "play", {r.x + 12, r.cy() - 7, 14, 14}, acc.base);
             c.text(label_, {r.x + 12 + 14 + 8, r.y, w, r.h}, col.fgPrimary, gfx::VAlign::Center);
         } else {
-            const float bw = std::max(18.f, std::ceil(count_.measure().w) + 10);
-            const float tw = std::min(260.f, std::ceil(title_.measure().w));
-            const Rect r{x, y, 10 + bw + 10 + tw + 14, 36};
+            // A small card of what travels: the first song's cover, its title, its artists or how many more come
+            // along; several songs stack two hairline cards behind it and carry the count on the cover's corner.
+            const float titleW = std::ceil(title_.measure().w), subW = std::ceil(sub_.measure().w);
+            const float tw = std::min(240.f, std::max(titleW, subW));
+            const Rect r{x, y, 8 + 36 + 10 + tw + 14, 52};
+            const Color edge = g_drag.accepted ? acc.base : col.hairStrong;
+            if (many_)
+                for (int k = 2; k >= 1; --k) {
+                    const Rect back = r.offset(4.f * k, 4.f * k);
+                    c.fillRounded(back, gfx::radii().toast, col.bgElevated);
+                    c.strokeRounded(back.inset(0.5f), gfx::radii().toast, col.hairDefault);
+                }
             c.shadow(r, gfx::radii().toast, 24, 8, col.shadowToast);
             c.fillRounded(r, gfx::radii().toast, col.bgElevated);
-            c.strokeRounded(r, gfx::radii().toast, g_drag.accepted ? acc.base : col.hairStrong);
-            const Rect badge{r.x + 10, r.cy() - 9, bw, 18};
-            c.fillPill(badge, acc.base);
-            c.text(countText_, type::monoBadge, badge, acc.onAccent, gfx::TextAlign::Center, gfx::VAlign::Center);
-            c.text(title_, {badge.right() + 10, r.y, tw + 1, r.h}, col.fgPrimary, gfx::VAlign::Center);
+            c.strokeRounded(r.inset(0.5f), gfx::radii().toast, edge);
+            const Rect art{r.x + 8, r.cy() - 18, 36, 36};
+            drawArtwork(c, images_, art, gfx::radii().art);
+            const float tx = art.right() + 10;
+            // At the width they were measured at when they fit (no relayout on every frame of the drag).
+            c.text(title_, {tx, r.y + 8, titleW <= tw ? 100000.f : tw, 20}, col.fgPrimary, gfx::VAlign::Center);
+            c.text(sub_, {tx, r.y + 27, subW <= tw ? 100000.f : tw, 16}, col.fgSecondary, gfx::VAlign::Center);
+            if (many_) {   // the count, a pill on the cover's top-right corner
+                const float bw = std::max(18.f, std::ceil(count_.measure().w) + 10);
+                const Rect badge{art.right() - bw * 0.5f - 2, art.y - 7, bw, 18};
+                c.fillPill(badge.inset(-1.5f, -1.5f), col.bgElevated);
+                c.fillPill(badge, acc.base);
+                c.text(countText_, type::monoBadge, badge, acc.onAccent, gfx::TextAlign::Center, gfx::VAlign::Center);
+            }
+        }
+        if (entering) {
+            c.popTransform();
+            c.popLayer();
         }
         // Keep ticking while the drag lasts: targets auto-scroll and open folders while the pointer rests on them,
         // and a release the source never saw (capture lost) ends the drag.
@@ -120,8 +158,12 @@ public:
     }
 
 private:
-    gfx::Text title_{{}, type::body}, count_{{}, type::monoBadge}, label_{{}, type::caption.withWeight(600)};
+    gfx::Text title_{{}, type::body}, sub_{{}, type::caption}, count_{{}, type::monoBadge},
+        label_{{}, type::caption.withWeight(600)};
     std::wstring countText_;
+    std::vector<catalog::Image> images_;
+    bool many_ = false;
+    ui::Anim in_{1.f};
 };
 
 // The drop target under the pointer (window DIPs), if any. Nothing takes drops behind a modal dialog.

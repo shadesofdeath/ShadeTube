@@ -2,6 +2,7 @@
 #include "app/Together.h"
 
 #include "app/AppContext.h"
+#include "app/Components.h"
 #include "app/InternetRadio.h"
 #include "app/JamCrypto.h"
 #include "app/JamInvite.h"
@@ -1527,19 +1528,21 @@ std::wstring addedBy(const catalog::Track& t) {
 }
 
 namespace {
-gfx::Text badgeText(const std::wstring& name) { return gfx::Text(L"+ " + toUpperTr(name), gfx::type::monoBadge); }
+// "+ ADA": the shared accent badge (app/Components badge::); long names are cut to 14 characters.
+gfx::Text badgeText(const std::wstring& name) {
+    std::wstring n = name.size() > 14 ? name.substr(0, 13) + L"…" : name;
+    return gfx::Text(L"+ " + toUpperTr(n), gfx::type::monoBadge);
+}
+} // namespace
+
+float addedBadgeWidth(const std::wstring& name) {
+    gfx::Text label = badgeText(name);
+    return badge::width(label);
 }
 
-float addedBadgeWidth(const std::wstring& name) { return std::ceil(std::min(110.f, badgeText(name).measure().w)) + 12; }
-
 float drawAddedBadge(gfx::Canvas& c, float x, float cy, const std::wstring& name) {
-    const auto& acc = gfx::accent();
-    const float w = addedBadgeWidth(name);
-    const gfx::Rect r{x, std::round(cy - 7), w, 14};
-    c.fillRounded(r, gfx::radii().badge, acc.tint12);
     gfx::Text label = badgeText(name);
-    c.text(label, {r.x + 6, r.y, w - 12, r.h}, acc.base, gfx::VAlign::Center);
-    return w;
+    return badge::draw(c, x, cy, label, badge::Tone::Accent);
 }
 
 std::wstring barLabel() {
