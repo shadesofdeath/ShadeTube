@@ -2,8 +2,10 @@
 // quick-access grid, then shelves that scroll sideways (app/HomeWidgets).
 // Logged in: Yeni çıkanlar (followed artists), Spotify's personalized shelves ("home" feed: Made For You, Daily Mixes...),
 // Senin için listeler, recently played (local history) and the user's library (playlists, saved albums, followed
-// artists). Logged out: recently played, Senin için listeler, the local playlists, then what MusicBrainz / ListenBrainz
-// give (trending this week + fresh releases, artists similar to what you play most, popular artists, more albums).
+// artists). Logged out: recently played, Senin için listeler, the local playlists, then what the open catalog gives:
+// MusicBrainz / ListenBrainz (trending this week + fresh releases, artists similar to what you play most, popular
+// artists, more albums) or YouTube Music (artists related to the one played most, then its home feed, new albums &
+// singles, trending songs, charts and top artists, titled as YouTube Music titles them).
 #include "app/HomeWidgets.h"
 #include "app/InternetRadio.h"
 #include "app/LibraryView.h"
@@ -23,6 +25,7 @@
 #include "gfx/Theme.h"
 #include "musicbrainz/MusicBrainz.h"
 #include "spotify/Session.h"
+#include "ytmusic/YtMusic.h"
 
 #include <chrono>
 #include <cmath>
@@ -358,6 +361,7 @@ public:
 
     // Starts a background fetch when nothing fresh is cached for this user and no retry back-off is pending.
     // The Api* is captured here, on the UI thread; the request runs on a worker. `owner` = the asking page.
+    // `userId` "ytm" is YouTube Music's home (no account: the same feed for everyone in the region).
     void ensure(const std::string& userId, Lifetime::Ref owner) {
         using namespace std::chrono;
         const auto now = steady_clock::now();
@@ -366,9 +370,11 @@ public:
             userId_ = userId;
         }
         if (inFlight_ || (hasData_ && now - fetchedAt_ < kFreshFor) || now < retryAt_) return;
-        spotify::Api* api = source::activeApi();
-        if (!api) return;
+        const bool ytmHome = userId == kYtmUser;
+        spotify::Api* api = ytmHome ? nullptr : source::activeApi();
+        if (!api && !ytmHome) return;
         inFlight_ = true;
+        failed_ = false;
         const unsigned gen = generation_;
         // The continuation runs on the cache's own Lifetime (never renewed): a fetch started by a page that is
         // navigated away from still fills the cache, so the next Home shows the shelves immediately. That Lifetime
@@ -378,7 +384,7 @@ public:
             Priority::Normal, life_.ref(),
             [api, owner]() -> std::optional<std::vector<Shelf>> {
                 if (owner.expired()) return std::nullopt;
-                return api->home();
+                return api ? api->home() : ytm::home();
             },
             [this, gen](Result<std::optional<std::vector<Shelf>>> r) {
                 if (gen != generation_) return;   // logged out / switched account meanwhile
@@ -393,10 +399,14 @@ public:
                         std::rethrow_exception(r.error());
                     } catch (const spotify::ApiError& e) {
                         status = e.status;
+                    } catch (const ytm::ApiError& e) {
+                        status = e.status;
                     } catch (...) {
                     }
-                    retryAt_ = steady_clock::now() + (status == 429 ? minutes(10) : minutes(3));
-                    ST_LOG_WARN("home", "Spotify home shelves unavailable (HTTP {}): {}; showing the library-only home",
+                    failed_ = true;
+                    error_ = r.errorMessage();
+                    retryAt_ = steady_clock::now() + (status == 429 ? minutes(10) : userId_ == kYtmUser ? seconds(20) : minutes(3));
+                    ST_LOG_WARN("home", "{} home shelves unavailable (HTTP {}): {}", userId_ == kYtmUser ? "YouTube Music" : "Spotify",
                                 status, r.errorMessage());
                     notify();   // the skeleton shelves go
                     return;
@@ -404,7 +414,7 @@ public:
                 shelves_ = std::move(**r);
                 hasData_ = true;
                 fetchedAt_ = steady_clock::now();
-                ST_LOG_INFO("home", "{} Spotify home shelves", shelves_.size());
+                ST_LOG_INFO("home", "{} {} home shelves", shelves_.size(), userId_ == kYtmUser ? "YouTube Music" : "Spotify");
                 notify();
             });
     }
@@ -413,10 +423,18 @@ public:
         ++generation_;
         inFlight_ = false;
         hasData_ = false;
+        failed_ = false;
         shelves_.clear();
         userId_.clear();
         retryAt_ = {};
     }
+    // The last fetch failed (and nothing is cached): its error, for a "try again" panel.
+    bool failed() const { return failed_ && !hasData_; }
+    const std::string& error() const { return error_; }
+    // "Tekrar dene": the next ensure() fetches at once.
+    void retryNow() { retryAt_ = {}; }
+
+    static constexpr const char* kYtmUser = "ytm";
 
     // Fired (UI thread) when fresh shelves arrive; dies with the owner's Lifetime.
     void subscribe(Lifetime::Ref owner, std::function<void()> fn) {
@@ -438,6 +456,8 @@ private:
     std::vector<Shelf> shelves_;
     bool hasData_ = false;
     bool inFlight_ = false;
+    bool failed_ = false;
+    std::string error_;
     unsigned generation_ = 0;
     std::chrono::steady_clock::time_point fetchedAt_{}, retryAt_{};
     std::vector<std::pair<Lifetime::Ref, std::function<void()>>> listeners_;
@@ -471,14 +491,21 @@ bool duplicatesLibrarySection(const Shelf& shelf) {
     return false;
 }
 
-// One Spotify shelf: header + a sideways row of cards. Playlists/albums get a hover play button ("#play").
-void addSpotifyShelf(ui::Column* c, const Shelf& shelf) {
-    ui::Widget* row = home::addShelf(c, toWide(shelf.title), toUpperTr(toWide(shelf.label)));
+// One Spotify / YouTube Music shelf: header + a sideways row of cards. Playlists/albums get a hover play button
+// ("#play"). YouTube Music's songs play from the card (the shelf's songs from that one on) and open their album.
+void addSpotifyShelf(ui::Column* c, const Shelf& shelf, const std::wstring& fallbackLabel = {}) {
+    const std::wstring label = shelf.label.empty() ? fallbackLabel : toUpperTr(toWide(shelf.label));
+    ui::Widget* row = home::addShelf(c, toWide(shelf.title), label);
+    std::vector<Track> songs;   // the shelf's YouTube Music songs, in order (what a song card plays)
+    for (const auto& it : shelf.items)
+        if (it.kind == CardItem::Kind::Track && ytm::isTrackId(it.track.id)) songs.push_back(it.track);
+    const std::wstring shelfName = toWide(shelf.title);
     for (const auto& it : shelf.items) {
         Route open;
         bool playable = false;
         auto shape = MediaCard::Shape::Square;
         auto ph = Placeholder::Album;
+        const bool ytmSong = it.kind == CardItem::Kind::Track && ytm::isTrackId(it.track.id);
         switch (it.kind) {
         case CardItem::Kind::Playlist:
             open = it.id == spotify::Api::kLikedSongsUri ? Route{RouteKind::Liked} : Route{RouteKind::Playlist, it.id};
@@ -495,13 +522,23 @@ void addSpotifyShelf(ui::Column* c, const Shelf& shelf) {
             ph = Placeholder::Artist;
             break;
         case CardItem::Kind::Track:   // opens the track's album
-            if (it.track.album.id.empty()) continue;
-            open = {RouteKind::Album, it.track.album.id};
+            if (it.track.album.id.empty() && !ytmSong) continue;
+            if (!it.track.album.id.empty()) open = {RouteKind::Album, it.track.album.id};
             break;
         }
         auto* card = row->add<MediaCard>(toWide(it.title), toWide(it.subtitle), it.images, shape, ph);
         card->previewTarget = it.kind == CardItem::Kind::Track ? std::optional(preview::songTarget(it.track))
                                                                : preview::collectionTarget(open, toWide(it.title), it.images);
+        if (ytmSong) {
+            int index = 0;
+            for (size_t i = 0; i < songs.size(); ++i)
+                if (songs[i].id == it.track.id) index = static_cast<int>(i);
+            auto play = [songs, index, shelfName] { ctx().player->playContext(songs, index, {"ytm:home", shelfName}); };
+            card->onPlay = play;
+            if (open.id.empty()) card->onOpen = play;   // a music video: no album page
+            else card->onOpen = [open] { ctx().router->navigate(open); };
+            continue;
+        }
         card->onOpen = [open] { ctx().router->navigate(open); };
         if (playable) card->onPlay = [play = playing(open)] { ctx().router->navigate(play); };
     }
@@ -632,9 +669,10 @@ public:
         // Rebuild when the Spotify session (and its library) changes: logging in swaps the whole feed.
         if (ctx().session)
             ctx().session->subscribe(life_.ref(), [this] { reload(); });
-        // ...and when the personalized shelves arrive (or refresh).
+        // ...and when the personalized shelves arrive (or refresh); logged out with YouTube Music, its home feed.
         ShelfCache::instance().subscribe(life_.ref(), [this] {
             if (source::loggedIn()) buildSpotify();
+            else if (source::ytmMode()) fillYtm();
         });
         // ...and when new releases of followed artists come in (the shelf on top).
         subscribeNewReleases(life_.ref(), [this] {
@@ -649,10 +687,58 @@ private:
             buildSpotify();
             return;
         }
-        if (!ctx().session || ctx().session->state() == spotify::SessionState::LoggedOut)
+        if ((!ctx().session || ctx().session->state() == spotify::SessionState::LoggedOut) && !source::ytmMode())
             ShelfCache::instance().reset();   // logged out: forget the previous user's feed
         buildLocal();
-        load();
+        if (source::ytmMode()) loadYtm();
+        else load();
+    }
+
+    // Logged out with YouTube Music: its home feed (ShelfCache, kept for the app session) under the local sections,
+    // and "Sana özel": the artists YouTube Music relates to the one played most here.
+    void loadYtm() {
+        auto& cache = ShelfCache::instance();
+        cache.ensure(ShelfCache::kYtmUser, life_.ref());
+        fillYtm();
+        auto seeds = ctx().library.topArtists(6);
+        std::erase_if(seeds, [](const ArtistRef& a) { return !source::isYtmId(a.id); });
+        if (seeds.empty()) return;
+        const ArtistRef seed = seeds[0];
+        async(Priority::Normal, netLife_.ref(), [seed] { return ytm::artistPage(seed.id).similar; },
+              [this, seed](Result<std::vector<Artist>> r) {
+                  if (!r || r->empty()) return;
+                  forYou_ = std::move(*r);
+                  forYouSeed_ = toWide(seed.name);
+                  fillYtm();
+              });
+    }
+
+    void fillYtm() {
+        if (!net_) return;
+        auto& cache = ShelfCache::instance();
+        const std::vector<Shelf>* shelves = cache.shelvesFor(ShelfCache::kYtmUser);
+        net_->clearChildren();
+        if (!forYou_.empty())
+            addArtistCards(home::addShelf(net_, tr(L"Sana özel"),
+                                          i18n::format(tr(L"{} DİNLEYENLER BUNLARI DA SEVİYOR"), {toUpperTr(forYouSeed_)})),
+                           forYou_, tr(L"Benzer sanatçı"));
+        if (shelves && !shelves->empty()) {
+            for (const auto& shelf : *shelves) addSpotifyShelf(net_, shelf, L"YOUTUBE MUSIC");
+        } else if (cache.failed()) {
+            net_->add<MessagePanel>("offline", tr(L"Bir şeyler ters gitti"), toWide(cache.error()), tr(L"Tekrar dene"), [this] {
+                ShelfCache::instance().retryNow();
+                Dispatcher::post([this, ref = life_.ref()] {
+                    if (ref.expired()) return;
+                    ShelfCache::instance().ensure(ShelfCache::kYtmUser, life_.ref());
+                    fillYtm();
+                });
+            });
+        } else {
+            net_->add<home::ShelfSkeleton>();
+            net_->add<home::ShelfSkeleton>(true);
+        }
+        scroll_->contentChanged();
+        applyDemo();
     }
 
     // While the library and the shelves are both still on their way: the greeting over placeholders.
@@ -815,7 +901,7 @@ private:
         // Seeds are MusicBrainz artists only: history played while logged in to Spotify carries "spotify:artist:"
         // URIs, which ListenBrainz/MusicBrainz reject (HTTP 400, then a wasted rate-limited tag-overlap fallback).
         auto seeds = ctx().library.topArtists(4);
-        std::erase_if(seeds, [](const ArtistRef& a) { return source::isSpotifyId(a.id); });
+        std::erase_if(seeds, [](const ArtistRef& a) { return a.id.empty() || source::isSpotifyId(a.id) || source::isYtmId(a.id); });
         if (seeds.size() > 2) seeds.resize(2);
         async(
             Priority::High, netLife_.ref(),
@@ -975,6 +1061,8 @@ private:
 
     ui::Column* net_ = nullptr;   // logged out: the open catalog's sections
     Lifetime netLife_;            // its load
+    std::vector<Artist> forYou_;  // YouTube Music: artists related to the one played most here
+    std::wstring forYouSeed_;
     bool demoDone_ = false;
 };
 

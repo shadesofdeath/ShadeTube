@@ -6,6 +6,7 @@
 #include <YoutubeExplode/Exceptions.hpp>
 #include <YoutubeExplode/Music/MusicClient.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <future>
@@ -171,6 +172,22 @@ ArtistResult artistResult(const std::string& id, const CT& ct) {
     if (auto hit = artists().get(channel)) return std::move(*hit);
     ArtistResult r = parseArtist(browse(channel, ct), channel);
     if (r.page.artist.name.empty()) throw ApiError(404, "YouTube Music has no artist " + channel);
+    // The page shows five top songs without their length; "Top songs" opens the artist's songs by popularity, the
+    // same five first, with lengths and albums: the first 20 of it are the top songs.
+    if (!r.songsPlaylistId.empty()) {
+        try {
+            const PlaylistPage songs = parsePlaylist(browse("VL" + r.songsPlaylistId, ct), r.songsPlaylistId);
+            if (songs.tracks.size() >= r.page.topTracks.size()) {
+                r.page.topTracks.assign(songs.tracks.begin(), songs.tracks.begin() + std::min<size_t>(20, songs.tracks.size()));
+                for (auto& t : r.page.topTracks)
+                    if (t.artists.empty()) t.artists = {{r.page.artist.id, r.page.artist.name}};
+            }
+        } catch (const yte::Exceptions::OperationCanceledException&) {
+            throw;
+        } catch (const std::exception& e) {
+            ST_LOG_WARN("ytmusic", "songs of {} not loaded: {}", channel, e.what());
+        }
+    }
     artists().put(channel, r);
     return r;
 }
@@ -256,6 +273,14 @@ catalog::SearchResults search(const std::string& query, int limit, const CT& ct)
     return out;
 }
 
+catalog::SearchResults searchKind(const std::string& query, SearchKind kind, const CT& ct) {
+    const char* params = kind == SearchKind::Songs    ? kSongs
+                         : kind == SearchKind::Albums ? kAlbums
+                         : kind == SearchKind::Artists ? kArtists
+                                                       : kFeaturedPlaylists;
+    return parseSearch(send("search", {{"query", query}, {"params", params}}, ct));
+}
+
 catalog::Album album(const std::string& id, const CT& ct) {
     const std::string browseId = rawAlbum(id);
     if (browseId.empty()) throw ApiError(404, "not a YouTube Music album id: " + id);
@@ -310,6 +335,7 @@ std::vector<catalog::Track> playlistTracks(const std::string& id, size_t maxTrac
 std::vector<catalog::Shelf> home(const CT& ct) {
     // Three sources in parallel: the home feed (with two continuation pages), explore, charts.
     auto feed = std::async(std::launch::async, [ct] {
+        // The feed's continuations are answered for the visitor it was made for: MusicClient keeps one per session.
         ShelvesPage page = parseShelves(browse("FEmusic_home", ct, {}, Lang::Ui));
         std::vector<catalog::Shelf> out = std::move(page.shelves);
         for (int i = 0; i < 2 && !page.continuation.empty(); ++i) {

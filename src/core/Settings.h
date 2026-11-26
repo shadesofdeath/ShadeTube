@@ -88,6 +88,9 @@ struct Settings {
     // With the backup source on: when neither YouTube nor a backup server plays a song, look for it on SoundCloud
     // (full-length uploads whose duration matches; youtube/SoundCloud).
     bool altSoundCloud = true;
+    // The catalog used while no Spotify account is connected (app/Source): "musicbrainz" (MusicBrainz / ListenBrainz)
+    // or "ytmusic" (YouTube Music, src/ytmusic). Picked on the connect screen or in Ayarlar › Spotify.
+    std::string openCatalog = "musicbrainz";
     std::vector<std::string> localFolders;   // "Yerel dosyalar": folders scanned for the user's own music files
     std::string localView;               // its view: "songs" (also ""), "albums", "artists", "folders"
     std::string localFolder;             // the folder its Klasörler view showed last ("" = the top level)

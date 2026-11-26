@@ -8,6 +8,9 @@
 #include <chrono>
 #include <cstdio>
 #include <ctime>
+#include <mutex>
+#include <optional>
+#include <string_view>
 
 namespace YoutubeExplode::Music {
 
@@ -44,7 +47,15 @@ std::string MusicClient::send(const MusicRequest& request, const CancellationTok
     const std::string hl = request.language.empty() ? options.language : request.language;
     const std::string gl = request.region.empty() ? options.region : request.region;
     const std::string version = clientVersion();
-    const auto visitorData = context_->visitorData(cancellationToken);
+    // One visitor per session: the request that obtains it goes alone, the ones that waited use it.
+    auto visitorData = context_->musicVisitorData();
+    std::unique_lock<std::mutex> first;
+    if (!visitorData) {
+        first = std::unique_lock<std::mutex>(context_->musicVisitorMutex());
+        visitorData = context_->musicVisitorData();
+        if (visitorData)
+            first.unlock();
+    }
 
     Json client = {{"clientName", kClientName}, {"clientVersion", version}, {"hl", hl}, {"gl", gl}};
     if (visitorData)
@@ -61,7 +72,18 @@ std::string MusicClient::send(const MusicRequest& request, const CancellationTok
                              {"X-YouTube-Client-Version", version}};
     if (visitorData)
         headers.emplace_back("X-Goog-Visitor-Id", *visitorData);
-    return context_->postJson(url, body.dump(), cancellationToken, headers);
+    std::string response = context_->postJson(url, body.dump(), cancellationToken, headers);
+    if (!visitorData) {
+        // The visitor YouTube Music made for this session: near the start of the answer (responseContext comes first).
+        static constexpr std::string_view kKey = "\"visitorData\":\"";
+        const std::string_view head = std::string_view(response).substr(0, 8192);
+        if (const auto at = head.find(kKey); at != std::string_view::npos) {
+            const auto start = at + kKey.size();
+            if (const auto end = head.find('"', start); end != std::string_view::npos && end > start)
+                context_->setMusicVisitorData(std::string(head.substr(start, end - start)));
+        }
+    }
+    return response;
 }
 
 } // namespace YoutubeExplode::Music

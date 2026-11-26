@@ -18,6 +18,7 @@
 #include "app/Shell.h"
 #include "app/Smtc.h"
 #include "app/Social.h"
+#include "app/Source.h"
 #include "app/ThemeStudio.h"
 #include "app/Together.h"
 #include "catalog/TrackKind.h"
@@ -35,6 +36,7 @@
 #include "gfx/Theme.h"
 #include "ui/Popups.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <algorithm>
 #include <chrono>
@@ -150,6 +152,9 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
     yto.region = Settings::get().region;
     matcher_ = std::make_unique<youtube::MatchService>(YoutubeExplode::YoutubeClient(yto));
     player_ = std::make_unique<player::Player>(*matcher_);
+    // YouTube Music (the open catalog's other choice) talks through the same YouTube session as playback.
+    ytm::setClient(matcher_->client());
+    source::applyOpenCatalog();
 
     auto& c = ctx();
     c.matcher = matcher_.get();

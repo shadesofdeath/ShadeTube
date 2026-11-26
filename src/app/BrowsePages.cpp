@@ -1,4 +1,5 @@
-﻿// Search, Library and Artist pages. Each reads Spotify when logged in and MusicBrainz otherwise (see Source.h).
+﻿// Search, Library and Artist pages. Each reads Spotify when logged in and the open catalog (MusicBrainz or YouTube
+// Music) otherwise (see Source.h).
 #include "app/Blacklist.h"
 #include "app/CollapsingHeader.h"
 #include "app/DownloadSync.h"
@@ -9,6 +10,7 @@
 #include "app/Pages.h"
 #include "app/SmartListsPage.h"
 #include "app/PlaylistTransfer.h"
+#include "app/Radio.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -21,6 +23,7 @@
 #include "spotify/Session.h"
 #include "ui/Popups.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <algorithm>
 #include <array>
@@ -132,6 +135,48 @@ MediaCard* addArtistCard(ui::Grid* grid, const Artist& a) {
     card->previewTarget = preview::collectionTarget({RouteKind::Artist, id}, toWide(a.name), a.images);
     card->onOpen = [id] { ctx().router->navigate({RouteKind::Artist, id}); };
     return card;
+}
+
+// A catalog playlist (YouTube Music search results, mood pages): "<owner> · <n> şarkı".
+MediaCard* addPlaylistCard(ui::Grid* grid, const Playlist& p) {
+    std::wstring sub = p.countKnown ? i18n::plural(L"{} şarkı", p.totalTracks) : std::wstring(tr(L"Çalma listesi"));
+    if (!p.ownerName.empty()) sub = toWide(p.ownerName) + L" · " + sub;
+    auto* card = grid->add<MediaCard>(toWide(p.name), sub, p.images, MediaCard::Shape::Square, Placeholder::Playlist);
+    const std::string id = p.id;
+    card->previewTarget = preview::collectionTarget({RouteKind::Playlist, id}, toWide(p.name), p.images);
+    card->onOpen = [id] { ctx().router->navigate({RouteKind::Playlist, id}); };
+    card->onPlay = [id] { ctx().router->navigate({RouteKind::Playlist, id + "#play"}); };
+    return card;
+}
+
+// A shelf card of YouTube Music (a mood's playlists): playlists / albums / artists open their page; the subtitle is the
+// one YouTube Music shows.
+void addShelfCard(ui::Grid* grid, const CardItem& it) {
+    if (it.kind == CardItem::Kind::Track) return;   // mood pages hold lists, not songs
+    const RouteKind kind = it.kind == CardItem::Kind::Playlist ? RouteKind::Playlist
+                           : it.kind == CardItem::Kind::Album  ? RouteKind::Album
+                                                               : RouteKind::Artist;
+    const bool artist = kind == RouteKind::Artist;
+    auto* card = grid->add<MediaCard>(toWide(it.title), toWide(it.subtitle), it.images,
+                                      artist ? MediaCard::Shape::Circle : MediaCard::Shape::Square,
+                                      artist ? Placeholder::Artist : kind == RouteKind::Album ? Placeholder::Album : Placeholder::Playlist);
+    const Route open{kind, it.id};
+    card->previewTarget = preview::collectionTarget(open, toWide(it.title), it.images);
+    card->onOpen = [open] { ctx().router->navigate(open); };
+    if (!artist) card->onPlay = [kind, id = it.id] { ctx().router->navigate({kind, id + "#play"}); };
+}
+
+// YouTube Music's "Moods & genres" tiles, fetched once per run (UI language) for the Search page's browse view.
+struct MoodCache {
+    std::vector<ytm::Mood> moods;
+    bool loading = false;
+    bool failed = false;
+    std::vector<std::pair<Lifetime::Ref, std::function<void()>>> listeners;   // pages waiting for the tiles
+    Lifetime life;
+};
+MoodCache& moodCache() {
+    static MoodCache c;
+    return c;
 }
 
 // ===================================================================================================
@@ -540,17 +585,21 @@ private:
             flow->onPreferredHeight = [flow, flowLayout](float w) { return flowLayout(*flow, w, false); };
             c->setSpacingBefore(flow, 12);
         }
-        auto* genres = c->add<SectionHeader>(tr(L"Türlere göz at"), tr(L"MUSICBRAINZ ETİKETLERİ"));
-        if (!chips.empty()) c->setSpacingBefore(genres, gfx::metrics::sectionGap);
-        auto* grid = c->add<ui::Grid>(200.f, 12.f, [](float) { return 120.f; });
-        int i = 0;
-        for (const auto& g : genreList()) {
-            wchar_t idx[8];
-            swprintf(idx, 8, L"%02d", ++i);
-            auto* t = grid->add<Tile>(idx, g.title, Color::rgb(g.color));
-            const std::wstring title = g.title;
-            const std::string tag = g.tag;
-            t->onClick = [this, title, tag] { runTagSearch(title, tag); };
+        if (source::ytmMode()) {
+            addMoodTiles(c, !chips.empty());
+        } else {
+            auto* genres = c->add<SectionHeader>(tr(L"Türlere göz at"), tr(L"MUSICBRAINZ ETİKETLERİ"));
+            if (!chips.empty()) c->setSpacingBefore(genres, gfx::metrics::sectionGap);
+            auto* grid = c->add<ui::Grid>(200.f, 12.f, [](float) { return 120.f; });
+            int i = 0;
+            for (const auto& g : genreList()) {
+                wchar_t idx[8];
+                swprintf(idx, 8, L"%02d", ++i);
+                auto* t = grid->add<Tile>(idx, g.title, Color::rgb(g.color));
+                const std::wstring title = g.title;
+                const std::string tag = g.tag;
+                t->onClick = [this, title, tag] { runTagSearch(title, tag); };
+            }
         }
         scroll_->contentChanged();
         if (focusChip >= 0) {
@@ -559,6 +608,95 @@ private:
                 else w->focusByKeyboard(chips[std::min<size_t>(focusChip, chips.size() - 1)]);
             }
         }
+    }
+
+    // YouTube Music: its "Moods & genres" tiles per section (fetched once per run; placeholders until then). A tile
+    // shows that mood's playlists.
+    void addMoodTiles(ui::Column* c, bool afterChips) {
+        auto& mc = moodCache();
+        if (mc.moods.empty()) {
+            auto* head = c->add<SectionHeader>(tr(L"Ruh hâli ve türler"), L"YOUTUBE MUSIC");
+            if (afterChips) c->setSpacingBefore(head, gfx::metrics::sectionGap);
+            if (mc.failed) {
+                c->add<MessagePanel>("offline", tr(L"Türler yüklenemedi"), tr(L"Bağlantını kontrol edip tekrar dene."),
+                                     tr(L"Tekrar dene"), [this] {
+                                         moodCache().failed = false;
+                                         showBrowse();
+                                     });
+                return;
+            }
+            c->add<SkeletonBlock>(3);
+            // This view comes back with the tiles when they land (unless the page shows something else by then: a
+            // search renews life_ and drops the listener).
+            mc.listeners.emplace_back(life_.ref(), [this] {
+                if (box_->text().empty() && !linkShown_) showBrowse();
+            });
+            if (!mc.loading) {
+                mc.loading = true;
+                async(Priority::High, mc.life.ref(), [] { return ytm::moods(); },
+                      [](Result<std::vector<ytm::Mood>> r) {
+                          auto& m = moodCache();
+                          m.loading = false;
+                          if (r && !r->empty()) m.moods = std::move(*r);
+                          else {
+                              m.failed = true;
+                              ST_LOG_WARN("search", "YouTube Music moods: {}", r ? std::string("none") : r.errorMessage());
+                          }
+                          auto listeners = std::move(m.listeners);
+                          m.listeners.clear();
+                          for (auto& [ref, fn] : listeners)
+                              if (!ref.expired()) fn();
+                      });
+            }
+            return;
+        }
+        std::string section;
+        bool first = true;
+        ui::Grid* grid = nullptr;
+        int i = 0;
+        for (const auto& m : mc.moods) {
+            if (!grid || m.section != section) {
+                section = m.section;
+                auto* head = c->add<SectionHeader>(section.empty() ? std::wstring(tr(L"Ruh hâli ve türler")) : toWide(section),
+                                                   first ? std::wstring(L"YOUTUBE MUSIC") : std::wstring());
+                if (afterChips || !first) c->setSpacingBefore(head, gfx::metrics::sectionGap);
+                first = false;
+                grid = c->add<ui::Grid>(200.f, 12.f, [](float) { return 120.f; });
+                i = 0;
+            }
+            wchar_t idx[8];
+            swprintf(idx, 8, L"%02d", ++i);
+            auto* t = grid->add<Tile>(idx, toWide(m.title), tileColor(m.title));
+            const std::wstring title = toWide(m.title);
+            const std::string params = m.params;
+            t->onClick = [this, title, params] { runMoodSearch(title, params); };
+        }
+    }
+
+    // One mood of YouTube Music: its shelves of playlists.
+    void runMoodSearch(const std::wstring& title, const std::string& params) {
+        life_.renew();
+        query_ = title;
+        auto* c = resetContent(20.f);
+        c->setPadding(gfx::metrics::pageX, 20, 48);
+        c->add<SkeletonBlock>(4);
+        scroll_->contentChanged();
+        async(Priority::High, life_.ref(), [params] { return ytm::moodShelves(params); },
+              [this, title, params](Result<std::vector<Shelf>> r) {
+                  if (!r) return showError(toWide(r.errorMessage()), [this, title, params] { runMoodSearch(title, params); });
+                  auto* c = resetContent(24.f);
+                  c->setPadding(gfx::metrics::pageX, 20, 48);
+                  auto* heading = c->add<ui::Label>(title, type::displayM);
+                  heading->setVAlign(gfx::VAlign::Top);
+                  for (const auto& shelf : *r) {
+                      c->add<SectionHeader>(toWide(shelf.title), std::to_wstring(shelf.items.size()));
+                      auto* g = addCardRow(c, 150, 0);
+                      for (const auto& it : shelf.items) addShelfCard(g, it);
+                  }
+                  if (r->empty())
+                      c->add<MessagePanel>("search", tr(L"Sonuç bulunamadı"), tr(L"YouTube Music bu tür için liste göstermedi."));
+                  contentReady();
+              });
     }
 
     // Rebuilds the empty-query view after a recent search was removed / cleared (posted: the clicked chip or link dies
@@ -650,16 +788,19 @@ private:
         tab_ = tab;
         auto* c = resetContent(24.f);
         c->setPadding(gfx::metrics::pageX, 16, 48);
-        auto* tabs =
-            c->add<Tabs>(std::vector<std::wstring>{tr(L"Tümü"), tr(L"Şarkılar"), tr(L"Albümler"), tr(L"Sanatçılar")});
+        const auto& R = results_;
+        // YouTube Music also finds playlists: a fifth tab.
+        std::vector<std::wstring> labels{tr(L"Tümü"), tr(L"Şarkılar"), tr(L"Albümler"), tr(L"Sanatçılar")};
+        if (!R.playlists.empty()) labels.push_back(tr(L"Çalma listeleri"));
+        if (tab >= static_cast<int>(labels.size())) tab = tab_ = 0;
+        auto* tabs = c->add<Tabs>(labels);
         tabs->select(tab, false);
         tabs->onSelect = [this](int i) {
             Dispatcher::post([this, i, ref = life_.ref()] {
                 if (!ref.expired()) showResults(i);
             });
         };
-        const auto& R = results_;
-        if (R.tracks.empty() && R.albums.empty() && R.artists.empty()) {
+        if (R.tracks.empty() && R.albums.empty() && R.artists.empty() && R.playlists.empty()) {
             c->add<MessagePanel>(
                 "search", tr(L"Sonuç bulunamadı"),
                 i18n::format(tr(L"\"{}\" için bir şey bulamadık. Yazımı kontrol et ya da başka bir şey dene."),
@@ -695,14 +836,22 @@ private:
                 auto* g = addCardRow(c, 150, 1);
                 for (const auto& a : R.albums) rememberCard(addAlbumCard(g, a));
             }
+            if (!R.playlists.empty()) {
+                c->add<SectionHeader>(tr(L"Çalma listeleri"), L"", tr(L"Tümünü gör"))->onLink = [this] { showResults(4); };
+                auto* g = addCardRow(c, 150, 1);
+                for (const auto& p : R.playlists) rememberCard(addPlaylistCard(g, p));
+            }
         } else if (tab == 1) {
             addTracks(R.tracks.size(), true);
         } else if (tab == 2) {
             auto* g = addCardRow(c, 150, 0);
             for (const auto& a : R.albums) rememberCard(addAlbumCard(g, a));
-        } else {
+        } else if (tab == 3) {
             auto* g = addCardRow(c, 150, 0);
             for (const auto& a : R.artists) rememberCard(addArtistCard(g, a));
+        } else {
+            auto* g = addCardRow(c, 150, 0);
+            for (const auto& p : R.playlists) rememberCard(addPlaylistCard(g, p));
         }
         contentReady();
     }
@@ -1387,7 +1536,8 @@ public:
         const bool f = ctx().library.isFollowing(artist_.id);
         follow_->setLabel(f ? tr(L"Takip ediliyor") : tr(L"Takip et"));
         follow_->setActive(f);
-        radio_->setVisible(radioAvailable() && artist_.id.rfind("spotify:artist:", 0) == 0);
+        radio_->setVisible(radioAvailable() && (artist_.id.rfind("spotify:artist:", 0) == 0 || source::isYtmId(artist_.id)) &&
+                           !radioSeed(artist_.id).empty());
         requestLayout();
         invalidate();
     }
@@ -1459,7 +1609,9 @@ protected:
         if (blocked()) label.append(L" · ").append(toUpperTr(tr(L"Engelli")));   // kara liste: its songs never play by themselves
         c.text(label, type::monoLabel, {r.x, r.y + 70, r.w, 14}, accent().base);
         std::wstring meta;
-        if (artist_.listenCount > 0)
+        if (artist_.listenCount > 0 && source::isYtmId(artist_.id))   // YouTube Music: its monthly audience
+            meta = i18n::plural(L"{} AYLIK DİNLEYİCİ · YOUTUBE MUSIC", artist_.listenCount, {compactCount(artist_.listenCount)});
+        else if (artist_.listenCount > 0)
             meta = i18n::plural(L"{} DİNLENME · LISTENBRAINZ", artist_.listenCount, {compactCount(artist_.listenCount)});
         else if (!artist_.disambiguation.empty()) meta = toUpperTr(toWide(artist_.disambiguation));
         if (!meta.empty()) c.text(meta, type::monoMeta, {r.x, r.y + 100 + titleSize_, r.w, 16}, col.fgSecondary);
@@ -1583,12 +1735,8 @@ private:
                      ctx().player->enqueue(top);
                      toast(tr(L"Sıraya eklendi"));
                  }},
-                {source::isSpotifyId(artist.id) ? tr(L"Spotify bağlantısını kopyala")
-                                                : tr(L"MusicBrainz bağlantısını kopyala"),
-                 "link", L"", [artist] {
-                     copyText(source::isSpotifyId(artist.id)
-                                  ? L"https://open.spotify.com/artist/" + toWide(artist.id.substr(artist.id.rfind(':') + 1))
-                                  : L"https://musicbrainz.org/artist/" + toWide(artist.id));
+                {source::copyLinkLabel(artist.id), "link", L"", [artist] {
+                     copyText(source::webLink("artist", artist.id));
                      toast(tr(L"Bağlantı kopyalandı"));
                  }}};
             // Kara liste (same wording as the track menu): its songs are skipped wherever the player picks by itself.
@@ -1607,8 +1755,9 @@ private:
                              }});
             ui::Menu::open(ctx().window, {br.x, br.bottom() + 6}, std::move(items));
         };
+        const std::wstring sourceTag = source::isYtmId(id_) ? L"YOUTUBE MUSIC" : L"LISTENBRAINZ";
         if (!d.topTracks.empty()) {
-            c->add<SectionHeader>(tr(L"Popüler"), L"LISTENBRAINZ");
+            c->add<SectionHeader>(tr(L"Popüler"), sourceTag);
             TrackTable::Options o;
             o.showAdded = false;
             o.showHeader = false;
@@ -1629,7 +1778,7 @@ private:
         addAlbums(tr(L"Tekliler ve EP'ler"), d.singles);
         addAlbums(tr(L"Derlemeler ve canlı kayıtlar"), d.other);
         if (!d.similar.empty()) {
-            c->add<SectionHeader>(tr(L"Benzer sanatçılar"), L"LISTENBRAINZ");
+            c->add<SectionHeader>(tr(L"Benzer sanatçılar"), sourceTag);
             auto* grid = addCardRow(c, 150, 1);
             c->setSpacingBefore(grid, 16);
             for (const auto& a : d.similar) addArtistCard(grid, a);

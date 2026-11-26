@@ -1,6 +1,8 @@
 #include "app/ConnectScreen.h"
 
+#include "app/Source.h"
 #include "core/I18n.h"
+#include "core/Settings.h"
 #include "core/Utf.h"
 #include "gfx/Theme.h"
 #include "spotify/Session.h"
@@ -33,6 +35,17 @@ std::wstring heroLine(int line) {
     if (br == std::wstring::npos) return line == 0 ? s : std::wstring();
     return line == 0 ? s.substr(0, br) : s.substr(br + 1);
 }
+
+// "Keşfet" without Spotify: the open catalog to browse (Settings::openCatalog), then the overlay goes.
+void explore(const char* catalog) {
+    auto& s = Settings::get();
+    if (s.openCatalog != catalog) {
+        s.openCatalog = catalog;
+        s.markDirty();
+    }
+    source::applyOpenCatalog(true);
+    if (ctx().showConnect) ctx().showConnect(false);
+}
 } // namespace
 
 ConnectScreen::ConnectScreen()
@@ -50,13 +63,16 @@ ConnectScreen::ConnectScreen()
     steps_[2] = gfx::Text(tr(L"Bir şarkı çal: eşleşen YouTube kaydından, kesintisiz çalar."), type::body, wrapOpts(2));
 
     connect_ = add<Button>(ButtonKind::Primary, tr(L"Spotify ile bağlan"), "spotify-link");
-    skip_ = add<Button>(ButtonKind::Ghost, tr(L"Spotify olmadan keşfet"));
+    // Without Spotify: YouTube Music's catalog (songs pinned to their own recordings) or MusicBrainz' open data.
+    ytm_ = add<Button>(ButtonKind::Secondary, tr(L"YouTube Music ile keşfet"), "youtube-source");
+    ytm_->setTooltip(tr(L"Google hesabı gerekmez: arama, albümler, sanatçılar, listeler ve radyo YouTube Music'ten gelir"));
+    skip_ = add<Button>(ButtonKind::Ghost, tr(L"MusicBrainz ile keşfet"));
+    skip_->setTooltip(tr(L"Açık müzik veritabanı: MusicBrainz ve ListenBrainz"));
     connect_->onClick = [] {
         if (ctx().startSpotifyLogin) ctx().startSpotifyLogin();
     };
-    skip_->onClick = [] {
-        if (ctx().showConnect) ctx().showConnect(false);
-    };
+    ytm_->onClick = [] { explore("ytmusic"); };
+    skip_->onClick = [] { explore("musicbrainz"); };
 
     // Reflect the "Bağlanıyor…" state and disable the button while a token is being minted.
     if (ctx().session)
@@ -73,10 +89,12 @@ void ConnectScreen::layout() {
     // Right-hand action column.
     const float colW = std::min(440.f, r.w * 0.42f);
     const float colX = r.w - 96 - colW;
-    const float btnY = r.h * 0.5f + 150;
-    const float cw = connect_->naturalWidth();
-    connect_->setRect({colX, btnY, std::max(cw, 220.f), gfx::metrics::pillH + 8});
-    skip_->setRect({colX, btnY + gfx::metrics::pillH + 8 + 14, skip_->naturalWidth(), gfx::metrics::ghostH});
+    const float btnY = r.h * 0.5f + 104;   // under the three steps (they end at +52)
+    const float w = std::max({connect_->naturalWidth(), ytm_->naturalWidth(), 220.f});
+    connect_->setRect({colX, btnY, w, gfx::metrics::pillH + 8});
+    const float ytmY = btnY + gfx::metrics::pillH + 8 + 12;
+    ytm_->setRect({colX, ytmY, w, gfx::metrics::pillH});
+    skip_->setRect({colX, ytmY + gfx::metrics::pillH + 10, skip_->naturalWidth(), gfx::metrics::ghostH});
 }
 
 void ConnectScreen::paint(ui::Canvas& c) {

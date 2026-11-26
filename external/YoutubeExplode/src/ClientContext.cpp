@@ -65,6 +65,18 @@ void ClientContext::resetSession() {
     std::lock_guard<std::mutex> lock(cacheMutex_);
     visitorData_.reset();
     visitorDataResolved_ = false;
+    musicVisitorData_.reset();
+}
+
+std::optional<std::string> ClientContext::musicVisitorData() {
+    std::lock_guard<std::mutex> lock(cacheMutex_);
+    return musicVisitorData_;
+}
+
+void ClientContext::setMusicVisitorData(std::string value) {
+    std::lock_guard<std::mutex> lock(cacheMutex_);
+    if (!musicVisitorData_ && !value.empty())
+        musicVisitorData_ = std::move(value);
 }
 
 std::string ClientContext::cookieHeaderFor(const std::string& host, const std::string& path) {

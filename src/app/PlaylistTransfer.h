@@ -37,6 +37,9 @@ void importFile(const std::wstring& path);              // that playlist file (e
 bool isPlaylistFile(const std::wstring& path);          // .m3u .m3u8 .csv .tsv .xspf .json
 void importFromLink();                                  // asks for a YouTube / YouTube Music playlist link
 void importYouTubePlaylist(const std::string& playlistId);
+// A YouTube Music playlist ("ytm:playlist:<id>") as a local playlist: its rows as YouTube Music names them (artists,
+// albums), each pinned to its video.
+void importYtmPlaylist(const std::string& id);
 // "Dosyadan içe aktar…" / "YouTube listesinden içe aktar…" at `windowPos`.
 void showImportMenu(gfx::Point windowPos);
 

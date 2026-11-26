@@ -20,6 +20,7 @@
 #include "player/Player.h"
 #include "spotify/Session.h"
 #include "spotify/SpotifyApi.h"
+#include "ytmusic/YtMusic.h"
 
 #include <algorithm>
 #include <unordered_map>
@@ -51,6 +52,7 @@ struct Pool {
 
 struct Seeds {
     std::vector<std::string> spotify;       // spotify:track: URIs (song radios)
+    std::vector<std::string> ytm;           // "yt:<video>" songs (YouTube Music song radios; no account needed)
     std::vector<std::string> artists;       // MusicBrainz artist ids (similar artists)
     std::vector<std::string> artistNames;   // folded first artists (local library)
 };
@@ -92,12 +94,13 @@ bool notASong(const Track& t) { return radio::isStationId(t.id) || catalog::isPo
 
 Seeds seedsOf(const std::vector<Track>& collection, uint64_t seed) {
     Seeds s;
-    std::vector<const Track*> spotify;
+    std::vector<const Track*> spotify, ytmSongs;
     std::unordered_map<std::string, int> artistCount;
     std::unordered_set<std::string> names;
     for (const auto& t : collection) {
         if (t.recommended || notASong(t)) continue;
         if (t.id.rfind("spotify:track:", 0) == 0) spotify.push_back(&t);
+        if (ytm::isTrackId(t.id)) ytmSongs.push_back(&t);
         if (t.artists.empty()) continue;
         if (isMbid(t.artists[0].id)) ++artistCount[t.artists[0].id];
         if (const std::string n = smartmix::foldName(t.artists[0].name); !n.empty() && names.size() < 40) names.insert(n);
@@ -106,6 +109,11 @@ Seeds seedsOf(const std::vector<Track>& collection, uint64_t seed) {
         const size_t n = std::min(kSpotifySeeds, spotify.size());
         const size_t start = static_cast<size_t>(seed % spotify.size());
         for (size_t k = 0; k < n; ++k) s.spotify.push_back(spotify[(start + k * spotify.size() / n) % spotify.size()]->id);
+    }
+    if (!ytmSongs.empty()) {   // the same spread over its YouTube Music songs
+        const size_t n = std::min(kSpotifySeeds, ytmSongs.size());
+        const size_t start = static_cast<size_t>(seed % ytmSongs.size());
+        for (size_t k = 0; k < n; ++k) s.ytm.push_back(ytmSongs[(start + k * ytmSongs.size() / n) % ytmSongs.size()]->id);
     }
     std::vector<std::pair<std::string, int>> ranked(artistCount.begin(), artistCount.end());
     std::sort(ranked.begin(), ranked.end(),
@@ -134,6 +142,15 @@ Fetched fetchPool(spotify::Api* api, const Seeds& seeds, const Lifetime::Ref& gu
             } catch (const std::exception& e) {
                 ST_LOG_WARN("smartshuffle", "song radio of {} failed: {}", seed, e.what());
             }
+        }
+    }
+    for (const auto& seed : seeds.ytm) {
+        if (guard.expired()) return f;
+        try {
+            auto radio = ytm::radio(seed, kRadioTracks);
+            for (size_t i = 1; i < radio.size(); ++i) f.tracks.push_back(std::move(radio[i]));   // [0] is the seed
+        } catch (const std::exception& e) {
+            ST_LOG_WARN("smartshuffle", "YouTube Music radio of {} failed: {}", seed, e.what());
         }
     }
     if (f.tracks.size() < kMinPool) {

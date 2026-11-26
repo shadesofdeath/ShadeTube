@@ -22,6 +22,7 @@
 #include "musicbrainz/MusicBrainz.h"
 #include "ui/Popups.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <nlohmann/json.hpp>
 
@@ -149,7 +150,7 @@ bool isMbid(const std::string& id) {
     return true;
 }
 bool routable(const std::string& id, std::string_view spotifyPrefix) {
-    return (id.rfind(spotifyPrefix, 0) == 0 && source::loggedIn()) || isMbid(id);
+    return (id.rfind(spotifyPrefix, 0) == 0 && source::loggedIn()) || isMbid(id) || source::isYtmId(id);   // YouTube Music: no login
 }
 
 // Artist pictures. Tracks carry none: a followed artist's comes from the library (Spotify or local); the others are
@@ -210,7 +211,7 @@ void fetchArtistImages(std::vector<std::string> ids, Lifetime::Ref owner, std::f
             for (const auto& id : ids) {
                 if (owner.expired()) break;   // the page closed (and at exit the session goes away after the pages)
                 try {
-                    Artist a = source::isSpotifyId(id) ? source::artistPage(api, id).artist : mb::artist(id);
+                    Artist a = source::isSpotifyId(id) || source::isYtmId(id) ? source::artistPage(api, id).artist : mb::artist(id);
                     found.push_back({id, std::move(a.images), true, std::move(a.tags)});
                 } catch (const std::exception& e) {
                     ST_LOG_DEBUG("stats", "artist picture for {}: {}", id, e.what());
@@ -367,7 +368,7 @@ void loadArtAsync() {
 
 // One lookup: the first search result with the same (folded) name and, when known, the same artist. Spotify answers
 // all kinds in one request; MusicBrainz is asked for just the kind needed (it allows one request a second).
-Art lookupArt(spotify::Api* api, const ArtWant& w) {
+Art lookupArt(spotify::Api* api, bool ytmCatalog, const ArtWant& w) {
     Art art;
     art.at = nowUnix();
     const std::string name = artFold(w.name), artist = artFold(w.artist);
@@ -378,6 +379,10 @@ Art lookupArt(spotify::Api* api, const ArtWant& w) {
     const std::string query = w.kind == ArtKind::Artist ? w.artist : w.artist.empty() ? w.name : w.name + " " + w.artist;
     SearchResults res;
     if (api) res = api->search(query, 8);
+    else if (ytmCatalog)   // YouTube Music: one filtered search of the kind needed
+        res = ytm::searchKind(query, w.kind == ArtKind::Track ? ytm::SearchKind::Songs
+                                     : w.kind == ArtKind::Album ? ytm::SearchKind::Albums
+                                                                : ytm::SearchKind::Artists);
     else if (w.kind == ArtKind::Track) res.tracks = mb::searchTracks(query, 8);
     else if (w.kind == ArtKind::Album) res.albums = mb::searchAlbums(query, 8);
     else res.artists = mb::searchArtists(query, 8);
@@ -430,15 +435,16 @@ void fetchArt(std::vector<ArtWant> wants, Lifetime::Ref owner, std::function<voi
     if (wants.empty()) return;
     for (const auto& w : wants) g_artLookups.insert(w.key);
     spotify::Api* api = source::activeApi();
+    const bool ytmCatalog = source::ytmMode();
     static Lifetime cacheLife;
     async(
         Priority::Low, cacheLife.ref(),
-        [wants, api, owner, landed]() {
+        [wants, api, ytmCatalog, owner, landed]() {
             for (size_t i = 0; i < wants.size(); ++i) {
                 if (owner.expired()) break;
-                if (i && api) Sleep(250);
+                if (i && (api || ytmCatalog)) Sleep(250);
                 try {
-                    Art art = lookupArt(api, wants[i]);
+                    Art art = lookupArt(api, ytmCatalog, wants[i]);
                     Dispatcher::post([key = wants[i].key, art = std::move(art), owner, landed]() mutable {
                         g_artLookups.erase(key);
                         const bool found = art.found;

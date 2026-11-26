@@ -23,6 +23,7 @@
 #include "ui/Popups.h"
 #include "ui/TextBox.h"
 #include "ui/Window.h"
+#include "ytmusic/Parse.h"
 
 #include <dwmapi.h>
 #include <shellapi.h>
@@ -1023,17 +1024,18 @@ void showTrackMenu(const std::vector<Track>& picked, gfx::Point windowPos, const
         if (!track.artists.empty() && !track.artists[0].id.empty())
             items.push_back({tr(L"Sanatçıya git"), "artist", L"",
                              [track] { ctx().router->navigate({RouteKind::Artist, track.artists[0].id}); }});
-        // Spotify's song radio (Spotify tracks only: a local file / MusicBrainz recording has no seed).
-        if (radioAvailable() && track.id.rfind("spotify:track:", 0) == 0 && !radioSeed(track.id).empty())
+        // The song radio: Spotify tracks, YouTube videos / YouTube Music songs (a local file / MusicBrainz recording
+        // has no seed).
+        if (radioAvailable() && (track.id.rfind("spotify:track:", 0) == 0 || ytm::isTrackId(track.id)) && !radioSeed(track.id).empty())
             items.push_back({tr(L"Şarkı radyosu"), "wifi", L"", [track] { startRadio(track.id, toWide(track.name)); }});
         items.push_back(ui::MenuItem::sep());
         if (!isLocal(track))
             items.push_back({tr(L"YouTube kaynağını değiştir"), "swap-match", L"", [track] {
                                  if (ctx().showMatchPicker) ctx().showMatchPicker(track);
                              }});
-        if (!track.id.empty() && track.id.find(':') == std::string::npos)
-            items.push_back({tr(L"MusicBrainz bağlantısını kopyala"), "link", L"", [track] {
-                                 copyText(L"https://musicbrainz.org/recording/" + toWide(track.id));
+        if ((!track.id.empty() && track.id.find(':') == std::string::npos) || (ytm::isTrackId(track.id) && source::ytmMode()))
+            items.push_back({source::copyLinkLabel(track.id), "link", L"", [track] {
+                                 copyText(source::webLink("track", track.id));
                                  toast(tr(L"Bağlantı kopyalandı"));
                              }});
         // Kara liste: the song, and its artist (several credited artists: a second menu, one checkable row each).

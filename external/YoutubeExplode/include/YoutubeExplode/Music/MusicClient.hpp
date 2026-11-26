@@ -21,10 +21,12 @@ struct MusicRequest {
 };
 
 /// Raw access to YouTube Music (music.youtube.com) as the anonymous web client ("WEB_REMIX"), through the
-/// YoutubeClient's session: the consent cookie, the cookies YouTube sets, the visitor data (also sent as
-/// X-Goog-Visitor-Id, which continuations are tied to), the 5xx retries and the 429 mapping are shared with every
-/// other request of the client. YouTube Music answers with deeply nested renderer trees whose shape changes often, so
-/// the body is handed back as JSON text for the caller to interpret. Cheap to copy; thread-safe.
+/// YoutubeClient's session: the consent cookie, the cookies YouTube sets, the 5xx retries and the 429 mapping are shared
+/// with every other request of the client. YouTube Music keeps a visitor of its own: the first answer names one
+/// (responseContext.visitorData), which is then sent with every request of the session (context + X-Goog-Visitor-Id)
+/// and dropped by resetSession(). The www.youtube.com visitor data is not sent: with it YouTube Music answers the
+/// Home feed's continuations with nothing. YouTube Music answers with deeply nested renderer trees whose shape changes
+/// often, so the body is handed back as JSON text for the caller to interpret. Cheap to copy; thread-safe.
 class MusicClient {
 public:
     explicit MusicClient(detail::ClientContextPtr context) : context_(std::move(context)) {}

@@ -267,6 +267,18 @@ private:
                     if (ctx().startSpotifyLogin) ctx().startSpotifyLogin();
                 };
             }
+            // The open catalog: what search, albums, artists and Home read while no Spotify account is connected.
+            auto* row = c->add<SettingRow>(
+                tr(L"Spotify olmadan katalog"),
+                tr(L"Spotify'a bağlı değilken arama, albümler, sanatçılar ve Ana Sayfa buradan gelir. YouTube Music: "
+                   L"şarkılar tam o kayıttan çalar, çalma listeleri ve radyo da var. MusicBrainz: açık müzik veritabanı."));
+            auto* seg = row->control<Segmented>(260.f, std::vector<std::wstring>{L"YouTube Music", L"MusicBrainz"},
+                                                s.openCatalog == "ytmusic" ? 0 : 1);
+            seg->onChange = [](int i) {
+                Settings::get().openCatalog = i == 0 ? "ytmusic" : "musicbrainz";
+                Settings::get().markDirty();
+                source::applyOpenCatalog();
+            };
         }
 
         c = card("connections", "link", tr(L"Bağlantılar"), tr(L"Last.fm ve ListenBrainz scrobble, Discord durumu"));

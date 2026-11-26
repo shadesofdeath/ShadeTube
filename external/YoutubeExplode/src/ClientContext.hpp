@@ -42,6 +42,12 @@ public:
     /// Drops the cached visitor data and the cookies YouTube set (keeps the consent and the initial cookies).
     void resetSession();
 
+    /// YouTube Music's own visitor of this session (see MusicClient); none until its first answer named one.
+    std::optional<std::string> musicVisitorData();
+    void setMusicVisitorData(std::string value);
+    /// Held by the request that is to obtain that visitor, so parallel first requests don't each get another one.
+    std::mutex& musicVisitorMutex() { return musicVisitorMutex_; }
+
     /// Current player JavaScript (cached; the player version is resolved from /iframe_api).
     std::shared_ptr<const PlayerSource> playerSource(const CancellationToken& cancellationToken);
 
@@ -72,6 +78,8 @@ private:
     std::mutex cacheMutex_;
     std::optional<std::string> visitorData_;
     bool visitorDataResolved_ = false;
+    std::optional<std::string> musicVisitorData_;
+    std::mutex musicVisitorMutex_;
     std::shared_ptr<const PlayerSource> playerSource_;
 };
 

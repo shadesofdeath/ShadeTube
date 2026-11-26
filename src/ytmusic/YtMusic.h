@@ -39,9 +39,13 @@ void setClient(YoutubeExplode::YoutubeClient client);
 // filtered searches YouTube Music's own chips make run in parallel; one that fails leaves its kind empty (all failing
 // throws the first error).
 catalog::SearchResults search(const std::string& query, int limit = 20, const CT& ct = {});
+// One filtered search (a single request): artwork / id lookups that need one kind only.
+enum class SearchKind { Songs, Albums, Artists, Playlists };
+catalog::SearchResults searchKind(const std::string& query, SearchKind kind, const CT& ct = {});
 // "ytm:album:<id>": header + tracks (Album::releaseId = its audio playlist).
 catalog::Album album(const std::string& id, const CT& ct = {});
-// "ytm:artist:<id>": top songs (YouTube Music shows five), albums, singles & EPs, related artists.
+// "ytm:artist:<id>": top songs (the first 20 of the artist's songs by popularity: a second request), albums, singles &
+// EPs, related artists.
 catalog::ArtistPage artistPage(const std::string& id, const CT& ct = {});
 // "ytm:playlist:<id>": header + the first rows (about 100); playlistMore() continues with page.continuation.
 PlaylistPage playlist(const std::string& id, const CT& ct = {});

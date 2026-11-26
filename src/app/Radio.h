@@ -18,8 +18,10 @@
 namespace st::app {
 
 // The radio seed for a catalog id: the id itself when it is a Spotify track / album / artist / playlist URI
-// ("spotify:<kind>:<base62>"), else "" — MusicBrainz ids, "local:" files, Liked Songs, downloads of non-Spotify
-// tracks. Callers hide their radio entry for "".
+// ("spotify:<kind>:<base62>"), a YouTube video ("yt:<id>": YouTube Music's song radio) or a YouTube Music album /
+// artist / playlist ("ytm:*"), else "" — MusicBrainz ids, "local:" files, Liked Songs. Callers hide their radio entry
+// for "". YouTube Music seeds get YouTube Music's automix queue (ytm::radio; context "ytmradio:<seed>"), also while
+// logged in to Spotify; they need no account.
 std::string radioSeed(const std::string& id);
 
 // Endless playback: checks now whether the queue needs more (e.g. right after the setting was turned on). Only the

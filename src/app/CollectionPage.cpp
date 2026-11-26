@@ -1,6 +1,6 @@
 // Album / Liked Songs / playlist detail page (spec: Playlist detail + Track row + sticky header). Reads Spotify
-// when logged in (albums, playlists and Liked Songs, with progressive paging) and MusicBrainz / the local
-// library otherwise (see Source.h).
+// when logged in (albums, playlists and Liked Songs, with progressive paging), YouTube Music for "ytm:" albums and
+// playlists (playlists paged the same way, read-only) and MusicBrainz / the local library otherwise (see Source.h).
 #include "app/CollapsingHeader.h"
 #include "app/DownloadSync.h"
 #include "app/PageWidgets.h"
@@ -20,6 +20,7 @@
 #include "ui/Popups.h"
 #include "ui/TextBox.h"
 #include "ui/Window.h"
+#include "ytmusic/YtMusic.h"
 
 #include <algorithm>
 #include <cmath>
@@ -234,9 +235,14 @@ public:
         api_ = source::activeApi();
         spotifyMode_ = api_ && ((kind_ == Kind::Liked) || (kind_ != Kind::Album && source::isSpotifyId(id_)) ||
                                 (kind_ == Kind::Album && source::isSpotifyId(id_)));
+        // A YouTube Music playlist: read-only, paged like a Spotify one (whatever the active catalog).
+        ytmMode_ = kind_ == Kind::Playlist && source::isYtmId(id_);
         if (kind_ == Kind::Album) {
             showSkeleton(8);
             loadAlbum();
+        } else if (ytmMode_) {
+            showSkeleton(8);
+            loadYtmPlaylist();
         } else if (spotifyMode_) {
             showSkeleton(8);
             loadSpotifyCollection();
@@ -394,6 +400,70 @@ private:
                   header_->setTotalMs(ms);
                   scroll_->contentChanged();
                   if (none && table_->tracks().empty() && loadedOffset_ < total_) loadMore();   // see the first page
+              });
+    }
+
+    // YouTube Music playlist: the first page (about 100 rows) with the header, then the continuation as the user
+    // scrolls near the end.
+    void loadYtmPlaylist() {
+        const std::string id = id_;
+        const int gen = ++gen_;
+        async(Priority::High, life_.ref(), [id] { return ytm::playlist(id); },
+              [this, gen](Result<ytm::PlaylistPage> r) {
+                  if (gen != gen_) return;
+                  if (!r) {
+                      showError(toWide(r.errorMessage()), [this] {
+                          showSkeleton(8);
+                          loadYtmPlaylist();
+                      });
+                      return;
+                  }
+                  ytmPage_ = *r;
+                  ytmPage_.tracks.clear();   // only the continuation is kept
+                  Meta m;
+                  m.label = tr(L"ÇALMA LİSTESİ · YOUTUBE MUSIC");
+                  m.title = r->playlist.name.empty() ? tr(L"Çalma listesi") : toWide(r->playlist.name);
+                  m.description = toWide(r->playlist.description);
+                  m.owner = toWide(r->playlist.ownerName);
+                  m.images = r->playlist.images;
+                  if (m.images.empty() && !r->tracks.empty()) m.images = r->tracks.front().album.images;
+                  total_ = r->playlist.countKnown ? r->playlist.totalTracks : static_cast<int>(r->tracks.size());
+                  m.total = total_;
+                  loading_ = false;
+                  build(m);
+                  table_->setTracks(r->tracks);
+                  showEnhanced();
+                  table_->onNearEnd = [this] { loadMoreYtm(); };
+                  if (!ytmPage_.continuation.empty())
+                      table_->setLoadingRows(std::clamp(total_ - static_cast<int>(r->tracks.size()), 1, 8));
+                  finishLoading();
+              });
+    }
+
+    void loadMoreYtm() {
+        if (loading_ || ytmPage_.continuation.empty()) return;
+        loading_ = true;
+        const ytm::PlaylistPage page = ytmPage_;
+        const int gen = gen_;
+        async(Priority::Low, life_.ref(), [page] { return ytm::playlistMore(page); },
+              [this, gen](Result<ytm::PlaylistPage> r) {
+                  if (gen != gen_) return;
+                  loading_ = false;
+                  if (!r || r->tracks.empty()) {   // a failure or an empty page: no more rows
+                      ytmPage_.continuation.clear();
+                      table_->setLoadingRows(0);
+                      return;
+                  }
+                  ytmPage_.continuation = r->continuation;
+                  ytmPage_.continuationInUrl = r->continuationInUrl;
+                  table_->appendTracks(std::move(r->tracks));
+                  const int have = static_cast<int>(ownTracks().size());
+                  table_->setLoadingRows(ytmPage_.continuation.empty() ? 0 : std::clamp(total_ - have, 1, 8));
+                  int64_t ms = 0;
+                  for (const auto& t : table_->tracks())
+                      if (!t.recommended) ms += t.durationMs;
+                  header_->setTotalMs(ms);
+                  scroll_->contentChanged();
               });
     }
 
@@ -567,7 +637,7 @@ private:
         header_->offline_->setTarget(std::move(offline));
         TrackTable::Options opts;
         opts.showAlbum = kind_ != Kind::Album;
-        opts.showAdded = kind_ != Kind::Album;
+        opts.showAdded = kind_ != Kind::Album && !ytmMode_;   // YouTube Music names no dates
         opts.showArt = kind_ != Kind::Album;
         opts.albumNumbering = kind_ == Kind::Album;
         table_ = c->add<TrackTable>(opts);
@@ -577,7 +647,7 @@ private:
         header_->isPlaying = [this] { return isPlayingThis(); };
         // A playlist the user may edit: drag its songs into a new order, Delete removes the selected ones (with undo);
         // the owner (any local list) also edits its details from the cover / title.
-        if (kind_ == Kind::Playlist && (!spotifyMode_ || editable_)) {
+        if (kind_ == Kind::Playlist && !ytmMode_ && (!spotifyMode_ || editable_)) {
             table_->onReorder = [this](std::vector<int> rows, int before) { reorder(rows, before); };
             table_->onRemove = [this](const std::vector<Track>& rows) { removeRows(rows); };
             table_->setReorderable(!moving_);
@@ -667,21 +737,23 @@ private:
                     items.push_back({tr(L"Sanatçıya git"), "artist", L"",
                                      [aid] { ctx().router->navigate({RouteKind::Artist, aid}); }});
                 }
-                const bool sp = source::isSpotifyId(id_);
-                const std::wstring url = sp ? L"https://open.spotify.com/album/" + toWide(id_.substr(id_.rfind(':') + 1))
-                                            : L"https://musicbrainz.org/release-group/" + toWide(id_);
-                items.push_back({sp ? tr(L"Spotify bağlantısını kopyala") : tr(L"MusicBrainz bağlantısını kopyala"),
-                                 "link", L"", [url] {
+                // YouTube Music albums: the link of their audio playlist (what YouTube Music shares).
+                const std::wstring url = source::webLink("album", id_, source::isYtmId(id_) ? album_.releaseId : std::string());
+                items.push_back({source::copyLinkLabel(id_), "link", L"", [url] {
                                      copyText(url);
                                      toast(tr(L"Bağlantı kopyalandı"));
                                  }});
             }
-            if (kind_ == Kind::Playlist && spotifyMode_) {
-                const std::wstring url = L"https://open.spotify.com/playlist/" + toWide(id_.substr(id_.rfind(':') + 1));
-                items.push_back({tr(L"Spotify bağlantısını kopyala"), "link", L"", [url] {
+            if (kind_ == Kind::Playlist && (spotifyMode_ || ytmMode_)) {
+                const std::wstring url = source::webLink("playlist", id_);
+                items.push_back({source::copyLinkLabel(id_), "link", L"", [url] {
                                      copyText(url);
                                      toast(tr(L"Bağlantı kopyalandı"));
                                  }});
+            }
+            if (ytmMode_) {   // a copy of it to edit: a local playlist with the same songs, pinned to the same videos
+                const std::string id = id_;
+                items.push_back({tr(L"Yerel listeye aktar"), "playlist", L"", [id] { transfer::importYtmPlaylist(id); }});
             }
             // A playlist file of the whole list (M3U8 / CSV / XSPF / JSON).
             {
@@ -691,7 +763,7 @@ private:
                 items.push_back(transfer::exportMenuItem(what, lid, toUtf8(header_->meta().title)));
             }
             // Local playlists, and Spotify playlists the user may edit (details: owner only). Others: no edit actions.
-            const bool local = kind_ == Kind::Playlist && !spotifyMode_;
+            const bool local = kind_ == Kind::Playlist && !spotifyMode_ && !ytmMode_;
             const bool spotifyEdit = kind_ == Kind::Playlist && spotifyMode_ && editable_;
             if (local || spotifyEdit) {
                 const std::string id = id_;
@@ -772,7 +844,7 @@ private:
     // ---- Editing (a playlist the user may edit) ---------------------------------------------------------------
 
     // Name / description / cover: any local playlist, a Spotify playlist only when the user owns it.
-    bool canEditDetails() const { return kind_ == Kind::Playlist && (!spotifyMode_ || owned_); }
+    bool canEditDetails() const { return kind_ == Kind::Playlist && !ytmMode_ && (!spotifyMode_ || owned_); }
 
     void editDetails() {
         if (!header_) return;
@@ -932,6 +1004,8 @@ private:
     Lifetime libLife_;
     // Spotify paging state (playlists / Liked Songs).
     bool spotifyMode_ = false;
+    bool ytmMode_ = false;          // a YouTube Music playlist (read-only)
+    ytm::PlaylistPage ytmPage_;     // its header and the continuation of the next page
     spotify::Api* api_ = nullptr;
     std::string uri_;
     int total_ = 0;
