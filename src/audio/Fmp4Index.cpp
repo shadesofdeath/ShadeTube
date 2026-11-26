@@ -1,8 +1,9 @@
-#include "video/Fmp4Index.h"
+#include "audio/Fmp4Index.h"
 
 #include <algorithm>
+#include <optional>
 
-namespace st::video {
+namespace st::audio {
 
 namespace {
 
@@ -138,4 +139,35 @@ Fmp4Index parseFmp4Index(std::span<const uint8_t> head, int64_t fileLength) {
     return {};
 }
 
-} // namespace st::video
+std::optional<Fmp4EditFix> freeFragmentedEditList(std::span<const uint8_t> head) {
+    // The top-level boxes up to the end of moov must be in `head`; moov must say "fragmented" (mvex).
+    const size_t n = head.size();
+    size_t pos = 0;
+    while (pos + 8 <= n) {
+        uint64_t size = be32(head.data() + pos);
+        const uint8_t* type = head.data() + pos + 4;
+        if (size == 1) {
+            if (pos + 16 > n) return std::nullopt;
+            size = be64(head.data() + pos + 8);
+        }
+        if (size < 8 || pos + size > n) return std::nullopt;
+        if (is(type, "moof") || is(type, "mdat")) return std::nullopt;   // no moov before the media
+        if (!is(type, "moov")) {
+            pos += static_cast<size_t>(size);
+            continue;
+        }
+        const size_t end = pos + static_cast<size_t>(size);
+        Fmp4EditFix fix;
+        fix.init.assign(head.begin(), head.begin() + static_cast<ptrdiff_t>(end));
+        bool fragmented = false;
+        children(fix.init, pos + 8, end, [&](size_t, uint32_t, const uint8_t* t) { fragmented = fragmented || is(t, "mvex"); });
+        if (!fragmented) return std::nullopt;
+        fix.editUs = takeEditList(fix.init);
+        if (fix.editUs <= 0) return std::nullopt;
+        fix.bodyOffset = static_cast<int64_t>(end);
+        return fix;
+    }
+    return std::nullopt;
+}
+
+} // namespace st::audio

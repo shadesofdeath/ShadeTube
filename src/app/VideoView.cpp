@@ -41,8 +41,17 @@ gfx::Rect VideoView::popOutRect() const {
     return {r.right() - 12 - 32, r.y + 12, 32, 32};
 }
 
+gfx::Rect VideoView::menuRect() const {
+    const gfx::Rect p = popOutRect();
+    return {p.x - 8 - 32, p.y, 32, 32};
+}
+
 bool VideoView::onMouseDown(const ui::MouseEvent& e) {
     if (style_ != Style::Inline || !showing() || e.button != ui::MouseButton::Left) return false;
+    if (menuRect().contains(e.pos)) {   // video mode's menu (official video, "Yanlış video mu?")
+        videomode::showMenu(window(), e.windowPos);
+        return true;
+    }
     // The pop-out button, or a double click anywhere on the picture: the video window.
     if (popOutRect().contains(e.pos) || e.clicks == 2) {
         videomode::openWindow();
@@ -54,24 +63,31 @@ bool VideoView::onMouseDown(const ui::MouseEvent& e) {
 void VideoView::onMouseMove(const ui::MouseEvent& e) {
     if (style_ != Style::Inline) return;
     const bool over = showing() && popOutRect().contains(e.pos);
+    const bool overMenu = showing() && menuRect().contains(e.pos);
     if (hover_.target() != 1.f) hover_.to(1, ui::motion::fast);
     if (over != overPop_) {
         overPop_ = over;
         popHover_.to(over ? 1.f : 0.f, ui::motion::fast);
     }
+    if (overMenu != overMenu_) {
+        overMenu_ = overMenu;
+        menuHover_.to(overMenu ? 1.f : 0.f, ui::motion::fast);
+    }
     invalidate();
 }
 
 void VideoView::onMouseLeave() {
-    overPop_ = false;
+    overPop_ = overMenu_ = false;
     hover_.to(0, ui::motion::normal);
     popHover_.to(0, ui::motion::fast);
+    menuHover_.to(0, ui::motion::fast);
     invalidate();
 }
 
-LPCWSTR VideoView::cursor() const { return overPop_ ? IDC_HAND : IDC_ARROW; }
+LPCWSTR VideoView::cursor() const { return overPop_ || overMenu_ ? IDC_HAND : IDC_ARROW; }
 
 std::wstring VideoView::tooltip() const {
+    if (overMenu_) return tr(L"Video seçenekleri");
     return overPop_ ? std::wstring(tr(L"Video penceresinde aç")) : std::wstring();
 }
 

@@ -8,21 +8,27 @@
 //                              songs MatchService matches for a few tracks, and one stream played on the GPU for a few
 //                              seconds against a real-time clock (frames shown / dropped, the download window)
 // Runs in its own profile and temp folder (<exe dir>\video-test-<pid>, removed at the end).
+#include "app/OfficialVideoCache.h"
 #include "audio/AudioEngine.h"
 #include "audio/ProgressiveBuffer.h"
 #include "core/Http.h"
 #include "core/Log.h"
+#include "core/Utf.h"
 #include "gfx/Device.h"
 #include "video/Fmp4Index.h"
+#include "video/AudioAlign.h"
+#include "video/Soundtrack.h"
 #include "video/SyncScheduler.h"
 #include "video/VideoDecoder.h"
 #include "video/VideoPlayer.h"
 #include "youtube/MatchService.h"
+#include "youtube/OfficialVideo.h"
 #include "youtube/VideoStreams.h"
 
 #include <YoutubeExplode/YoutubeClient.hpp>
 
 #include <windows.h>
+#include <shellapi.h>
 
 #include <mfapi.h>
 #include <mferror.h>
@@ -35,6 +41,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -751,6 +760,433 @@ void testGpuDecode(const fs::path& file) {
     }
 }
 
+// ---- official video: alignment on synthetic songs ----------------------------------------------------------------------
+
+constexpr int kRate = st::video::kSoundtrackRate;
+
+// A made-up song: kick / snare / hats / tones on a seeded pattern at ~118 BPM, every bar its own (so nothing repeats
+// unless a part is copied on purpose). `tempo` stretches the event times, `jitterMs` moves each event at random (a
+// live take), `timbre` changes the tones' pitch (another performance).
+std::vector<float> makeSong(uint32_t seed, double seconds, double tempo = 1.0, double jitterMs = 0, double timbre = 1.0) {
+    std::vector<float> out(static_cast<size_t>(seconds * kRate), 0.f);
+    std::mt19937 rng(seed), jit(seed ^ 0x9e3779b9u);
+    std::uniform_real_distribution<double> u(0, 1);
+    std::normal_distribution<double> jn(0, 1);
+    auto add = [&](double at, auto&& voice, double len) {
+        const long s0 = std::lround(at * kRate);
+        const long n = static_cast<long>(len * kRate);
+        for (long i = 0; i < n; ++i) {
+            const long k = s0 + i;
+            if (k < 0 || k >= static_cast<long>(out.size())) continue;
+            out[static_cast<size_t>(k)] += static_cast<float>(voice(static_cast<double>(i) / kRate));
+        }
+    };
+    const double step = 60.0 / 118 / 4;   // a 16th note
+    std::mt19937 noise(seed * 7 + 1);
+    std::uniform_real_distribution<float> nz(-1, 1);
+    for (int i = 0; i * step * tempo < seconds; ++i) {
+        const double at = i * step * tempo + (jitterMs > 0 ? jn(jit) * jitterMs / 1000 : 0);
+        const double r = u(rng);
+        if (i % 4 == 0 && r < 0.8) add(at, [](double t) { return 0.6 * std::sin(2 * 3.14159265 * 60 * t) * std::exp(-t * 18); }, 0.2);
+        if (i % 8 == 4 && u(rng) < 0.9) add(at, [&](double t) { return 0.35 * nz(noise) * std::exp(-t * 25); }, 0.18);
+        if (u(rng) < 0.55) add(at, [&](double t) { return 0.12 * nz(noise) * std::exp(-t * 90) * std::sin(2 * 3.14159265 * 4500 * t); }, 0.05);
+        if (u(rng) < 0.3) {
+            const double f = (220 + 880 * u(rng)) * timbre;
+            const double len = 0.15 + 0.35 * u(rng);
+            add(at, [f](double t) { return 0.25 * std::sin(2 * 3.14159265 * f * t) * std::exp(-t * 6); }, len);
+        }
+    }
+    return out;
+}
+
+std::vector<float> slice(const std::vector<float>& x, double from, double to) {
+    const size_t a = std::min(x.size(), static_cast<size_t>(std::max(0.0, from) * kRate));
+    const size_t b = std::min(x.size(), static_cast<size_t>(std::max(0.0, to) * kRate));
+    return std::vector<float>(x.begin() + static_cast<ptrdiff_t>(a), x.begin() + static_cast<ptrdiff_t>(std::max(a, b)));
+}
+
+std::vector<float> join(std::initializer_list<std::vector<float>> parts) {
+    std::vector<float> out;
+    for (const auto& p : parts) out.insert(out.end(), p.begin(), p.end());
+    return out;
+}
+
+// Something that isn't the song: low noise and murmur (a film's sound), at a lower level.
+std::vector<float> cinematic(uint32_t seed, double seconds) {
+    auto x = makeSong(seed, seconds, 1.7, 0, 0.6);
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<float> nz(-1, 1);
+    for (auto& v : x) v = v * 0.5f + 0.03f * nz(rng);
+    return x;
+}
+
+// The video read `speed` times faster than the song (a transfer at another speed): sample t of the result is the
+// song at t * speed.
+std::vector<float> resampled(const std::vector<float>& x, double speed) {
+    std::vector<float> out(static_cast<size_t>(static_cast<double>(x.size()) / speed));
+    for (size_t i = 0; i < out.size(); ++i) {
+        const double pos = static_cast<double>(i) * speed;
+        const size_t k = static_cast<size_t>(pos);
+        const double f = pos - static_cast<double>(k);
+        out[i] = k + 1 < x.size() ? static_cast<float>(x[k] * (1 - f) + x[k + 1] * f) : 0.f;
+    }
+    return out;
+}
+
+st::video::AlignResult alignPcm(const std::vector<float>& song, const std::vector<float>& video) {
+    const auto a = st::video::analyzeAudio(song.data(), song.size(), kRate);
+    const auto b = st::video::analyzeAudio(video.data(), video.size(), kRate);
+    auto r = st::video::alignAudio(a, b);
+    std::printf("  %s (%s), %zu part(s), coverage %.0f %%, r %.2f, margin %.2f", r.accepted ? "accepted" : "declined", r.verdict.c_str(),
+                r.segments.size(), r.coverage * 100, r.score, r.margin);
+    for (const auto& s : r.segments) std::printf(" | %.2f-%.2f s %+.3f s x%.5f", s.audioStart, s.audioEnd, s.offsetAt(s.audioStart), s.slope);
+    std::printf("\n");
+    if (std::getenv("VIDEO_TEST_WINDOWS"))
+        for (const auto& w : r.windows)
+            std::printf("    window %6.1f s: %s lag %+8.3f s r %.2f\n", w.center, w.silent ? "silent " : w.matched ? "matched" : "none   ", w.lag, w.r);
+    return r;
+}
+
+void testAlignment() {
+    std::printf("official video: alignment on synthetic songs\n");
+    const auto song = makeSong(11, 100);
+    {   // the video has a 12.34 s cinematic intro and an outro: one part, the offset to a few ms
+        const auto video = join({cinematic(91, 12.34), song, cinematic(92, 6)});
+        const auto r = alignPcm(song, video);
+        CHECK(r.accepted && r.segments.size() == 1);
+        if (!r.segments.empty()) {
+            CHECK(std::fabs(r.segments[0].offsetAt(10) - 12.34) < 0.006);
+            CHECK(std::fabs(r.segments[0].offsetAt(90) - 12.34) < 0.006);
+            CHECK(std::fabs(r.segments[0].slope - 1) < 1e-9);
+            CHECK(r.segments[0].audioStart < 1 && r.segments[0].audioEnd > 99);
+        }
+        CHECK(r.coverage > 0.95);
+    }
+    {   // identical timing, another master (quieter, a little noise): offset 0
+        std::vector<float> video = song;
+        std::mt19937 rng(5);
+        std::uniform_real_distribution<float> nz(-1, 1);
+        for (auto& v : video) v = v * 0.4f + 0.004f * nz(rng);
+        const auto r = alignPcm(song, video);
+        CHECK(r.accepted && r.segments.size() == 1);
+        if (!r.segments.empty()) CHECK(std::fabs(r.segments[0].offsetAt(50)) < 0.004);
+    }
+    {   // a transfer 0.3 % fast: followed as a slope, in sync at both ends
+        const double speed = 1.003;
+        const auto video = join({cinematic(93, 2.0), resampled(song, speed)});
+        const auto r = alignPcm(song, video);
+        CHECK(r.accepted && r.segments.size() == 1);
+        if (!r.segments.empty()) {
+            const auto& s = r.segments[0];
+            CHECK(std::fabs(s.slope - 1 / speed) < 2e-4);
+            CHECK(std::fabs(s.videoAt(10) - (2.0 + 10 / speed)) < 0.012);
+            CHECK(std::fabs(s.videoAt(95) - (2.0 + 95 / speed)) < 0.012);
+        }
+    }
+    {   // the video inserts 3 s (a spoken break) after 50 s of the song: two parts, the jump found to a second
+        const auto video = join({cinematic(94, 5), slice(song, 0, 50), cinematic(95, 3), slice(song, 50, 100)});
+        const auto r = alignPcm(song, video);
+        CHECK(r.accepted && r.segments.size() == 2);
+        if (r.segments.size() == 2) {
+            CHECK(std::fabs(r.segments[0].offsetAt(20) - 5) < 0.006);
+            CHECK(std::fabs(r.segments[1].offsetAt(80) - 8) < 0.006);
+            CHECK(std::fabs(r.segments[0].audioEnd - 50) < 1.0);
+            CHECK(std::fabs(r.segments[1].audioStart - 50) < 1.0);
+            // The time map: the jump becomes a short hold on the next part's first frame, then plays from there.
+            const st::video::TimeMap map(r.segments);
+            const auto before = map.at(30), during = map.at(r.segments[1].audioStart + 0.3), after = map.at(70);
+            CHECK(before.shown && std::fabs(before.videoSec - 35) < 0.006 && before.rate == 1);
+            CHECK(!during.shown && during.rate == 0);
+            CHECK(std::fabs(during.videoSec - (r.segments[1].audioStart + 1.2 + 8)) < 0.01);
+            CHECK(after.shown && std::fabs(after.videoSec - 78) < 0.006);
+        }
+    }
+    {   // 20 s of the song are cut from the video: the cut is held, the rest plays
+        const auto video = join({slice(song, 0, 40), slice(song, 60, 100)});
+        const auto r = alignPcm(song, video);
+        CHECK(r.accepted && r.segments.size() == 2);
+        if (r.segments.size() == 2) {
+            CHECK(std::fabs(r.segments[0].offsetAt(20)) < 0.006);
+            CHECK(std::fabs(r.segments[1].offsetAt(80) + 20) < 0.006);
+            CHECK(r.segments[0].audioEnd < 41 && r.segments[1].audioStart > 59);
+            const st::video::TimeMap map(r.segments);
+            CHECK(!map.at(50).shown && map.at(50).rate == 0);
+        }
+    }
+    {   // repeated identical choruses: every part on its own place, not on a copy
+        const auto a = makeSong(21, 16), b = makeSong(22, 20), c = makeSong(23, 16), d = makeSong(24, 12);
+        const auto rep = join({a, b, c, b, c, d, c});
+        const auto video = join({cinematic(96, 7.5), rep});
+        const auto r = alignPcm(rep, video);
+        CHECK(r.accepted && r.segments.size() == 1);
+        if (!r.segments.empty()) CHECK(std::fabs(r.segments[0].offsetAt(60) - 7.5) < 0.006);
+    }
+    {   // the song's 1.5 s of silence at the start: the part reaches over it
+        const auto quiet = join({std::vector<float>(static_cast<size_t>(1.5 * kRate), 0.f), song});
+        const auto video = join({cinematic(97, 4), quiet});
+        const auto r = alignPcm(quiet, video);
+        CHECK(r.accepted && !r.segments.empty() && r.segments[0].audioStart < 0.05);
+    }
+    {   // another song: declined
+        const auto r = alignPcm(song, join({cinematic(98, 3), makeSong(12, 100)}));
+        CHECK(!r.accepted);
+    }
+    {   // a live take: 2 % slower, every hit 25 ms off at random, other notes: declined
+        const auto r = alignPcm(song, makeSong(11, 104, 1.02, 25, 1.06));
+        CHECK(!r.accepted);
+    }
+    {   // a live take at the same tempo but loose (40 ms): declined (never "almost in sync")
+        const auto r = alignPcm(song, makeSong(11, 100, 1.0, 40, 1.0));
+        CHECK(!r.accepted);
+    }
+    {   // the second half before the first: declined
+        const auto r = alignPcm(song, join({slice(song, 50, 100), slice(song, 0, 50)}));
+        CHECK(!r.accepted && r.verdict == "reordered");
+    }
+    {   // too short to say
+        const auto shortSong = makeSong(13, 10);
+        const auto r = alignPcm(shortSong, shortSong);
+        CHECK(!r.accepted);
+    }
+    // The time map by itself.
+    {
+        const st::video::TimeMap id;
+        CHECK(id.identity() && id.at(42).videoSec == 42 && id.at(42).shown && id.at(42).rate == 1);
+        st::video::AlignSegment a{5, 60, 17, 1, 0.9}, b{60, 120, 72.04, 1, 0.9};   // a 40 ms micro-edit at 60 s
+        const st::video::TimeMap m({a, b});
+        CHECK(!m.at(2).shown && m.at(2).videoSec == 17 && m.at(2).rate == 0);   // before the first part: its first frame
+        CHECK(m.at(30).shown && std::fabs(m.at(30).videoSec - 42) < 1e-9);
+        CHECK(m.at(60.5).shown && std::fabs(m.at(60.5).videoSec - 72.54) < 1e-9);   // no hold for a micro-edit
+        CHECK(!m.at(130).shown && std::fabs(m.at(130).videoSec - 132.04) < 1e-9);   // after the last: its end
+        st::video::AlignSegment c{0, 100, 3, 0.997, 0.9};
+        const st::video::TimeMap slow({c});
+        CHECK(std::fabs(slow.at(50).videoSec - (3 + 0.997 * 50)) < 1e-9 && std::fabs(slow.at(50).rate - 0.997) < 1e-9);
+    }
+}
+
+// ---- official video: candidates and the decision cache -----------------------------------------------------------------
+
+std::string readText(const fs::path& p) {
+    std::ifstream f(p, std::ios::binary);
+    return std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+}
+
+void testOfficialCandidates() {
+    std::printf("official video: YouTube Music search results and the ranking\n");
+    using st::youtube::OfficialQuery;
+    const fs::path dir = ST_VIDEO_FIXTURES;
+    {
+        const auto items = st::youtube::parseMusicVideoSearch(readText(dir / "ytm_videos_rick.json"));
+        CHECK(items.size() == 12);
+        if (!items.empty()) {
+            CHECK(items[0].videoId == "dQw4w9WgXcQ" && items[0].omv && !items[0].ugc);
+            CHECK(items[0].title == "Never Gonna Give You Up" && items[0].durationSec == 214);
+            CHECK(items[0].artists.size() == 1 && items[0].artists[0] == "Rick Astley" && items[0].channel == "Rick Astley");
+            CHECK(!items[0].thumbnailUrl.empty());
+        }
+        CHECK(std::count_if(items.begin(), items.end(), [](const auto& c) { return c.ugc; }) >= 8);
+        const auto ranked = st::youtube::rankOfficialVideos(OfficialQuery{"Never Gonna Give You Up", {"Rick Astley"}, 213, "Whenever You Need Somebody"}, items);
+        for (const auto& c : ranked) std::printf("    %s %.0f \"%s\" (%s)\n", c.videoId.c_str(), c.score, c.title.c_str(), c.channel.c_str());
+        CHECK(!ranked.empty() && ranked[0].videoId == "dQw4w9WgXcQ");
+        // Another song by him, a tutorial, a 35 s clip, a bass-boosted upload, a mashup, a translation, a live radio take:
+        // none of them.
+        for (const auto& c : ranked) {
+            CHECK(c.title.find("Together Forever") == std::string::npos);
+            CHECK(c.title.find("Tutorial") == std::string::npos && c.title.find("Chorus") == std::string::npos);
+            CHECK(c.title.find("BASS") == std::string::npos && c.title.find("Live") == std::string::npos);
+        }
+        // Without a duration (an unknown length) the official video still comes first.
+        const auto any = st::youtube::rankOfficialVideos(OfficialQuery{"Never Gonna Give You Up", {"Rick Astley"}, 0, ""}, items);
+        CHECK(!any.empty() && any[0].videoId == "dQw4w9WgXcQ");
+        // Another artist's song of that name: nothing.
+        CHECK(st::youtube::rankOfficialVideos(OfficialQuery{"Never Gonna Give You Up", {"Someone Else"}, 213, ""}, items).empty());
+    }
+    {   // Only live videos are official: nothing
+        const auto items = st::youtube::parseMusicVideoSearch(readText(dir / "ytm_videos_eagles.json"));
+        CHECK(items.size() >= 8);
+        CHECK(std::any_of(items.begin(), items.end(), [](const auto& c) { return c.omv && c.title.find("Live") != std::string::npos; }));
+        const auto ranked = st::youtube::rankOfficialVideos(OfficialQuery{"Hotel California - 2013 Remaster", {"Eagles"}, 391, "Hotel California"}, items);
+        for (const auto& c : ranked) std::printf("    %s %.0f \"%s\" (%s)\n", c.videoId.c_str(), c.score, c.title.c_str(), c.channel.c_str());
+        CHECK(ranked.empty());
+    }
+    {   // The official video first; the official lyric video of a remix and the Super Bowl show are refused
+        const auto items = st::youtube::parseMusicVideoSearch(readText(dir / "ytm_videos_weeknd.json"));
+        const auto ranked = st::youtube::rankOfficialVideos(OfficialQuery{"Blinding Lights", {"The Weeknd"}, 200, "After Hours"}, items);
+        for (const auto& c : ranked) std::printf("    %s %.0f \"%s\" (%s)\n", c.videoId.c_str(), c.score, c.title.c_str(), c.channel.c_str());
+        CHECK(!ranked.empty() && ranked[0].videoId == "4NRXx6U8ABQ");
+        for (const auto& c : ranked) CHECK(c.title.find("Lyric") == std::string::npos && c.title.find("live") == std::string::npos);
+    }
+    {   // Made-up YouTube results (no YouTube Music labels): official signals are needed
+        std::vector<st::youtube::OfficialCandidate> v(4);
+        v[0] = {"aaaaaaaaaaa", "Artist - Song (Official Music Video)", "ArtistVEVO", {}, 230};
+        v[1] = {"bbbbbbbbbbb", "Artist - Song", "Some Fan", {}, 215};
+        v[2] = {"ccccccccccc", "Artist - Song (Official Audio)", "Artist", {}, 214};
+        v[3] = {"ddddddddddd", "Song", "Artist - Topic", {}, 214};
+        const auto ranked = st::youtube::rankOfficialVideos(OfficialQuery{"Song", {"Artist"}, 214, ""}, v);
+        CHECK(ranked.size() == 1 && ranked[0].videoId == "aaaaaaaaaaa");
+        // Far too long (a 14 minute short film) or much too short: refused
+        v[0].durationSec = 840;
+        CHECK(st::youtube::rankOfficialVideos(OfficialQuery{"Song", {"Artist"}, 214, ""}, v).empty());
+        v[0].durationSec = 150;
+        CHECK(st::youtube::rankOfficialVideos(OfficialQuery{"Song", {"Artist"}, 214, ""}, v).empty());
+    }
+    CHECK(st::youtube::parseMusicVideoSearch("not json").empty());
+    CHECK(st::youtube::parseMusicVideoSearch("{}").empty());
+}
+
+void testDecisionCache(const fs::path& work) {
+    std::printf("official video: the decision cache\n");
+    using st::app::OfficialDecision;
+    const fs::path file = work / L"officialvideos.json";
+    const int64_t now = 1'800'000'000;
+    {
+        st::app::OfficialVideoCache c(file);
+        c.load();
+        OfficialDecision d;
+        d.audioVideoId = "ATVATVATV01";
+        d.videoId = "OMVOMVOMV01";
+        d.title = "Şarkı (Official Video)";
+        d.segments = {{0, 100, 12.34, 1, 0.9}, {101.2, 190, 115.0, 0.99746, 0.8}};
+        d.tried = {{"OMVOMVOMV01", "match"}, {"LIVELIVE001", "no match"}};
+        d.rejected = {"REJECTED001"};
+        d.decidedAt = now;
+        c.put("track:1", d);
+        OfficialDecision none;
+        none.audioVideoId = "ATVATVATV02";
+        none.verdict = "no candidates";
+        none.decidedAt = now;
+        c.put("track:2", none);
+        OfficialDecision off = none;
+        off.manual = true;
+        off.audioVideoId = "ATVATVATV03";
+        c.put("track:3", off);
+        c.flush();
+    }
+    st::app::OfficialVideoCache c(file);
+    c.load();
+    CHECK(c.size() == 3);
+    const auto d = c.find("track:1", "ATVATVATV01", now + 10);
+    CHECK(d && d->videoId == "OMVOMVOMV01" && d->title == "Şarkı (Official Video)" && d->segments.size() == 2);
+    if (d && d->segments.size() == 2) {
+        CHECK(std::fabs(d->segments[1].slope - 0.99746) < 1e-9 && std::fabs(d->segments[0].videoStart - 12.34) < 1e-9);
+        CHECK(d->verdictOf("LIVELIVE001") == "no match" && d->rejected.size() == 1);
+    }
+    CHECK(!c.find("track:1", "ANOTHERUPLD", now));                                   // another upload plays the song now
+    CHECK(c.find("track:2", "ATVATVATV02", now + 3600));                              // "none" is kept a while...
+    CHECK(!c.find("track:2", "ATVATVATV02", now + 8LL * 24 * 3600));               // ...then searched again (a week)
+    CHECK(c.find("track:3", "ATVATVATV03", now + 400LL * 24 * 3600));               // the user's "no video" stays
+    OfficialDecision old = *c.raw("track:1");
+    old.version = 0;
+    c.put("track:1", old);
+    CHECK(!c.find("track:1", "ATVATVATV01", now));                                   // an older alignment: made again
+    CHECK(c.raw("track:1") && c.raw("track:1")->rejected.size() == 1);               // ...the rejections still known
+    // A broken file: an empty cache, no crash.
+    {
+        std::ofstream f(work / L"broken.json", std::ios::binary);
+        f << "{\"x\": [1, 2";
+    }
+    st::app::OfficialVideoCache broken(work / L"broken.json");
+    broken.load();
+    CHECK(broken.size() == 0);
+}
+
+// ---- alignment against real soundtracks -------------------------------------------------------------------------------
+
+std::vector<float> readRaw(const fs::path& p) {
+    std::vector<float> v;
+    FILE* f = _wfopen(p.c_str(), L"rb");
+    if (!f) return v;
+    fseek(f, 0, SEEK_END);
+    const long n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    v.resize(static_cast<size_t>(std::max(0L, n)) / sizeof(float));
+    fread(v.data(), sizeof(float), v.size(), f);
+    fclose(f);
+    return v;
+}
+
+// The sample-accurate offset of the song's waveform at `t` inside the video's (2 s of song, searched +-80 ms around
+// `predicted`): the reference the envelope alignment is measured against. r < 0.5: the waveforms differ there (another
+// mix / master), no reference.
+struct Truth {
+    double offset = 0, r = 0;
+};
+Truth waveformOffset(const std::vector<float>& song, const std::vector<float>& video, double t, double predicted, int rate,
+                     double slope = 1) {
+    const int n = 2 * rate, range = rate * 8 / 100;
+    const long s0 = std::lround(t * rate);
+    Truth best{predicted, -1};
+    if (s0 < 0 || s0 + n > static_cast<long>(song.size())) return best;
+    double ea = 0;
+    for (int i = 0; i < n; ++i) ea += static_cast<double>(song[static_cast<size_t>(s0 + i)]) * song[static_cast<size_t>(s0 + i)];
+    const long c = std::lround((t + predicted) * rate);
+    std::vector<double> rs(static_cast<size_t>(2 * range + 1), -1);
+    for (int d = -range; d <= range; ++d) {
+        const long v0 = c + d;
+        const double last = v0 + slope * n + 1;
+        if (v0 < 0 || last >= static_cast<double>(video.size())) continue;
+        double num = 0, ev = 0;
+        for (int i = 0; i < n; ++i) {
+            // The video read at the segment's speed (linear interpolation).
+            const double pos = static_cast<double>(v0) + slope * i;
+            const size_t k = static_cast<size_t>(pos);
+            const double f = pos - static_cast<double>(k);
+            const double a = song[static_cast<size_t>(s0 + i)], b = video[k] * (1 - f) + video[k + 1] * f;
+            num += a * b;
+            ev += b * b;
+        }
+        rs[static_cast<size_t>(d + range)] = ea > 0 && ev > 0 ? num / std::sqrt(ea * ev) : 0;
+    }
+    const size_t bi = static_cast<size_t>(std::max_element(rs.begin(), rs.end()) - rs.begin());
+    double frac = 0;
+    if (bi > 0 && bi + 1 < rs.size()) {
+        const double den = rs[bi - 1] - 2 * rs[bi] + rs[bi + 1];
+        if (den < 0) frac = 0.5 * (rs[bi - 1] - rs[bi + 1]) / den;
+    }
+    best.r = rs[bi];
+    best.offset = static_cast<double>(c + static_cast<long>(bi) - range - s0 + frac) / rate;
+    return best;
+}
+
+st::video::AlignResult alignAndReport(const std::vector<float>& song, const std::vector<float>& video, int rate) {
+    const double t0 = nowMs();
+    const auto fs_ = st::video::analyzeAudio(song.data(), song.size(), rate);
+    const auto fv = st::video::analyzeAudio(video.data(), video.size(), rate);
+    const double t1 = nowMs();
+    const auto r = st::video::alignAudio(fs_, fv);
+    const double t2 = nowMs();
+    std::printf("  song %.1f s, video %.1f s: %s (%s), coverage %.0f %%, score %.2f, margin %.2f; features %.0f ms, alignment %.0f ms\n",
+                fs_.seconds(), fv.seconds(), r.accepted ? "ACCEPTED" : "declined", r.verdict.c_str(), r.coverage * 100, r.score, r.margin,
+                t1 - t0, t2 - t1);
+    if (std::getenv("VIDEO_TEST_WINDOWS"))
+        for (const auto& w : r.windows)
+            std::printf("    window %6.1f s: %s lag %+8.3f s r %.2f\n", w.center, w.silent ? "silent " : w.matched ? "matched" : "none   ", w.lag,
+                        w.r);
+    for (const auto& s : r.segments) {
+        std::printf("    song %7.2f .. %7.2f s -> video %7.2f s, offset %+8.3f s, slope %.5f, r %.2f\n", s.audioStart, s.audioEnd,
+                    s.videoStart, s.offsetAt(s.audioStart), s.slope, s.score);
+        // Measured against the waveforms every 15 s inside the segment.
+        double worst = 0, sum = 0;
+        int n = 0, skipped = 0;
+        for (double t = s.audioStart + 3; t + 3 < s.audioEnd; t += 15) {
+            const auto tr = waveformOffset(song, video, t, s.offsetAt(t), rate, s.slope);
+            if (tr.r < 0.5) {
+                ++skipped;
+                continue;
+            }
+            const double err = (s.offsetAt(t) - tr.offset) * 1000;
+            if (std::getenv("VIDEO_TEST_WINDOWS")) std::printf("      at %6.1f s: waveform %+8.4f s (r %.2f), error %+.1f ms\n", t, tr.offset, tr.r, err);
+            worst = std::max(worst, std::fabs(err));
+            sum += std::fabs(err);
+            ++n;
+        }
+        if (n) std::printf("      vs the waveform at %d points: mean |error| %.1f ms, worst %.1f ms (%d points without a waveform match)\n", n,
+                           sum / n, worst, skipped);
+        else std::printf("      no waveform reference (%d points: another mix or master)\n", skipped);
+    }
+    return r;
+}
+
 // ---- live ---------------------------------------------------------------------------------------------------------
 
 void testLivePlay(st::youtube::MatchService& service, const std::string& playId);
@@ -844,12 +1280,22 @@ int main(int argc, char** argv) {
     MFStartup(MF_VERSION, MFSTARTUP_LITE);
     const std::string mode = argc > 1 ? argv[1] : "";
 
-    testSelection();
-    testStatic();
-    testFmp4Index();
-    testScheduler();
+    // "official": only the official video's offline checks; "alignraw": none (a dev mode on files).
+    const bool offline = mode != "alignraw" && mode != "official" && mode != "officiallive" && mode != "head" && mode != "soundtrack";
+    if (offline) {
+        testSelection();
+        testStatic();
+        testFmp4Index();
+        testScheduler();
+    }
+    if (offline || mode == "official") {
+        testAlignment();
+        testOfficialCandidates();
+        testDecisionCache(work);
+    }
     const fs::path file = work / L"test.mp4";
-    if (writeTestVideo(file)) {
+    if (!offline) {
+    } else if (writeTestVideo(file)) {
         testSoftwareDecode(file);
         try {
             st::gfx::Device::get().init();
@@ -862,13 +1308,22 @@ int main(int argc, char** argv) {
         std::printf("  FAIL  Media Foundation could not write the test video\n");
         ++g_failures;
     }
-    if (mode == "live" || mode == "play" || mode == "fetch" || mode == "file" || mode == "mfurl") {
+    if (mode == "alignraw" && argc > 3) {   // dev: two 12 kHz mono f32 files (video_test soundtrack ...)
+        alignAndReport(readRaw(argv[2]), readRaw(argv[3]), st::video::kSoundtrackRate);
+    }
+    if (mode == "live" || mode == "play" || mode == "fetch" || mode == "file" || mode == "mfurl" || mode == "soundtrack" ||
+        mode == "officiallive" || mode == "head") {
         yte::YoutubeClientOptions o;
         o.httpClient = st::http::client();
         st::youtube::MatchService service{yte::YoutubeClient(o)};
         service.setAltSource("off", "");
-        std::vector<std::string> ids;
-        for (int i = 2; i < argc; ++i) ids.emplace_back(argv[i]);
+        std::vector<std::string> ids;   // UTF-8 (song titles), from the wide command line
+        {
+            int wargc = 0;
+            LPWSTR* wargv = CommandLineToArgvW(GetCommandLineW(), &wargc);
+            for (int i = 2; i < wargc; ++i) ids.push_back(st::toUtf8(wargv[i]));
+            LocalFree(wargv);
+        }
         if (ids.empty()) ids = {"dQw4w9WgXcQ"};
         if (mode == "mfurl" && !ids.empty()) {   // dev: Media Foundation's own file source on a file, samples counted
             ComPtr<IMFSourceReader> reader;
@@ -924,6 +1379,65 @@ int main(int argc, char** argv) {
                 }
             }
             std::printf("  fetched %lld bytes: %s\n", static_cast<long long>(len), ok ? "ok" : "failed");
+        } else if (mode == "soundtrack" && ids.size() >= 2) {   // dev: a video's smallest audio stream, 12 kHz mono f32
+            try {
+                // [codec]: "opus" (default), "mp4a.40.2", "mp4a.40.5"; "best" / "bestopus": the engine's own stream.
+                const std::string codec = ids.size() > 2 ? ids[2] : "opus";
+                const bool best = codec.starts_with("best");
+                const auto s = best ? service.stream(ids[0], codec == "bestopus", false, false) : service.soundtrackStream(ids[0], codec, true);
+                std::printf("  %s: %s, %lld bytes\n", ids[0].c_str(), s.mimeType.c_str(), static_cast<long long>(s.contentLength));
+                const double t0 = nowMs();
+                const auto t = st::video::decodeSoundtrack({s.url, L"", s.contentLength, s.mimeType});
+                std::printf("  downloaded and decoded in %.0f ms\n", nowMs() - t0);
+                FILE* out = _wfopen(fs::path(ids[1]).c_str(), L"wb");
+                if (out) {
+                    fwrite(t.mono.data(), sizeof(float), t.mono.size(), out);
+                    fclose(out);
+                }
+                std::printf("  %s: itag %d %s %d kbps, %.2f s at %d Hz\n", ids[0].c_str(), s.itag, s.codec.c_str(), s.bitrateKbps,
+                            t.seconds(), t.sampleRate);
+            } catch (const std::exception& e) {
+                std::printf("  FAIL  %s: %s\n", ids[0].c_str(), e.what());
+                ++g_failures;
+            }
+        } else if (mode == "head" && ids.size() >= 2) {   // dev: the first 64 KB of a video's audio stream [codec]
+            const auto s = service.soundtrackStream(ids[0], ids.size() > 2 ? ids[2] : "mp4a.40.2", true);
+            auto buf = std::make_shared<st::audio::ProgressiveBuffer>(s.url, L"", s.contentLength, nullptr);
+            buf->start();
+            const int64_t len = buf->waitForLength();
+            std::vector<uint8_t> head(static_cast<size_t>(std::clamp<int64_t>(len, 0, 64 * 1024)));
+            const bool ok = !head.empty() && buf->read(0, head.data(), head.size()) == st::audio::ProgressiveBuffer::ReadStatus::Ok;
+            if (ok)
+                if (FILE* out = _wfopen(fs::path(ids[1]).c_str(), L"wb")) {
+                    fwrite(head.data(), 1, head.size(), out);
+                    fclose(out);
+                }
+            std::printf("  %s itag %d %s: %s\n", ids[0].c_str(), s.itag, s.codec.c_str(), ok ? "written" : "failed");
+        } else if (mode == "officiallive" && ids.size() >= 3) {
+            // dev: the official video of a song as the app finds it: <artist> <title> <the song's upload> [codec]
+            const std::string codec = ids.size() > 3 ? ids[3] : "opus";
+            st::youtube::OfficialQuery q{ids[1], {ids[0]}, 0, ""};
+            const char* region = std::getenv("VIDEO_TEST_REGION");
+            const auto cands = st::youtube::findOfficialVideos(service.client(), q, {ids[2]}, region ? region : "TR");
+            std::printf("  %zu candidate(s)\n", cands.size());
+            for (const auto& c : cands)
+                std::printf("    %s %.0f%s \"%s\" (%s) %d s\n", c.videoId.c_str(), c.score, c.omv ? " OMV" : "", c.title.c_str(),
+                            c.channel.c_str(), c.durationSec);
+            if (!cands.empty()) {
+                try {
+                    const auto a = service.soundtrackStream(ids[2], codec, true);
+                    const auto sa = st::video::decodeSoundtrack({a.url, L"", a.contentLength, a.mimeType});
+                    for (size_t i = 0; i < cands.size() && i < 3; ++i) {
+                        const auto b = service.soundtrackStream(cands[i].videoId, codec, true);
+                        const auto sb = st::video::decodeSoundtrack({b.url, L"", b.contentLength, b.mimeType});
+                        std::printf("  %s against %s (itag %d / %d):\n", cands[i].videoId.c_str(), ids[2].c_str(), a.itag, b.itag);
+                        if (alignAndReport(sa.mono, sb.mono, sa.sampleRate).accepted) break;
+                    }
+                } catch (const std::exception& e) {
+                    std::printf("  FAIL  %s\n", e.what());
+                    ++g_failures;
+                }
+            }
         } else if (mode == "play") testLivePlay(service, ids.front());
         else testLive(service, ids);
     }

@@ -5,6 +5,7 @@ add_library(st_audio STATIC
     AudioEngine.cpp AudioEngine.h
     ProgressiveBuffer.cpp ProgressiveBuffer.h   # range-request download into one contiguous buffer
     MfByteStream.cpp MfByteStream.h             # IMFByteStream over the buffer
+    Fmp4Index.cpp Fmp4Index.h                   # fragmented MP4: sidx segment index, edit lists freed (pure)
     Decoder.cpp Decoder.h                       # built-in or MF Source Reader -> float PCM
     XiphDecoder.cpp XiphDecoder.h               # built-in: Ogg Opus / Vorbis, WebM / Matroska Opus / Vorbis
     XiphCodecs.cpp XiphCodecs.h                 # libopus / libvorbis packet decoders, downmix, Vorbis comments

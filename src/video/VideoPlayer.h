@@ -50,6 +50,8 @@ public:
     // How long until the next frame is due at `rate` (ms; for the views' repaint), or a short poll while waiting.
     double nextFrameInMs(int64_t clockUs, double rate) const;
 
+    // The decoder is on its way to a new place (opening, a seek): the frame on screen, if any, is from before it.
+    bool waitingForFrame() const { return sched_.waitingForFirst(); }
     DecoderState state() const;
     bool expired() const { return decoder_ && decoder_->expired(); }
     std::string error() const { return decoder_ ? decoder_->error() : std::string("released"); }

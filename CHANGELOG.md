@@ -13,6 +13,15 @@ All notable changes to ShadeTube, newest first.
   (and plays from the song cache offline). Radio and endless playback use YouTube Music's own mixes, so the music keeps
   going. Likes, local playlists, downloads, offline sync, credits, Blend and stats work as before; a YouTube Music
   playlist can be copied into a local one, and pasted music.youtube.com album and artist links open their pages.
+- **Video mode shows the official music video**: when a song plays from an audio-only upload (an Art Track, the usual
+  case), video mode now finds the artist's official music video and plays its picture against ShadeTube's audio. It
+  listens to both to line them up, so a video with a spoken intro, a pause or a different edit still runs in sync, and
+  parts the video doesn't have briefly show the cover instead. Lyric videos, live versions, covers and videos that
+  aren't the same recording are never shown. The right click on the video button (or the "…" on the video) opens a
+  menu to turn this off, pick another video ("Wrong video?") or hide a video for that song.
+- **Fixed: some songs were skipped the moment they started**: a few of YouTube's album uploads ("Art Tracks") in AAC,
+  most often with Normal quality, played as nothing and jumped to the next song. They now play (also from the song
+  cache), starting exactly on their first note.
 - **One thin icon style everywhere**: the player bar's light outline icons now run through the whole app — sidebar,
   title bar, page headers, menus, song rows, cards, settings, toasts, the queue, Now Playing, the mini player, the
   command palette, the taskbar buttons and the phone remote. Every icon has the same line weight and size and is drawn

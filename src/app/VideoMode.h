@@ -4,9 +4,11 @@
 // follows the engine's heard position (AudioEngine::clock) through st_video (VideoPlayer / SyncScheduler).
 //
 // - The stream: the same YouTube video the song resolved to (Player::currentMatch), its picture-only stream up to
-//   Settings::videoQuality (MatchService::videoStream, youtube/VideoStreams: H.264 first). A still picture (an Art
-//   Track, an audio upload with one image), a video without a usable stream and items that don't stream from YouTube
-//   show the cover with "Bu şarkı için video yok"; podcasts and radio have no button at all.
+//   Settings::videoQuality (MatchService::videoStream, youtube/VideoStreams: H.264 first). When that upload is a still
+//   picture (an Art Track, an audio upload with one image) or has no picture stream, the artist's official music video
+//   of the song (app/OfficialVideo, Settings::videoOfficial): aligned with the song's audio, its picture runs on the
+//   alignment's time map (video::TimeMap) and fades over the cover where the video has no part of the song. Without
+//   one, and for items that don't stream from YouTube, the cover with a note; podcasts and radio have no button.
 // - Where: VideoView widgets. Now Playing swaps its big cover for one (the Now Playing hook is a VideoView child laid
 //   over the art rect), and the video window (app/VideoWindow: resizable, always-on-top option, full screen) has one.
 // - Resources: the player (decoder thread, its GPU surfaces, the download) exists only while video mode is on, the
@@ -57,6 +59,13 @@ bool hasPicture();
 
 // Re-evaluates what should exist (player, stream) now: player / track changes, views shown or hidden, settings.
 void sync();
+
+// Video mode's menu (the video buttons' right click, the views' "more" button): the video window, the official video
+// switch, "Yanlış video mu?" (pick another official video, or none), "Bu videoyu gösterme", video mode off. `anchor`
+// in `window`'s DIPs.
+void showMenu(ui::Window* window, gfx::Point anchor);
+// The song's picture is an official video (not its own upload): "Bu videoyu gösterme" applies.
+bool showsOfficial();
 
 } // namespace videomode
 } // namespace st::app

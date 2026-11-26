@@ -152,6 +152,7 @@ void Settings::load() {
     if (videoQuality != 480 && videoQuality != 1080) videoQuality = 720;
     read(j, "rememberVideoMode", rememberVideoMode);
     read(j, "videoMode", videoMode);
+    read(j, "videoOfficial", videoOfficial);
     read(j, "videoOnTop", videoOnTop);
     read(j, "videoX", videoX);
     read(j, "videoY", videoY);
@@ -254,6 +255,7 @@ void Settings::save() const {
         {"videoQuality", videoQuality},
         {"rememberVideoMode", rememberVideoMode},
         {"videoMode", videoMode},
+        {"videoOfficial", videoOfficial},
         {"videoOnTop", videoOnTop},
         {"videoX", videoX},
         {"videoY", videoY},

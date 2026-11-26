@@ -82,6 +82,8 @@ ShadeTube/
 │   spotify/     st_spotify      Totp, Auth, SpotifyApi (Pathfinder + spclient), HashRegistry, Session, Accounts
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious)
 │   ytmusic/     st_ytmusic      YouTube Music catalog: Parse (tolerant InnerTube parsers), YtMusic (endpoints, cache)
+│   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious),
+│                                VideoStreams + OfficialVideo (video mode's streams and official video search, 3.41 / 3.42)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
 │                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.42)
@@ -89,7 +91,8 @@ ShadeTube/
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
 │                                cache, 3.42)
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
-│   video/       st_video        video mode's picture: VideoDecoder (MF + DXVA), SyncScheduler, VideoPlayer, Fmp4Index
+│   video/       st_video        video mode's picture: VideoDecoder (MF + DXVA), SyncScheduler, VideoPlayer, Fmp4Index;
+│                                Soundtrack + AudioAlign (the official video's alignment, 3.42)
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
 │                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO),
 │                                PageMotion (page transitions' timeline + cover flight, 3.31),
@@ -116,6 +119,7 @@ ShadeTube/
 │                                PodcastsSpotify (Spotify shows -> public feeds, 3.42), Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
 │                                Preview + PreviewSession (song preview, 3.30),
+│                                VideoMode + VideoView + VideoWindow (3.41), OfficialVideo + OfficialVideoCache (3.42),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
 │                                Accounts (several Spotify accounts, 3.42), SongNotification + SongNotifier (3.43)
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
@@ -311,7 +315,13 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 4. `AudioEngine::open()`: `ProgressiveBuffer` (ranged download) → the built-in decoder for Opus / Vorbis in WebM,
    Matroska and Ogg (3.42), else `MfByteStream` → MF Source Reader → float PCM → [crossfade mix] → equalizer → volume
    ramp / loudness gain → look-ahead limiter → WASAPI event-driven, shared (or exclusive, 3.43), on the Windows default
-   device or the one picked in *Ayarlar › Ses*.
+   device or the one picked in *Ayarlar › Ses*. A fragmented MP4 whose track has an edit list (some Art Tracks' AAC
+   140, YouTube's media time 1600 at 44.1 kHz, the encoder's priming) is one Media Foundation's MPEG-4 source presents
+   no sample of (the song "ended" at 0:00 before 0.11.0): `audio::Decoder` opens it on a view of the buffer with the
+   edts freed (`audio/Fmp4Index`, `freeFragmentedEditList`; only when there is an edit list, any other file opens as
+   before), drops the samples before the edit and shifts the time stamps and seeks by it, so the song starts on its
+   first real sample, on the presentation timeline (identical to the stream's Opus, measured). Streams, passthrough
+   downloads and the song cache's files go through the same path.
 5. The next queue item is resolved at Low priority and preloaded 25 s before the end (`Settings.preloadNext`, implied
    by a crossfade) for a gapless handoff; downloads and local files are preloaded straight from disk. The queue is
    saved to `session.json` and restored at startup.
@@ -692,7 +702,7 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
 `spotify-hashes.json`, `library-recents.json`,
 `update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `themes\` (custom color themes, 3.35 Theme
 studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
-`local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`, `audio` = the song cache, 3.42), `logs\shadetube.log`
+`local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`, `officialvideos.json`, `audio` = the song cache, 3.42), `logs\shadetube.log`
 and `crashes\`. Downloads
 studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, credits, `mb`,
 studio), `shell\` (the notification icon, the song notification's cover `now-playing-{0,1}.png`, 3.43), `cache\` (images, `matches.json`, lyrics, `mb`,
@@ -1937,8 +1947,8 @@ disabled for songs that play from a file or a stand-in source), the same button 
 is hidden while Now Playing is open), the `video-mode` action (Ctrl+Shift+V, palette) or `video-window`; turning it on
 while nothing shows a video opens Now Playing.
 
-- **Which video**: the YouTube video the song resolved to (`Player::currentMatch`), never another upload (an official
-  video's timing differs from the audio's). Its picture-only stream (`MatchService::videoStream`, picked by
+- **Which video**: the YouTube video the song resolved to (`Player::currentMatch`); when that upload is a still picture
+  or has no picture stream, the artist's official music video, aligned with the song's audio (3.42). Its picture-only stream (`MatchService::videoStream`, picked by
   `youtube::pickVideoStream`): video-only streams up to `Settings::videoQuality` rows (480 / 720 / 1080, default 720; the
   smaller side of a portrait video), H.264 / MP4 first (stock Media Foundation decodes it on the GPU everywhere); at the
   same size up to 30 fps before 60, YouTube's original before a "Super Resolution" upscale, then the bit rate. VP9 /
@@ -1950,8 +1960,9 @@ while nothing shows a video opens Now Playing.
   `youtube::looksStatic` tells them by the stream's average bit rate (content length × 8 / duration), before a byte of
   picture is downloaded: under 200 kbps for 1280 × 720, scaled by the picture's area, floor 45 kbps. Measured
   2026-11-23 (720p averages): Art Tracks 26-32 kbps, audio uploads 71-140, a lyric video 334, music videos 438-1058.
-  Those songs, songs without a picture stream this machine decodes and songs that don't stream from YouTube show the
-  cover with "Bu şarkı için video yok" (or why); podcasts and radio have no button.
+  Those songs look for their official video (3.42); without one, songs without a picture stream this machine decodes
+  and songs that don't stream from YouTube show the cover with "Bu şarkı için video yok" (or why); podcasts and radio
+  have no button.
 - **Decoding** (`video/VideoDecoder`, thread `st-video-decode`): `audio::ProgressiveBuffer` with a read-ahead window
   (`setReadAhead`: the download stays 8 s of the stream's peak bit rate, at least 1 MB, ahead of the last read; a
   paused picture holds the network, a seek moves the window) → `audio::MfByteStream` → MF Source Reader (video stream
@@ -2019,15 +2030,18 @@ while nothing shows a video opens Now Playing.
 - **Video window** (`app/VideoWindow`): resizable (at least 320 × 180), letterboxed on black, rendered by App's loop
   through `AppContext::extraWindows` (also counted as "on screen" for the idle release), its rect and "always on top"
   remembered (`Settings::videoX / videoY / videoW / videoH / videoOnTop`). Controls fade 2.5 s after the pointer rests
-  while the song plays (the pointer hides with them in full screen): the song, previous / play-pause / next, always on
-  top, full screen, close; light ink over gradients in both themes. The picture is the window's caption (the root is
+  while the song plays (the pointer hides with them in full screen): the song, previous / play-pause / next, video
+  mode's menu, always on top, full screen, close; light ink over gradients in both themes. The picture is the window's caption (the root is
   a drag region; only the visible buttons are client area), so Windows moves the window and no widget holds a capture
   through the move loop; a caption double click (`WM_NCLBUTTONDBLCLK`) or F toggles full screen on its monitor (no
   caption / frame, the monitor's rect, all client area), Esc leaves it, Space and the mini player's shortcuts work,
   Ctrl+W closes. Turning video mode off closes it.
-- **Settings** (Ayarlar › Oynatma): Video kalitesi (480p / 720p / 1080p) and Video modunu hatırla
-  (`rememberVideoMode`; `videoMode` is the state at exit). Listen together: local only, a guest's picture follows its
-  synced audio.
+- **Settings** (Ayarlar › Oynatma): Video kalitesi (480p / 720p / 1080p), Resmi müzik videosu (`videoOfficial`, 3.42)
+  and Video modunu hatırla (`rememberVideoMode`; `videoMode` is the state at exit). Listen together: local only, a
+  guest's picture follows its synced audio.
+- **Menu** (`videomode::showMenu`): the right click on the player bar's and Now Playing's video buttons (Shift+F10 /
+  the menu key too), a "more" button left of the pop-out button on the picture and in the video window's top row: the
+  video window, Resmi müzik videosunu kullan, Yanlış video mu?, Bu videoyu gösterme (3.42), video mode on / off.
 - **Measured** (2026-11-23, Intel UHD + DXVA, 720p25 H.264 from YouTube, 2355 × 1247 px window): frame vs. heard audio
   5-9 ms on average and 8-25 ms at worst in steady playback at 0.5×, 1×, 1.5× and 2× (a frame is 33-40 ms); only the
   first frame after a slow start or a seek can be up to ~0.2 s late for a moment (the audio resumed before the picture
@@ -2044,6 +2058,102 @@ while nothing shows a video opens Now Playing.
   when a picture is dropped (frames shown / dropped, resyncs, frame vs. audio average / worst, frames more than a frame
   off, slot memory, DXVA or software). `video_test` (5.2) covers the pure parts and the decoder.
 
+### 3.42 Official music video for audio-only songs
+
+Most songs resolve to an Art Track or an audio upload (the matcher prefers them for the sound), whose picture is one
+still (3.41). For those, video mode plays the picture of the artist's official music video of the same song, silent,
+against ShadeTube's own audio, after checking by ear that it is the same recording and working out how its timeline
+relates to the song's. `app/OfficialVideo` (the decision, the picker), `app/OfficialVideoCache` (standalone),
+`youtube/OfficialVideo` (search, ranking), `video/Soundtrack` and `video/AudioAlign` (pure maths), wired into
+`app/VideoMode` (`findOfficial`, the time map in `paint` / `openPlayer`).
+
+- **When**: video mode is on, the song's own upload turned out a still picture (`looksStatic`) or has no picture
+  stream, and Ayarlar › Oynatma › Resmi müzik videosu (`Settings::videoOfficial`, on by default; also in video mode's
+  menu) is on. The note says "Resmi video sesle eşleştiriliyor…" meanwhile. A song with a stored decision (below) goes
+  to its official video at once, without asking for its own upload's picture stream first. Offline (a song from the
+  song cache, a network failure on either picture stream or the search): the cover with "Çevrimdışı", nothing stored.
+- **Candidates** (`youtube::findOfficialVideos`): YouTube Music's video search (`music.youtube.com/youtubei/v1/search`,
+  WEB_REMIX, the "Videos" filter, query "<artist> <title>", only that text is sent): every result carries YouTube
+  Music's own label, `MUSIC_VIDEO_TYPE_OMV` (what its Song / Video switch plays) or `_UGC`, and the artist runs. The
+  watch-next panel's direct song → video `counterpart` is not in anonymous responses (checked 2026-11-26), so it is not
+  used. Without a usable result, YouTube's search ("<artist> - <title> official video"). Ranking
+  (`rankOfficialVideos`, pure): the song's core title words (80 %) in the video's title and the primary artist in the
+  artist runs / channel / title, both compared with marks folded (Şımarık = Sımarık = SIMARIK); refused: " - Topic"
+  channels, lyric / audio / visualizer uploads, live, concert, cover, remix, acoustic, unplugged, reactions, karaoke,
+  sped up / slowed, loops, extended, mashups, medleys, teasers, translations, performance / session takes ... unless the
+  catalog title says so itself, and lengths outside [song − max(20 s, 12 %), song + max(3 min, 75 %)]. A non-OMV upload
+  needs the artist's own or a VEVO channel or "Official (Music) Video" in its title. OMV first, then those signals,
+  the length, YouTube's order; the best four. The song's own upload and the user's rejections are left out.
+- **Soundtracks** (`video::decodeSoundtrack`): the song's and each candidate's smallest Opus stream
+  (`MatchService::soundtrackStream(id, "opus")`, itag 249, ~50 kbps), downloaded whole (~1.1-2.3 MB) and decoded by
+  the engine's own `audio::Decoder` (the built-in Opus path, pre-skip trimmed: the presentation timeline) at the
+  stream's rate, then decimated to 12 kHz mono here (the built-in windowed-sinc resampler cost 8 s against 1 s per
+  song in a Debug build). Measured 2026-11-27: the built-in Opus 249 is sample-identical to Opus 251 and to an Art
+  Track's AAC with its edit list applied (3.4), while an AAC stream without an edit list comes out 36.28 ms late (1600
+  samples of priming left in, at 44.1 kHz).
+- **Alignment** (`video::analyzeAudio`, `alignAudio`; the header has the details): 5-band onset envelopes at 100 frames/s
+  (each band at unit deviation, so the kick's regular beat doesn't outweigh voices and hats); 8 s windows every 2 s
+  correlated with every lag of the video (FFT at 40 ms, then the best peaks at 10 ms, parabolic), candidates passed on
+  to neighbouring windows, a dynamic programme choosing one lag or "none" per window (a change of lag costs, so
+  identical repeated choruses keep their own place), runs fitted to lines (an offset, and a speed difference under
+  0.6 % when it adds up to 25 ms), runs split where they leave their line by 25 ms, ends found to the frame (local
+  correlation, change points), quiet song ends covered. Accepted: ≥ 65 % of the song's sounding part covered, at most 3
+  holds inside it, the chosen lags leading each window's next best by 0.05 on average (two songs on one beat grid don't),
+  parts in the video's order. The first of the best three candidates that is accepted wins; ~0.5 s per pair in Debug.
+- **The picture** (`video::TimeMap`): the song's heard position (`AudioEngine::clock`) mapped through the segments
+  before the scheduler (3.41) sees it: video time and rate (the clock's rate × the slope). A step under 0.25 s between
+  neighbouring parts (a micro-edit) plays through (the scheduler drops or repeats a frame). Outside the segments the
+  map holds: rate 0 on the next part's first frame (the decoder seeks there while the cover shows), or after the last
+  part on its end; a part after a jump in the video starts 1.2 s in (the seek's time). An official picture fades over
+  the cover (`State::fade`, 320 ms in / 240 ms out, none with reduced motion): out into a hold and while the decoder is
+  on its way to a new place (`VideoPlayer::waitingForFrame`: after a seek, a SponsorBlock skip, a hold), in once a frame
+  of the right place is there; the host's cover shows under it (`hasPicture` only at full opacity). The video window
+  draws the cover itself under a fading picture. Seeks, SponsorBlock skips, listen-together corrections are clock jumps
+  (mapped, resynced as in 3.41); speed is the clock's rate; a song preview holds the clock and so the picture; a new
+  item (gapless, crossfade) brings its own decision.
+- **Decisions** (`cache\officialvideos.json`, per catalog track): the video, its segments, the verdict, what was tried
+  (video → verdict) and what the user turned down, for the song's upload it was made against (another upload after
+  "Yanlış eşleşme?" = a new decision). A song is searched and aligned once: the next play shows the video at once. An
+  automatic "none" is searched again after 30 days (7 when nothing was found), a decision of an older alignment version
+  (`OfficialDecision::kVersion`) at once; the user's choices stay. A lookup that failed on the network stores nothing.
+  At exit (video mode's persist hook) the lookups on the pool are cancelled (their requests' token, the soundtrack
+  downloads) and awaited: App destroys the MatchService they use before it joins the pool (a lookup still running at
+  quit crashed there once).
+- **The user's say** (video mode's menu, 3.41): Resmi müzik videosunu kullan (the setting); Yanlış video mu? (a dialog
+  with the candidates, thumbnails, length and what is known: "SESLE EŞLEŞİYOR", "AYNI KAYIT DEĞİL", "RESMİ VİDEO",
+  "DENENMEDİ"; a pick is aligned first and refused with a toast when it isn't the song's recording; "Video gösterme"
+  stores a manual "none"); Bu videoyu gösterme (rejects the current one and searches again without it).
+- **Measured** (2026-11-26/27; Art Track's soundtrack against the official video's, offsets against a sample-accurate
+  waveform cross-correlation of 2 s at 12 kHz every 15 s): Rihanna "We Found Love" +51.61 s (a 52 s spoken / cinematic
+  intro), mean 4.1 ms, worst 13.1 ms; Billie Eilish "bad guy" +14.08 s, 0.8 / 0.9 ms; Dua Lipa "New Rules" +9.43 s,
+  0.2 / 0.4 ms; Queen "Bohemian Rhapsody" +1.80 s, 0.9 / 0.9 ms; Tarkan "Şımarık" (the single) −0.18 s, 4.4 / 5.8 ms;
+  Rick Astley "Never Gonna Give You Up" −1.00 s at slope 0.99746 (the video's transfer runs 0.25 % fast: 0.5 s over the
+  song), 2.0 / 2.9 ms where the waveforms match; Michael Jackson "Billie Jean" +1.02 s, two parts at slopes 1.0022 /
+  1.0032 meeting in a 5 ms step; The Weeknd "Blinding Lights" +22.61 s, a 20 ms micro-edit, a hold over 118-127.6 s
+  (the video's own sound there; the waveforms match neither line 120-127 s) and +25.20 s after its 2.6 s insert, mean
+  3-14 ms, worst 20 ms. Declined: Eagles "Hotel California" (only "(Live)" / "(Live 1976)" official videos: refused by
+  the ranking; the 1994 live video's soundtrack also by the alignment), the album edit of "Şımarık" against the single's
+  video (the length window; the alignment: "reordered"), unrelated pairs. In the app (Debug, sandbox): a decision in
+  3.1-8.6 s (once 38 s: googlevideo throttled one soundtrack URL to ~52 KB/s), the picture vs the mapped clock 5-6 ms
+  on average, worst 18-58 ms (3.41's figures), 1.5× 10 / 32 ms; a hold's seek to the next part 78-109 ms; Billie
+  Jean's micro-edit played through without a resync. Re-measured 2026-11-27 on 0.11.0's decoder (the built-in Opus
+  path): the same offsets and errors on the same songs; a decision in 3.6-5.7 s (soundtracks ~1 s each in Debug).
+  Checked together with (2026-11-27, Debug, sandbox): an Art Track from the song cache (its AAC with an edit list),
+  online (the stored decision at once) and with `SHADETUBE_OFFLINE=1` (the cover, "Çevrimdışı"); a crossfade from
+  "Blinding Lights" into "Billie Jean" and from it into "Bohemian Rhapsody" (each picture starts with its song's
+  audio, the next song's lookup meanwhile); Billie Jean's SponsorBlock segment (289.3 → 294.3 s, a jump past the
+  video's end: resync, then the next song); a song preview held 6.6 s over the video window (identical frames 2 s
+  apart, no resync after it); WASAPI exclusive mode (`SHADETUBE_EXCLUSIVE=1`, 6 ms average, a hold); a `yt:` track of
+  a pasted Art Track link (AAC with an edit list, its official video in 3.6 s).
+- **Remaining error**: the picture shows the frame of the clock's time, both on the presentation timeline: none from the
+  codecs when the engine plays Opus (the normal case) or AAC with an edit list. When it plays an AAC stream without
+  one, its clock counts the 36 ms of priming as song, and every picture (3.41's too) is 36 ms early.
+- **Dev**: `SHADETUBE_VIDEO_DEMO` steps `menu=x,y`, `picker`, `reject`, `official=0|1` (5.4); `video` log lines say the
+  candidates, each alignment (verdict, coverage, r, segments) and the decision's time. `video_test official` runs the
+  offline checks (synthetic songs: intros, a 0.3 % speed difference, an insert, a cut, repeated choruses, silence,
+  another song, live takes, a reordered edit; the time map; YouTube Music fixtures and the ranking; the cache),
+  `officiallive <artist> <title> <upload>` the whole lookup on YouTube, `soundtrack <id> <file> [codec]` and
+  `alignraw <a> <b>` the alignment on saved soundtracks with the waveform reference.
 ### 3.42 Icons
 
 One thin outline language for every icon in the app: sidebar, title bar, page headers, menus, track rows, cards,
@@ -3013,7 +3123,7 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   that may navigate (and so destroy the widget) are called through a local copy.
 - App files that tests compile directly (`Blacklist`, `ListenStats`, `HistoryImport`, `ScrobbleImport`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
   `SponsorBlock`, `Smtc`, `Updater`, `Installer`, `LibrarySort`, `RemoteHttp`, `RemoteAuth`, `RemoteApi`,
-  `RemoteState`, `RemoteServer`, the `Jam*` core, `HeaderCollapse`) must stay standalone: no `App`, `AppContext` or UI headers.
+  `RemoteState`, `RemoteServer`, the `Jam*` core, `HeaderCollapse`, `OfficialVideoCache`) must stay standalone: no `App`, `AppContext` or UI headers.
 
 ## 5. Testing
 
@@ -3045,7 +3155,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, seeks beyond the download, pause, gapless, crossfade, the other container, memory) | network; `[--webm] [--exclusive] [videoA] [videoB]` (`--webm`: everything on Opus / WebM, the built-in decoder; `--exclusive`: WASAPI exclusive mode) |
-| `codecs_test` | built-in Opus / Vorbis (3.42) on ffmpeg-made chirp fixtures: `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.43 on the default device, ~15 s); `--live <url>` (a station's state for 15 s); `--bench <file> [rate]` (decode speed) |
+| `codecs_test` | built-in Opus / Vorbis (3.42) on ffmpeg-made chirp fixtures: the Media Foundation path on a fragmented AAC MP4 with a YouTube-style edit list inserted (Media Foundation alone reads nothing; the Decoder reads from the edit on, chirp at lag 0, seeks on the presentation timeline); `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.43 on the default device, ~15 s); `--live <url>` (a station's state for 15 s); `--bench <file> [rate]` (decode speed) |
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, `refreshEntry` = what a scan stores, folder tree (natural order, covers, nested / drive roots, 50 000 files timed), files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
@@ -3089,7 +3199,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `pagetx_test` | page transitions (`ui/PageMotion`) stepped with explicit times: durations 180..240 ms, Push (outgoing fades / shifts out, incoming slides in, both monotonic and exact at the end), Back mirrored, shared / Replace without offsets, the cover's flight (lands exactly, even on a moving target, no overshoot, radius morph), the hand-over, holding for an image (no frames; image / scroll / timeout end it), fading when the target goes, 60 / 144 Hz give the same positions | offline |
 | `popups_test` | the overlay family (3.36) on a hidden window over a red / blue page: menu keys (wrap over disabled items and separators, Home / End, Tab, Enter, Escape), separator tidying, submenus by key (Right / Enter / Left / Escape, parent item lit) and by pointer (200 ms open, 300 ms close, click), type-ahead (accents, cycling), one acrylic capture per opening and one per settled change behind (never per frame), the material showing the page while `fg.secondary` keeps ≥ 4.5:1 (dark and light), close animations (painted without input, then deleted, backdrop freed; none with reduce motion), toast stacking, dialogs (Enter, Escape); `SHADETUBE_ACRYLIC=off` in a child process (no capture, even surface) | offline; `opaque` (the child's mode) |
 | `review_test` | year in review (`app/YearReview`) on fixed synthetic histories: periods (a year, the last 12 months, a running year), time / streams / tops and their order, months, weekdays, hours (a play across midnight split), dayparts, 7-day blocks, streak, busiest day, discoveries, first stream, local days on another time zone, genre shares / coverage / minimum, which periods qualify, timing with 300 000 plays | offline |
-| `video_test` | video mode: picture stream choice on manifest fixtures (cap, H.264 first, VP9 / AV1 only with a decoder, fps, upscales, portrait, muxed fallback), the still-picture check, the sidx / edit-list index on made-up boxes, the A/V scheduler on a fake clock with a fake decoder (1× / 0.5× / 2× / 3× in sync to a frame, pause, seeks both ways, a decoder that can't keep up, the video ending first), a generated H.264 MP4 decoded in software and with DXVA + the video processor (every frame's colors, seeks, 2×, the idle release) | offline; `live [<id>…]` (the picture streams and still-picture verdicts of songs as MatchService matches them, one stream played on the GPU against a real-time clock, a seek); `play <id>`; `fetch <id> <file>`; `file <path> [<start s>]`; `mfurl <path>` (MF's own source on a file) |
+| `video_test` | video mode: picture stream choice on manifest fixtures (cap, H.264 first, VP9 / AV1 only with a decoder, fps, upscales, portrait, muxed fallback), the still-picture check, the sidx / edit-list index on made-up boxes, the A/V scheduler on a fake clock with a fake decoder (1× / 0.5× / 2× / 3× in sync to a frame, pause, seeks both ways, a decoder that can't keep up, the video ending first), a generated H.264 MP4 decoded in software and with DXVA + the video processor (every frame's colors, seeks, 2×, the idle release); the official video (3.42): the alignment on synthetic songs (an intro, another master, a 0.3 % speed difference, an insert, a cut, repeated choruses, a silent start, another song, two live takes, a reordered edit, too short), the time map, YouTube Music search fixtures and the ranking, the decision cache | offline; `official` (only the official video's checks); `live [<id>…]` (the picture streams and still-picture verdicts of songs as MatchService matches them, one stream played on the GPU against a real-time clock, a seek); `play <id>`; `fetch <id> <file>`; `file <path> [<start s>]`; `mfurl <path>` (MF's own source on a file); `officiallive <artist> <title> <upload id> [codec]` (the whole lookup on YouTube, with the waveform reference); `soundtrack <id> <file> [codec]` (12 kHz mono f32); `alignraw <a.raw> <b.raw>` (`VIDEO_TEST_WINDOWS=1` lists every window) |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
 | `audiocache_test` | song cache (`player/AudioCache`, 3.42): profiles / formats / offline fallbacks, what is not cacheable, the index across runs (match, loudness, tracks, SponsorBlock data); `.part` leftovers, orphans, gone / short files, damaged head / tail / sampled block / truncation dropped at lookup; LRU under a small limit, a lower limit, the quarter rule, off, a nearly full disk (free-space probe); `ProgressiveBuffer`'s completion hook against an in-process ranged HTTP server (exact bytes once, after a far seek, never when cancelled); the engine storing a streamed WAV and playing the file; a real `Player` with `SHADETUBE_OFFLINE` (cached songs with their match, a gapless preload from the cache, crossfade, a preview, another quality once resolving fails, a damaged file dropped) | offline (own temp profile); needs an audio device |
 | `lists_test` | list geometry (3.42): the track table's columns at every width 300-1600 DIP in both densities (fixed right end, order, no overlap, the title minimum, columns only ever dropping in the documented order, the queue action last), `Settings::trackColumns` parsing, selection runs, the queue's sections (runs, header rows, positions, hit tests on rows and headers, drop slots, 5 000 slots), the skeleton band | offline |
@@ -3199,7 +3309,7 @@ apps*).
 | `SHADETUBE_NAV_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after the shell opened: `click=<x>,<y>` (a real left click posted at window DIPs), `back`, `forward`. With `--screenshot`, e.g. `click@2500=559,378` and a capture at 3300 ms for a cover in flight (3.31) |
 | `SHADETUBE_MOTION_SCALE` | `<factor>` (1-50): page transitions and the cover's flight run that many times slower (screenshots of their middle) |
 | `SHADETUBE_VIDEO_FILE` | `<path>`: video mode plays this local video (MP4 / WebM) as the picture of every song that has a YouTube video (no stream is fetched): e.g. a burned-in timecode to check the sync against the audio |
-| `SHADETUBE_VIDEO_DEMO` | `<action>@<ms>[=<arg>];…` run that long after startup: `on`, `off`, `toggle` (as the buttons), `window`, `close`, `fullscreen`, `ontop`, `nowplaying`, `npclose`, `seek=<s>`, `speed=<x>`, `pause`, `play`, `quality=<rows>`, `minimize` / `restore` (the main window), `devicelost` (the device recreated as after a loss), `idlerelease` (the idle graphics release), `nchit` (logs the video window's hit test at its center and its close button), `captiondblclick` (a caption double click), `log` (the sync line now), `shot=<png>` (the video window), `mainshot=<png>` (the main window), `quit` |
+| `SHADETUBE_VIDEO_DEMO` | `<action>@<ms>[=<arg>];…` run that long after startup: `on`, `off`, `toggle` (as the buttons), `window`, `close`, `fullscreen`, `ontop`, `nowplaying`, `npclose`, `seek=<s>`, `speed=<x>`, `pause`, `play`, `quality=<rows>`, `minimize` / `restore` (the main window), `devicelost` (the device recreated as after a loss), `idlerelease` (the idle graphics release), `nchit` (logs the video window's hit test at its center and its close button), `captiondblclick` (a caption double click), `log` (the sync line now), `menu=<x>,<y>` (video mode's menu at window DIPs), `picker` ("Yanlış video mu?"), `reject` ("Bu videoyu gösterme"), `official=<0\|1>` (the official video setting), `shot=<png>` (the video window), `mainshot=<png>` (the main window), `quit`. To try the official video with `--play`, pin the song's Art Track in the sandbox's `cache\matches.json` (`"preview:<Artist - Title>": {"v": "<id>", "m": true}`) |
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 | `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.32), instead of `SPI_GETCLIENTAREAANIMATION` |
 | `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
@@ -3341,9 +3451,19 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   the window just reads a shade lighter. Turning it on applies at the next start unless the window started with
   it. The 55 % / 50 % tint was chosen on simulated composites (the development machine has transparency effects
   off) and may need tuning against real wallpapers.
-- **Video mode** shows the video the song resolved to, never another upload: when the match is an Art Track or an
-  audio upload there is no video, even if the artist has an official one (its timing differs from the audio). The
-  still-picture check is a bit-rate heuristic: a very calm real video under ~200 kbps at 720p shows as "no video", a
+- **Official music video** (3.42): the first play of an Art Track song waits for the lookup (two soundtracks of ~1.5 MB,
+  ~1 s each, and ~1 s of maths: 3-9 s, up to ~40 s when googlevideo throttles a URL; later plays use the stored
+  decision; offline: the cover). Only
+  YouTube Music's OMV label, the channel and the title say "official": a fan upload with "Official Video" on the
+  artist's name, or an official video titled unusually (another language, no artist), can be taken / missed; the
+  alignment still refuses anything that isn't the song's recording. A video much shorter than the song (an edit under
+  88 % of its length) is not tried; an edit that reorders the song, or repeats a part the song doesn't, is declined
+  rather than held; more than 3 holds decline too. A part held over shows the cover (no freeze frame). The anonymous
+  watch-next `counterpart` (YouTube Music's own song ↔ video link, with its timing) is not available, so the timing is
+  always worked out from the sound. Codec delay: none with Opus or an edit-listed AAC; with an AAC stream without an
+  edit list the engine's clock (and so every video mode picture) is 36 ms ahead of the sound (its priming).
+- **Video mode** shows the video the song resolved to, or for an Art Track / audio upload its official video (above).
+  The still-picture check is a bit-rate heuristic: a very calm real video under ~200 kbps at 720p shows as "no video", a
   still with grain or a slow zoom shows as a video. YouTube only (no backup servers); VP9 / AV1 only when H.264 is
   missing, and WebM seeks through Media Foundation's own (slow, scanning) path; no HDR (8-bit NV12). The picture appears
   0.7-3 s after the audio on the network and seeks take 0.4-2 s (one segment download). The DXVA surface pool costs

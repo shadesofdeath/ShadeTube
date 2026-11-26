@@ -1,5 +1,6 @@
 #include "audio/Decoder.h"
 
+#include "audio/Fmp4Index.h"
 #include "audio/MfByteStream.h"
 #include "audio/ProgressiveBuffer.h"
 #include "audio/XiphDecoder.h"
@@ -75,7 +76,30 @@ HRESULT Decoder::open(const std::shared_ptr<ProgressiveBuffer>& buffer, const st
     std::string mime = mimeType.substr(0, mimeType.find(';'));
     while (!mime.empty() && mime.back() == ' ') mime.pop_back();
 
-    hr = createMfByteStream(buffer, mime, &stream_);
+    // A fragmented MP4 whose track has an edit list (some of YouTube's Art Tracks' AAC streams, their passthrough
+    // downloads and cached copies): Media Foundation's MPEG-4 source presents no sample of it at all, so the song would
+    // "end" at 0:00. The source reads a view with the edit list freed (audio/Fmp4Index) and the edit (the encoder's
+    // priming) comes off here: read() drops what lies before it and shifts the time stamps, seek() aims past it.
+    editHns_ = 0;
+    std::shared_ptr<ByteStreamView> view;
+    if (mime.empty() || mime.find("mp4") != std::string::npos || mime.find("m4a") != std::string::npos) {
+        const int64_t length = buffer->length();
+        std::vector<uint8_t> head(static_cast<size_t>(std::clamp<int64_t>(length, 0, 64 * 1024)));
+        const auto status = head.empty() ? ProgressiveBuffer::ReadStatus::Ok : buffer->read(0, head.data(), head.size());
+        if (status == ProgressiveBuffer::ReadStatus::Interrupted) return E_ABORT;   // a seek: the caller opens again
+        if (status != ProgressiveBuffer::ReadStatus::Ok) return MF_E_NET_READ;
+        if (!head.empty()) {
+            if (auto fix = freeFragmentedEditList(head)) {
+                view = std::make_shared<ByteStreamView>();
+                view->head = std::move(fix->init);
+                view->bodyOffset = fix->bodyOffset;
+                editHns_ = fix->editUs * 10;
+                ST_LOG_INFO("audio", "fragmented MP4 with an edit list ({:.1f} ms): read with the edit list freed", fix->editUs / 1000.0);
+            }
+        }
+    }
+
+    hr = createMfByteStream(buffer, mime, &stream_, view);
     if (FAILED(hr)) return hr;
 
     ComPtr<IMFSourceResolver> resolver;
@@ -160,6 +184,7 @@ HRESULT Decoder::configureOutput(const RatePolicy& rates) {
 
 void Decoder::close() {
     xiph_.reset();
+    editHns_ = 0;
     reader_.Reset();
     if (source_) source_->Shutdown();
     source_.Reset();
@@ -173,7 +198,7 @@ HRESULT Decoder::seek(int64_t hns) {
     PROPVARIANT pos;
     PropVariantInit(&pos);
     pos.vt = VT_I8;
-    pos.hVal.QuadPart = hns;
+    pos.hVal.QuadPart = hns + editHns_;   // the source counts media time (the freed edit list's priming included)
     return reader_->SetCurrentPosition(GUID_NULL, pos);
 }
 
@@ -216,6 +241,17 @@ Decoder::Status Decoder::read(std::vector<float>& out, int64_t& timestampHns, bo
         std::memcpy(out.data() + old, data, count * sizeof(float));
         buffer->Unlock();
         timestampHns = ts;
+        if (editHns_ > 0) {
+            // The freed edit list: presentation time = media time - the edit; what lies before 0 is the priming.
+            int64_t p = ts - editHns_;
+            if (p < 0 && sampleRate_ && channels_) {
+                const size_t frames = count / channels_;
+                const size_t drop = std::min<size_t>(frames, static_cast<size_t>((-p * static_cast<int64_t>(sampleRate_) + 5'000'000) / 10'000'000));
+                out.erase(out.begin() + static_cast<ptrdiff_t>(old), out.begin() + static_cast<ptrdiff_t>(old + drop * channels_));
+                p = drop < frames ? 0 : -1;   // nothing left of this sample: no time stamp
+            }
+            timestampHns = p;
+        }
     }
     hr = S_OK;
     return (flags & MF_SOURCE_READERF_ENDOFSTREAM) ? Status::EndOfStream : Status::Ok;

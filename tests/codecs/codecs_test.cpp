@@ -14,6 +14,10 @@
 //      second stream), LiveDecoder (libopus / libvorbis) decoding them with the pre-skip dropped.
 //   7. AudioEngine (needs an audio device, else skipped): a local .opus and .ogg play, seek, end, and hand over
 //      gaplessly.
+//   8. Media Foundation path (runs before 7): a fragmented MP4 (AAC, Media Foundation's FMPEG4 sink) with an edit list
+//      inserted the way YouTube writes it on some Art Tracks (media time 2112, the whole movie's duration), of which
+//      Media Foundation's own reader presents nothing: the Decoder reads it all from the edit on (the chirp's frame
+//      2112 first, lag 0), and a seek lands on the presentation timeline; a file without one is left alone.
 //   --exclusive instead (takes the default device for ~15 s): exclusive mode at the file's own rate, a second engine
 //      refused (Busy, shared instead), the device released while paused, a 44.1 -> 48 kHz handoff reopening it, a
 //      crossfade keeping the rate, the preview voice, switching back to shared mode while playing.
@@ -22,6 +26,7 @@
 //   codecs_test [--exclusive | --live <url> | --bench <file> [rate]] [fixtures dir]
 #include "audio/AudioEngine.h"
 #include "audio/Decoder.h"
+#include "audio/Fmp4Index.h"
 #include "audio/LiveDecoder.h"
 #include "audio/LiveParsers.h"
 #include "audio/Matroska.h"
@@ -33,6 +38,9 @@
 
 #include <windows.h>
 #include <mfapi.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
+#include <wrl/client.h>
 
 #include <atomic>
 #include <chrono>
@@ -50,6 +58,7 @@
 
 namespace fs = std::filesystem;
 using namespace st::audio;
+using Microsoft::WRL::ComPtr;
 
 namespace {
 
@@ -815,6 +824,207 @@ void bench(const fs::path& file, uint32_t rate) {
 
 } // namespace
 
+// ---- 8. Media Foundation path: a fragmented MP4 with an edit list ----------------------------------------------------
+
+uint32_t rd32(const std::vector<uint8_t>& b, size_t at) {
+    return uint32_t(b[at]) << 24 | uint32_t(b[at + 1]) << 16 | uint32_t(b[at + 2]) << 8 | b[at + 3];
+}
+void wr32(std::vector<uint8_t>& b, size_t at, uint32_t v) {
+    for (int i = 0; i < 4; ++i) b[at + size_t(i)] = uint8_t(v >> (24 - 8 * i));
+}
+uint64_t rd64(const std::vector<uint8_t>& b, size_t at) { return uint64_t(rd32(b, at)) << 32 | rd32(b, at + 4); }
+void wr64(std::vector<uint8_t>& b, size_t at, uint64_t v) {
+    wr32(b, at, uint32_t(v >> 32));
+    wr32(b, at + 4, uint32_t(v));
+}
+bool boxIs(const std::vector<uint8_t>& b, size_t at, const char* t) { return std::memcmp(b.data() + at + 4, t, 4) == 0; }
+
+// Media Foundation's sink writer: the chirp (48 kHz stereo) as AAC in a fragmented MP4 (FMPEG4), like YouTube's DASH
+// audio.
+bool writeFragmentedAac(const fs::path& out, double seconds) {
+    constexpr UINT32 kR = 48000;
+    ComPtr<IMFAttributes> attrs;
+    MFCreateAttributes(&attrs, 1);
+    attrs->SetGUID(MF_TRANSCODE_CONTAINERTYPE, MFTranscodeContainerType_FMPEG4);
+    ComPtr<IMFSinkWriter> w;
+    if (FAILED(MFCreateSinkWriterFromURL(out.c_str(), nullptr, attrs.Get(), &w))) return false;
+    ComPtr<IMFMediaType> outType, inType;
+    MFCreateMediaType(&outType);
+    outType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+    outType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC);
+    outType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, kR);
+    outType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, 2);
+    outType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+    outType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 24000);
+    MFCreateMediaType(&inType);
+    inType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+    inType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
+    inType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, kR);
+    inType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, 2);
+    inType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+    inType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 4);
+    inType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, kR * 4);
+    DWORD stream = 0;
+    if (FAILED(w->AddStream(outType.Get(), &stream)) || FAILED(w->SetInputMediaType(stream, inType.Get(), nullptr)) || FAILED(w->BeginWriting()))
+        return false;
+    const size_t frames = size_t(seconds * kR);
+    for (size_t f = 0; f < frames; f += 4800) {
+        const size_t n = std::min<size_t>(4800, frames - f);
+        ComPtr<IMFMediaBuffer> buf;
+        ComPtr<IMFSample> s;
+        BYTE* dst = nullptr;
+        MFCreateMemoryBuffer(DWORD(n * 4), &buf);
+        buf->Lock(&dst, nullptr, nullptr);
+        auto* pcm = reinterpret_cast<int16_t*>(dst);
+        for (size_t i = 0; i < n; ++i)
+            for (int c = 0; c < 2; ++c) pcm[i * 2 + size_t(c)] = int16_t(std::lround(chirp(c, double(f + i) / kR) * 32767));
+        buf->Unlock();
+        buf->SetCurrentLength(DWORD(n * 4));
+        MFCreateSample(&s);
+        s->AddBuffer(buf.Get());
+        s->SetSampleTime(LONGLONG(f) * 10'000'000 / kR);
+        s->SetSampleDuration(LONGLONG(n) * 10'000'000 / kR);
+        if (FAILED(w->WriteSample(stream, s.Get()))) return false;
+    }
+    return SUCCEEDED(w->Finalize());
+}
+
+// The same file with an edit list (moov/trak/edts/elst, media time `editFrames` in the track's timescale) inserted after
+// tkhd, as YouTube's Art Tracks carry one; the boxes after moov move by its size, so absolute offsets (tfhd's
+// base_data_offset, tfra) are moved with them.
+std::vector<uint8_t> withEditList(std::vector<uint8_t> f, uint32_t editFrames) {
+    constexpr uint32_t kEdts = 36;
+    std::vector<uint8_t> edts(kEdts, 0);
+    wr32(edts, 0, kEdts);
+    std::memcpy(edts.data() + 4, "edts", 4);
+    wr32(edts, 8, kEdts - 8);
+    std::memcpy(edts.data() + 12, "elst", 4);
+    wr32(edts, 20, 1);            // one entry (version 0)
+    wr32(edts, 24, 0);            // segment duration (set to the movie's below)
+    wr32(edts, 28, editFrames);   // media time
+    edts[32] = 0;
+    edts[33] = 1;                 // rate 1.0
+    size_t moov = 0;
+    for (size_t p = 0; p + 8 <= f.size(); p += rd32(f, p)) {
+        if (rd32(f, p) < 8) return {};
+        if (boxIs(f, p, "moov")) moov = p;
+    }
+    if (!moov) return {};
+    const size_t moovEnd = moov + rd32(f, moov);
+    size_t trak = 0;
+    for (size_t p = moov + 8; p + 8 <= moovEnd; p += rd32(f, p)) {
+        if (boxIs(f, p, "trak")) trak = p;
+        // The edit covers the whole movie, as YouTube writes it (its segment duration = mvhd's duration): this is what
+        // Media Foundation's MPEG-4 source can't reconcile with a fragmented track's empty sample tables.
+        if (boxIs(f, p, "mvhd")) wr32(edts, 24, f[p + 8] == 1 ? uint32_t(rd64(f, p + 32)) : rd32(f, p + 24));
+    }
+    if (!trak || !boxIs(f, trak + 8, "tkhd")) return {};
+    const size_t at = trak + 8 + rd32(f, trak + 8);
+    wr32(f, moov, rd32(f, moov) + kEdts);
+    wr32(f, trak, rd32(f, trak) + kEdts);
+    f.insert(f.begin() + ptrdiff_t(at), edts.begin(), edts.end());
+    // Absolute offsets past the insertion.
+    for (size_t p = moovEnd + kEdts; p + 8 <= f.size(); p += rd32(f, p)) {
+        const uint32_t size = rd32(f, p);
+        if (size < 8) break;
+        if (boxIs(f, p, "moof")) {
+            for (size_t q = p + 8; q + 8 <= p + size; q += rd32(f, q)) {
+                if (!boxIs(f, q, "traf")) continue;
+                const size_t tfhd = q + 8;
+                if (boxIs(f, tfhd, "tfhd") && (rd32(f, tfhd + 8) & 1)) wr64(f, tfhd + 16, rd64(f, tfhd + 16) + kEdts);
+            }
+        } else if (boxIs(f, p, "mfra")) {
+            for (size_t q = p + 8; q + 8 <= p + size; q += rd32(f, q)) {
+                if (!boxIs(f, q, "tfra")) continue;
+                const bool v1 = f[q + 8] == 1;
+                const uint32_t lens = rd32(f, q + 16);
+                const size_t entry = (v1 ? 16 : 8) + ((lens >> 4) & 3) + 1 + ((lens >> 2) & 3) + 1 + (lens & 3) + 1;
+                const uint32_t n = rd32(f, q + 20);
+                for (uint32_t e = 0; e < n; ++e) {
+                    const size_t off = q + 24 + e * entry + (v1 ? 8 : 4);
+                    if (v1) wr64(f, off, rd64(f, off) + kEdts);
+                    else wr32(f, off, rd32(f, off) + kEdts);
+                }
+            }
+        }
+    }
+    return f;
+}
+
+// What Media Foundation's own Source Reader gets out of a file (frames).
+int64_t mfFrames(const fs::path& p) {
+    ComPtr<IMFSourceReader> r;
+    if (FAILED(MFCreateSourceReaderFromURL(p.c_str(), nullptr, &r))) return -1;
+    ComPtr<IMFMediaType> t;
+    MFCreateMediaType(&t);
+    t->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+    t->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_Float);
+    r->SetCurrentMediaType(DWORD(MF_SOURCE_READER_FIRST_AUDIO_STREAM), nullptr, t.Get());
+    int64_t frames = 0;
+    for (int guard = 0; guard < 100000; ++guard) {
+        DWORD flags = 0;
+        LONGLONG ts = 0;
+        ComPtr<IMFSample> s;
+        if (FAILED(r->ReadSample(DWORD(MF_SOURCE_READER_FIRST_AUDIO_STREAM), 0, nullptr, &flags, &ts, &s))) return -1;
+        if (s) {
+            DWORD len = 0;
+            s->GetTotalLength(&len);
+            frames += len / 8;
+        }
+        if (flags & (MF_SOURCE_READERF_ENDOFSTREAM | MF_SOURCE_READERF_ERROR)) break;
+    }
+    return frames;
+}
+
+void testEditList() {
+    std::printf("Media Foundation path: a fragmented MP4 (AAC) with an edit list\n");
+    const fs::path work = fs::temp_directory_path() / std::format("ShadeTube-codecs-test-{}", GetCurrentProcessId());
+    fs::create_directories(work);
+    const fs::path plain = work / "frag.m4a", edited = work / "frag-edit.m4a";
+    if (!writeFragmentedAac(plain, 4.0)) {
+        std::printf("  (no AAC encoder / fragmented MP4 sink here: skipped)\n");
+        return;
+    }
+    // Without an edit list: Media Foundation decodes it, the chirp at frame 0.
+    const Decoded a = decode(plain);
+    double snrA = 0;
+    const int lagA = a.ok ? bestLag(a.pcm, 48000, a.firstFrame, 4800, 96000, 8, &snrA) : 9999;
+    std::printf("  plain: %zu frames, the chirp at lag %d (SNR %.1f dB)\n", a.pcm.size() / 2, lagA, snrA);
+    CHECK(a.ok && !a.builtIn && a.firstFrame == 0 && std::abs(lagA) <= 1 && snrA > 20);
+    // With an edit list of 2112 frames (44 ms: AAC's usual priming), as YouTube's Art Tracks carry one: the
+    // presentation starts 2112 frames into the media.
+    constexpr int kEdit = 2112;
+    const auto bytes = withEditList(readAll(plain), kEdit);
+    CHECK(!bytes.empty());
+    {
+        std::ofstream f(edited, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(bytes.data()), std::streamsize(bytes.size()));
+    }
+    const int64_t mf = mfFrames(edited);
+    std::printf("  Media Foundation's own reader on it: %lld frames%s\n", static_cast<long long>(mf), mf == 0 ? " (why the fix exists)" : "");
+    const auto plainBytes = readAll(plain);
+    const auto fix = freeFragmentedEditList(std::span<const uint8_t>(bytes.data(), std::min<size_t>(bytes.size(), 64 * 1024)));
+    CHECK(fix && std::llabs(fix->editUs - int64_t(kEdit) * 1'000'000 / 48000) <= 21);
+    CHECK(!freeFragmentedEditList(std::span<const uint8_t>(plainBytes.data(), plainBytes.size())));   // no edit list: untouched
+    // The Decoder (as a Track reads it): everything after the edit, its first frame the chirp's frame 2112.
+    const Decoded b = decode(edited);
+    double snrB = 0;
+    const int lagB = b.ok ? bestLag(b.pcm, 48000, b.firstFrame + kEdit, 4800, 96000, 8, &snrB) : 9999;
+    std::printf("  edited, through the Decoder: %zu frames from %lld, the chirp's frame %d first (lag %d, SNR %.1f dB)\n",
+                b.pcm.size() / 2, static_cast<long long>(b.firstFrame), kEdit, lagB, snrB);
+    CHECK(b.ok && !b.builtIn && b.firstFrame == 0 && std::abs(lagB) <= 1 && snrB > 20);
+    CHECK(std::llabs(int64_t(b.pcm.size() / 2) - (int64_t(a.pcm.size() / 2) - kEdit)) <= 2);
+    // A seek lands on the requested sample of the presentation timeline.
+    const Decoded c = decode(edited, {}, 2000);
+    double snrC = 0;
+    const int lagC = c.ok ? bestLag(c.pcm, 48000, c.firstFrame + kEdit, 0, 48000, 8, &snrC) : 9999;
+    std::printf("  seek to 2 s: from frame %lld, lag %d (SNR %.1f dB)\n", static_cast<long long>(c.firstFrame), lagC, snrC);
+    CHECK(c.ok && c.firstFrame == 96000 && std::abs(lagC) <= 1 && snrC > 20);
+    std::error_code ec;
+    if (!std::getenv("CODECS_TEST_KEEP")) fs::remove_all(work, ec);
+    else std::printf("  kept %s\n", work.string().c_str());
+}
+
 int main(int argc, char** argv) {
     SetConsoleOutputCP(CP_UTF8);
     st::log::init();
@@ -847,6 +1057,7 @@ int main(int argc, char** argv) {
         testDecoder();
         testTags();
         testLive();
+        testEditList();
         testEngine();
     }
     MFShutdown();

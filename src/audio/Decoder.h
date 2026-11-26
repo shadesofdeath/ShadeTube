@@ -3,7 +3,9 @@
 //   - built-in (audio/XiphDecoder): Ogg Opus, Ogg Vorbis, WebM / Matroska with an Opus or Vorbis track — on every
 //     Windows, whatever codecs are installed;
 //   - everything else (AAC/MP4, MP3, FLAC, WAV, WMA, ALAC, Matroska with other codecs, Ogg with other codecs when a
-//     handler is installed): the Media Foundation Source Reader, whose resampler converts the rate (Windows 8+).
+//     handler is installed): the Media Foundation Source Reader, whose resampler converts the rate (Windows 8+). A
+//     fragmented MP4 with an edit list (some Art Tracks' AAC), of which Media Foundation presents nothing, is read with
+//     the edit list freed and the edit applied here (audio/Fmp4Index).
 //
 // Not thread-safe: owned and used by exactly one Track decode thread (which must have COM
 // initialised and MFStartup called by the engine).
@@ -64,6 +66,7 @@ private:
     HRESULT configureOutput(const RatePolicy& rates);
 
     std::unique_ptr<XiphDecoder> xiph_;
+    int64_t editHns_ = 0;   // a fragmented MP4's freed edit list (audio/Fmp4Index): taken off the times, seek past it
     Microsoft::WRL::ComPtr<IMFMediaSource> source_;
     Microsoft::WRL::ComPtr<IMFSourceReader> reader_;
     Microsoft::WRL::ComPtr<IMFByteStream> stream_;

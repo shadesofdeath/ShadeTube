@@ -318,9 +318,10 @@ bool MatchService::renewYoutubeSession(std::chrono::system_clock::time_point fai
     return true;
 }
 
-StreamInfo MatchService::youtubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct) {
+StreamInfo MatchService::youtubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct,
+                                       const std::string* smallestOf) {
     for (int attempt = 0;; ++attempt) {
-        StreamInfo info = pickYoutubeStream(videoId, allowWebm, lowQuality, ct);
+        StreamInfo info = pickYoutubeStream(videoId, allowWebm, lowQuality, ct, smallestOf);
         const int status = urlCheck_ ? urlCheck_(info.url, info.contentLength) : probeYoutubeUrl(info.url, info.contentLength, ct);
         if (!refused(status)) {
             ST_LOG_INFO("youtube", "stream {} served by youtube ({}): {} {} {} kbps, itag {}, loudness {}", videoId, clientOf(info.url),
@@ -336,7 +337,8 @@ StreamInfo MatchService::youtubeStream(const std::string& videoId, bool allowWeb
     }
 }
 
-StreamInfo MatchService::pickYoutubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct) {
+StreamInfo MatchService::pickYoutubeStream(const std::string& videoId, bool allowWebm, bool lowQuality, const CT& ct,
+                                           const std::string* smallestOf) {
     const auto started = std::chrono::system_clock::now();   // the session this manifest belongs to was current then
     const auto manifest = client_.videos().streams().getManifest(videoId, ct);
     std::shared_ptr<const yte::Videos::Streams::IAudioStreamInfo> best;
@@ -353,7 +355,17 @@ StreamInfo MatchService::pickYoutubeStream(const std::string& videoId, bool allo
         if (lowQuality && s->bitrate().kiloBitsPerSecond() > 140) return;
         if (!best || s->bitrate() > best->bitrate()) best = s;
     };
-    for (const auto& s : audioOnly) consider(s);
+    if (smallestOf) {   // a soundtrack to analyse (video mode's alignment): the smallest in that codec, else any
+        for (const auto& s : audioOnly) {
+            const bool webm = s->container().name() == "webm";
+            if (webm && !allowWebm) continue;
+            const bool same = s->audioCodec() == *smallestOf;
+            const bool bestSame = best && best->audioCodec() == *smallestOf;
+            if (!best || (same && !bestSame) || (same == bestSame && s->bitrate() < best->bitrate())) best = s;
+        }
+    } else {
+        for (const auto& s : audioOnly) consider(s);
+    }
     if (!best && lowQuality)  // nothing under the cap: take the smallest mp4
         for (const auto& s : audioOnly)
             if (s->container().name() == "mp4" && (!best || s->bitrate() < best->bitrate())) best = s;
@@ -446,6 +458,10 @@ VideoStreamInfo MatchService::videoStream(const std::string& videoId, int maxRow
         ST_LOG_WARN("youtube", "{}, also in a new session", why);
         throw StreamRefusedError(why);
     }
+}
+
+StreamInfo MatchService::soundtrackStream(const std::string& videoId, const std::string& codec, bool allowWebm, const CT& ct) {
+    return youtubeStream(videoId, allowWebm, false, ct, &codec);
 }
 
 Resolved MatchService::resolveForPlayback(const catalog::Track& track, bool allowWebm, bool lowQuality, bool refresh, const CT& ct) {
