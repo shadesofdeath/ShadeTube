@@ -365,8 +365,11 @@ protected:
         const float tx = r.x + kCoverSize + 32, tw = std::max(0.f, r.right() - tx);
         c.text(toUpperTr(tr(L"Senin için")) + L" · " + bandLabel(*b_), type::monoLabel, {tx, r.y + labelY_, tw, 14}, col.fgSecondary);
         if (!why_.empty()) c.text(why_, {tx, r.y + whyY_, whyW_, whyH_}, col.fgSecondary);
-        std::wstring meta = L"ShadeTube · " + i18n::plural(L"{} şarkı", static_cast<int64_t>(b_->mix.rows.size()));
-        if (totalMs_ > 0) meta += L" · " + totalDuration(totalMs_);
+        std::wstring meta = L"ShadeTube";
+        if (!b_->waiting && !b_->pending) {   // (waiting: only this PC's songs, not a blend yet)
+            meta += L" · " + i18n::plural(L"{} şarkı", static_cast<int64_t>(b_->mix.rows.size()));
+            if (totalMs_ > 0) meta += L" · " + totalDuration(totalMs_);
+        }
         if (b_->connected) meta += L" · " + std::wstring(tr(L"bağlı"));
         c.text(meta, type::secondary, {tx, r.y + metaY_ + 2, tw, 20}, col.fgSecondary);
     }
