@@ -438,7 +438,6 @@
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Find new, changed and deleted files in your folders",
   "Bilgisayarındaki müziği ekle": "Add music from your computer",
   "Klasörler taranıyor": "Scanning folders",
-  "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "This may take a while; your songs will show up here when it's done.",
   "Şarkı bulunamadı": "No songs found",
   "Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen biçimler: MP3, M4A, AAC, FLAC, WAV ve WMA.": "No playable audio files in the added folders. Supported formats: MP3, M4A, AAC, FLAC, WAV and WMA.",
   "Çal": "Play",
@@ -1922,5 +1921,30 @@
   "Video penceresi açılamadı.": "The video window couldn't be opened.",
   "Video penceresinde aç": "Open in the video window",
   "Video yükleniyor…": "Loading video…",
-  "Şu an bir şarkı çalmıyor": "Nothing is playing right now"
+  "Şu an bir şarkı çalmıyor": "Nothing is playing right now",
+  "+ {} şarkı daha": {
+    "one": "+ {} more song",
+    "other": "+ {} more songs"
+  },
+  "Albüm ara": "Search albums",
+  "Bir şarkı çal ya da şarkıları buraya sürükle.": "Play a song or drag songs here.",
+  "Dinlenme": "Plays",
+  "Dinlenme ↓": "Plays ↓",
+  "Eklenme tarihi": "Date added",
+  "Sanatçı ara": "Search artists",
+  "Sunucu beklenmeyen bir yanıt verdi. Birazdan tekrar dene.": "The server sent an unexpected response. Try again in a moment.",
+  "Sıra boş": "The queue is empty",
+  "Sırada": "Next in queue",
+  "Sırada başka şarkı yok.": "Nothing else is queued.",
+  "Varsayılan sütunlar": "Default columns",
+  "{} seçili": {
+    "one": "{} selected",
+    "other": "{} selected"
+  },
+  "{} öğe": {
+    "one": "{} item",
+    "other": "{} items"
+  },
+  "Çevrimdışısın": "You're offline",
+  "Şarkı ara": "Search songs"
 }

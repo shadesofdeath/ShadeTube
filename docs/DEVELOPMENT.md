@@ -97,6 +97,7 @@ ShadeTube/
 │                                ConnectScreen, MiniPlayer (+ MiniLayout, its geometry)
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats, LibrarySort +
 │                                LibraryView (Library views, 3.22), Display (interface scale + list density, 3.25),
+│                                TrackColumns (the track table's columns, the queue's sections; lists, 3.42),
 │                                CollapsingHeader + HeaderCollapse (collapsing page headers, 3.38),
 │                                Radio, Blacklist,
 │                                CoverGradient + CoverBackdrop (Now Playing's backdrop, 3.40),
@@ -107,7 +108,7 @@ ShadeTube/
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync)
 └─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, collections,
-                                 downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
+                                 downloads, headers, jam, library, links, lists, liveaudio, localfiles, lyrics, micro, miniplayer,
                                  musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
                                  remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, sponsorblock,
                                  spotify, stats, sync, tags, theme, updater, video, winshell, ytstreams
@@ -969,7 +970,8 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
   albums, Liked Songs, history, search, artist top songs, local files, smart lists, downloads): Rahat = the spec's 56
   DIP row (art 40, title 14/600, artist 12), Sıkı = 40 DIP (art 28, title 13/600, artist 11). Virtualization, hit
   tests, drag and drop, the reorder line and the keyboard cursor all use the runtime row height; the cached row texts
-  are rebuilt for the other styles. The queue panel's upcoming rows go from 52 to 40 DIP (art 36 → 28). A change
+  are rebuilt for the other styles. The queue panel's upcoming rows go from 52 to 40 DIP (art 36 → 28), the Library's
+  list rows from 64 to 48 (art 48 → 36). A change
   calls `Window::relayoutAll()` (every widget lays out again, also those whose size did not change).
 - `settings.json`: `"uiZoom": 100`, `"compactLists": false`. Dev: write them into a sandbox profile's settings file
   before a `--screenshot` run; `SHADETUBE_KEYS_DEMO` (5.4) presses the zoom keys / runs actions live.
@@ -1946,6 +1948,95 @@ while nothing shows a video opens Now Playing.
   when a picture is dropped (frames shown / dropped, resyncs, frame vs. audio average / worst, frames more than a frame
   off, slot memory, DXVA or software). `video_test` (5.2) covers the pure parts and the decoder.
 
+### 3.42 Lists: the track table, the Library, the queue and the shared states
+
+`app/TrackColumns` (standalone geometry, `lists_test`), `TrackTable` and `badge::` in `app/Components`, `LibraryView` +
+`ViewToggle` in `app/LibraryView`, `QueuePanel` in `app/Shell`, the shared states in `app/PageWidgets`,
+`ui::paintSkeleton` in `ui/MicroPaint`.
+
+- **Track table columns** (`trackcols::layout`, a pure function of the width): `# | [art] title / artists | album | year
+  | added | plays | [queue][heart] | duration | [more]`. The right end never moves: the 28 DIP slots of the hover actions
+  are always reserved, the actions fade in and slide 6 DIP into them (`HoverFade`, 120 ms; instant without
+  micro-interactions), the heart stays while liked. As the table narrows the optional columns give way to the title
+  (240 DIP minimum, 200 compact) in this order: plays, year, added, album, then the queue action; narrowing never brings
+  one back. Which optional columns a list shows is the user's (`Settings::trackColumns`, `"album,added,plays"`; the
+  column header's context menu toggles them, *Varsayılan sütunlar* resets) intersected with what the list has
+  (`Options::showAlbum / showAdded`; *Dinlenme* only when a row has a play count, `Track::listenCount`). There is no
+  year or "added by" data in `catalog::Track` yet, so the Year column is laid out but never offered.
+- **Rows**: the title line carries the badges, the artists line underlines the hovered artist link, a row without
+  artists centers its title. Hover = `overlay.hover` + the play glyph in the index cell; the playing row = the accent
+  title, the equalizer bars and a flat `accent.tint06` (a gradient that faint bands on paper); selection runs
+  (`trackcols::selectionRuns`) are one `accent.tint12` block each with one continuous 2 DIP accent bar, and with
+  several rows selected their index cells show a checked box (a click on it deselects) and the header counts them
+  ("· 3 SEÇİLİ"). Shift + arrows extend the selection, Escape narrows it to the cursor's row; the keyboard cursor's row
+  shows the actions too. Unplayable / blocked rows are dimmed; rows of the table's own drag are dimmed while they travel.
+- **Badges** (`badge::`, one look everywhere: tables, queue, player bar, Now Playing): text badges are 14 DIP outlined
+  pills with mono 9 text (neutral: `hairline.strong` / `fg.secondary` — ENGELLİ, YEREL, KULLANILAMIYOR; accent: the
+  accent outline and text over `accent.tint06` — ÖNERİLEN with its sparkle, a listen-together guest's "+ AD"); the
+  explicit "E" is the spec's filled square; *downloaded* is a 12 DIP accent disc with a check (also the Library's
+  synced mark). Order after the title: E, downloaded, recommended / added by, blocked, local. `Options::markLocal` /
+  `markDownloaded` turn the last two off where every row is one (Yerel dosyalar, İndirilenler). `smartshuffle::drawBadge`
+  and `together::drawAddedBadge` keep their signatures and draw through it. Recommended rows lost their tint (the
+  badge and the "+" say it).
+- **Header**: mono labels; the hovered sortable label brightens, the active one is `fg.primary` with a thin chevron. A
+  click sorts (`asc → desc → the list's own order`; added and plays start descending) through `TrackTable::onSortChanged`,
+  so a page's sort menu and label follow (`CollectionPage::sortChoices()` is the one list both use). The header sticks to
+  the top of the scroll view (below its `topInset`) once the table scrolls under it, over a `fillSurface` band, and
+  takes clicks there; a collapsing page header docks it instead (`CollapseBar::attach` → `setHeaderDocked`) and forwards
+  hover / clicks on the docked copy (`headerPress / headerHover`). An empty table has no header and no height: the
+  page's empty state stands alone.
+- **Drag feedback**: the insertion line glides between slots (`motion::fast`, decelerate) with a 3.5 DIP ring at its
+  start; the ghost (`app/DragDrop`) is a small card: the first song's cover, title and artists (or "+ n şarkı daha"),
+  two hairline cards stacked behind it and the count on the cover's corner for several songs, fading in 4 DIP from the
+  pointer.
+- **Library**: one toolbar row — the search pill and how many items show ("12 ÖĞE", "3 / 12 ÖĞE" while searching) on
+  the left, "SIRALA <sort>" and `ViewToggle` (two icon segments, the Settings `Segmented` look with a sliding pill) on
+  the right. List rows follow the density (64 / 48 DIP, covers 48 / 36), the synced mark is the badge disc, empty tabs
+  get an empty state with one action (*Albüm ara* / *Sanatçı ara*), a search with no result the compact state.
+- **Queue panel**: *Sıradaki* with *Kuyruğu kaydet* and *Sırayı temizle* as icon buttons; "ŞİMDİ ÇALIYOR" above a
+  tinted block (48 DIP cover, accent title, bars) with a 2 DIP progress line; then the upcoming slots in sections
+  (`queuelist::Sections`): runs of songs the user queued (`Track::queued`, set by `Player::playNext / enqueue /
+  insertAt` except smart shuffle's recommendations, kept in `session.json` as `"q"`) under *SIRADA*, runs from the
+  context under *SONRAKİ · <kaynak>*; the first label sits above the list with the count, later ones are 36 DIP header
+  rows inside it. The player's order is unchanged (*Sıraya ekle* still appends): the sections show where things are.
+  A hovered row trades its duration for "×" (out of the queue). Dragging a row lifts it onto the elevated surface under
+  the pointer, leaves a hairline outline in its slot and shows the gliding insertion line. Only visible rows are
+  painted; sections cost one pass over the upcoming slots per queue change. The empty queue is the compact empty state.
+- **Shared states** (`app/PageWidgets`, for every page):
+  - `MessagePanel` (signature unchanged) is the state panel: a thin illustration (a hairline ring with the icon inside a
+    dial of 36 one-pixel ticks, a longer one every quarter), one title, one short line, at most one action; it fades in
+    and rises 6 DIP. `Tone::Empty / Error / Offline` (guessed from the icon, settable) adds a small `status.error` /
+    `status.warning` dot on the ring; error tones put the refresh glyph on the action, empty ones none unless given.
+    `setCompact(true)` is the inline size (no dial). Helpers: `emptyState(...)`, `errorState(parent, raw, retry)`
+    (`friendlyError` maps service errors; connectivity failures become *Çevrimdışısın* with the offline icon, other
+    technical text a plain sentence), `noResultsState(parent, line)`. `ScrollPage::showError` uses `errorState`.
+  - Skeletons: `SkeletonRows` (track rows in the table's geometry, density aware, optional header), `SkeletonCards`
+    (MediaCard grid, square or round), `SkeletonShelf` (section title + a row of cards), `SkeletonHeader`,
+    `SkeletonTitle`, `SkeletonBlock` (header + rows, `ScrollPage::showSkeleton`); `ScrollPage::showLoading(Cards |
+    Shelves | Rows)` for other page shapes; `TrackTable::paintSkeletonRows` for a table's next page.
+  - The shimmer (`ui::paintSkeleton` → `Canvas::skeleton`): one soft band crosses the whole window (`gfx::skeletonBand`:
+    30 % of the width, 240-520 DIP, 1400 ms, then 500 ms of rest), placed in window space, so every block on screen
+    shimmers in step instead of each running its own sweep. Without micro-interactions the blocks are static and ask for
+    no frames; otherwise a painted block asks its window for a repaint every 33 ms (blocks scrolled away or hidden ask
+    nothing).
+  - Applied to: album / playlist / Liked Songs (empty with *Şarkı ara*, missing playlist with *Kitaplığa dön*), the
+    Library, Yerel dosyalar (first scan: skeleton rows; folder tree: skeleton cards; no matches), İndirilenler (empty with
+    an action), Podcastler (chart / search rows: skeleton cards and compact error / no-result states; new episodes:
+    skeleton rows), Radyo (its station skeleton on the shared painter), İstatistikler (`showLoading(Shelves)`), Yeni
+    çıkanlar (`showLoading(Cards)`, filter without results), Home's skeletons (the shared painter). Search and the artist
+    page are left to their own redesign.
+- **Cost** (`SHADETUBE_SCROLL_DEMO=notch,spin,touch,end` on a 5 000-song local playlist, Debug, thread cycles of
+  `TrackTable::paint` per frame, the 0.10.0 table and the new one instrumented the same way and run alternately on the
+  same machine, batches of 200 paints): comfortable density, median per batch 3.3-3.4 M cycles after vs 4.2-9.8 M
+  before over five runs each (p90 4.1-4.5 M vs 4.8-13 M; the single worst frames, new rows' first layouts, 11-32 M vs
+  25 M); compact density 7.3-12.6 M after vs 7.6-8.7 M before over six runs each, i.e. within the machine's noise
+  (other builds were running). Frame gaps were not comparable between runs (the display ran at 60, 120 or 240 Hz).
+  Row texts measure their natural width once (a `gfx::Text` keeps one layout per width: measuring at another width than
+  it is drawn at would lay it out again every frame) and the header labels and badges are laid out once.
+  Virtualization is unchanged: rows are painted from the model, only the visible ones.
+- Dev: `SHADETUBE_LIST_DEMO` (5.4) selects rows, sorts through the header path, sets the columns, queues rows, opens
+  the queue, scrolls, shows a reorder drag in place and fakes play counts for `--screenshot`.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -2036,6 +2127,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `review_test` | year in review (`app/YearReview`) on fixed synthetic histories: periods (a year, the last 12 months, a running year), time / streams / tops and their order, months, weekdays, hours (a play across midnight split), dayparts, 7-day blocks, streak, busiest day, discoveries, first stream, local days on another time zone, genre shares / coverage / minimum, which periods qualify, timing with 300 000 plays | offline |
 | `video_test` | video mode: picture stream choice on manifest fixtures (cap, H.264 first, VP9 / AV1 only with a decoder, fps, upscales, portrait, muxed fallback), the still-picture check, the sidx / edit-list index on made-up boxes, the A/V scheduler on a fake clock with a fake decoder (1× / 0.5× / 2× / 3× in sync to a frame, pause, seeks both ways, a decoder that can't keep up, the video ending first), a generated H.264 MP4 decoded in software and with DXVA + the video processor (every frame's colors, seeks, 2×, the idle release) | offline; `live [<id>…]` (the picture streams and still-picture verdicts of songs as MatchService matches them, one stream played on the GPU against a real-time clock, a seek); `play <id>`; `fetch <id> <file>`; `file <path> [<start s>]`; `mfurl <path>` (MF's own source on a file) |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
+| `lists_test` | list geometry (3.42): the track table's columns at every width 300-1600 DIP in both densities (fixed right end, order, no overlap, the title minimum, columns only ever dropping in the documented order, the queue action last), `Settings::trackColumns` parsing, selection runs, the queue's sections (runs, header rows, positions, hit tests on rows and headers, drop slots, 5 000 slots), the skeleton band | offline |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.32): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -2096,6 +2188,7 @@ apps*).
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
 | `SHADETUBE_LIBRARY_VIEW` | `<grid\|list>[:<recents\|added\|alpha\|creator>[:<filter>]]`: the Library page's view, sort and search (not saved) |
 | `SHADETUBE_LIBRARY_SCROLL` | the first Library page opens scrolled down this many DIPs |
+| `SHADETUBE_LIST_DEMO` | `<step>;<step>…` run 900 ms after the first track table of the run got rows (3.42): `select=1,3-5` (display rows), `sort=<title\|album\|added\|duration\|plays>[:desc]` (as a header click), `columns=<Settings::trackColumns>`, `next=<rows>` / `enqueue=<rows>`, `queue` (opens the queue panel), `scroll=<dips>`, `dragline=<row>` (the selection shown dragged in front of that row), `fakeplays`. E.g. `local:songs` with `SHADETUBE_PLAY_FILES` and `next=3,4;enqueue=10,11;queue` for the queue's sections |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
 | `SHADETUBE_BACKDROP=force` | Mica (3.3) also with transparency effects off or high contrast on (Windows 11 22H2+, the setting still on): DWM then draws Mica's solid fallback color, which still shows the translucent rendering. With Mica on, `--screenshot` PNGs carry the translucent alpha |
 | `SHADETUBE_REMOTE_BIND` | the phone remote listens on this IPv4 address only (e.g. `127.0.0.1`: no Windows Firewall prompt while testing) and the QR code points at it |
@@ -2212,3 +2305,11 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now
   Playing needs more while open (large glyph atlases; no effects since its redesign, 3.40). After an idle release the first frame
   recreates the device (tens of ms) and covers reload from the disk cache.
+- **List design (3.42).** The Year and *added by* (collaborative lists) columns are laid out by `app/TrackColumns`
+  but never offered: `catalog::Track` carries no release year or adder yet; a catalog that fills them only needs to set
+  the flag in `TrackTable::wantedColumns`. The queue's sections show the player's order as it is: *Sıraya ekle* still
+  appends after the context (a *SIRADA* run at the end), unlike Spotify's queue that plays first. The skeletons of Now
+  Playing, the lyrics view, the playlist details dialog and the tag editor still call `Canvas::skeleton` with their own
+  per-frame requests (window-synced band, but they keep moving with reduced motion). The queue panel takes no keyboard
+  focus (as before). Frame-time measurements on this machine were noisy (parallel builds; the display ran at 60-240 Hz
+  between runs), so the table's cost is compared in thread cycles of its paint, not in frame gaps.

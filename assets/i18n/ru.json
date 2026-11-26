@@ -484,7 +484,6 @@
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Найти новые, изменённые и удалённые файлы в папках",
   "Bilgisayarındaki müziği ekle": "Добавь музыку со своего компьютера",
   "Klasörler taranıyor": "Сканирование папок",
-  "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Это может занять какое-то время; когда всё будет готово, треки появятся здесь.",
   "Şarkı bulunamadı": "Треки не найдены",
   "Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen biçimler: MP3, M4A, AAC, FLAC, WAV ve WMA.": "В добавленных папках нет аудиофайлов, которые можно воспроизвести. Поддерживаемые форматы: MP3, M4A, AAC, FLAC, WAV и WMA.",
   "Çal": "Слушать",
@@ -2081,5 +2080,36 @@
   "Video penceresi açılamadı.": "Не удалось открыть окно видео.",
   "Video penceresinde aç": "Открыть в окне видео",
   "Video yükleniyor…": "Загрузка видео…",
-  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет"
+  "Şu an bir şarkı çalmıyor": "Сейчас ничего не играет",
+  "+ {} şarkı daha": {
+    "one": "+ ещё {} трек",
+    "few": "+ ещё {} трека",
+    "many": "+ ещё {} треков",
+    "other": "+ ещё {} треков"
+  },
+  "Albüm ara": "Найти альбомы",
+  "Bir şarkı çal ya da şarkıları buraya sürükle.": "Включи трек или перетащи треки сюда.",
+  "Dinlenme": "Прослушивания",
+  "Dinlenme ↓": "Прослушивания ↓",
+  "Eklenme tarihi": "Дата добавления",
+  "Sanatçı ara": "Найти исполнителей",
+  "Sunucu beklenmeyen bir yanıt verdi. Birazdan tekrar dene.": "Сервер ответил неожиданно. Попробуй ещё раз чуть позже.",
+  "Sıra boş": "Очередь пуста",
+  "Sırada": "Далее в очереди",
+  "Sırada başka şarkı yok.": "Больше в очереди ничего нет.",
+  "Varsayılan sütunlar": "Столбцы по умолчанию",
+  "{} seçili": {
+    "one": "{} выбран",
+    "few": "{} выбрано",
+    "many": "{} выбрано",
+    "other": "{} выбрано"
+  },
+  "{} öğe": {
+    "one": "{} элемент",
+    "few": "{} элемента",
+    "many": "{} элементов",
+    "other": "{} элементов"
+  },
+  "Çevrimdışısın": "Нет подключения к интернету",
+  "Şarkı ara": "Найти треки"
 }

@@ -484,7 +484,6 @@
   "Klasörlerdeki yeni, değişen ve silinen dosyaları bul": "Знайти нові, змінені й видалені файли в папках",
   "Bilgisayarındaki müziği ekle": "Додай музику зі свого комп’ютера",
   "Klasörler taranıyor": "Сканування папок",
-  "Bu biraz sürebilir; bitince şarkıların burada listelenir.": "Це може зайняти трохи часу; після завершення твої треки з’являться тут.",
   "Şarkı bulunamadı": "Треків не знайдено",
   "Eklenen klasörlerde çalınabilir ses dosyası yok. Desteklenen biçimler: MP3, M4A, AAC, FLAC, WAV ve WMA.": "У доданих папках немає аудіофайлів, які можна відтворити. Підтримувані формати: MP3, M4A, AAC, FLAC, WAV і WMA.",
   "Çal": "Відтворити",
@@ -2081,5 +2080,36 @@
   "Video penceresi açılamadı.": "Не вдалося відкрити вікно відео.",
   "Video penceresinde aç": "Відкрити у вікні відео",
   "Video yükleniyor…": "Завантаження відео…",
-  "Şu an bir şarkı çalmıyor": "Зараз нічого не грає"
+  "Şu an bir şarkı çalmıyor": "Зараз нічого не грає",
+  "+ {} şarkı daha": {
+    "one": "+ ще {} трек",
+    "few": "+ ще {} треки",
+    "many": "+ ще {} треків",
+    "other": "+ ще {} треків"
+  },
+  "Albüm ara": "Знайти альбоми",
+  "Bir şarkı çal ya da şarkıları buraya sürükle.": "Увімкни трек або перетягни треки сюди.",
+  "Dinlenme": "Прослуховування",
+  "Dinlenme ↓": "Прослуховування ↓",
+  "Eklenme tarihi": "Дата додавання",
+  "Sanatçı ara": "Знайти виконавців",
+  "Sunucu beklenmeyen bir yanıt verdi. Birazdan tekrar dene.": "Сервер відповів неочікувано. Спробуй ще раз трохи згодом.",
+  "Sıra boş": "Черга порожня",
+  "Sırada": "Далі в черзі",
+  "Sırada başka şarkı yok.": "Більше в черзі нічого немає.",
+  "Varsayılan sütunlar": "Стовпці за замовчуванням",
+  "{} seçili": {
+    "one": "{} вибрано",
+    "few": "{} вибрано",
+    "many": "{} вибрано",
+    "other": "{} вибрано"
+  },
+  "{} öğe": {
+    "one": "{} елемент",
+    "few": "{} елементи",
+    "many": "{} елементів",
+    "other": "{} елементів"
+  },
+  "Çevrimdışısın": "Немає з’єднання з інтернетом",
+  "Şarkı ara": "Знайти треки"
 }
