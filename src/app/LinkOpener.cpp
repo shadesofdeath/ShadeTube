@@ -1,6 +1,7 @@
 #include "app/LinkOpener.h"
 
 #include "app/AppContext.h"
+#include "app/Blends.h"
 #include "app/PlaylistTransfer.h"
 #include "app/Router.h"
 #include "app/Source.h"
@@ -205,6 +206,7 @@ std::wstring linkLabel(const Link& link) {
     case Kind::MbArtist: return tr(L"MusicBrainz sanatçısı");
     case Kind::MbRecording: return tr(L"MusicBrainz kaydı");
     case Kind::JamInvite: return tr(L"Birlikte dinleme daveti");
+    case Kind::BlendInvite: return tr(L"Blend daveti");
     case Kind::Unsupported: break;
     }
     return tr(L"Desteklenmeyen bağlantı");
@@ -223,6 +225,7 @@ std::wstring linkAction(const Link& link) {
     case Kind::SpotifyArtist:
     case Kind::MbArtist: return tr(L"Sanatçıyı aç");
     case Kind::JamInvite: return tr(L"Oturuma katıl");
+    case Kind::BlendInvite: return tr(L"Blend'e katıl");
     case Kind::None:
     case Kind::Unsupported: break;
     }
@@ -246,9 +249,14 @@ bool openLink(const Link& link) {
     if (!link) return false;
     g_linkLife.renew();
     // An invite link is the session's key: never logged.
-    ST_LOG_INFO("links", "open kind {} id {}", static_cast<int>(link.kind), link.kind == Kind::JamInvite ? std::string("(invite)") : link.id);
+    const bool invite = link.kind == Kind::JamInvite || link.kind == Kind::BlendInvite;
+    ST_LOG_INFO("links", "open kind {} id {}", static_cast<int>(link.kind), invite ? std::string("(invite)") : link.id);
     if (link.kind == Kind::JamInvite) {
         if (!together::join(link.id)) toast(tr(L"Bu birlikte dinleme daveti bozuk ya da eksik kopyalanmış"), true);
+        return true;
+    }
+    if (link.kind == Kind::BlendInvite) {
+        if (!blends::openInvite(link.id)) toast(tr(L"Bu Blend daveti bozuk ya da eksik kopyalanmış"), true);
         return true;
     }
     if (link.kind == Kind::Unsupported && link.service == Service::ShadeTube) {
@@ -286,6 +294,7 @@ bool openLink(const Link& link) {
         break;
     case Kind::MbRecording: openMbRecording(link.id); break;
     case Kind::JamInvite:
+    case Kind::BlendInvite:
     case Kind::None:
     case Kind::Unsupported: break;
     }

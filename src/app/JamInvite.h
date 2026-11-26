@@ -50,6 +50,16 @@ bool looksLikeInvite(std::string_view text);
 // "shadetube/jam/v1/<64 hex>" of a room; its topics are "<base>/state" (retained, host), "<base>/h" (host) and
 // "<base>/g" (guests).
 std::string topicBase(const Bytes& roomId);
+
+// ---- Blend invites (app/Blends) -------------------------------------------------------------------------------------
+// shadetube://blend/<base64url payload>: the same payload as a session invite (version 1 | flags | blend id (16) |
+// key (32) | broker), under its own prefix so neither kind of link opens as the other (a 0.10.0 app answers a blend
+// link with "can't open this ShadeTube link"). The blend's topics: "shadetube/blend/v1/<hex SHA-256(blend id)>/...".
+inline constexpr std::string_view kBlendPrefix = "shadetube://blend/";
+std::string formatBlendInvite(const Invite& invite);
+std::optional<Invite> parseBlendInvite(std::string_view text);
+bool looksLikeBlendInvite(std::string_view text);
+std::string blendTopicBase(const Bytes& blendId);
 // The room's short fingerprint for logs (first 8 hex digits of the topic hash; reveals nothing about the key).
 std::string roomTag(const Bytes& roomId);
 

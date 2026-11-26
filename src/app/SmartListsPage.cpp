@@ -4,6 +4,7 @@
 
 #include "app/Accounts.h"
 #include "app/Blacklist.h"
+#include "app/Blends.h"
 #include "app/CollapsingHeader.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -782,6 +783,7 @@ public:
         : ui::Column(0), maxRows_(maxRows), makeRow_(std::move(makeRow)) {
         hitTestVisible = false;
         subscribe(life_.ref(), [this] { rebuild(); });
+        blends::subscribe(life_.ref(), [this] { rebuild(); });   // the blends' cards follow the smart lists'
         rebuild();
         ensure();
     }
@@ -790,8 +792,9 @@ private:
     void rebuild() {
         clearChildren();
         const auto& all = lists();
-        setVisible(!all.empty());
-        if (all.empty()) {
+        // Shown while there is a list or a blend (the "Blend oluştur" card comes with them).
+        setVisible(!all.empty() || blends::any());
+        if (all.empty() && !blends::any()) {
             requestLayout();
             return;
         }
@@ -806,6 +809,7 @@ private:
             row = grid;
         }
         for (const auto& l : all) row->add<SmartCard>(l);
+        blends::addCards(row);
         requestLayout();
         invalidate();
     }
@@ -1052,6 +1056,7 @@ void addSection(ui::Column* c, std::function<ui::Widget*(ui::Column*)> makeRow) 
 } // namespace smart
 
 std::unique_ptr<Page> makeSmartListPage(const std::string& rawId) {
+    if (rawId.rfind("blend:", 0) == 0) return makeBlendPage(rawId.substr(6));   // a Blend (app/BlendPage.cpp)
     std::string id = rawId;
     bool autoplay = false;
     if (const auto hash = id.find("#play"); hash != std::string::npos) {

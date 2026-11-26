@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 namespace st::app {
 
@@ -966,6 +967,12 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Layout& cl) {
     if (!addedBy.empty()) badgesW += together::addedBadgeWidth(addedBy) + badge::kGap;
     if (tx.blocked) badgesW += badge::width(badge::blockedLabel()) + badge::kGap;
     if (local) badgesW += badge::width(badge::localLabel()) + badge::kGap;
+    std::optional<gfx::Text> chip;   // chipFor's label (a blend's "whose taste")
+    if (chipFor)
+        if (const std::wstring label = chipFor(t); !label.empty()) {
+            chip.emplace(label, type::monoBadge);
+            badgesW += badge::width(*chip) + badge::kGap;
+        }
     const float roomW = std::max(0.f, blockR - x0);
     // Badges keep their room while the title has 120 DIP; below that they go before the title is cut further.
     const bool badges = badgesW > 0 && roomW - badgesW - 8 >= std::min(120.f, tx.titleW);
@@ -981,6 +988,7 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Layout& cl) {
         if (t.explicitContent) bx += badge::drawExplicit(c, bx, cy) + badge::kGap;
         if (tx.downloaded) bx += badge::drawDownloaded(c, bx, cy) + badge::kGap;
         if (t.recommended) bx += smartshuffle::drawBadge(c, bx, cy) + badge::kGap;
+        if (chip) bx += badge::draw(c, bx, cy, *chip, badge::Tone::Accent) + badge::kGap;
         if (!addedBy.empty()) bx += together::drawAddedBadge(c, bx, cy, addedBy) + badge::kGap;
         if (tx.blocked) bx += badge::draw(c, bx, cy, badge::blockedLabel(), badge::Tone::Neutral) + badge::kGap;
         if (local) badge::draw(c, bx, cy, badge::localLabel(), badge::Tone::Neutral);

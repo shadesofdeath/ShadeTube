@@ -218,6 +218,8 @@ public:
     // heart when these are set; `key` is the collection they were recommended for (the track menu's entries).
     std::function<void(const catalog::Track&)> onAddRecommended, onHideRecommended;
     void setRecommendKey(std::string key) { recommendKey_ = std::move(key); }
+    // A label chip after the title (accent tint, mono, upper case as given; "" = none): a blend's "AYŞE" / "ORTAK".
+    std::function<std::wstring(const catalog::Track&)> chipFor;
 
     // Reordering by drag (needs onReorder). Only in the list's own order ("Özel sıra"), unfiltered and with no
     // "Geliştir" recommendations between the rows.
