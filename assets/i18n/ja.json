@@ -1743,5 +1743,11 @@
   "Video penceresi açılamadı.": "動画ウィンドウを開けませんでした。",
   "Video penceresinde aç": "動画ウィンドウで開く",
   "Video yükleniyor…": "動画を読み込み中…",
-  "Şu an bir şarkı çalmıyor": "現在再生中の曲はありません"
+  "Şu an bir şarkı çalmıyor": "現在再生中の曲はありません",
+  "Şarkı önbelleği": "曲のキャッシュ",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "再生中に最後まで読み込まれた曲はこのPCに保存され、もう一度再生するとインターネットがなくてもすぐに始まります。上限に達すると、いちばん長く再生されていない曲から削除されます。ダウンロードした曲はここで容量を使いません。",
+  "Önbellekteki şarkılar": "キャッシュ内の曲",
+  "Henüz şarkı yok.": "まだ曲はありません。",
+  "{} · {} yer kaplıyor.": "{} · {}を使用中。",
+  "Şarkı önbelleği temizlendi": "曲のキャッシュをクリアしました"
 }

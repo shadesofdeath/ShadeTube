@@ -1922,5 +1922,11 @@
   "Video penceresi açılamadı.": "The video window couldn't be opened.",
   "Video penceresinde aç": "Open in the video window",
   "Video yükleniyor…": "Loading video…",
-  "Şu an bir şarkı çalmıyor": "Nothing is playing right now"
+  "Şu an bir şarkı çalmıyor": "Nothing is playing right now",
+  "Şarkı önbelleği": "Song cache",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "Songs that loaded completely while playing are kept on this computer: played again, they start right away, even without internet. At the limit, the ones not played for the longest are removed first. Songs you downloaded take no space here.",
+  "Önbellekteki şarkılar": "Songs in the cache",
+  "Henüz şarkı yok.": "No songs yet.",
+  "{} · {} yer kaplıyor.": "{} · {} used.",
+  "Şarkı önbelleği temizlendi": "Song cache cleared"
 }

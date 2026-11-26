@@ -1922,5 +1922,11 @@
   "Video penceresi açılamadı.": "Impossible d'ouvrir la fenêtre vidéo.",
   "Video penceresinde aç": "Ouvrir dans la fenêtre vidéo",
   "Video yükleniyor…": "Chargement de la vidéo…",
-  "Şu an bir şarkı çalmıyor": "Rien n'est en cours de lecture"
+  "Şu an bir şarkı çalmıyor": "Rien n'est en cours de lecture",
+  "Şarkı önbelleği": "Cache des titres",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "Les titres chargés en entier sont conservés sur cet ordinateur : réécoutés, ils démarrent aussitôt, même sans Internet. À la limite, ceux qui n'ont pas été écoutés depuis le plus longtemps sont supprimés en premier. Tes titres téléchargés ne prennent pas de place ici.",
+  "Önbellekteki şarkılar": "Titres en cache",
+  "Henüz şarkı yok.": "Aucun titre pour l'instant.",
+  "{} · {} yer kaplıyor.": "{} · {} utilisés.",
+  "Şarkı önbelleği temizlendi": "Cache des titres vidé"
 }

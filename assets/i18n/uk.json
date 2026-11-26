@@ -2081,5 +2081,11 @@
   "Video penceresi açılamadı.": "Не вдалося відкрити вікно відео.",
   "Video penceresinde aç": "Відкрити у вікні відео",
   "Video yükleniyor…": "Завантаження відео…",
-  "Şu an bir şarkı çalmıyor": "Зараз нічого не грає"
+  "Şu an bir şarkı çalmıyor": "Зараз нічого не грає",
+  "Şarkı önbelleği": "Кеш треків",
+  "Sonuna kadar indirilen şarkılar bu bilgisayarda saklanır; tekrar çalınca beklemeden ve internet olmadan başlar. Sınıra gelince en uzun süredir çalınmayanlar silinir. İndirdiğin şarkılar burada yer kaplamaz.": "Треки, що повністю підвантажилися під час відтворення, зберігаються на цьому комп’ютері: під час повторного відтворення вони запускаються одразу, навіть без інтернету. Коли ліміт досягнуто, першими видаляються ті, що найдовше не звучали. Завантажені треки тут місця не займають.",
+  "Önbellekteki şarkılar": "Треки в кеші",
+  "Henüz şarkı yok.": "Треків поки немає.",
+  "{} · {} yer kaplıyor.": "{} · займають {}.",
+  "Şarkı önbelleği temizlendi": "Кеш треків очищено"
 }
