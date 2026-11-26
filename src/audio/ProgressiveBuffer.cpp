@@ -564,6 +564,7 @@ void ProgressiveBuffer::runHttp() {
     }
 
     int attempt = 0;
+    bool complete = false;
     while (!cancelled_.load()) {
         int64_t start = 0, end = -1;
         bool waitForSide = false, waitForReader = false;
@@ -573,7 +574,10 @@ void ProgressiveBuffer::runHttp() {
                 start = firstMissingLocked(priority_);
                 if (start < 0) start = firstMissingLocked(0);
                 if (start < 0) {
-                    if (reservedBegin_ < 0) break;  // complete
+                    if (reservedBegin_ < 0) {   // complete
+                        complete = true;
+                        break;
+                    }
                     waitForSide = true;             // only the in-flight tail is left
                 } else {
                     end = std::min(start + kChunk, nextRangeStartLocked(start));
@@ -619,6 +623,26 @@ void ProgressiveBuffer::runHttp() {
             ST_LOG_WARN("audio", "range {}-{} failed ({}), retry {}/{}", start, end, error, attempt, kMaxRetries);
             if (!backoff(attempt)) return;
             break;
+        }
+    }
+    // Every byte is here (the tail request has finished too): hand the whole stream over once. Readers keep reading
+    // the same published bytes meanwhile; nothing writes into them any more.
+    if (complete && onComplete_ && !cancelled_.load()) {
+        if (side.joinable()) side.join();
+        const uint8_t* data = nullptr;
+        int64_t length = 0;
+        {
+            std::lock_guard lock(mutex_);
+            data = data_;
+            length = allocated_;
+        }
+        // Whatever the hook does, the buffer stays good: playback must never fail because a copy of it did.
+        try {
+            if (data && length > 0) onComplete_(data, length);
+        } catch (const std::exception& e) {
+            ST_LOG_WARN("audio", "completed-stream hook failed: {}", e.what());
+        } catch (...) {
+            ST_LOG_WARN("audio", "completed-stream hook failed");
         }
     }
 }
