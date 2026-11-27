@@ -197,6 +197,11 @@ public:
         mic_->setTooltip(tr(L"Odada çalan müziği mikrofonla dinle"));
         mic_->onClick = [this] { pickSource(Source::Microphone); };
         stage_ = add<Stage>(this);
+        // Reading order (Tab): the card's link under the title, then the buttons under the cover.
+        retry_ = stage_->add<ui::Button>(ui::ButtonKind::Link, tr(L"Yanlış mı? Tekrar dene"));
+        retry_->onClick = [this] { Dispatcher::post([this, ref = life_.ref()] {
+            if (!ref.expired()) start(source_);
+        }); };
         play_ = stage_->add<ui::Button>(ui::ButtonKind::Primary, tr(L"Çal"), "play");
         play_->onClick = [this] { playSong(); };
         like_ = stage_->add<ui::Button>(ui::ButtonKind::IconOutline, std::wstring(), "heart");
@@ -206,10 +211,6 @@ public:
         add_->onClick = [this] { addToList(); };
         radio_ = stage_->add<ui::Button>(ui::ButtonKind::Secondary, tr(L"Radyo"), "radio");
         radio_->onClick = [this] { startSongRadio(); };
-        retry_ = stage_->add<ui::Button>(ui::ButtonKind::Link, tr(L"Yanlış mı? Tekrar dene"));
-        retry_->onClick = [this] { Dispatcher::post([this, ref = life_.ref()] {
-            if (!ref.expired()) start(source_);
-        }); };
         spinner_ = stage_->add<ui::Spinner>(18.f);
         clear_ = add<ui::Button>(ui::ButtonKind::Link, tr(L"Temizle"));
         clear_->setTooltip(tr(L"Tanınan şarkıların listesini sil"));
@@ -838,6 +839,9 @@ void initSongRecognition() {
         if (auto* w = ctx().window) {
             const HWND h = w->hwnd();
             if (!IsWindowVisible(h) || IsIconic(h) || GetForegroundWindow() != h) commands::run("show-window");
+            // Still hidden: the mini player was brought up instead (it stands for the main window). The dialog lives in
+            // the main window, so the mini player closes (its toggle shows the main window again).
+            if (!IsWindowVisible(h)) commands::run("mini-player");
         }
         openSongRecognition();
         return true;
