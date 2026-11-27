@@ -2,7 +2,7 @@
 
 All notable changes to ShadeTube, newest first.
 
-## 0.11.0 — unreleased
+## 0.11.0 — 2026-11-27
 
 - **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or
   Settings › Spotify account) and search, albums, artists, playlists and Home come from YouTube Music, no Google

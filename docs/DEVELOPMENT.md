@@ -46,7 +46,7 @@ embedded as an `RCDATA` resource named by its relative path (generated `resource
 skipped). At run time the Spotify login needs the Evergreen **WebView2 Runtime** (included in Windows 11).
 
 **First run** shows the connect screen: *Connect Spotify* opens a WebView2 login window; under *Explore without
-Spotify*, *YouTube Music* or *MusicBrainz* browses that open catalog (3.42). User data lives in `%LOCALAPPDATA%\ShadeTube` ([3.14](#314-user-data)); during
+Spotify*, *YouTube Music* or *MusicBrainz* browses that open catalog (3.56). User data lives in `%LOCALAPPDATA%\ShadeTube` ([3.14](#314-user-data)); during
 development use a sandbox profile instead ([5.1](#51-sandbox-profiles)).
 
 ## 2. Repository layout
@@ -60,19 +60,19 @@ ShadeTube/
 │   fonts/        Bricolage Grotesque + JetBrains Mono (variable, OFL.txt)
 │   i18n/         <code>.json translations (en de es fr pt ru uk id ja ko); _keys.json is a local dump
 │   remote/       the phone remote's web page (index.html, app.js, app.css; served by the app, see 3.23)
-│   icons/12|14|16|18|20|24 (the thin outline set, written by tools/icons.py, 3.42), logo/, placeholders/, animations/ (SVG frames),
+│   icons/12|14|16|18|20|24 (the thin outline set, written by tools/icons.py, 3.43), logo/, placeholders/, animations/ (SVG frames),
 │   textures/, tokens/ (dark/light), themes/ (preset color themes, 3.35), app.ico
 ├─ docs/                         DEVELOPMENT.md, screenshots/
 ├─ packaging/winget/             winget-pkgs manifest of the current release (tools/update_manifests.py)
 ├─ bucket/shadetube.json         Scoop manifest: the repository doubles as a Scoop bucket
 ├─ external/YoutubeExplode/      C++ YoutubeExplode (dependency; change it upstream)
 ├─ external/qrcodegen/           Nayuki's QR Code generator (C++, MIT, vendored unchanged; the remote's pairing code)
-├─ external/libopus/ opusfile/ libvorbis/ libogg/   Xiph decoders (BSD-3-Clause, decoder parts vendored unchanged; 3.42)
+├─ external/libopus/ opusfile/ libvorbis/ libogg/   Xiph decoders (BSD-3-Clause, decoder parts vendored unchanged; 3.52)
 ├─ tools/
 │   package.ps1                  Release build -> dist\ShadeTube-<ver>-win64.zip + .sha256
 │   update_manifests.py          winget + Scoop manifests for the packaged release (see 6)
 │   i18n_check.py                translation checker (see 3.13)
-│   icons.py                     the icon set: draws assets/icons/<grid>/*.svg (and the design package's copy), 3.42
+│   icons.py                     the icon set: draws assets/icons/<grid>/*.svg (and the design package's copy), 3.43
 │   import_design.py             regenerates assets/ from the design package
 ├─ src/
 │   core/        st_core         ThreadPool, Dispatcher, Async (Lifetime, Result), Http, Settings, Paths, Log,
@@ -80,74 +80,60 @@ ShadeTube/
 │   catalog/     st_catalog      source-independent models (Track, Album, Artist, Playlist, Page<T>, ...), Credits
 │   musicbrainz/ st_musicbrainz  MusicBrainz, Cover Art Archive, ListenBrainz, Wikidata client (rate limit, disk cache)
 │   spotify/     st_spotify      Totp, Auth, SpotifyApi (Pathfinder + spclient), HashRegistry, Session, Accounts
-│   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious)
-│   ytmusic/     st_ytmusic      YouTube Music catalog: Parse (tolerant InnerTube parsers), YtMusic (endpoints, cache)
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious),
 │                                VideoStreams + OfficialVideo (video mode's streams and official video search, 3.41 / 3.42)
+│   ytmusic/     st_ytmusic      YouTube Music catalog: Parse (tolerant InnerTube parsers), YtMusic (endpoints, cache)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
-│                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.42)
+│                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52)
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
-│                                cache, 3.42)
+│                                cache, 3.45)
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
 │   video/       st_video        video mode's picture: VideoDecoder (MF + DXVA), SyncScheduler, VideoPlayer, Fmp4Index;
 │                                Soundtrack + AudioAlign (the official video's alignment, 3.42)
-│   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Anim,
+│   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Acrylic (the
+│                                overlay surface and material, 3.36), Anim,
 │                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO),
 │                                PageMotion (page transitions' timeline + cover flight, 3.31),
 │                                HoldGesture (press and hold, 3.30)
 │   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets,
 │                                PageTransition (page transitions + the shared cover, 3.31)
-│   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Acrylic (the
-│                                overlay surface and material, 3.36), Anim,
-│                                ScrollPhysics (smooth scrolling, 3.28), ScrollDemo (SHADETUBE_SCROLL_DEMO)
-│   app/         ShadeTube.exe   main.cpp, App (composition root), AppContext, Router, Shell, Components, PageWidgets
-│                                pages: Home, Search, Artist, BrowsePages (library), Collection, NowPlaying, Downloads,
-│                                LocalFiles, Podcasts, Stats, SmartLists, Settings (+ About/AltSource/Playback),
-│                                ConnectScreen, MiniPlayer (+ MiniLayout, its geometry)
+│                                pages: Home, Search, Artist, Profile, BrowsePages (library), Collection, Blend, NowPlaying,
+│                                Downloads, LocalFiles, Podcasts, Radio, Stats, SmartLists, Settings (+ About/AltSource/
+│                                Playback), ConnectScreen, MiniPlayer (+ MiniLayout, its geometry)
 │                                features: LoginWindow, Source, Downloads, LocalLibrary, TagEditor, ListenStats + HistoryImport +
-│                                ScrobbleImport (Spotify / Last.fm / ListenBrainz history, 3.8, 3.42), LibrarySort +
+│                                ScrobbleImport (Spotify / Last.fm / ListenBrainz history, 3.8, 3.55), LibrarySort +
 │                                LibraryView (Library views, 3.22), Display (interface scale + list density, 3.25),
-│                                TrackColumns (the track table's columns, the queue's sections; lists, 3.42),
+│                                TrackColumns (the track table's columns, the queue's sections; lists, 3.47),
 │                                CollapsingHeader + HeaderCollapse (collapsing page headers, 3.38),
 │                                Radio, Blacklist,
 │                                CoverGradient + CoverBackdrop (Now Playing's backdrop, 3.40),
-│                                Credits + CreditsUi (song credits), LyricsPicker ("Yanlış sözler mi?"; both 3.42),
-│                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts, Links +
+│                                Credits + CreditsUi (song credits), LyricsPicker ("Yanlış sözler mi?"; both 3.46),
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts +
-│                                PodcastsSpotify (Spotify shows -> public feeds, 3.42), Links +
+│                                PodcastsSpotify (Spotify shows -> public feeds, 3.54), Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
 │                                Preview + PreviewSession (song preview, 3.30),
 │                                VideoMode + VideoView + VideoWindow (3.41), OfficialVideo + OfficialVideoCache (3.42),
-│                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState)
-│                                Accounts (several Spotify accounts, 3.42), SongNotification + SongNotifier (3.43)
+│                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState),
+│                                Accounts (several Spotify accounts, 3.48), SongNotification + SongNotifier (3.49),
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
-│                                JamCrypto, JamInvite, JamProtocol, JamSync),
+│                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.50),
 │                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements
-└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, collections,
-                                 downloads, headers, icons, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
-└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, browse, collections,
-└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiocache, audiodsp, collections,
-└─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiodsp, collections,
-│                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.42)
-└─ tests/                        console test programs (not shipped, see 5.2): altsource, audio, audiodsp, blend, collections,
-                                 downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
-                                 credits, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
-                                 downloads, headers, jam, library, links, lists, liveaudio, localfiles, lyrics, micro, miniplayer,
-                                 codecs, downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
-                                 downloads, headers, history, jam, library, links, liveaudio, localfiles, lyrics, micro, miniplayer,
-                                 downloads, headers, jam, library, links, liveaudio, localfiles, lyrics, memory, micro, miniplayer,
-                                 musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups, preview, radio,
-                                 remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle, smtc, songnotify, sponsorblock,
-                                 spotify, stats, sync, tags, theme, updater, video, winshell, ytmusic, ytstreams
+└─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiocache,
+                                 audiodsp, blend, browse, codecs, collections, credits, downloads, headers, history,
+                                 icons, jam, library, links, lists, liveaudio, localfiles, lyrics, memory, micro,
+                                 miniplayer, musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups,
+                                 preview, radio, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
+                                 smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
+                                 winshell, ytmusic, ytstreams
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
 `tools/import_design.py` expects it locally at the repository root and regenerates the SVGs (stripping C2PA
 metadata that `ID2D1SvgDocument` rejects), tokens, textures and `app.ico`. Without it, edit `assets/` directly.
 The icons are the exception: `tools/icons.py` draws them and writes both `assets/icons` and, with
-`--design ShadeTube-Design`, the package's `icons/` (3.42), so an import brings back the same files.
+`--design ShadeTube-Design`, the package's `icons/` (3.43), so an import brings back the same files.
 
 **Module dependencies** (never reverse them): `core ← catalog ← musicbrainz, spotify, youtube, ytmusic`;
 `core ← audio, lyrics, gfx`; `gfx ← ui`; `audio + gfx ← video` (it reuses the audio module's ProgressiveBuffer and
@@ -182,11 +168,6 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   the memory in pools at the peak until the immediate context is flushed, the GPU has finished with the objects and
   `IDXGIDevice3::Trim` runs (`Device::trimPool()`). So every bitmap below counts in Task Manager, not as "video memory".
 - Images: `gfx::ImageCache` downloads to a disk cache (`cache\images`, pruned to 400 MB), WIC-decodes **at the
-  requested pixel size** and keeps D2D bitmaps in a GPU LRU with a byte budget (64 MB; eviction stops at bitmaps
-  painted in the last two frames, so a screen needing more goes over it instead of thrashing). D2D's texture cache is
-  capped at 24 MB. Requests from widgets that went off-screen are skipped.
-- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held (the built-in Opus /
-  Vorbis decoders add ~0.1-0.2 MB per track, 3.42). Every download
   requested pixel size** rounded up to a bucket (64 / 128 / 192 / 256 / 384 / 512 / 768 / 1024 / 1280 px, steps of
   1.5-2×: a 200 DIP card at 175 % is 384 px, 0.56 MB, where the old 512 px bucket was 1 MB) and keeps D2D bitmaps in
   an LRU with a byte budget (64 MB; eviction stops at bitmaps painted in the last two frames, so a screen needing more
@@ -199,11 +180,12 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 - Icons: one mask per pixel size up to 96 px (a 24 px icon is 2.3 KB). Larger multi-color artwork (the cover
   placeholders at card or Now Playing size, a placeholder in a cover's flight) is drawn from the parsed SVG document
   (`Icons::drawColored`): it used to keep a bitmap per size for the session, 4 MB for Now Playing's.
-- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held. Every download
+- Audio: only the current, the preloaded next and (while crossfading) the outgoing track are held (the built-in Opus /
+  Vorbis decoders add ~0.1-0.2 MB per track, 3.52). Every download
   above 1 MB is buffered in a memory-mapped temporary file (`FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE`)
   and a local file is mapped read-only as it is, so their pages belong to the file cache, not the private commit, and
   Windows can drop them under pressure. A heap block is the fallback when no temporary file can be created. The song
-  cache (3.42) copies a complete stream from that mapping to its file and plays it from a read-only mapping: it adds
+  cache (3.45) copies a complete stream from that mapping to its file and plays it from a read-only mapping: it adds
   only its index (~0.3 KB a song).
 - GPU device: created with `D3D11_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS` (no driver worker threads:
   ~20 MB less commit on Intel UHD). A window's swap chain is created by its first frame, never for a hidden window,
@@ -305,16 +287,16 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 
 1. A list calls `Player::playContext(tracks, index, context)`.
 2. Downloaded tracks and local files play straight from disk (`localFileFor` / local-file resolvers).
-3. Otherwise the song cache (3.42) when it holds the track's video in the current quality's format, else
+3. Otherwise the song cache (3.45) when it holds the track's video in the current quality's format, else
    `youtube::MatchService::resolve(track)`: the persistent `spotifyId → videoId` cache
    (`cache\matches.json`, manual picks pinned), else `YoutubeExplode::Music::TrackMatcher::find({title, artists,
-   duration, album})`; then the manifest → best audio stream (AAC/MP4 preferred; Opus/WebM, decoded built in (3.42),
+   duration, album})`; then the manifest → best audio stream (AAC/MP4 preferred; Opus/WebM, decoded built in (3.52),
    when quality is High; Normal = ≤ 128 kbps AAC; DRC "stable volume" variants only when nothing else exists). Stream
    URLs are cached until they expire (about 5 h). If YouTube fails and a backup source is set, the stream comes from
    Piped / Invidious (3.9).
 4. `AudioEngine::open()`: `ProgressiveBuffer` (ranged download) → the built-in decoder for Opus / Vorbis in WebM,
-   Matroska and Ogg (3.42), else `MfByteStream` → MF Source Reader → float PCM → [crossfade mix] → equalizer → volume
-   ramp / loudness gain → look-ahead limiter → WASAPI event-driven, shared (or exclusive, 3.43), on the Windows default
+   Matroska and Ogg (3.52), else `MfByteStream` → MF Source Reader → float PCM → [crossfade mix] → equalizer → volume
+   ramp / loudness gain → look-ahead limiter → WASAPI event-driven, shared (or exclusive, 3.53), on the Windows default
    device or the one picked in *Ayarlar › Ses*. A fragmented MP4 whose track has an edit list (some Art Tracks' AAC
    140, YouTube's media time 1600 at 44.1 kHz, the encoder's priming) is one Media Foundation's MPEG-4 source presents
    no sample of (the song "ended" at 0:00 before 0.11.0): `audio::Decoder` opens it on a view of the buffer with the
@@ -356,7 +338,7 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 - **One output rate**: the engine asks the device for its shared-mode mix rate (`WasapiOutput::mixRate`) and every
   track decodes to it (`Decoder` requests that rate from the Source Reader's resampler, or the built-in decoders'
   `audio/Resampler`, through a `RatePolicy`; live streams keep theirs). Songs of 44.1 and 48 kHz therefore hand over
-  gaplessly or crossfade without reopening the device. Exclusive mode decodes at the tracks' own rates instead (3.43).
+  gaplessly or crossfade without reopening the device. Exclusive mode decodes at the tracks' own rates instead (3.53).
 - **Playback speed** (`Settings.musicSpeed` / `podcastSpeed`, 0.5-3x, `Player::setSpeed`, the player bar's speed
   button, the speed shortcuts): `StreamSource::speed` starts a track at its kind's speed and `AudioEngine::setSpeed`
   changes the current one. `audio/TimeStretch` is a WSOLA stretcher (SoundTouch's method: sequences joined where the
@@ -372,18 +354,18 @@ web player uses. Audio never comes from Spotify. Flow (`src/spotify/`, `app/Logi
 
 1. **Login**: a WebView2 window opens `accounts.spotify.com`; when Spotify sets the long-lived `sp_dc` cookie it is
    captured and stored DPAPI-encrypted in the account's `accounts\<id>\spotify.dat` (never in `settings.json`).
-   Several accounts can be signed in and switched without a new login (3.42).
+   Several accounts can be signed in and switched without a new login (3.48).
 2. **Token** (`Auth`, `Totp`): a RFC 6238 TOTP (CNG HMAC-SHA1) over Spotify's server time, with the secret from a
    public gist (baked-in fallback), signs `GET open.spotify.com/api/token`. The web-player token is refreshed
    before it expires (`Session::maybeRefresh`, from the app's housekeeping tick).
 3. **Data** (`SpotifyApi`): persisted GraphQL queries and mutations on `api-partner.spotify.com/pathfinder/v2/query`
    (profile, library, playlists, albums, artists, followed shows, show details, search with its per-kind pages
-   (3.42), personalized home, library and playlist-item writes:
+   (3.54), personalized home, library and playlist-item writes:
    add / remove / `moveItemsInPlaylist` with a `newPosition` relative to a row uid); the spclient playlist service for
    create / rename / delete, "Edit details" (`UPDATE_LIST_ATTRIBUTES` with `noValue` to clear the description or the
    picture) and track counts; a new cover goes to `image-upload.spotify.com/v4/playlist` (raw JPEG -> `uploadToken`)
    and `/playlist/<id>/register-image` (-> `picture`) first; `inspiredby-mix` for radios; `user-profile-view/v3` for
-   public profiles (3.42). The
+   public profiles (3.54). The
    web-player token is rate-limited on `api.spotify.com/v1`, so that API is not used. Home shelves are requested
    with the UI language's `Accept-Language`.
 4. **Session** caches the library snapshot (playlists incl. Liked Songs, saved albums, followed artists) for the
@@ -396,7 +378,7 @@ web player uses. Audio never comes from Spotify. Flow (`src/spotify/`, `app/Logi
    item's `addedAt` / `playedAt` / `pinned` (folders as `folder:<id>`) is kept in `LibrarySnapshot::entries` for the
    Library's sort orders (3.22); albums and artists are paged like the playlists (50 a page, at most 20 pages).
 5. **Source seam** (`app/Source`): pages read Spotify when logged in and the open catalog otherwise (MusicBrainz or
-   YouTube Music, 3.42); detail lookups route by id (`spotify:*` URI → Spotify, `ytm:*` → YouTube Music, MBID →
+   YouTube Music, 3.56); detail lookups route by id (`spotify:*` URI → Spotify, `ytm:*` → YouTube Music, MBID →
    MusicBrainz), so mixed histories keep working.
 
 **Hash self-healing** (`spotify/HashRegistry`). Each Pathfinder operation is sent with the SHA-256 of its query
@@ -413,7 +395,7 @@ request-shape change and needs a code fix in `SpotifyApi.cpp`. Keep the built-in
 - **Radio** (`app/Radio`): `Api::radioPlaylist(seed)` (the web player's "Go to song radio") → the first 100 tracks →
   blocklist-filtered → replaces the queue. Track, album and artist seeds are supported; a playlist is seeded with its
   first playable tracks. Starting the radio of the playing song keeps it playing and replaces what follows. YouTube
-  Music seeds (`yt:` songs, `ytm:` albums / artists / playlists) get YouTube Music's automix queue instead (3.42), with
+  Music seeds (`yt:` songs, `ytm:` albums / artists / playlists) get YouTube Music's automix queue instead (3.56), with
   or without a Spotify session; autoplay seeds from them the same way.
 - **Autoplay / endless playback** (`Settings.endlessPlayback`): when at most one playable item is left and repeat
   is off (`Player::onQueueLow`), the radio of the current Spotify track is appended (only new, unblocked tracks),
@@ -482,7 +464,7 @@ error and backoff, plus per-track download attempts.
   covers once. The index (`local-library.json`: path, size, mtime, tags) makes rescans incremental; an unreachable
   folder keeps its tracks. Ids are `local:<FNV-1a of the lower-cased path>`. User files are only read, except when the
   user edits their tags (below). Scanned extensions: `.mp3 .m4a .aac .flac .wav .wma .ogg .oga .opus`. Ogg Opus /
-  Vorbis files have no Windows property handler: their comments, duration and cover come from `audio/XiphTags` (3.42).
+  Vorbis files have no Windows property handler: their comments, duration and cover come from `audio/XiphTags` (3.52).
 - **Views** (`app/LocalFilesPage.cpp`): Şarkılar, Albümler, Sanatçılar and **Klasörler**. The view and the open folder
   are remembered (`Settings.localView`, `localFolder`) and named in the route (`{LocalFiles, "songs" | "albums" |
   "artists" | "folders" | "folder:<path>"}`, `""` = the remembered one; a tab switch rewrites the current history entry
@@ -549,7 +531,7 @@ error and backoff, plus per-track download attempts.
   `listening-imported.json` (flat, delta-coded, about 12 bytes a play; at most 2 million), written only by an import,
   *İçe aktarılanları kaldır* or a clear; the regular 30 s saves never touch it. Plays stored while an import runs are
   carried over. In memory all histories share one index and one time-ordered play list (imported plays flagged, with
-  their source). Last.fm and ListenBrainz scrobbles come the same way into their own files: 3.42.
+  their source). Last.fm and ListenBrainz scrobbles come the same way into their own files: 3.55.
 - **Artwork for names without covers** (imported songs, plain-text credits): the top entries on screen are looked up
   once through the catalog search (Spotify while logged in, else MusicBrainz, one request at a time) and remembered in
   `cache\stats-artwork.json` (misses for 30 days).
@@ -593,7 +575,7 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
   from that song and shows the album; a YouTube video becomes a `yt:<videoId>` track titled from the video
   (`links::videoSong`: "Artist - Title (Official Video)" -> artist / title) whose video is pinned in `MatchService`,
   so it never re-matches. A `shadetube://jam/` invite joins a listen-together session (3.24; never logged). Spotify
-  shows open in Podcastler and Spotify users their profile page (3.42 Search kinds). Spotify links need a session
+  shows open in Podcastler and Spotify users their profile page (3.54 Search kinds). Spotify links need a session
   (logged out: the connect screen); links of those services to anything else (episodes, YouTube channels,
   `spotify.link` short links) only toast; other text is searched.
 - **Windows shell** (`app/WinShell`): the process gets the AppUserModelID before any window exists (the Start menu
@@ -691,23 +673,20 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 ### 3.14 User data
 
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `accounts.json` and
-`accounts\<id>\` (one folder per Spotify account, 3.42: `spotify.dat` (DPAPI), its login's `webview2\`, and its
-`listening.json`, `listening-imported.json`, `listening-lastfm.json`, `listening-listenbrainz.json`, `blacklist.json`,
-`new-releases.json`, `smart-lists.json`,
-`library-recents.json`, which sit in the root itself while there is no account), `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`, `downloads.json`, `sync.json`, `blacklist.json`,
-`listening.json`, `listening-imported.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`,
-`radio.json`, `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json` (timing offsets and lyrics picks;
-`lyrics\` holds picked .lrc / .txt copies, 3.42), `smart-lists.json`, `jam.json`
-(listen together: the device id, a guest's saved playback settings), `jam-own-session.json` (a guest's own queue),
-`spotify-hashes.json`, `library-recents.json`,
-`update-leftovers.txt`, `playlist-covers\` (local playlists' own pictures), `themes\` (custom color themes, 3.35 Theme
-studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, `mb`,
-`local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`, `officialvideos.json`, `audio` = the song cache, 3.42), `logs\shadetube.log`
-and `crashes\`. Downloads
-studio), `shell\` (the notification icon), `cache\` (images, `matches.json`, lyrics, credits, `mb`,
-studio), `shell\` (the notification icon, the song notification's cover `now-playing-{0,1}.png`, 3.43), `cache\` (images, `matches.json`, lyrics, `mb`,
-`local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`), `logs\shadetube.log` and `crashes\`. Downloads
-go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
+`accounts\<id>\` (one folder per Spotify account, 3.48: `spotify.dat` (DPAPI), its login's `webview2\`, and its
+`listening.json`, `listening-imported.json`, `listening-lastfm.json`, `listening-listenbrainz.json` (3.55),
+`blacklist.json`, `new-releases.json`, `smart-lists.json` and `library-recents.json`, which sit in the root itself
+while there is no account), `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`,
+`downloads.json`, `sync.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`, `radio.json`,
+`recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json` (timing offsets and lyrics picks; `lyrics\`
+holds picked .lrc / .txt copies, 3.46), `jam.json` (listen together: the device id, a guest's saved playback
+settings), `jam-own-session.json` (a guest's own queue), `jam-host.dat` / `jam-guest.dat` (a session to resume,
+DPAPI, 3.51), `blends.dat` (DPAPI, 3.50), `spotify-hashes.json`, `update-leftovers.txt`, `playlist-covers\` (local
+playlists' own pictures), `themes\` (custom color themes, 3.35 Theme studio), `shell\` (the notification icon, the
+song notification's cover `now-playing-{0,1}.png`, 3.49), `cache\` (images, `matches.json`, lyrics, credits, `mb`,
+`ytmusic`, `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`, `officialvideos.json`, `audio` = the
+song cache, 3.45), `logs\shadetube.log` and `crashes\`. Downloads go to `Music\ShadeTube` by default (podcast
+episodes to its `Podcasts` folder).
 
 ### 3.15 Drag and drop
 
@@ -743,7 +722,7 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
   parser; other formats: `System.Music.Lyrics`). Then LRCLIB, then — for a `spotify:track:` while logged in — Spotify's
   lyrics service (`spclient /color-lyrics/v2/track/<id>`, `Api::trackLyrics`) when LRCLIB has nothing or only unsynced
   lyrics. An unsynced local text beats an unsynced online one. Spotify answering 429 / 403 pauses that provider for
-  10 / 30 minutes. The user's own pick ("Yanlış sözler mi?", `Query::choice`) comes before all of this (3.42).
+  10 / 30 minutes. The user's own pick ("Yanlış sözler mi?", `Query::choice`) comes before all of this (3.46).
 - **Cache** (`cache\lyrics\<id>.json`): the online answer plus the providers already asked (`tried`); a definitive
   "none" is kept 7 days, a transient failure is never cached, and a provider that wasn't asked yet (the user logged in
   later) still is. Enhanced-LRC word times are kept (`words`).
@@ -761,7 +740,7 @@ go to `Music\ShadeTube` by default (podcast episodes to its `Podcasts` folder).
 
 `app/Podcasts` (standalone: directory client, RSS parsing, episode model, downloads, store; `podcasts_test`) and
 `app/PodcastsPage.cpp` (the Podcastler pages and the wiring). Open sources only: Spotify's own podcasts (the shows the
-user follows there, search results) are resolved to their public feeds (3.42), never played from Spotify:
+user follows there, search results) are resolved to their public feeds (3.54), never played from Spotify:
 
 - **Directory**: Apple's `itunes.apple.com/search` (media=podcast) and `/lookup` (a show's feed URL); the top shows
   of the Windows home location from `rss.applemarketingtools.com` (the legacy `itunes.apple.com/<cc>/rss/toppodcasts`
@@ -790,7 +769,7 @@ user follows there, search results) are resolved to their public feeds (3.42), n
   by its RSS address (a self-hosted server) may be on the local network, and so may its audio.
 - **Routes** `Route{RouteKind::Podcasts, id}`: `""` (home), `search:<text>`, `feed:<url>`, `apple:<directory id>`,
   `new` (new episodes of the subscriptions), `downloads`, `spotify` (the Spotify import preview) and
-  `spotify:show:<id>` (a Spotify show: its matched feed or why it can't play; 3.42).
+  `spotify:show:<id>` (a Spotify show: its matched feed or why it can't play; 3.54).
 
 ### 3.18 Internet radio
 
@@ -1020,7 +999,7 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
   album, length, cover, the exact YouTube video it plays, who added it, kind), position + the host's steady clock,
   playing / status, guest permission, members, bans, a revision. Items it plays from disk are `File` (guests use the
   host's video when the match cache knows one, else look them up by title / artist / length); podcast episodes and
-  radio stations are shared with 0.11.0+ guests (3.43) and `Unsupported` for older ones (they pause and the panel says
+  radio stations are shared with 0.11.0+ guests (3.51) and `Unsupported` for older ones (they pause and the panel says
   why). Guests'
   `req`s: `add` always (the song goes after the songs guests added before, marked "+ NAME" in the queue panel); play,
   pause, next, previous, seek and jump only with "Misafirler çalmayı kontrol edebilir". Presence: hello (name + the
@@ -1029,7 +1008,7 @@ UI thread, player hooks, palette commands) and `app/TogetherPanel.cpp` (side pan
   leaves). "Yeni bağlantı" moves the session to a new room + key: each online guest gets the new link sealed with
   SHA-256(ECDH(host ephemeral, guest key) || label), the old room's retained state is cleared; a removed device reads
   the old room but can't open the hand-offs. Both ends play songs at 1x during a session (episodes: the host's speed,
-  3.43). Closing the host's app keeps the session for a restart (3.43).
+  3.51). Closing the host's app keeps the session for a restart (3.51).
 - **Guest**: on joining, `session.json` is copied to `jam-own-session.json` and shuffle / repeat / speed go to
   `jam.json`; leaving, being removed, the host ending the session or the next start after a crash put them back
   (`Player::restoreSession` stops what plays first). Following runs four times a second (`jam::decide`): the host's
@@ -1230,7 +1209,7 @@ time of the event.
   elapsed · wave · total, mono 11, elapsed `fg.secondary`, total `fg.tertiary`). The column is 40 % of the bar
   (380..640 DIP) but narrows to keep ~140 DIP of title and the right group free (about 316 DIP at the 960 DIP minimum
   window). A `hairline.subtle` marks the bar's top edge. Now Playing covers the bar with its own controls (3.40).
-- **Thin outline icons**: the bar uses the app's one icon set (3.42; in 0.9.0 it had its own `<name>-thin` files, now
+- **Thin outline icons**: the bar uses the app's one icon set (3.43; in 0.9.0 it had its own `<name>-thin` files, now
   aliases of the plain names): next / prev as an outlined triangle + bar, the liked heart `heart-filled` in the accent.
 - **Play button** (`ui::PlayButton::Look::Outline`; `Look::Accent`, the filled accent circle of page headers, draws the
   same outline glyph in `accent.onAccent`, 1.15 × its icon size, stroke 7.5 % of the glyph): a 1.25 DIP `fg.primary`
@@ -1776,7 +1755,7 @@ the palette command, the dev hooks).
   above the bar's line. The bar has its own play (`PlayButton::Look::Outline`) and shuffle (`IconOutline`,
   `shuffle`), which come in while the header's buttons dissolve and mirror their handlers and playing state (the
   header's play now shows pause too while the page's collection plays). Lists without a column header (podcast,
-  artist) get a hairline under the bar once they dock. Podcast bars have no shuffle (artist bars have one since 3.42).
+  artist) get a hairline under the bar once they dock. Podcast bars have no shuffle (artist bars have one since 3.44).
 - **Driven by the offset**: `collapse::compute(spec, s)` is a pure function of the ScrollView's offset of the frame
   (`scrollY()`, advanced to the frame time by the smooth-scroll engine, 3.28): no timers, no relayout while scrolling,
   the same frame for the same offset whichever way the page goes. Pinned elements settle with `collapse::soft()`: they
@@ -1935,7 +1914,7 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   under the pointer); right click on the cover / title / artist line: the track menu (a station's menu). Match line:
   duration · match %, the smart shuffle badge, "Yanlış eşleşme?" (not for the user's own files); a station: CANLI +
   codec; an episode: its length.
-- **Controls**: the player bar's widgets (3.29: wave `Slider`, outline `PlayButton`, the thin icons of 3.42, `Knob`): shuffle
+- **Controls**: the player bar's widgets (3.29: wave `Slider`, outline `PlayButton`, the thin icons of 3.43, `Knob`): shuffle
   (cycling smart shuffle), previous, play, next, repeat; like (a station: favorite; `setHeart` / `pulse`: the
   micro-interactions' heart pop, as in the bar); sleep timer, speed (episodes, or
   any speed but 1x), listen together (the session pill when it fits, else the icon; a guest's transport is disabled as
@@ -1952,14 +1931,14 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   timing −, the offset (reset), +, full-screen lyrics, "Sözleri paylaş" (`openLyricsShare`, 3.37). **A
   feature adds its button with one entry there.**
 - **Lyrics**: providers, translation, offset, click-to-seek and the 3 s wheel override as in 3.16; "Yanlış sözler mi?"
-  after the header label and "Sözleri ara" under "no lyrics" open the lyrics picker (3.42). A placeholder only
+  after the header label and "Sözleri ara" under "no lyrics" open the lyrics picker (3.46). A placeholder only
   after 350 ms of loading (a cached / local file answers before it would flash); arriving lyrics fade in (420 ms),
   already scrolled to the active line; lines fade out towards the area's edges by their own alpha (no layer).
 - **Hakkında**: a song shows the track's own album and artist at once; with catalog ids (Spotify URIs, MBIDs)
   `source::album` and `source::artistPage` run on a worker (Normal priority, once per track, only while the tab is
   open) and add the album's kind · year, track count · label and the artist's kind · country · start year · genre,
   ListenBrainz listens (or the disambiguation), up to 8 similar artists as outlined pills; links "Albüme git" /
-  "Sanatçıya git", then the song's credits (3.42). A failure leaves the track's fields and a note; local files have
+  "Sanatçıya git", then the song's credits (3.46). A failure leaves the track's fields and a note; local files have
   only those (and their credits when MusicBrainz knows the song). An episode: the show,
   date · length, "Podcast'e git" and the show notes (`paintEpisodeNotes`). A station: logo, country / genres, codec,
   its website, Radyo. Long content scrolls with the wheel.
@@ -2217,7 +2196,7 @@ relates to the song's. `app/OfficialVideo` (the decision, the picker), `app/Offi
   another song, live takes, a reordered edit; the time map; YouTube Music fixtures and the ranking; the cache),
   `officiallive <artist> <title> <upload>` the whole lookup on YouTube, `soundtrack <id> <file> [codec]` and
   `alignraw <a> <b>` the alignment on saved soundtracks with the waveform reference.
-### 3.42 Icons
+### 3.43 Icons
 
 One thin outline language for every icon in the app: sidebar, title bar, page headers, menus, track rows, cards,
 settings, dialogs, toasts, the queue, Now Playing, the mini player, the command palette, the taskbar buttons and the
@@ -2259,7 +2238,7 @@ tool writes `assets/icons/<grid>/<name>.svg` for the six grids (`--design <dir>`
 - **Checks**: `icons_test` (5.2) checks every file against these rules through the app's loader and writes contact
   sheets with `--sheet <dir>` (every icon at 12-24 DIP for 80-175 % in dark, light and preset themes, each grid
   magnified over its pixel grid, off / on pairs).
-### 3.42 Artist and Search pages
+### 3.44 Artist and Search pages
 
 `app/ArtistPage.cpp` and `app/SearchPage.cpp` (the Library stays in `app/BrowsePages.cpp`), on `app/BrowseWidgets` (filter
 chips, a fading column, the album / artist / playlist cards and menus shared with the Library) and `app/BrowseModel`
@@ -2365,7 +2344,7 @@ biography with a gradient over its opaque fill instead of a layer (14 -> 7 ms fr
 
 **Dev**: `SHADETUBE_SPOTIFY_DEMO=<folder>` with an `artist.json` (a raw `queryArtistOverview` answer) shows it for any
 `artist:spotify:artist:<id>` route without a session (5.4).
-### 3.42 Song cache
+### 3.45 Song cache
 
 `player/AudioCache` keeps the streams of played songs on disk (`cache\audio`), so a song heard before starts from the
 file without a single request, also offline. Until 0.10.0 every play downloaded the stream again: `MatchService`'s
@@ -2422,7 +2401,7 @@ with the track.
   under 16 ms (the tick's resolution; 234 ms once). The stream was stored about 1 s after it started playing.
 - **Dev**: `SHADETUBE_OFFLINE=1` (5.4) cuts the shared transport off; `songcache` log lines; `player` lines "playing
   after N ms (network | song cache | preloaded | file | station | feed)"; `audiocache_test` (5.2).
-### 3.42 Song credits and the lyrics picker
+### 3.46 Song credits and the lyrics picker
 
 Two features around Now Playing: who made the song, and a way out when the automatic lyrics are wrong. Tested by
 `credits_test` and `lyrics_test` (5.2).
@@ -2494,7 +2473,7 @@ Two features around Now Playing: who made the song, and a way out when the autom
   "SENİN SEÇİMİN" to both headers; None shows "Bu şarkıda sözleri kapattın.".
 
 Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two dialogs for the playing song (5.4).
-### 3.42 Lists: the track table, the Library, the queue and the shared states
+### 3.47 Lists: the track table, the Library, the queue and the shared states
 
 `app/TrackColumns` (standalone geometry, `lists_test`), `TrackTable` and `badge::` in `app/Components`, `LibraryView` +
 `ViewToggle` in `app/LibraryView`, `QueuePanel` in `app/Shell`, the shared states in `app/PageWidgets`,
@@ -2666,7 +2645,7 @@ Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two di
   on every page but Search (0.3-0.6 %, the box's caret). `memory_test` passes.
 - Dev: `SHADETUBE_LIST_DEMO` (5.4) selects rows, sorts through the header path, sets the columns, queues rows, opens
   the queue, scrolls, shows a reorder drag in place and fakes play counts for `--screenshot`.
-### 3.42 Several Spotify accounts
+### 3.48 Several Spotify accounts
 
 Several Spotify accounts on one PC, switched without logging in again (`spotify/Accounts` = the store,
 `spotify/Session` = the switch, `app/Accounts` = what is per account + the UI; `accounts_test`).
@@ -2681,7 +2660,7 @@ Several Spotify accounts on one PC, switched without logging in again (`spotify/
   accounts are removed at startup.
 - **Per account / per PC.** Per account (`accounts::perAccountFiles()`; a name also covers its `.old` / `.bak` / `.tmp`
   siblings): `listening.json` + `listening-imported.json` + `listening-lastfm.json` + `listening-listenbrainz.json`
-  (stats, the year in review, the Library's play recency; the imported histories with their import cursors, 3.42 Last.fm
+  (stats, the year in review, the Library's play recency; the imported histories with their import cursors, 3.55 Last.fm
   and ListenBrainz history import), `blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`. In memory, the Session keeps the
   library snapshot (playlists, folders, saved albums, followed artists, liked ids) per account and parks the one it
   leaves for an instant switch back (a reload follows); Home and the friend activity reload. Per PC (the root):
@@ -2736,7 +2715,7 @@ Several Spotify accounts on one PC, switched without logging in again (`spotify/
   song played); `accounts_test` drives the Session with a fake connect (two users, add, switch, re-login, failed
   switch, sign out hand-over, restart).
 
-### 3.43 Song-change notification
+### 3.49 Song-change notification
 
 Ayarlar › Pencere ve sistem › "Şarkı değişince bildirim göster" (`Settings.songNotifications`, off by default;
 `app/SongNotification` = the rules + the toast XML, standalone, `songnotify_test`; `app/SongNotifier.cpp` = the app part).
@@ -2769,7 +2748,7 @@ Ayarlar › Pencere ve sistem › "Şarkı değişince bildirim göster" (`Setti
   locked screen); Focus assist / Do not disturb itself is left to Windows, which holds toasts back. Not for the same song
   again (repeat one, a re-resolve), radio stations, podcast episodes or a song paused by then. The verdict is logged
   (`songnotify` lines).
-### 3.42 Blend
+### 3.50 Blend
 
 A shared playlist made from the taste of two or more people, without a server or accounts, on the listen-together
 transport (3.24). `app/Blend` (standalone, pure: the taste profile, its JSON, the mix, the match, the store record;
@@ -2829,7 +2808,7 @@ transport (3.24). `app/Blend` (standalone, pure: the taste profile, its JSON, th
   same 29-song mix (5 shared, 75 %, the same order fingerprint). A refresh on A reached B's open page as a toast in
   ~1 s; B leaving showed up on A's next visit.
 
-### 3.43 Listen together: podcasts, radio and restarts
+### 3.51 Listen together: podcasts, radio and restarts
 
 Additions to 3.24 in 0.11.0, in the same files (`app/JamProtocol`, `app/JamSync`, `app/Together`).
 
@@ -2875,7 +2854,7 @@ Additions to 3.24 in 0.11.0, in the same files (`app/JamProtocol`, `app/JamSync`
   switch to 1.5x reached the guest with one seek; Radio Paradise followed across a "next station" and a station error;
   host quit + restart 17-30 s later resumed the room with both a 0.11 and a 0.10.0 guest following again; a guest
   restart rejoined by itself; a 0.11 guest followed a 0.10.0 host's songs.
-### 3.42 Built-in Opus / Vorbis decoding
+### 3.52 Built-in Opus / Vorbis decoding
 
 YouTube's best audio is Opus in WebM (~160 kbps), and Windows decodes it only with the right Store extensions; stock
 Windows has no Ogg handler at all. So Opus and Vorbis are decoded by the Xiph reference libraries, vendored and linked
@@ -2905,7 +2884,7 @@ statically (`external/libopus` 1.6.1 decoder, `opusfile` 0.12, `libvorbis` 1.3.7
   counted, never taken from block times.
 - **Output**: interleaved float stereo — mono doubled, 3-8 channels (Vorbis order, shared by Opus family 1)
   downmixed with -3 dB centre / surrounds, LFE dropped, normalised. The OpusHead output gain is applied. The rate comes
-  from the track's `RatePolicy` (the mix rate in shared mode, 3.43 for exclusive): `audio/Resampler` converts — a
+  from the track's `RatePolicy` (the mix rate in shared mode, 3.53 for exclusive): `audio/Resampler` converts — a
   windowed sinc (Kaiser, ~80 dB stop band, pass band to 90 % of the lower Nyquist, widened when decimating; 1 kHz
   sine 48 → 44.1 kHz: 103 dB SNR) with zero delay and a global output grid (`reset(startFrame)`), so a seek never
   shifts the output by a fraction of a frame and a whole stream gives `ceil(N * out / in)` frames. A chained Ogg Vorbis
@@ -2932,7 +2911,7 @@ statically (`external/libopus` 1.6.1 decoder, `opusfile` 0.12, `libvorbis` 1.3.7
   demuxer on hand-built / truncated / damaged input, live Ogg parsing + decoding, a short engine run; `audio_test
   --webm` runs the whole YouTube suite on Opus streams.
 
-### 3.43 WASAPI exclusive mode
+### 3.53 WASAPI exclusive mode
 
 *Ayarlar › Ses › Özel mod (WASAPI)* (`Settings.exclusiveAudio`, off by default; `Player::applyAudioSettings` →
 `AudioEngine::setExclusive`, live; `SHADETUBE_EXCLUSIVE=1|0` overrides it for test programs and sandboxed runs).
@@ -2974,7 +2953,7 @@ statically (`external/libopus` 1.6.1 decoder, `opusfile` 0.12, `libvorbis` 1.3.7
 - **Tests**: `codecs_test --exclusive` (exclusive at the file's rate, a second engine refused → Busy, released while
   paused, a 44.1 → 48 kHz handoff reopening, a crossfade keeping the rate, the preview, back to shared while playing),
   `audio_test --exclusive [--webm]`, and `playback_test` / `preview_test` with `SHADETUBE_EXCLUSIVE=1`.
-### 3.42 Search kinds, profiles and Spotify podcasts
+### 3.54 Search kinds, profiles and Spotify podcasts
 
 **Search** (`app/SearchPage.cpp`, "Artist and Search pages" above; `spotify/SpotifyApi`). `catalog::SearchResults`
 holds tracks, albums, artists and, from Spotify only, `playlists`, `shows` (`catalog::PodcastShow`: `spotify:show:` id,
@@ -3053,7 +3032,7 @@ pages each, a show, Spotify's public profile and its playlists, a missing profil
 directory, with the saved session or, without one, an **anonymous** web-player token (no account: Pathfinder search,
 show details and public profiles answer it; it finds only well-known profiles). `podcasts_test` covers the matching, the
 link store and (`live`) `findFeed` with its request spacing.
-### 3.42 Last.fm and ListenBrainz history import
+### 3.55 Last.fm and ListenBrainz history import
 
 Stats › *İçe aktar* (a menu: Spotify, Last.fm, ListenBrainz) and, until something is imported, three cards in a row
 ("Spotify geçmişini getir" and its two new neighbours) bring scrobbles into the listening stats (3.8). `app/ScrobbleImport`
@@ -3151,7 +3130,7 @@ dedupes, times and stores them; `app/StatsPage.cpp` has the dialog, the cards, t
 - **Dev**: `SHADETUBE_IMPORT_SCROBBLES` starts an import once the history is loaded, `SHADETUBE_IMPORT_DIALOG` opens
   the dialog (5.4); `history_test` (5.2) replays fake Last.fm / ListenBrainz servers, reads every export format from
   `tests/history/fixtures` (`make_fixtures.py` regenerates them) and runs live imports.
-### 3.42 YouTube Music catalog
+### 3.56 YouTube Music catalog
 
 YouTube Music (music.youtube.com) is the third catalog, next to Spotify and MusicBrainz: an open catalog like
 MusicBrainz (no account; the anonymous web client), picked on the connect screen ("YouTube Music ile keşfet" /
@@ -3216,7 +3195,7 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   page of playlists for 6 hours, the mood tiles for a day; at most 32 MB (the oldest files go first, checked every 32
   writes). Searches, Home, radios and continuations are never written. *Ayarlar › Kitaplık ve depolama › Önbellek*
   counts it with the catalog cache and "Temizle" clears it with the covers.
-- **App**: the Search page (3.42 Artist and Search pages) takes YouTube Music's answer through its kinds: songs,
+- **App**: the Search page (3.56 Artist and Search pages) takes YouTube Music's answer through its kinds: songs,
   artists, albums and playlists, the top result card, and "Daha fazla yükle" per kind tab through `ytm::searchMore`
   (`SearchPage::loadMore`, like Spotify's `Api::searchMore`); its empty view shows YouTube Music's moods & genres as
   tiles per group, a tile opening that mood's shelves of playlists. The Artist page shows everything above (the
@@ -3233,7 +3212,7 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   and `/channel/UC…` links open the album / artist; a YouTube playlist link opens as a YouTube Music playlist page
   while it is the catalog (imported as before otherwise).
 - **With the other 0.11 parts**: song credits of a `yt:` song come from MusicBrainz by title and artist (the fallback
-  for every song without a Spotify / MusicBrainz id); the song cache (3.42 Song cache) is keyed by video id + itag, and
+  for every song without a Spotify / MusicBrainz id); the song cache (3.56 Song cache) is keyed by video id + itag, and
   `Player::resolveSong` takes the video of a `yt:` song straight from its id, so a cached YouTube Music song plays
   offline; Blend keys songs by folded title + artist and plays a `yt:` song from another member pinned to its video
   (`MatchService` and the player derive it from the id); listen together pins the host's video. With several Spotify
@@ -3296,13 +3275,13 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 
 | Program | Covers | Modes |
 |---|---|---|
-| `spotify_test` | TOTP / base32 vectors, home parser, artist page parser (`parseArtistOverview`), search kinds / followed shows / show details / profiles fixtures and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `search` (every search kind and its paging, a show, a public profile, shows resolved to public feeds; an anonymous token when there is no `sp_dc`, 3.42 Search kinds); `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
+| `spotify_test` | TOTP / base32 vectors, home parser, artist page parser (`parseArtistOverview`), search kinds / followed shows / show details / profiles fixtures and rootlist folder fixtures; live token, library, playlists, search | `offline`; default = offline + live when a `sp_dc` is available; `home [dump.json]`; `radio`; `hashes`, `hashes scan`; `search` (every search kind and its paging, a show, a public profile, shows resolved to public feeds; an anonymous token when there is no `sp_dc`, 3.54 Search kinds); `playlist-edit` (**writes**: create → add → rename → insert before / move behind → description + cover → clear → remove → delete a temporary playlist) |
 | `mb_test` | MusicBrainz / ListenBrainz / Wikidata parsing (artist links from url-rels, Wikipedia titles and summaries), cold vs warm cache | `--offline`, `--keep-cache` |
 | `ytmusic_test` | YouTube Music parsers on captured answers (search filtered / unfiltered + top result, a filtered list's continuation, album, artist (banner, audience, subscribers, Wikipedia bio, featured playlists, the "More" pages), an artist's discography page, playlist + continuation, watch-next radio + continuation, home + continuation, explore, charts, moods, a mood), ids, durations / counts, picture URLs, shapes that must not throw | default offline; `live [query]` (every endpoint, timings, the one-request quick search, paging, the full discography, the disk cache, pinned playback through `MatchService`); `dump <file>` |
 | `altsource_test` | Piped / Invidious parsing, stream choice, instance health, `MatchService` fallback | default offline (fixtures); `mock`; `live [kind:url…]`; `serve [port]` (mock instance for the app) |
 | `ytstreams_test` | YouTube streams through the engine's downloader and decoder (start, seek, tail), a refused URL recovered by a new session, YouTube refusing everything (backup servers / SoundCloud), SoundCloud matching | default offline (SoundCloud parsing / matching); `live [<id>…]`; `soak <id> <seconds>` |
 | `audio_test` | `AudioEngine` against real YouTube streams (states, positions, seeks beyond the download, pause, gapless, crossfade, the other container, memory) | network; `[--webm] [--exclusive] [videoA] [videoB]` (`--webm`: everything on Opus / WebM, the built-in decoder; `--exclusive`: WASAPI exclusive mode) |
-| `codecs_test` | built-in Opus / Vorbis (3.42) on ffmpeg-made chirp fixtures: the Media Foundation path on a fragmented AAC MP4 with a YouTube-style edit list inserted (Media Foundation alone reads nothing; the Decoder reads from the edit on, chirp at lag 0, seeks on the presentation timeline); `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.43 on the default device, ~15 s); `--live <url>` (a station's state for 15 s); `--bench <file> [rate]` (decode speed) |
+| `codecs_test` | built-in Opus / Vorbis (3.52) on ffmpeg-made chirp fixtures: the Media Foundation path on a fragmented AAC MP4 with a YouTube-style edit list inserted (Media Foundation alone reads nothing; the Decoder reads from the edit on, chirp at lag 0, seeks on the presentation timeline); `RatePolicy`, the resampler (lengths, 1 kHz sine SNR, aliasing, impulse position, chunked = one-shot), the Matroska demuxer (track info, cues at the front / end, timestamps, DiscardPadding, seeks, Xiph / EBML / fixed lacing, unknown-size cluster, truncated / garbage / damaged input), the decoder path on Ogg Opus / Ogg Vorbis / WebM Opus / Matroska Vorbis (exact lengths, alignment, seeks against the full decode, resampled both ways, 5.1 downmix, mono, tag gains), `XiphTags`, live Ogg Opus / Vorbis (chained) through `OggDemuxer` + `LiveDecoder`, a short engine run | offline; `[fixtures dir]`; `--exclusive` (3.53 on the default device, ~15 s); `--live <url>` (a station's state for 15 s); `--bench <file> [rate]` (decode speed) |
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, `refreshEntry` = what a scan stores, folder tree (natural order, covers, nested / drive roots, 50 000 files timed), files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
@@ -3316,9 +3295,9 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `smartlists_test` | smart lists on synthetic histories: each list's rules and minimums, streams only, podcast / radio ids out, session-based mixes, day seeds, year lists, fresh-song blending, trim, timing with 300 000 plays | offline |
 | `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), an account switch (`detach` / `attach`: stored plays to the old file, the play in progress carried over), timings with 300 000 imported plays | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files), Spotify rules bound to their account (listable only with it, the `"acct"` round trip, old files) | offline |
-| `accounts_test` | several Spotify accounts (3.42): a 0.10 single-account profile migrated in place (cookie, `webview2\`, per-account files moved, shared files left, idempotent), a MusicBrainz-only profile's first login adopting its files (later ones not), leftover login folders, sign out keeping the data, a damaged `accounts.json` rebuilt from the folders, ids that would leave `accounts\`; the `Session` with a fake connect: add a second account (the first stays signed in), leave / enter hooks around the data folder change, quick switch, re-login of a known user, a closed login window, a failed switch, sign out handing over, the next start | offline (per-process temp profile) |
-| `songnotify_test` | song-change notification (3.43): every rule and their order (in view, Windows' media overlay window, a guest's sync burst, busy, paused, repeat), XML escaping, the cover's file URI, the toast with / without cover and "Beğen", hostile tags, every variant parsed by WinRT's `XmlDocument` | offline |
-| `history_test` | Last.fm / ListenBrainz import (`app/ScrobbleImport`, 3.42): dates, Retry-After, Last.fm track objects and pages (now playing, images, MBIDs, a single-object page, errors), ListenBrainz listens (mapped artists, artist_names, durations, covers), every export format (lastfm-to-csv, Ghan CSV / JSON, lastfmstats CSV / JSON, the ListenBrainz ZIP / JSONL / old JSON; other files and the other service's left out), fake Last.fm / ListenBrainz servers (oldest-first paging, 429 + Retry-After, error 8, 503, X-RateLimit, the resume overlap, cancel, unknown user / private / bad key / no key / no network), one history from this PC + Spotify + Last.fm + ListenBrainz counted once (pauses, repeats, credit splitting, MBID matching, estimated minutes, removal per source, incremental runs, persistence), resume after a cancel, an account switch (each account's imported files and cursors, a running import stopped into the account left and resumed when back, the superseded result not touching the new account, a pending removal written by `detach`, the pre-filled account), 100 000-scrobble files and `runJob` (time, peak memory) | offline; sections by name (`timing dates records files lastfm lb merge resume accounts`); `live lb <user> [<max>]`, `live lastfm <user> [<max>]` (key in `SHADETUBE_LASTFM_KEY`): a real import into a temp store, then again (only the new) |
+| `accounts_test` | several Spotify accounts (3.48): a 0.10 single-account profile migrated in place (cookie, `webview2\`, per-account files moved, shared files left, idempotent), a MusicBrainz-only profile's first login adopting its files (later ones not), leftover login folders, sign out keeping the data, a damaged `accounts.json` rebuilt from the folders, ids that would leave `accounts\`; the `Session` with a fake connect: add a second account (the first stays signed in), leave / enter hooks around the data folder change, quick switch, re-login of a known user, a closed login window, a failed switch, sign out handing over, the next start | offline (per-process temp profile) |
+| `songnotify_test` | song-change notification (3.49): every rule and their order (in view, Windows' media overlay window, a guest's sync burst, busy, paused, repeat), XML escaping, the cover's file URI, the toast with / without cover and "Beğen", hostile tags, every variant parsed by WinRT's `XmlDocument` | offline |
+| `history_test` | Last.fm / ListenBrainz import (`app/ScrobbleImport`, 3.55): dates, Retry-After, Last.fm track objects and pages (now playing, images, MBIDs, a single-object page, errors), ListenBrainz listens (mapped artists, artist_names, durations, covers), every export format (lastfm-to-csv, Ghan CSV / JSON, lastfmstats CSV / JSON, the ListenBrainz ZIP / JSONL / old JSON; other files and the other service's left out), fake Last.fm / ListenBrainz servers (oldest-first paging, 429 + Retry-After, error 8, 503, X-RateLimit, the resume overlap, cancel, unknown user / private / bad key / no key / no network), one history from this PC + Spotify + Last.fm + ListenBrainz counted once (pauses, repeats, credit splitting, MBID matching, estimated minutes, removal per source, incremental runs, persistence), resume after a cancel, an account switch (each account's imported files and cursors, a running import stopped into the account left and resumed when back, the superseded result not touching the new account, a pending removal written by `detach`, the pre-filled account), 100 000-scrobble files and `runJob` (time, peak memory) | offline; sections by name (`timing dates records files lastfm lb merge resume accounts`); `live lb <user> [<max>]`, `live lastfm <user> [<max>]` (key in `SHADETUBE_LASTFM_KEY`): a real import into a temp store, then again (only the new) |
 | `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
@@ -3336,7 +3315,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `shortcuts_test` | key combo text form, default bindings, conflicts / reset / normalize, reserved keys, palette fuzzy ranking, the zoom keys' fallbacks on US / Turkish Q / German layouts (layouts it loads are unloaded again) and the zoom steps, the Run value (in a test key) | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json` (and its newest entries, Home's hero), history recency, timing with 10 000 items | offline |
 | `library_test` | Library views (`app/LibrarySort`): settings values, every sort key and its fallbacks, pinned items, stable ties, Turkish collation, folders (in place / first, nesting, expanded, broken chains), the filter (Turkish İ / ı, accents, short queries, creator matches), `library-recents.json`, history recency, timing with 10 000 items | offline |
-| `browse_test` | Search and Artist page logic (`app/BrowseModel`, 3.42): recent searches (queries and items, equality by case / Turkish İ / spacing or kind + id, order, the cap, remove / clear, persistence, the v1 file, broken files, unknown kinds), the top result (exact / prefix / word matches, the top songs' artist, MusicBrainz homonyms, ranks, folding), the discography (groups, date and name orders, the newest release, release kinds, MBIDs) | offline (own temp folder) |
+| `browse_test` | Search and Artist page logic (`app/BrowseModel`, 3.44): recent searches (queries and items, equality by case / Turkish İ / spacing or kind + id, order, the cap, remove / clear, persistence, the v1 file, broken files, unknown kinds), the top result (exact / prefix / word matches, the top songs' artist, MusicBrainz homonyms, ranks, folding), the discography (groups, date and name orders, the newest release, release kinds, MBIDs) | offline (own temp folder) |
 | `preview_test` | song preview: the press-and-hold gesture (`ui/HoldGesture`: due time, slop, early release, swallowed release, Esc), `preview::startPoint` (short / unknown songs, 35 %, SponsorBlock segments, the end), `preview::Session` with a fake player and clock (modes, release before the audio, the limit, Esc, the key's toggle, the song that plays, collections + cache, failures, timeouts, rapid repeated holds, stale ids), a real `Player` on generated WAVs (the current track holds its position and state and resumes from it, paused stays paused, nothing playing stays so, stopped before its audio = never held, rapid previews, a command ends it first, its own end hands back, `keepMainRunning`, 1.5x speed, stations refused, queue untouched) | offline; needs an audio device |
 | `theme_test` | theme studio core (`gfx/ThemeSpec`, `app/ThemeStore`): strict color syntax, the tokens files as themes, every bundled preset (no warnings, strict parse, keys match the palette, write / read round trip, the full contrast table), key-color derivation and `setKey`, accent adaptation and ink / paper, import validation (every refusal kind, too large, keys-only files, base guessing, names), the theme folder (save / reload / numbered names / remove / import / export / broken files left out), slugs | offline (own temp folder; reads the source tree's `assets/`) |
 | `header_collapse_test` | collapsing page headers (`app/HeaderCollapse`) on real header geometries (album, two-line playlist with a description, podcast, artist): at offset 0 everything is where the expanded header draws it, no element jumps between offsets 1/4 DIP apart, scrolling down only collapses, content never shows through the cover / title (it has dissolved where it passes under them), the docked frame (thumbnail, compact title on the bar's line, buttons, inset, hairline), the settling function, the tint's contrast on dark and light paper | offline |
@@ -3348,11 +3327,11 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `review_test` | year in review (`app/YearReview`) on fixed synthetic histories: periods (a year, the last 12 months, a running year), time / streams / tops and their order, months, weekdays, hours (a play across midnight split), dayparts, 7-day blocks, streak, busiest day, discoveries, first stream, local days on another time zone, genre shares / coverage / minimum, which periods qualify, timing with 300 000 plays | offline |
 | `video_test` | video mode: picture stream choice on manifest fixtures (cap, H.264 first, VP9 / AV1 only with a decoder, fps, upscales, portrait, muxed fallback), the still-picture check, the sidx / edit-list index on made-up boxes, the A/V scheduler on a fake clock with a fake decoder (1× / 0.5× / 2× / 3× in sync to a frame, pause, seeks both ways, a decoder that can't keep up, the video ending first), a generated H.264 MP4 decoded in software and with DXVA + the video processor (every frame's colors, seeks, 2×, the idle release); the official video (3.42): the alignment on synthetic songs (an intro, another master, a 0.3 % speed difference, an insert, a cut, repeated choruses, a silent start, another song, two live takes, a reordered edit, too short), the time map, YouTube Music search fixtures and the ranking, the decision cache | offline; `official` (only the official video's checks); `live [<id>…]` (the picture streams and still-picture verdicts of songs as MatchService matches them, one stream played on the GPU against a real-time clock, a seek); `play <id>`; `fetch <id> <file>`; `file <path> [<start s>]`; `mfurl <path>` (MF's own source on a file); `officiallive <artist> <title> <upload id> [codec]` (the whole lookup on YouTube, with the waveform reference); `soundtrack <id> <file> [codec]` (12 kHz mono f32); `alignraw <a.raw> <b.raw>` (`VIDEO_TEST_WINDOWS=1` lists every window) |
 | `remote_test` | phone remote: HTTP parser (partial / pipelined input, limits, malformed requests), SSE framing, tokens / SHA-256 / base64url, User-Agent names, the DPAPI device store (pairing, good / bad / rotated / revoked tokens, persistence, device limit), the throttle, routes (assets, ETags, Host check, auth, 429, validation), theme.css, state / queue JSON, adapter ranking, a live server on 127.0.0.1 (WinHTTP + raw sockets: keep-alive, pipelining, 408 / 413 / 431, event stream, ticks, heartbeats, revocation, ports in use, stop) | offline; `http` / `sse` / `auth` / `router` / `state` / `lan` / `live` runs one part |
-| `audiocache_test` | song cache (`player/AudioCache`, 3.42): profiles / formats / offline fallbacks, what is not cacheable, the index across runs (match, loudness, tracks, SponsorBlock data); `.part` leftovers, orphans, gone / short files, damaged head / tail / sampled block / truncation dropped at lookup; LRU under a small limit, a lower limit, the quarter rule, off, a nearly full disk (free-space probe); `ProgressiveBuffer`'s completion hook against an in-process ranged HTTP server (exact bytes once, after a far seek, never when cancelled); the engine storing a streamed WAV and playing the file; a real `Player` with `SHADETUBE_OFFLINE` (cached songs with their match, a gapless preload from the cache, crossfade, a preview, another quality once resolving fails, a damaged file dropped) | offline (own temp profile); needs an audio device |
-| `lists_test` | list geometry (3.42): the track table's columns at every width 300-1600 DIP in both densities (fixed right end, order, no overlap, the title minimum, columns only ever dropping in the documented order, the queue action last), `Settings::trackColumns` parsing, selection runs, the queue's sections (runs, header rows, positions, hit tests on rows and headers, drop slots, 5 000 slots), the skeleton band | offline |
+| `audiocache_test` | song cache (`player/AudioCache`, 3.45): profiles / formats / offline fallbacks, what is not cacheable, the index across runs (match, loudness, tracks, SponsorBlock data); `.part` leftovers, orphans, gone / short files, damaged head / tail / sampled block / truncation dropped at lookup; LRU under a small limit, a lower limit, the quarter rule, off, a nearly full disk (free-space probe); `ProgressiveBuffer`'s completion hook against an in-process ranged HTTP server (exact bytes once, after a far seek, never when cancelled); the engine storing a streamed WAV and playing the file; a real `Player` with `SHADETUBE_OFFLINE` (cached songs with their match, a gapless preload from the cache, crossfade, a preview, another quality once resolving fails, a damaged file dropped) | offline (own temp profile); needs an audio device |
+| `lists_test` | list geometry (3.47): the track table's columns at every width 300-1600 DIP in both densities (fixed right end, order, no overlap, the title minimum, columns only ever dropping in the documented order, the queue action last), `Settings::trackColumns` parsing, selection runs, the queue's sections (runs, header rows, positions, hit tests on rows and headers, drop slots, 5 000 slots), the skeleton band | offline |
 | `memory_test` | memory housekeeping (3.2) on the real graphics device: `ImageCache` buckets (a 300 px request decodes at 384, never above the picture's own size), expiry (kept when painted in the last frames, on the current or the previous page scope or within the idle time; dropped otherwise, bytes given back, loaded again when painted), `Icons::drawColored` above 96 px painting from the document with no bitmap per size, `Device::trimPool` (released bitmaps come back only through it; numbers printed), `MemoryStats::detailedReport`, `ListenStats::readFile` leaving no capacity slack | offline (own temp folder and profile) |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.32): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
-| `icons_test` | the icon set (3.42) through `gfx::Icons`: every file in every grid (viewBox = grid, path / rect / circle only, black only, the grid's stroke width, parsed by `ID2D1SvgDocument`, no `-thin` files), the grid order and legacy names, `-thin` aliases drawing the same masks, whole-pixel strokes at each grid's own size, the ink of a stroke from 9 to 36 px (≥ 1 px, then px / 16), `heart-filled` covering `heart`, the `downloaded` check cut out | offline; `--sheet <dir>` (contact sheets: all icons at 12-24 DIP × 80-175 % in dark / light / nord / pastel / sepia, each grid magnified, off / on pairs) |
+| `icons_test` | the icon set (3.43) through `gfx::Icons`: every file in every grid (viewBox = grid, path / rect / circle only, black only, the grid's stroke width, parsed by `ID2D1SvgDocument`, no `-thin` files), the grid order and legacy names, `-thin` aliases drawing the same masks, whole-pixel strokes at each grid's own size, the ink of a stroke from 9 to 36 px (≥ 1 px, then px / 16), `heart-filled` covering `heart`, the `downloaded` check cut out | offline; `--sheet <dir>` (contact sheets: all icons at 12-24 DIP × 80-175 % in dark / light / nord / pastel / sepia, each grid magnified, off / on pairs) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
 serves the package from `dist\` (and broken variants) through `tests/updater/mock_server.py` and runs
@@ -3364,7 +3343,7 @@ Listen together end to end (3.24): two sandbox profiles, each with its own `SHAD
 (or a running guest gets `ShadeTube.exe --open-link <link>`). Then `--command play-pause` / `next` to the host (or the
 guest with `SHADETUBE_JAM_DEV=control` on the host), `--open-link <YouTube URL>` to the guest (a song it adds) and
 `SHADETUBE_JAM_DEV=rotate@45,kick@80`; both logs (`jam` lines) say what each side did: `host: state rev …`,
-`guest: load / jump / seek / play / pause`, `guest: following "…": drift +31 ms`. Episodes and stations (3.43):
+`guest: load / jump / seek / play / pause`, `guest: following "…": drift +31 ms`. Episodes and stations (3.51):
 `--play-episode "<feed>#0@120"` (+ `SHADETUBE_VIDEO_DEMO=speed@25000=1.5`) or `SHADETUBE_PLAY_STATION=<name>` on the
 host. Restarts: `SHADETUBE_JAM_DEV=quit@<s>` on the host (or a guest), then start it again without the session
 variables: `host: resumed room …` / `guest: the host is back` / `guest: joining the session again`. A host launched
@@ -3372,7 +3351,7 @@ with `--preview` doesn't hold the single-instance mutex, so a later `--command` 
 instance (which then resumes the same room): give the host no `--preview` when it should take `--command`s. Old peers:
 the released 0.10.0 exe (`dist\ShadeTube-0.10.0-win64\ShadeTube.exe`) on a third profile.
 
-Blend end to end (3.42): two profiles with listening history (`SHADETUBE_IMPORT_HISTORY` with a synthetic Spotify
+Blend end to end (3.50): two profiles with listening history (`SHADETUBE_IMPORT_HISTORY` with a synthetic Spotify
 history, then close the app), `jamName` set in each `settings.json`. A: `SHADETUBE_BLEND=create!`,
 `SHADETUBE_BLEND_INVITE_FILE=<file>`, close it; B: `SHADETUBE_BLEND=<link>!`; A again (its visit 20 s after startup
 reads B): both `blend` logs name the same mix and order fingerprint. `--route smart:blend:<id>` (the id is in the
@@ -3406,10 +3385,10 @@ apps*).
 | Variable | Effect |
 |---|---|
 | `SHADETUBE_DATA_DIR` | profile folder instead of `%LOCALAPPDATA%\ShadeTube` (app and tests) |
-| `SHADETUBE_EXCLUSIVE` | `1` / `0`: WASAPI exclusive mode on / off whatever the setting (3.43; the Player test programs and sandboxed app runs) |
+| `SHADETUBE_EXCLUSIVE` | `1` / `0`: WASAPI exclusive mode on / off whatever the setting (3.53; the Player test programs and sandboxed app runs) |
 | `SHADETUBE_I18N_DIR` | folder with `<code>.json` read instead of the embedded translation |
 | `SHADETUBE_FORCE_ALT=1` | skip YoutubeExplode while a backup source is set (tests the Piped / Invidious path) |
-| `SHADETUBE_OFFLINE=1` | the shared transport (`http::client()`, `getLimited()`: YouTube, SponsorBlock, covers, Spotify, lyrics, MusicBrainz) goes through a proxy name that never resolves, so every request fails as on a PC without a connection (the song cache's offline plays, 3.42). The engine's stream downloads and the private WinHTTP sessions (backup servers, radio, podcasts, listen together) are not affected |
+| `SHADETUBE_OFFLINE=1` | the shared transport (`http::client()`, `getLimited()`: YouTube, SponsorBlock, covers, Spotify, lyrics, MusicBrainz) goes through a proxy name that never resolves, so every request fails as on a PC without a connection (the song cache's offline plays, 3.45). The engine's stream downloads and the private WinHTTP sessions (backup servers, radio, podcasts, listen together) are not affected |
 | `SHADETUBE_UPDATE_URL` | replaces the GitHub latest-release URL (mock server) |
 | `SHADETUBE_VERSION_OVERRIDE` | pretend the running exe has this version (update tests) |
 | `SHADETUBE_INSTALL_DIR`, `SHADETUBE_SHORTCUT_DIR`, `SHADETUBE_UNINSTALL_KEY` | installer locations (key always under HKCU) |
@@ -3422,14 +3401,14 @@ apps*).
 | `SHADETUBE_PLAY_FILES` | `path\|path`: plays these audio files / folders at startup as if dropped on the window (a track playing in a sandbox, e.g. generated WAVs next to a `cover.png`) |
 | `SHADETUBE_PLAYER_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after startup: `play`, `pause`, `next`, `prev`, `like` (the current song), `seekfocus` (keyboard focus on the seek wave), `seek=<seconds>`, `hover=<x>,<y>` (a simulated pointer at window DIPs, e.g. over the seek wave or the play button). With `--screenshot`: `seek@2500=70;pause@3000`, or `next@4500` and a capture at 4620 ms for the middle of a track change |
 | `SHADETUBE_IMPORT_HISTORY` | `<file>[;<file>…]`: import these Spotify history files (JSON / ZIP) once the stats are loaded |
-| `SHADETUBE_IMPORT_SCROBBLES` | `lastfm:<user>`, `listenbrainz:<user>`, `lastfm-file:<file>[;<file>…]` or `listenbrainz-file:<file>[;<file>…]`: that import once the stats are loaded (3.42; Last.fm uses the stored API key) |
+| `SHADETUBE_IMPORT_SCROBBLES` | `lastfm:<user>`, `listenbrainz:<user>`, `lastfm-file:<file>[;<file>…]` or `listenbrainz-file:<file>[;<file>…]`: that import once the stats are loaded (3.55; Last.fm uses the stored API key) |
 | `SHADETUBE_IMPORT_DIALOG` | `lastfm` or `listenbrainz`: that import dialog opens once the stats are loaded (screenshots) |
 | `SHADETUBE_LASTFM_KEY` | a Last.fm API key for `history_test live lastfm` (never printed) |
 | `SHADETUBE_STATS_VIEW` | the Stats page opens on `7d`, `30d`, `all`, `year` or `year:<YYYY>` (screenshots) |
 | `SHADETUBE_STATS_SCROLL` | the Stats page opens scrolled down this many DIPs (screenshots of the lower sections) |
 | `SHADETUBE_LIBRARY_VIEW` | `<grid\|list>[:<recents\|added\|alpha\|creator>[:<filter>]]`: the Library page's view, sort and search (not saved) |
 | `SHADETUBE_LIBRARY_SCROLL` | the first Library page opens scrolled down this many DIPs |
-| `SHADETUBE_LIST_DEMO` | `<step>;<step>…` run 900 ms after the first track table of the run got rows (3.42): `select=1,3-5` (display rows), `sort=<title\|album\|added\|duration\|plays>[:desc]` (as a header click), `columns=<Settings::trackColumns>`, `next=<rows>` / `enqueue=<rows>`, `queue` (opens the queue panel), `scroll=<dips>`, `dragline=<row>` (the selection shown dragged in front of that row), `fakeplays`. E.g. `local:songs` with `SHADETUBE_PLAY_FILES` and `next=3,4;enqueue=10,11;queue` for the queue's sections |
+| `SHADETUBE_LIST_DEMO` | `<step>;<step>…` run 900 ms after the first track table of the run got rows (3.47): `select=1,3-5` (display rows), `sort=<title\|album\|added\|duration\|plays>[:desc]` (as a header click), `columns=<Settings::trackColumns>`, `next=<rows>` / `enqueue=<rows>`, `queue` (opens the queue panel), `scroll=<dips>`, `dragline=<row>` (the selection shown dragged in front of that row), `fakeplays`. E.g. `local:songs` with `SHADETUBE_PLAY_FILES` and `next=3,4;enqueue=10,11;queue` for the queue's sections |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
 | `SHADETUBE_MEM_DEMO` | `<action>@<ms>[=<arg>];…` or the path of a file of such steps (`;` or new lines, `#` comments), each run `<ms>` after startup (app/MemDemo.h): `route=<r>` (the `--route` forms), `back`, `forward`, `wheel=<n>` (n notches down, negative up), `np`, `npclose`, `next`, `tray`, `show`, `minimize`, `restore`, `mini`, `miniclose`, `trim` (App::trimMemory), `gputrim` (`Device::trimPool`), `gpuclear` (Direct2D's `ClearResources`), `d2dcache=<MB>`, `report[=<label>]` (a categorized report appended to `logs\memreport.txt`, 3.2), `frames=<label>` (only the frame times since the last report), `quit`. E.g. `route@4000=local:songs;wheel@5000=40;report@20000=songs;quit@21000` |
 | `SHADETUBE_MEMPROFILE=1` | in a `-DST_MEMPROFILE=ON` build only: tallies the live `operator new` bytes by call stack; `report` steps then list them by allocating function and stack (3.2). Absolute numbers of such a run are inflated (headers, the table, DbgHelp's symbols after the first report) |
@@ -3439,9 +3418,9 @@ apps*).
 | `SHADETUBE_JAM_HOST=1` | starts a listen-together session at startup (3.24) |
 | `SHADETUBE_JAM_INVITE_FILE` | `<path>`: the host writes its invite link there (and again when it changes) |
 | `SHADETUBE_JAM_JOIN` | `<invite link>`: joins that session at startup (a guest in a second sandbox profile) |
-| `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest); either role: `quit@<s>` (the app quits `<s>` s into the session: restart tests, 3.43) |
-| `SHADETUBE_PLAY_STATION` | `<name>`: plays the most clicked playable radio-browser.info station of that name at startup (3.43) |
-| `SHADETUBE_BLEND` | `create`, `<blend invite>`, `refresh:<id>` or `leave:<id>`, 6 s after the blends are loaded; a trailing `!` agrees without the consent / confirm dialogs (3.42) |
+| `SHADETUBE_JAM_DEV` | host: `control` (guests may control playback), `rotate@<s>` (new invite link after `<s>` s), `kick@<s>` (removes the first guest); either role: `quit@<s>` (the app quits `<s>` s into the session: restart tests, 3.51) |
+| `SHADETUBE_PLAY_STATION` | `<name>`: plays the most clicked playable radio-browser.info station of that name at startup (3.51) |
+| `SHADETUBE_BLEND` | `create`, `<blend invite>`, `refresh:<id>` or `leave:<id>`, 6 s after the blends are loaded; a trailing `!` agrees without the consent / confirm dialogs (3.50) |
 | `SHADETUBE_BLEND_INVITE_FILE` | `<path>`: a blend created with `SHADETUBE_BLEND` writes its invite link there |
 | `SHADETUBE_KEYS_DEMO` | `<ms>:<combo>[,<combo>…]`: presses these key combos (text form: `Ctrl+NumAdd`, `Ctrl+Shift+4`) through the main window's shortcut dispatch, the first after `<ms>`, then every 300 ms; `action:<id>` runs that action (e.g. `action:compact-lists`). For `--screenshot` checks of the zoom badge / live relayout |
 | `SHADETUBE_SCROLL_DEMO` | `<steps>[@x,y]`: 2.5 s after startup posts wheel / key input to the window at window DIPs x,y (default: 60 % across, middle) from a timer thread, at real device rhythm, and logs every frame of each moving `ScrollView` once done (`scroll` lines: frame gap, offset, step, velocity, target, feel, frame CPU so far) plus a summary per view (frames, gaps over 1.5× the median, longest gap, direction changes, largest speed change between frames). Steps, comma separated (default `notch,spin,touch,keys`): `notch` (6 notches 140 ms apart), `spin` (24 notches 20 ms apart, then 3 back), `touch` (a precision-touchpad swipe with inertia, then one back), `keys` (PageDown ×2, End, Home, Down ×8 repeated), `end` (80 fast notches into the end, 80 into the top). Use with `--route` and `--screenshot`; hover refresh is off meanwhile |
@@ -3460,15 +3439,15 @@ apps*).
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 | `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.32), instead of `SPI_GETCLIENTAREAANIMATION` |
 | `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
-| `SHADETUBE_SPOTIFY_DEMO` | `<folder>`: friend activity and new releases without a session from `buddylist.json` / `whatsnew.json` there (app/Social.h); a `home.json` gives the logged-out Home Spotify's shelves (3.34); an `artist.json` (a raw `queryArtistOverview` answer) stands in for any `artist:spotify:artist:<id>` route while logged out (3.42); `search.json` (a searchV2 answer) + `search_users.json` answer every search (the Spotify kinds: playlists, podcasts, profiles), `profile.json` + `profile_playlists.json` any `profile:` route, `library_shows.json` the followed shows (Podcastler's Spotify section and `podcasts:spotify`); the files of `tests/spotify/fixtures` fit |
-| `SHADETUBE_FOCUS_LOG` | `1`: every keyboard focus change is logged (`focus` lines: the widget's class, window rect and tooltip); with `SHADETUBE_OVERLAY_DEMO`'s `key=Tab` steps it checks a page's Tab order (3.42 Lists) |
+| `SHADETUBE_SPOTIFY_DEMO` | `<folder>`: friend activity and new releases without a session from `buddylist.json` / `whatsnew.json` there (app/Social.h); a `home.json` gives the logged-out Home Spotify's shelves (3.34); an `artist.json` (a raw `queryArtistOverview` answer) stands in for any `artist:spotify:artist:<id>` route while logged out (3.47); `search.json` (a searchV2 answer) + `search_users.json` answer every search (the Spotify kinds: playlists, podcasts, profiles), `profile.json` + `profile_playlists.json` any `profile:` route, `library_shows.json` the followed shows (Podcastler's Spotify section and `podcasts:spotify`); the files of `tests/spotify/fixtures` fit |
+| `SHADETUBE_FOCUS_LOG` | `1`: every keyboard focus change is logged (`focus` lines: the widget's class, window rect and tooltip); with `SHADETUBE_OVERLAY_DEMO`'s `key=Tab` steps it checks a page's Tab order (3.47 Lists) |
 | `SHADETUBE_THEME_PRESET` | `<theme id>` (`nord`, `pastel`, `user:<file>`...): that theme for this run, whatever the mode; nothing is saved (3.35) |
 | `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
 | `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
-| `SHADETUBE_ACCOUNT_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.42): `menu[=x,y]` (the account menu at window DIPs, default under the title bar's tag), `switch[=<id>]` (the next signed-in account, or that one), `signout[=<id>]` (the active one), `add` (the login window), `log` (the active account and its data folder). E.g. `switch@8000;menu@11000` with `--screenshot 12000` |
+| `SHADETUBE_ACCOUNT_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.48): `menu[=x,y]` (the account menu at window DIPs, default under the title bar's tag), `switch[=<id>]` (the next signed-in account, or that one), `signout[=<id>]` (the active one), `add` (the login window), `log` (the active account and its data folder). E.g. `switch@8000;menu@11000` with `--screenshot 12000` |
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.36) |
 | `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.37) |
 | `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
@@ -3507,7 +3486,7 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   without notice. Rotated hashes heal themselves (3.5), but a changed request shape (HTTP 400 naming a variable)
   needs a code change. The TOTP secret comes from a public gist with a fallback. Spotify rate-limits hard; iterate
   with `spotify_test home` rather than the full live run.
-- **Spotify podcasts** (3.42) play only when Apple's directory lists a public feed under the same name: a show renamed on
+- **Spotify podcasts** (3.54) play only when Apple's directory lists a public feed under the same name: a show renamed on
   one side, or listed under a very different name, counts as "no public feed" (*Apple Podcasts'ta ara* and *RSS
   adresiyle ekle* remain), and a short generic name from a different publisher is never matched. Matches are not
   checked against the episodes; *Yanlış podcast mi?* undoes a wrong one. The directory allows about 20 requests a
@@ -3515,20 +3494,20 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   for shows (`"Podcasts & Shows"`) and the logged-in `searchUsers` answer were not seen live by the development
   session (no logged-in Spotify sandbox was available); both have fallbacks or captured shapes (an unfiltered library
   walk; the anonymous answer has the same shape).
-- **Page layout pass** (3.42 Lists, "Page layout"): the Spotify-only layouts (search kinds, profiles, followed shows,
+- **Page layout pass** (3.47 Lists, "Page layout"): the Spotify-only layouts (search kinds, profiles, followed shows,
   new releases, the logged-in Home's shelves, an artist) were checked through the `SHADETUBE_SPOTIFY_DEMO` fixtures
   only, and a Spotify library folder's page not at all (no logged-in sandbox). A density change re-lays out the card
   grids but keeps their column width (160 / 140) until the page is opened again.
 - **WebView2 Runtime** is required for the Spotify login (present on Windows 11; installable on Windows 10).
-- **Song credits** (3.42): Spotify's credits query was taken from the web player's bundle (2026-11-26) and is
+- **Song credits** (3.46): Spotify's credits query was taken from the web player's bundle (2026-11-26) and is
   covered by fixtures, but was not run against a logged-in account during development (no sandbox `sp_dc`); its
   response shape is the one the web player's code reads. MusicBrainz credits are only as complete as its community
   data (often just the writers), and instrument names stay in English. Credits are searched by title and artist, so
   a song without an artist gets none from MusicBrainz.
-- **Lyrics picker** (3.42): LRCLIB's free-text search returns at most 20 records; the Spotify choice needs a Spotify
+- **Lyrics picker** (3.46): LRCLIB's free-text search returns at most 20 records; the Spotify choice needs a Spotify
   track and a session. A picked record is cached in `cache\lyrics` (pruned with the cache), so it is fetched again by
   id when the cache was cleared.
-- **Several Spotify accounts** (3.42): verified live with one real account only (a 0.10 profile migrated, connected, a
+- **Several Spotify accounts** (3.48): verified live with one real account only (a 0.10 profile migrated, connected, a
   switch to a second record holding the same cookie while a song played); two different real accounts were not
   available, so the second login's own cookie jar and a re-login matched by user id are covered by `accounts_test`
   (fake connect) only. A request in flight at the very moment of a switch (e.g. a like or a playlist edit queued a
@@ -3537,7 +3516,7 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   `library.json`'s local play history stay per PC; the Settings' expanded sidebar folders are shared (folder ids differ
   per account, so they don't clash). Signed-out accounts keep their folder (history, blocklist) for a later sign in;
   there is no "forget this account's data" yet.
-- **Song notification** (3.43): needs the app's AUMID to be known to the shell (the Start menu shortcut the app keeps);
+- **Song notification** (3.49): needs the app's AUMID to be known to the shell (the Start menu shortcut the app keeps);
   otherwise it falls back to a tray balloon without cover or buttons. The buttons reach the app through the toast's
   in-process event (no COM activator is registered): once ShadeTube has quit, its entry is removed from the notification
   center; an entry left behind by a crash doesn't reach a new ShadeTube. "In view" is a heuristic (the foreground window covering 90 % of ours);
@@ -3562,11 +3541,11 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   many label releases are only 30 s previews there.
 - **Unsigned exe**: SmartScreen warns on first run. The updater relies on SHA-256 and VERSIONINFO checks, not on a
   code signature.
-- **Ogg / WebM**: Opus and Vorbis decode built in (3.42); Ogg FLAC / Speex and other codecs in WebM / Matroska still
+- **Ogg / WebM**: Opus and Vorbis decode built in (3.52); Ogg FLAC / Speex and other codecs in WebM / Matroska still
   need a Media Foundation handler. Local `.webm` / `.weba` / `.mka` files are not scanned or accepted as drops (the
   engine plays them; their Matroska tags aren't read). Chained Ogg Vorbis links at another rate are resampled; a Matroska file without cues seeks by
   walking its cluster headers (slow over the network). Passthrough `.m4a` downloads are not SponsorBlock-trimmed.
-- **Exclusive mode** (3.43): a track of another rate reopens the device (a short gap instead of a gapless handoff);
+- **Exclusive mode** (3.53): a track of another rate reopens the device (a short gap instead of a gapless handoff);
   Windows' per-app volume and enhancements don't apply; while another app holds the device exclusively nothing
   plays (Windows refuses shared streams too). Tested on one device (Realtek, 16-384 kHz, 24-in-32): unplugging and
   switching devices while exclusive were not exercised physically.
@@ -3581,7 +3560,7 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
 - **Listen together** depends on public MQTT brokers (free services without guarantees; a custom broker can be set).
   Members share the room key, so a member could forge messages under another device id; removing someone keeps them
   out only after "Yeni davet bağlantısı" (the old key still reads the old room). A host's restart keeps the session
-  for 10 minutes (3.43); after that, or when the host's broker is down then, guests give up. 0.10.0 guests sit out
+  for 10 minutes (3.51); after that, or when the host's broker is down then, guests give up. 0.10.0 guests sit out
   podcasts and radio; episodes of feeds added by RSS address are never shared; guests need the songs on YouTube.
   Two instances on the same profile (only possible with `--preview`) both resume a kept room and fight over it.
 - **Blend** relies on the public broker named in the invite keeping retained messages: a member offline for a while
@@ -3623,24 +3602,24 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   video's frame times besides its own ticks (more CPU than either). The app's D3D11 device is multithread protected
   from the first picture on (for that device generation). Not measured: 1080p60, discrete GPUs (the app takes the
   default adapter), software decoding on a machine without DXVA, the mid-play URL refresh (no 403 happened in testing).
-- **Icons** (3.42) are crisp at the six grid sizes (12-24 px); other sizes (a 12 DIP icon at 125 % = 15 px, everything
+- **Icons** (3.43) are crisp at the six grid sizes (12-24 px); other sizes (a 12 DIP icon at 125 % = 15 px, everything
   above 24 px) are the nearest grid scaled, so their strokes are anti-aliased (invisible from about 150 % up). An icon
   added as hand-made SVG files instead of a drawing in `tools/icons.py` gets neither the hinting nor the 12 / 14 / 18
   grids (it still draws from its 16 / 20 / 24 files; `tools/icons.py` keeps such files and lists them, `--check`
   fails on them): add the drawing.
-- **Song cache** (3.42): the sampled hash notices a truncated or replaced file and damage in the sampled regions, not
+- **Song cache** (3.45): the sampled hash notices a truncated or replaced file and damage in the sampled regions, not
   a changed byte between them (the decoder then fails and the file is dropped, or the sound has a glitch). Offline a
   song plays from the cache only when its video is known for that track id (it played, or was matched, under the same
   id); a song whose last match was a "this play only" stand-in plays its cached video only once resolving failed. A
   cached song plays on after its video was taken down on YouTube. `SHADETUBE_OFFLINE` simulates the shared transport
   only (no firewall test was possible without admin rights).
-- **Last.fm / ListenBrainz import** (3.42): Last.fm gives listening history only with an API key, and the app has none
+- **Last.fm / ListenBrainz import** (3.55): Last.fm gives listening history only with an API key, and the app has none
   of its own: the user's key from Settings › Connections is used (the dialog asks for one, and again after the key was
   refused). The Last.fm path was tested against fake servers built from the API's documented replies (and the field
   names two public exporters read); against the live API only up to its key check (a bogus key: error 10, reported,
   not retried) - no real import ran (no key in this environment). Duplicates are recognised by start time: a ListenBrainz copy that
   another importer stamped with the end time, or a Spotify play paused for more than half the song, counts twice.
-  Scrobbles' minutes are estimates (3.42). Plays submitted to a service with old timestamps more than 14 days after
+  Scrobbles' minutes are estimates (3.55). Plays submitted to a service with old timestamps more than 14 days after
   they happened (a late bulk import into ListenBrainz) are missed by the incremental runs; removing and importing the
   source again reads everything. Plays left out as duplicates are not kept, so removing a source drops plays the
   others also had until those are imported again (their cursors are reset for that).
@@ -3649,7 +3628,7 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   software rendering would save more on screen but costs ~24 % CPU in Now Playing, so hardware rendering stays. Now
   Playing needs more while open (large glyph atlases; no effects since its redesign, 3.40). After an idle release the first frame
   recreates the device (tens of ms) and covers reload from the disk cache.
-- **List design (3.42).** The Year and *added by* (collaborative lists) columns are laid out by `app/TrackColumns`
+- **List design (3.47).** The Year and *added by* (collaborative lists) columns are laid out by `app/TrackColumns`
   but never offered: `catalog::Track` carries no release year or adder yet; a catalog that fills them only needs to set
   the flag in `TrackTable::wantedColumns`. Turning shuffle on mixes queued songs into the shuffled order like the rest
   (`rebuildOrder`), unlike Spotify, which keeps its queue first. Every window repaint is a full frame (flip-model swap

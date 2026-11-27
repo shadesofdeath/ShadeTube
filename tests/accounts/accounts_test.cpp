@@ -88,7 +88,7 @@ static void testMigration() {
     put(root / L"listening.json", "{\"v\":1}");
     put(root / L"listening.json.old", "old");
     put(root / L"listening-imported.json", "imported");
-    put(root / L"listening-lastfm.json", "lastfm");          // imported histories with their cursors (3.42)
+    put(root / L"listening-lastfm.json", "lastfm");          // imported histories with their cursors (3.55)
     put(root / L"listening-lastfm.json.old", "lastfm old");
     put(root / L"listening-listenbrainz.json", "listenbrainz");
     put(root / L"blacklist.json", "{\"version\":1}");
