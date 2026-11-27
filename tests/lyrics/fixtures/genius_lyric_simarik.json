@@ -1,0 +1,607 @@
+{
+ "meta": {
+  "status": 200
+ },
+ "response": {
+  "sections": [
+   {
+    "type": "lyric",
+    "hits": [
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "düştüm, yavru\nKucağına düştüm, yavru\nSıcağına düştüm, yavru\nEl aman\nOcağına düştüm, yavru\nKucağına düştüm, yavru\nSıcağına düştüm, yavru\nEl",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 8,
+          "end": 13
+         },
+         {
+          "start": 14,
+          "end": 22
+         },
+         {
+          "start": 23,
+          "end": 29
+         },
+         {
+          "start": 31,
+          "end": 36
+         },
+         {
+          "start": 46,
+          "end": 52
+         },
+         {
+          "start": 54,
+          "end": 59
+         },
+         {
+          "start": 68,
+          "end": 75
+         },
+         {
+          "start": 76,
+          "end": 82
+         },
+         {
+          "start": 84,
+          "end": 89
+         },
+         {
+          "start": 90,
+          "end": 98
+         },
+         {
+          "start": 99,
+          "end": 105
+         },
+         {
+          "start": 107,
+          "end": 112
+         },
+         {
+          "start": 122,
+          "end": 128
+         },
+         {
+          "start": 130,
+          "end": 135
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 5,
+      "nb_exact_words": 5,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 940453,
+       "title": "Şımarık",
+       "primary_artist_names": "Tarkan",
+       "artist_names": "Tarkan",
+       "song_art_image_thumbnail_url": "https://images.genius.com/322a4795ef5558452b99fd4f2f067973.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/322a4795ef5558452b99fd4f2f067973.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Tarkan-smark-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Tarkan",
+        "id": 1204
+       },
+       "stats": {
+        "pageviews": 201185
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "düştüm, yavru\nKucağına düştüm, yavru\nSıcağına düştüm, yavru\nEl aman\nOcağına düştüm, yavru\nKucağına düştüm, yavru\nSıcağına düştüm, yavru\nEl",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 8,
+          "end": 13
+         },
+         {
+          "start": 14,
+          "end": 22
+         },
+         {
+          "start": 23,
+          "end": 29
+         },
+         {
+          "start": 31,
+          "end": 36
+         },
+         {
+          "start": 46,
+          "end": 52
+         },
+         {
+          "start": 54,
+          "end": 59
+         },
+         {
+          "start": 68,
+          "end": 75
+         },
+         {
+          "start": 76,
+          "end": 82
+         },
+         {
+          "start": 84,
+          "end": 89
+         },
+         {
+          "start": 90,
+          "end": 98
+         },
+         {
+          "start": 99,
+          "end": 105
+         },
+         {
+          "start": 107,
+          "end": 112
+         },
+         {
+          "start": 122,
+          "end": 128
+         },
+         {
+          "start": 130,
+          "end": 135
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 5,
+      "nb_exact_words": 5,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1408572,
+       "title": "Şımarık (Radio Edit)",
+       "primary_artist_names": "Tarkan",
+       "artist_names": "Tarkan",
+       "song_art_image_thumbnail_url": "https://images.genius.com/b746b6c3b256e9ce6fe4d3de91d3b2ae.300x264x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/b746b6c3b256e9ce6fe4d3de91d3b2ae.300x264x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Tarkan-smark-radio-edit-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Tarkan",
+        "id": 1204
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Ocağına düştüm yavru\nKucağına düştüm yavru\nSıcağına düştüm yavru\nElaman\nOcağına düştüm yavru\nKucağına düştüm yavru\nSıcağına düştüm yavru\nElaman",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 14
+         },
+         {
+          "start": 15,
+          "end": 20
+         },
+         {
+          "start": 21,
+          "end": 29
+         },
+         {
+          "start": 30,
+          "end": 36
+         },
+         {
+          "start": 37,
+          "end": 42
+         },
+         {
+          "start": 52,
+          "end": 58
+         },
+         {
+          "start": 59,
+          "end": 64
+         },
+         {
+          "start": 72,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 86
+         },
+         {
+          "start": 87,
+          "end": 92
+         },
+         {
+          "start": 93,
+          "end": 101
+         },
+         {
+          "start": 102,
+          "end": 108
+         },
+         {
+          "start": 109,
+          "end": 114
+         },
+         {
+          "start": 124,
+          "end": 130
+         },
+         {
+          "start": 131,
+          "end": 136
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 5,
+      "nb_exact_words": 5,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 7343656,
+       "title": "Şımarık",
+       "primary_artist_names": "Cem Yılmaz & İskender Paydaş",
+       "artist_names": "Cem Yılmaz & İskender Paydaş",
+       "song_art_image_thumbnail_url": "https://images.genius.com/8bf03d0c0ae1a4c7a3f273581831be4a.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/8bf03d0c0ae1a4c7a3f273581831be4a.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Cem-ylmaz-and-iskender-paydas-smark-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Cem Yılmaz",
+        "id": 1735981
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "fındıkkıran\nYılanı deliğinden çıkaran\nKaderim, püsküllü belam\nYakalarsam (Muck, muck)\nOcağına düştüm, yavru\nKucağına düştüm, yavru\nSıcağına düştüm, yavru\nEl",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 86,
+          "end": 93
+         },
+         {
+          "start": 94,
+          "end": 100
+         },
+         {
+          "start": 102,
+          "end": 107
+         },
+         {
+          "start": 108,
+          "end": 116
+         },
+         {
+          "start": 117,
+          "end": 123
+         },
+         {
+          "start": 125,
+          "end": 130
+         },
+         {
+          "start": 140,
+          "end": 146
+         },
+         {
+          "start": 148,
+          "end": 153
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 5,
+      "nb_exact_words": 5,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 14250215,
+       "title": "Şımarık (Cover)",
+       "primary_artist_names": "CRUSH (TUR)",
+       "artist_names": "CRUSH (TUR)",
+       "song_art_image_thumbnail_url": "https://images.genius.com/9c83462ce6daa4141cb62d3107bd48d1.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/9c83462ce6daa4141cb62d3107bd48d1.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Crush-tur-smark-cover-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "CRUSH (TUR)",
+        "id": 4997312
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "düştüm yavru\nKucağına düştüm yavru\nSıcağına düştüm yavru\nEl aman\nOcağına düştüm yavru\nKucağına düştüm yavru\nSıcağına düştüm yavru\nEl",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 7,
+          "end": 12
+         },
+         {
+          "start": 13,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 28
+         },
+         {
+          "start": 29,
+          "end": 34
+         },
+         {
+          "start": 44,
+          "end": 50
+         },
+         {
+          "start": 51,
+          "end": 56
+         },
+         {
+          "start": 65,
+          "end": 72
+         },
+         {
+          "start": 73,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 85
+         },
+         {
+          "start": 86,
+          "end": 94
+         },
+         {
+          "start": 95,
+          "end": 101
+         },
+         {
+          "start": 102,
+          "end": 107
+         },
+         {
+          "start": 117,
+          "end": 123
+         },
+         {
+          "start": 124,
+          "end": 129
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 5,
+      "nb_exact_words": 5,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 8696772,
+       "title": "Tarkan",
+       "primary_artist_names": "Inherently Viced",
+       "artist_names": "Inherently Viced",
+       "song_art_image_thumbnail_url": "https://images.genius.com/7265e149e2e5587fd3d4f9a8212b646a.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/7265e149e2e5587fd3d4f9a8212b646a.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Inherently-viced-tarkan-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Inherently Viced",
+        "id": 3251857
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "düşünceleri\nİki kelimelik hazneleri\nHey sen! Ailenin sözlük anlamını bilmeyen!\nOcağıma düştün yavrum, kucağıma\nKar yağmasın sakın güvendiğin dağlara\nTahtaya",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 79,
+          "end": 86
+         },
+         {
+          "start": 87,
+          "end": 93
+         },
+         {
+          "start": 94,
+          "end": 100
+         },
+         {
+          "start": 102,
+          "end": 110
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 5,
+      "nb_exact_words": 0,
+      "nb_typos": 4,
+      "type": "song",
+      "result": {
+       "id": 6271470,
+       "title": "Tek Nefes",
+       "primary_artist_names": "Buldozer (TUR)",
+       "artist_names": "Buldozer (TUR)",
+       "song_art_image_thumbnail_url": "https://images.genius.com/77d33746bc8cbe051243ffe311a6aa0c.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/77d33746bc8cbe051243ffe311a6aa0c.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Buldozer-tur-tek-nefes-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Buldozer (TUR)",
+        "id": 1921355
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Yavrum terleme, koşma!\nTerli bir uyanıştan sonra tam üç yaşında\nDüştü yatağa baygın. Ağlayarak başında\nKuran okur annesi; bir açılsa",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 64,
+          "end": 69
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 5,
+      "nb_exact_words": 0,
+      "nb_typos": 6,
+      "type": "song",
+      "result": {
+       "id": 705561,
+       "title": "Dün Bugün Yarın (Tutunamayanlar)",
+       "primary_artist_names": "Oğuz Atay",
+       "artist_names": "Oğuz Atay",
+       "song_art_image_thumbnail_url": "https://images.rapgenius.com/440ab32ed6f169ff898cd49c1f87884a.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.rapgenius.com/440ab32ed6f169ff898cd49c1f87884a.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Oguz-atay-dun-bugun-yarn-tutunamayanlar-annotated",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Oğuz Atay",
+        "id": 329091
+       },
+       "stats": {
+        "pageviews": 7165
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Susmadı ağızları bana öte öte (öte öte)\nBırak konuşsunlar dedi dostum Efe (dostum)\nHaklısın dostum bırak konuşsunlar\nGBT'm kalabalık",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 63,
+          "end": 69
+         },
+         {
+          "start": 75,
+          "end": 81
+         },
+         {
+          "start": 92,
+          "end": 98
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 5,
+      "nb_exact_words": 0,
+      "nb_typos": 6,
+      "type": "song",
+      "result": {
+       "id": 11992012,
+       "title": "EURO",
+       "primary_artist_names": "Bro376",
+       "artist_names": "Bro376 (Ft. RAP & HIP-HOP)",
+       "song_art_image_thumbnail_url": "https://images.genius.com/2a659952d11c0bc7e10692372adf313f.300x169x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/2a659952d11c0bc7e10692372adf313f.300x169x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Bro376-euro-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Bro376",
+        "id": 4470752
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "next_page": 2
+ }
+}

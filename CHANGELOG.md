@@ -13,6 +13,16 @@ All notable changes to ShadeTube, newest first.
   copy of ShadeTube it carries before installing anything, and package managers can run it silently (`/S`, `/D=`).
   Settings › About no longer offers "Install on this PC"; an installed copy keeps its "Uninstall" there and in
   Windows' Installed apps, and both editions keep updating themselves.
+- **Lyrics synchronizer**: lyrics that are only plain text, missing or badly timed can now be timed by hand. Open it
+  from "Wrong lyrics?" › Sync…, the Sync chip in Now Playing's lyrics or the command palette, paste or edit the text,
+  then tap Space (or Enter) as each line starts while the song plays — slower playback, a step back, ±0.1 s nudges,
+  5 s seeks and undo help get it right — and check the result in a preview that looks like the real lyrics view. Save
+  keeps it as the song's own lyrics (they win over online ones and stay after a restart) and, for downloaded and local
+  songs, writes the .lrc next to the file. Export saves an .lrc anywhere, and "Send to LRCLIB" shares your timing with
+  everyone — only when you press it, after a clear "this becomes public" confirmation.
+- **Find a song by its lyrics**: type a line you remember into Search and a new "Lyrics" tab lists the songs it's from,
+  with the matching line highlighted — in any language, even with typos or missing accents — ready to play from your
+  catalog (Spotify, YouTube Music or MusicBrainz). The command palette's "Find a song by its lyrics" opens it directly.
 
 ## 0.11.0 — 2026-11-27
 

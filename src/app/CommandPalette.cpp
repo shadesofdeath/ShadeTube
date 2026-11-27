@@ -5,6 +5,8 @@
 #include "app/AppContext.h"
 #include "app/Blends.h"
 #include "app/Commands.h"
+#include "app/LyricSearch.h"
+#include "app/LyricsSync.h"
 #include "app/Router.h"
 #include "app/Shortcuts.h"
 #include "app/SmartListsPage.h"
@@ -268,6 +270,13 @@ std::vector<Item> staticItems() {
     for (auto& bc : blends::paletteCommands())     // Blend: create / join / each blend
         items.push_back(commandItem(bc.key, bc.title, bc.subtitle, bc.icon, std::move(bc.run)));
     items.push_back(commandItem("cmd:year-review", tr(L"Yılın özeti hikâyesi"), tr(L"İstatistikler"), "sparkle", [] { review::open(); }));
+    // Lyrics tools: time the playing song's lyrics (app/LyricsSync), find a song by a line of it (app/LyricSearch).
+    if (const auto* t = ctx().player ? ctx().player->current() : nullptr; t && lyricsSyncAvailable(*t))
+        items.push_back(commandItem("cmd:lyrics-sync", tr(L"Söz senkronlayıcı"), tr(L"Şarkı sözleri"), "clock", [] {
+            if (const auto* cur = ctx().player ? ctx().player->current() : nullptr) showLyricsSync(*cur);
+        }));
+    items.push_back(commandItem("cmd:lyrics-search", tr(L"Sözden şarkı bul"), tr(L"Arama"), "lyrics",
+                                [] { ctx().router->navigate({RouteKind::Search, lyricsearch::kRoutePrefix}); }));
     if (ctx().quitApp)
         items.push_back(commandItem("cmd:quit", tr(L"ShadeTube'dan çık"), tr(L"Uygulama"), "logout", [] { ctx().quitApp(); }));
 
@@ -542,6 +551,16 @@ private:
             Item copy = it;
             copy.score = s;
             filtered_.push_back(std::move(copy));
+        }
+        // A line of lyrics typed here: "Sözlerde ara" opens the Search page's "Sözler" tab for it (not remembered).
+        if (const std::wstring text = box_ ? box_->text() : std::wstring(); lyricsearch::looksLikeLyrics(text)) {
+            Item it = commandItem("cmd:lyrics-search-text", i18n::format(tr(L"Sözlerde ara: “{}”"), {text}),
+                                  tr(L"Sözden şarkı bul"), "lyrics", [text] {
+                                      ctx().router->navigate({RouteKind::Search, lyricsearch::kRoutePrefix + toUtf8(text)});
+                                  });
+            it.recent = json();
+            it.score = 650;
+            filtered_.push_back(std::move(it));
         }
     }
 

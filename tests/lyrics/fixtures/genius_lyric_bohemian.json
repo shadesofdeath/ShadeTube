@@ -1,0 +1,725 @@
+{
+ "meta": {
+  "status": 200
+ },
+ "response": {
+  "sections": [
+   {
+    "type": "lyric",
+    "hits": [
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life? Is this just fantasy?\nCaught in a landslide, no escape from reality\nOpen your eyes",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1063,
+       "title": "Bohemian Rhapsody",
+       "primary_artist_names": "Queen",
+       "artist_names": "Queen",
+       "song_art_image_thumbnail_url": "https://images.genius.com/718de9d1fbcaae9f3c9b1bf483bfa8f1.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/718de9d1fbcaae9f3c9b1bf483bfa8f1.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Queen-bohemian-rhapsody-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Queen",
+        "id": 563
+       },
+       "stats": {
+        "pageviews": 11569683
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life? Is this just fantasy?\nCaught in a landslide, no escape from reality\nOpen your eyes",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 2554116,
+       "title": "Bohemian Rhapsody",
+       "primary_artist_names": "Panic! at the Disco",
+       "artist_names": "Panic! at the Disco",
+       "song_art_image_thumbnail_url": "https://images.genius.com/0a339ca9b0584bd2a8d2a8e60740ec56.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/0a339ca9b0584bd2a8d2a8e60740ec56.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Panic-at-the-disco-bohemian-rhapsody-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Panic! at the Disco",
+        "id": 50838
+       },
+       "stats": {
+        "pageviews": 87543
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life? Is this just fantasy?\nCaught in a landslide, no escape from reality\nOpen your eyes",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 4006446,
+       "title": "Bohemian Rhapsody (2011 Remaster)",
+       "primary_artist_names": "Queen",
+       "artist_names": "Queen",
+       "song_art_image_thumbnail_url": "https://images.genius.com/3bc047e8b3c654ed28aedc69f93f8663.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/3bc047e8b3c654ed28aedc69f93f8663.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Queen-bohemian-rhapsody-2011-remaster-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Queen",
+        "id": 563
+       },
+       "stats": {
+        "pageviews": 32592
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life?\nIs this just fantasy?\nCaught in a landslide\nNo escape from reality\nOpen your eyes",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 2123526,
+       "title": "Bohemian Rhapsody",
+       "primary_artist_names": "The Muppets & Queen",
+       "artist_names": "The Muppets & Queen",
+       "song_art_image_thumbnail_url": "https://images.genius.com/993d1ba05174c7a40c05c73119e67ecb.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/993d1ba05174c7a40c05c73119e67ecb.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/The-muppets-and-queen-bohemian-rhapsody-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "The Muppets",
+        "id": 334479
+       },
+       "stats": {
+        "pageviews": 22289
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life? Is this just fantasy?\nCaught in a landslide, no escape from reality\nOpen your eyes",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1526599,
+       "title": "Bohemian Rhapsody",
+       "primary_artist_names": "G4",
+       "artist_names": "G4",
+       "song_art_image_thumbnail_url": "https://images.genius.com/4b86ee6e7fcc60ee8fd038e5a8862812.300x242x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/4b86ee6e7fcc60ee8fd038e5a8862812.300x242x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/G4-bohemian-rhapsody-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "G4",
+        "id": 7171
+       },
+       "stats": {
+        "pageviews": 11730
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life? Is this just fantasy?\nCaught in a landslide, no escape from reality\nOpen your eyes",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 3041674,
+       "title": "Bohemian Rhapsody",
+       "primary_artist_names": "Pentatonix",
+       "artist_names": "Pentatonix",
+       "song_art_image_thumbnail_url": "https://images.genius.com/3fe20fa5a699bc4989ee95de1466a54e.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/3fe20fa5a699bc4989ee95de1466a54e.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Pentatonix-bohemian-rhapsody-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Pentatonix",
+        "id": 62578
+       },
+       "stats": {
+        "pageviews": 11642
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life?\nIs this just fantasy?\nCaught in a landslide\nNo escape from reality\nOpen your eyes",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 2125157,
+       "title": "Bohemian rapsody",
+       "primary_artist_names": "Vocal six",
+       "artist_names": "Vocal six",
+       "song_art_image_thumbnail_url": "https://assets.genius.com/images/default_cover_image.png",
+       "header_image_thumbnail_url": "https://assets.genius.com/images/default_cover_image.png",
+       "instrumental": false,
+       "url": "https://genius.com/Vocal-six-bohemian-rapsody-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Vocal six",
+        "id": 491753
+       },
+       "stats": {
+        "pageviews": 9619
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life?\nIs this just fantasy?\nWie kann man so ein G sein?\nKafa, Fendi komm'n",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 5341732,
+       "title": "Queen",
+       "primary_artist_names": "Yung Kafa & Kücük Efendi",
+       "artist_names": "Yung Kafa & Kücük Efendi",
+       "song_art_image_thumbnail_url": "https://images.genius.com/cbfd0ce14a4dc3f536ac8c8a673c2087.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/cbfd0ce14a4dc3f536ac8c8a673c2087.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Yung-kafa-and-kucuk-efendi-queen-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Yung Kafa & Kücük Efendi",
+        "id": 1494157
+       },
+       "stats": {
+        "pageviews": 8482
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life?\nIs this just fantasy?\nCaught in a landslide, no escape from reality\nMama, mamate a",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1219291,
+       "title": "Rap Soda y Bohemia",
+       "primary_artist_names": "Molotov",
+       "artist_names": "Molotov",
+       "song_art_image_thumbnail_url": "https://images.genius.com/dcb24caae69e4e03c16d7a5e79eda5df.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/dcb24caae69e4e03c16d7a5e79eda5df.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Molotov-rap-soda-y-bohemia-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Molotov",
+        "id": 14483
+       },
+       "stats": {
+        "pageviews": 7521
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Is this the real life? Is this just fantasy?\nCaught in a landslide, no escape from reality\nOpen your eyes",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 7
+         },
+         {
+          "start": 8,
+          "end": 11
+         },
+         {
+          "start": 12,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 23,
+          "end": 25
+         },
+         {
+          "start": 26,
+          "end": 30
+         },
+         {
+          "start": 31,
+          "end": 35
+         },
+         {
+          "start": 36,
+          "end": 43
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 9,
+      "nb_exact_words": 9,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1675819,
+       "title": "Bohemian Rhapsody",
+       "primary_artist_names": "Glee Cast",
+       "artist_names": "Glee Cast (Ft. Jonathan Groff)",
+       "song_art_image_thumbnail_url": "https://images.genius.com/f98a4b95cf3930e711d03d09e351fb2e.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/f98a4b95cf3930e711d03d09e351fb2e.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Glee-cast-bohemian-rhapsody-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Glee Cast",
+        "id": 275474
+       },
+       "stats": {
+        "pageviews": 6752
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "next_page": 2
+ }
+}

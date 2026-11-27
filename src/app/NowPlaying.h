@@ -118,6 +118,7 @@ private:
     QueuePanel* queue_;
     ui::Button *translate_, *earlier_, *offset_, *later_, *fullscreen_;
     ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
+    ui::Button* syncLyrics_ = nullptr;   // "Senkronla": time plain lyrics by hand (app/LyricsSync)
     // The toolbar on the right of the tab row, in this order (the first is leftmost). An entry belongs to one tab (or
     // to every tab: tab = nullopt) and shows while `shown` says so. Features add theirs in buildToolbar().
     struct ToolbarItem {

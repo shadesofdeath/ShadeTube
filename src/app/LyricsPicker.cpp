@@ -5,6 +5,7 @@
 #include "app/PageWidgets.h"
 #include "app/InternetRadio.h"
 #include "app/LyricsService.h"
+#include "app/LyricsSync.h"
 #include "app/Source.h"
 #include "catalog/TrackKind.h"
 #include "core/Dispatcher.h"
@@ -188,6 +189,16 @@ public:
         none_->setTooltip(tr(L"Bu şarkıda söz gösterme"));
         none_->setActive(choice_.kind == Kind::None);
         none_->onClick = [this] { pick(lyrics::Choice{Kind::None}, tr(L"Bu şarkıda söz gösterilmeyecek")); };
+        // Time them by hand (app/LyricsSync): the plain or badly timed lyrics, tapped along with the song.
+        if (lyricsSyncAvailable(t)) {
+            sync_ = add<ui::Button>(ui::ButtonKind::Secondary, tr(L"Senkronla…"), "clock");
+            sync_->setTooltip(tr(L"Sözleri şarkıyla birlikte kendin zamanla (söz senkronlayıcı)"));
+            sync_->onClick = [this] {
+                const catalog::Track t = track_;
+                dialog_->close();
+                Dispatcher::post([t] { showLyricsSync(t); });   // after the picker has gone
+            };
+        }
         search(query_->text());
     }
     ~PickerBody() override { life_.renew(); }
@@ -202,7 +213,7 @@ public:
         status_->setRect({4, list.y + 8, r.w - 8, 40});
         float x = 0;
         const float y = list.bottom() + 16;
-        for (auto* b : {spotify_, file_, none_}) {
+        for (auto* b : {spotify_, file_, none_, sync_}) {
             if (!b) continue;
             const float w = std::ceil(b->naturalWidth());
             b->setRect({x, y, w, 36});
@@ -300,6 +311,7 @@ private:
     ui::Button* spotify_ = nullptr;
     ui::Button* file_ = nullptr;
     ui::Button* none_ = nullptr;
+    ui::Button* sync_ = nullptr;
     Lifetime life_;
 };
 
