@@ -2523,5 +2523,14 @@
   "{} · GÖSTERİLMİYOR": "{} · НЕ ПОКАЗЫВАЕТСЯ",
   "{} · RESMİ VİDEO": "{} · ОФИЦИАЛЬНЫЙ КЛИП",
   "{} · SESLE EŞLEŞİYOR": "{} · СОВПАДАЕТ СО ЗВУКОМ",
-  "Dinlenme sayısı": "Число прослушиваний"
+  "Dinlenme sayısı": "Число прослушиваний",
+  "Romanizasyon": "Латиница",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "Показывать под каждой строкой её чтение латиницей",
+  "Romanizasyon hazırlanıyor…": "Готовим латиницу…",
+  "Romanizasyon yapılamadı": "Не удалось перевести в латиницу",
+  "Japonca": "Японский",
+  "Korece": "Корейский",
+  "Rusça": "Русский",
+  "Ukraynaca": "Украинский",
+  "Kanji okunuşu yok": "Без чтений кандзи"
 }

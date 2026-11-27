@@ -86,10 +86,12 @@ ShadeTube/
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
 │                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52)
-│   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
+│   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets, translation,
+│                                romanization (Romanize, 3.58)
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
 │                                cache, 3.45)
-│   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
+│   gfx/         st_gfx          Device, Canvas, Text, TextShape (display text as geometry, 3.57), Icons, ImageCache, Theme,
+│                                Types
 │   video/       st_video        video mode's picture: VideoDecoder (MF + DXVA), SyncScheduler, VideoPlayer, Fmp4Index;
 │                                Soundtrack + AudioAlign (the official video's alignment, 3.42)
 │   ui/          st_ui           Widget, Window, Layout, Controls, TextBox, Popups (menu/toast/dialog), Acrylic (the
@@ -110,6 +112,7 @@ ShadeTube/
 │                                Radio, Blacklist,
 │                                CoverGradient + CoverBackdrop (Now Playing's backdrop, 3.40),
 │                                Credits + CreditsUi (song credits), LyricsPicker ("Yanlış sözler mi?"; both 3.46),
+│                                LyricsRender (the lyrics views' drawing and motion, 3.57), LyricsRomanization (3.58),
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts +
 │                                PodcastsSpotify (Spotify shows -> public feeds, 3.54), Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
@@ -122,7 +125,7 @@ ShadeTube/
 │                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements
 └─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiocache,
                                  audiodsp, blend, browse, codecs, collections, credits, downloads, headers, history,
-                                 icons, jam, library, links, lists, liveaudio, localfiles, lyrics, memory, micro,
+                                 icons, jam, library, links, lists, liveaudio, localfiles, lyrics, lyricsview, memory, micro,
                                  miniplayer, musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups,
                                  preview, radio, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
                                  smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
@@ -733,7 +736,7 @@ episodes to its `Podcasts` folder).
   `ctx().lyricsOffsetBy`, the −/+ buttons of Now Playing and the full-screen view, − / + keys there).
 - **Full-screen lyrics** (`app/LyricsFullscreen`, `ctx().toggleLyricsFullscreen`): a modal overlay over the whole
   window (its top strip is a caption area: the window still moves) on Now Playing's drifting cover backdrop (3.40). The active line fills with the accent as it is
-  sung: per word with word times, else across the line until the next one (capped by the line's length). Controls fade
+  sung, behind a soft edge (3.57): per word with word times, else across the line until the next one (capped by the line's length). Controls fade
   after 2.5 s without mouse movement; everything it holds goes with it when it closes. Not offered for live radio.
 
 ### 3.17 Podcasts
@@ -1830,7 +1833,8 @@ the tray's jump list task, `Ctrl+Shift+M` or a mode key; it hides the main windo
   worker (the track's own `.lrc` / tags, LRCLIB, Spotify; 3.16), on the song's clock (`lyricsClockMs`: SponsorBlock
   segments and the per-track offset) with Now Playing's 150 ms lookahead. The line being sung (B 15/600,
   `fg.primary`) over the next one (13, `fg.tertiary`); at a line change the sung line moves up and fades while the next
-  rises into its place and brightens (`motion::medium`, instant with reduce motion). Without synced lyrics the album
+  rises into its place, grows into the sung line's style and brightens, and the one after it fades in (`motion::slow`,
+  instant with reduce motion; drawn as geometry, 3.57). Without synced lyrics the album
   name and a mono note take their place (SENKRON SÖZ YOK, BU ŞARKININ SÖZÜ YOK, SADECE MÜZİK, SÖZLER KAPALI); a
   podcast episode shows its show there, a station nothing (its song is the title).
 - **Hover**. The surface is the drag region (`HTCAPTION`), so the pointer over it arrives as `WM_NCMOUSEMOVE`:
@@ -1927,13 +1931,15 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   (an episode falls back to Hakkında); the queue shortcut / command switches to Sıradaki and back while the view is
   open (`toggleQueueTab`).
 - **Toolbar**: the open tab's buttons right-aligned on the tab row (on the row below when the tabs leave no room), built
-  from one list in `buildToolbar()`: `{widget, tab (or every tab), shown predicate, gap after}`. Lyrics: Çeviri,
-  timing −, the offset (reset), +, full-screen lyrics, "Sözleri paylaş" (`openLyricsShare`, 3.37). **A
+  from one list in `buildToolbar()`: `{widget, tab (or every tab), shown predicate, gap after}`. Lyrics:
+  Romanizasyon (3.58), Çeviri, timing −, the offset (reset), +, full-screen lyrics, "Sözleri paylaş"
+  (`openLyricsShare`, 3.37). **A
   feature adds its button with one entry there.**
 - **Lyrics**: providers, translation, offset, click-to-seek and the 3 s wheel override as in 3.16; "Yanlış sözler mi?"
   after the header label and "Sözleri ara" under "no lyrics" open the lyrics picker (3.46). A placeholder only
   after 350 ms of loading (a cached / local file answers before it would flash); arriving lyrics fade in (420 ms),
-  already scrolled to the active line; lines fade out towards the area's edges by their own alpha (no layer).
+  already scrolled to the active line; lines fade out towards the area's edges by their own alpha (no layer). A new
+  sung line grows from the small style into the big one while the previous one shrinks back (3.57).
 - **Hakkında**: a song shows the track's own album and artist at once; with catalog ids (Spotify URIs, MBIDs)
   `source::album` and `source::artistPage` run on a worker (Normal priority, once per track, only while the tab is
   open) and add the album's kind · year, track count · label and the artist's kind · country · start year · genre,
@@ -3227,6 +3233,108 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   search, paging songs and playlists, the full discography, the disk cache) and plays a search result through
   `MatchService` to check the video is the one YouTube Music named.
 
+### 3.57 Lyrics rendering
+
+`gfx/TextShape` (display text as geometry) and `app/LyricsRender` (`lyricsview::`: drawing, the karaoke fill, the
+lines under a line, the motion model) are shared by Now Playing's lyrics tab, the full-screen view and the wide mini
+player. Tested by `lyricsview_test`.
+
+- **What was wrong** (measured on 175 % and 100-150 % interface scale, dark / light / pastel; before / after crops in
+  the round's notes). (1) DirectWrite draws the app's font in its `NATURAL_SYMMETRIC` grayscale mode below ~100 px
+  (every Now Playing size, the full-screen view below 64 DIP at 175 %): glyph bitmaps with **15 partial coverage
+  levels** (counted on rendered lines), which is fine for UI text but leaves visible steps on the round edges of
+  50-110 px lyric glyphs; and `Canvas::text` puts every line on whole pixels, so a gliding line moves in 1 px steps.
+  (2) The karaoke fill drew the sung line twice - whole, then in the accent through an *aliased* axis-aligned clip per
+  row: a hard vertical cut that moved in whole pixels, and every glyph edge under it antialiased twice (the accent over
+  the first draw's edge), a pale rim around the sung letters on dark grounds and a dark one on light. (3) The sung line
+  in Now Playing switched layouts (28 / 500 → 44 / 800) and the colors in one frame, so the line popped and everything
+  under it jumped; the mini player's next line switched style at the start of its slide and every moving line went
+  through an opacity layer. DirectWrite's `OUTLINE` mode (continuous coverage) for all lyric text fixed (1) but doubled
+  the frame's CPU in Now Playing (3.9 → 8.0 million UI-thread cycles a frame).
+- **`gfx::TextShape`**: a layout's glyph outlines (`IDWriteFontFace::GetGlyphRunOutline` through a custom
+  `IDWriteTextRenderer`, the ellipsis' inline object included) become one filled **geometry realization** per visual
+  row (`CreateFilledGeometryRealization`, per-primitive antialiasing, the flattening tolerance of the scale it is
+  built for and the largest zoom it will be drawn at). Per frame a row is one `DrawGeometryRealization` with any brush,
+  at any fractional position and under a scale transform - continuous coverage (244 levels against 15), the same ink
+  and place as DirectWrite's own outlines (within 0.25 px and 1 %; `lyricsview_test`). Each row's baseline is moved
+  onto the pixel grid of its scale, so a line at rest on a whole-pixel origin keeps crisp baselines. A layout with color
+  glyphs (emoji) is refused (`usable()` false) and drawn as text. The shape holds its layout (identity + width + scale
+  decide whether it fits); device objects: a weak registry drops every realization on the idle release and on device
+  loss, and the views build them again.
+- **Drawing** (`lyricsview::draw`): the line's shape once built, as text at the same place until then (and for emoji
+  lines). Shapes are built on first use, at most 3 a frame (~0.3-0.7 ms each): opening a view builds the lines on
+  screen over a few frames. A line scrolled away releases its layout and shape; the views drop them all when they
+  close. Lines at rest sit on whole pixels: tops, gaps and heights rounded to the device pixel grid (`snap`, `ceilPx`)
+  and the follow scroll's target too, so the spring lands exactly there.
+- **Motion** (`LineMotion`): every line has an emphasis (1 = the sung line) and a brightness (`Dim`: the sung line 1,
+  sung lines `past`, coming ones `future`, 3+ lines away `distant` times that), each its own `ui::Anim` (460 ms,
+  Standard) turning from wherever it is when the sung line changes - several changes in a row or a seek never snap.
+  The first line of fresh lyrics lands at once; *Hareketi azalt* makes every change instant. Heights follow the
+  emphasis, the scroll heads for where the sung line will be once it settled.
+  - Now Playing: a growing / shrinking line is drawn twice at the same visual size - the small layout scaled up and the
+    big one (`Big`, made on demand for the lines in a change) scaled down - cross-faded in a short stretch around the
+    middle (`smoothstep(0.35, 0.65)`), so the weights' different letter widths and wraps show together only for ~60 ms;
+    alphas are set so that where both cover a pixel it gets the line's alpha. The line's height is what is drawn of it.
+  - Full screen: lines not sung rest at 90 % (scaled around their top center), the sung line grows to 100 % and its
+    fill: `drawFill` draws each row once with a gradient brush - the accent up to where the sung part has reached, the
+    line's color after it, a soft edge 0.6 em wide - instead of the clip; a line handing over keeps its full fill while
+    the accent fades out with its emphasis. The fill repaints at ~60 frames a second while it plays (it was 30).
+  - Mini player (wide): the sung line moves up and fades, the next one rises into its place growing from the next
+    line's style into the sung line's (cross-faded like Now Playing), the line after it fades in from below; no layers,
+    `motion::slow`.
+- **Cost** (Debug, 1440 × 900 DIP at 175 %, a playing local file with synced lyrics, million UI-thread cycles a frame
+  with `SHADETUBE_FRAME_CYCLES=1`, medians of three 12 s runs; "text" = the same motion drawn as text with
+  `SHADETUBE_LYRICS_SHAPES=0`): Now Playing 3.76 (text 5.11; before this change 3.9 without any motion); full screen
+  6.15 (text 10.44; before 7.3 at half the fill's frame rate). Memory in Now Playing after 14 s: commit 75 vs 88 MB,
+  GPU 56 vs 68 MB (text at changing sizes fills DirectWrite's glyph cache); a realization is ~110-170 KB of GPU memory
+  for a 30-character line at 44-64 DIP, Japanese lines alike; 12 shapes live with the Now Playing tab open
+  (`SHADETUBE_NP_LOG` prints the count and the rows built).
+- **Not shared**: the lyrics share card (3.37) paints its own text into an export bitmap (static, no motion).
+
+### 3.58 Lyrics romanization
+
+`lyrics/Romanize` (standalone: rules, Windows' Japanese analyzer, the cache; `romanize_test`) and
+`app/LyricsRomanization` (a view's state, like `LyricsTranslation`).
+
+- **In the views**: a chip "Romanizasyon" left of "Çeviri" in Now Playing's lyrics toolbar and the full-screen view's
+  top controls, offered when the lyrics are in Japanese (any kana), Korean or Cyrillic (`romanizableScript`, off the
+  UI thread with a cached answer's lookup). `Settings::lyricsRomanize` is shared by both views (`sync()` as they
+  paint). The Latin line goes **under the original line, above its translation**, in the translation's style a little
+  brighter, never instead of it: the karaoke fill follows the original's word times, a Japanese line without kanji
+  readings still needs the original next to it, and readers of the script keep it. The header note says what is shown
+  ("ROMANİZASYON · KORECE", "… · JAPONCA · KANJİ OKUNUŞU YOK"). Not in the mini player (two lines only) or the share
+  card.
+- **Korean** (Revised Romanization, 2000), per word (a run of Hangul syllables): syllables split into initial / vowel /
+  final, then within the word: liaison (a final read at the next vowel, double finals split, ㅇ stays, ㅎ drops:
+  한국어 hangugeo, 읽어 ilgeo, 괜찮아 gwaenchana), palatalization (같이 gachi, 굳이 guji, 닫히다 dachida), aspiration
+  with ㅎ (좋고 joko, 많다 manta, 축하 chuka), final neutralization (꽃 kkot, 읽다 ikda, 맑게 malge), nasalization
+  (국물 gungmul, 합니다 hamnida, 없는 eomneun), the liquid rules (신라 silla, 설날 seollal, 종로 jongno, 독립
+  dongnip). **Skipped**: rules that need the word's grammar or the dictionary - ㄴ insertion (맨입 maennip),
+  tensification (not written in RR anyway), nouns keeping ㅎ after ㄱ ㄷ ㅂ (묵호 Mukho: written as aspirated), the
+  ㄼ exceptions (밟다), hyphens for ambiguity, capitals for names; nothing happens across spaces.
+- **Japanese**: kana → modified Hepburn (yōon, っ doubling / tch, ん n' before vowels and y, ー repeats the vowel,
+  extended katakana ファ ティ ウィ シェ ヴァ, Japanese punctuation and fullwidth forms to Latin). Kanji need readings:
+  `Windows.Globalization.JapanesePhoneticAnalyzer` (C++/WinRT, offline) gives words with kana readings and phrase
+  starts; romaji are spaced by phrase, particles ending a phrase stand apart (は wa, へ e, を o). It is an STA-only
+  class (the worker MTA gets "single-threaded class activation from MTA is not supported"), so a reader owns a
+  short-lived STA thread for one song's lines, at most 100 characters a call. It answers **nothing** without
+  Windows' Japanese language data (checked on the development PC, a Turkish Windows 11 without it: empty word lists;
+  `IFELanguage` / MSIME.Japan reverse conversion likewise returns S_FALSE there): the process then remembers and
+  falls back to romanizing the kana with the kanji kept as written, spaced from the romaji (`readings` false; not
+  cached, so installing the language later gives readings). The analyzer path is covered by a fixture reader in
+  `romanize_test`; with real readings it was not observed on this PC.
+- **Cyrillic**: Russian - BGN/PCGN without diacritics (е ye at a word's start and after vowels / ъ / ь, ё yo, й y, ы
+  y, х kh, щ shch, signs dropped); Ukrainian - the official 2010 table (г h, ґ g, и y, і i, є ї й ю я ye yi y yu ya at
+  a word's start, ie i i iu ia inside, зг zgh, the apostrophe dropped). The table is chosen per line: a line with і ї
+  є ґ is Ukrainian, one with ы э ё ъ Russian, any other line follows the song (the majority of those lines, else the
+  source's "uk", else Russian); other Cyrillic alphabets use the Russian table with a few letters of their own, and a
+  Russian letter in a Ukrainian line keeps its Russian reading. Case follows the source (Ж → Zh, ЖИЗНЬ → ZHIZN).
+- **Chinese is not offered**: Han text without kana stays as it is. Pinyin would need a reading per character (Unihan
+  kMandarin, ~20 000 characters, a few hundred KB) and, for the many characters with several readings, word-level
+  choices (a phrase dictionary of several MB); Windows has no offline Chinese phonetic analyzer to ask.
+- **Cache**: `cache/lyrics-romanized/<key>.json` = `{v, fp, n, script, lang, readings, lines}`, the fingerprint of the
+  lines as for translations; a rule change bumps `v`. Everything runs off the UI thread (`async`, Normal priority).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -3301,6 +3409,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
+| `romanize_test` | lyrics romanization (3.58): Korean Revised Romanization through every pronunciation rule implemented, kana → Hepburn (yōon, sokuon, n', long vowels, extended katakana, punctuation), Japanese through a fixture reader (spaced phrases, particles) and without one (kanji kept), Windows' analyzer on this PC (reported, not asserted), Russian / Ukrainian tables and case, script detection, lines left empty, the cache (read back, stale lyrics, Japanese without readings not kept) | offline (own temp profile) |
+| `lyricsview_test` | the lyrics views' drawing (3.57): `dimAlpha`, `smoothstep`, `LineMotion` (first line at once, changes ease from where they are, settling, reduce motion), `gfx::TextShape` on the real device (a row per visual line, an ellipsis line, emoji refused, `builtFor`, the idle release drops them, built again), its pixels against DirectWrite's outlines and bitmap glyphs at 100 / 125 / 175 % (ink, centroid, partial levels), the karaoke fill's soft edge | offline; needs a D3D11 device |
 | `credits_test` | song credits: role folding and groups, merging, the Spotify credits query and legacy JSON, MusicBrainz recording / work / label relationships, title cleaning and the recording ranking, `app/Credits` (JSON round trip and expiry, the provider chain, memory + disk cache, the summary) | offline (fixtures); `live ["Artist" "Title" [seconds]]` (MusicBrainz search + credits, read-only; Spotify too with `SHADETUBE_SPDC`, track `SHADETUBE_CREDITS_TRACK`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
@@ -3430,7 +3540,9 @@ apps*).
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
 | `SHADETUBE_NP_TAB` | `lyrics`, `queue` or `about`: the tab Now Playing opens on (screenshots; 3.40) |
-| `SHADETUBE_NP_LOG=1` | while Now Playing is open, logs every 5 s its frames/s and the backdrop field's size, renders/s and cost (`nowplaying` lines) |
+| `SHADETUBE_NP_LOG=1` | while Now Playing is open, logs every 5 s its frames/s and the backdrop field's size, renders/s and cost, and the live text shapes / rows built (3.57) (`nowplaying` lines) |
+| `SHADETUBE_LYRICS_SHAPES=0` | the lyrics views draw their lines as DirectWrite text instead of geometry (3.57): A/B of look and cost |
+| `SHADETUBE_FRAME_CYCLES=1` | `SHADETUBE_MEM_DEMO`'s frame numbers are the UI thread's CPU cycles of each main-window frame (millions) instead of its wall time: comparable between runs while other work shares the machine (3.57) |
 | `SHADETUBE_PREVIEW_DEMO` | `<action>@<ms>[=<x>,<y>];…` after startup, at window DIPs: `hold` (left press, kept down), `up`, `move` (with the button down), `click`, `rclick` (the context menu), `key` (the `preview` action), `esc`. E.g. with `--route local:songs`, `SHADETUBE_PLAY_FILES` and `--screenshot`: `hold@3500=900,450;up@7000` (3.30) |
 | `SHADETUBE_NAV_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after the shell opened: `click=<x>,<y>` (a real left click posted at window DIPs), `back`, `forward`. With `--screenshot`, e.g. `click@2500=559,378` and a capture at 3300 ms for a cover in flight (3.31) |
 | `SHADETUBE_MOTION_SCALE` | `<factor>` (1-50): page transitions and the cover's flight run that many times slower (screenshots of their middle) |
@@ -3507,6 +3619,19 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
 - **Lyrics picker** (3.46): LRCLIB's free-text search returns at most 20 records; the Spotify choice needs a Spotify
   track and a session. A picked record is cached in `cache\lyrics` (pruned with the cache), so it is fetched again by
   id when the cache was cleared.
+- **Lyrics romanization** (3.58): kanji readings come from Windows' Japanese language data; without it (as on the
+  development PC) Japanese lines show the kana in romaji and the kanji as written, and the analyzer's real output was not
+  observed (a fixture stands in). Korean skips the grammar-dependent rules (ㄴ insertion, nouns keeping ㅎ, the ㄼ
+  exceptions); Chinese is not romanized. Not in the mini player or the lyrics share card.
+- **Lyrics rendering** (3.57): while a Now Playing line grows or shrinks, its two styles are seen together for ~60 ms;
+  when the big style wraps a line into more rows than the small one, that moment shows both wraps. Lines with color emoji
+  are drawn as text (16-level edges, no fill gradient per row beyond a clip). Geometry antialiasing has no gamma
+  correction: light text on a dark ground carries ~3 % less ink than DirectWrite's bitmap glyphs (it matches
+  DirectWrite's own outline mode).
+- **`SHADETUBE_MEM_DEMO` report steps** (found, not fixed): `mem::detailedReport` walks each heap under `HeapLock` and
+  appends to vectors meanwhile; in a Debug build that allocation takes the CRT debug heap's lock, which another thread
+  may hold while waiting for the same heap: the UI thread then hangs in the report (seen twice in a row with Now
+  Playing playing). `SHADETUBE_MEMLOG` and `frames=` steps are not affected.
 - **Several Spotify accounts** (3.48): verified live with one real account only (a 0.10 profile migrated, connected, a
   switch to a second record holding the same cookie while a song played); two different real accounts were not
   available, so the second login's own cookie jar and a re-login matched by user id are covered by `accounts_test`

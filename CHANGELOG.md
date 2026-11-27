@@ -2,6 +2,21 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.12.0 — unreleased
+
+- **Smoother, sharper lyrics**: the lyric lines in Now Playing, the full-screen lyrics and the wide mini player now have
+  clean, smooth edges at every size and interface scale, also while they glide, instead of slightly stepped ones. A
+  new line no longer jumps to its bigger size: it grows and brightens while the one before eases back, and the lines
+  around them follow without a jolt. In the full-screen view the sung part fills in behind a soft edge instead of a
+  hard cut, and the fill moves fluidly. "Hareketi azalt" keeps everything instant. Drawing the lyrics this way also
+  costs less than before.
+- **Romanization for Japanese, Korean and Russian / Ukrainian lyrics**: a "Romanizasyon" button next to "Çeviri" (in
+  Now Playing and the full-screen lyrics) shows each line in Latin letters under the original, above its translation
+  when that is on too. Korean follows the official Revised Romanization with the way words are actually pronounced
+  (같이 → gachi, 국물 → gungmul, 신라 → silla); Japanese kana become Hepburn romaji, and kanji get their readings
+  from Windows when its Japanese language support is installed (otherwise they stay as written); Russian and Ukrainian
+  use their common Latin spellings. It works offline, is remembered like Çeviri and is kept per song.
+
 ## 0.11.0 — 2026-11-27
 
 - **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or

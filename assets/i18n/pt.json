@@ -2324,5 +2324,14 @@
   "{} · GÖSTERİLMİYOR": "{} · NÃO MOSTRADO",
   "{} · RESMİ VİDEO": "{} · VÍDEO OFICIAL",
   "{} · SESLE EŞLEŞİYOR": "{} · CORRESPONDE AO ÁUDIO",
-  "Dinlenme sayısı": "Número de reproduções"
+  "Dinlenme sayısı": "Número de reproduções",
+  "Romanizasyon": "Romanização",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "Mostrar abaixo de cada linha a leitura em letras latinas",
+  "Romanizasyon hazırlanıyor…": "Preparando a romanização…",
+  "Romanizasyon yapılamadı": "Não foi possível romanizar",
+  "Japonca": "Japonês",
+  "Korece": "Coreano",
+  "Rusça": "Russo",
+  "Ukraynaca": "Ucraniano",
+  "Kanji okunuşu yok": "Sem leitura dos kanji"
 }

@@ -2324,5 +2324,14 @@
   "{} · GÖSTERİLMİYOR": "{} · NOT SHOWN",
   "{} · RESMİ VİDEO": "{} · OFFICIAL VIDEO",
   "{} · SESLE EŞLEŞİYOR": "{} · MATCHES THE AUDIO",
-  "Dinlenme sayısı": "Play count"
+  "Dinlenme sayısı": "Play count",
+  "Romanizasyon": "Romanization",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "Show each line's reading in Latin letters under it",
+  "Romanizasyon hazırlanıyor…": "Preparing romanization…",
+  "Romanizasyon yapılamadı": "Romanization failed",
+  "Japonca": "Japanese",
+  "Korece": "Korean",
+  "Rusça": "Russian",
+  "Ukraynaca": "Ukrainian",
+  "Kanji okunuşu yok": "No kanji readings"
 }

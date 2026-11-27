@@ -99,7 +99,17 @@ LyricsFullscreen::LyricsFullscreen()
         showControls();
     };
     translation_.onChange = [this] {
-        rebuildTranslation();
+        rebuildSubLines();
+        syncControls();
+    };
+    romanize_ = add<ui::Button>(ui::ButtonKind::Chip, tr(L"Romanizasyon"));
+    romanize_->setTooltip(tr(L"Her satırın Latin harfleriyle okunuşunu altında göster"));
+    romanize_->onClick = [this] {
+        romanization_.toggle();
+        showControls();
+    };
+    romanization_.onChange = [this] {
+        rebuildSubLines();
         syncControls();
     };
     earlier_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "minus");
@@ -156,11 +166,14 @@ void LyricsFullscreen::load() {
     pick_ = {};
     lyrics_ = {};
     lines_.clear();
+    shapes_.clear();
     lineH_.clear();
     lineRects_.clear();
+    motion_.reset(0);
     translation_.clear();
+    romanization_.clear();
     trans_.clear();
-    transH_.clear();
+    roman_.clear();
     active_ = -1;
     hoverLine_ = -1;
     manualUntil_ = 0;
@@ -203,46 +216,47 @@ void LyricsFullscreen::load() {
               lines_.clear();
               lines_.reserve(lyrics_.lines.size());
               for (const auto& l : lyrics_.lines) lines_.emplace_back(l.text.empty() ? L"♪" : toWide(l.text), style_, wrap);
+              shapes_.assign(lines_.size(), {});
               lineH_.assign(lines_.size(), -1.f);
-              // Offered when the lyrics are in another language (found out off the UI thread; onChange follows).
-              if (state_ == State::Synced || state_ == State::Plain) translation_.setLyrics(lyrics_, trackId_);
+              motion_.reset(lines_.size());
+              // Offered when the lyrics are in another language / script (found out off the UI thread; onChange
+              // follows).
+              if (state_ == State::Synced || state_ == State::Plain) {
+                  translation_.setLyrics(lyrics_, trackId_);
+                  romanization_.setLyrics(lyrics_, trackId_);
+              }
               syncControls();
               requestLayout();
               invalidate();
           });
 }
 
-void LyricsFullscreen::rebuildTranslation() {
-    trans_.clear();
-    transH_.clear();
-    if (translation_.shown()) {
-        gfx::TextOptions wrap;
-        wrap.wrap = true;
-        wrap.align = gfx::TextAlign::Center;
-        trans_.reserve(lines_.size());
-        for (size_t i = 0; i < lines_.size(); ++i) trans_.emplace_back(toWide(translation_.line(i)), transStyle_, wrap);
-        transH_.assign(trans_.size(), -1.f);
-    }
+void LyricsFullscreen::rebuildSubLines() {
+    auto lines = [this](auto& source) {
+        std::vector<std::wstring> v;
+        v.reserve(lines_.size());
+        for (size_t i = 0; i < lines_.size(); ++i) v.push_back(toWide(source.line(i)));
+        return v;
+    };
+    if (romanization_.shown()) roman_.set(lines(romanization_), subStyle_, gfx::TextAlign::Center);
+    else roman_.clear();
+    if (translation_.shown()) trans_.set(lines(translation_), subStyle_, gfx::TextAlign::Center);
+    else trans_.clear();
     invalidate();
 }
 
-float LyricsFullscreen::translationHeight(int i, float width) {
-    if (i < 0 || i >= static_cast<int>(trans_.size()) || trans_[i].empty()) return 0;
-    if (width != transHW_ || transH_.size() != trans_.size()) {
-        transH_.assign(trans_.size(), -1.f);
-        transHW_ = width;
-    }
-    if (transH_[i] < 0) {
-        transH_[i] = trans_[i].measure(width).h;
-        trans_[i].reset();
-    }
-    return std::round(style_.size * 0.16f) + transH_[i];
+float LyricsFullscreen::subHeight(int i, float width) {
+    const float gap = std::round(style_.size * 0.16f);
+    const float r = roman_.height(static_cast<size_t>(i), width), t = trans_.height(static_cast<size_t>(i), width);
+    return (r > 0 ? gap + r : 0) + (t > 0 ? gap + t : 0);
 }
 
 void LyricsFullscreen::syncControls() {
     const bool synced = state_ == State::Synced;
     translate_->setVisible((synced || state_ == State::Plain) && translation_.offered());
     translate_->setActive(translation_.on());
+    romanize_->setVisible((synced || state_ == State::Plain) && romanization_.offered());
+    romanize_->setActive(romanization_.on());
     earlier_->setVisible(synced);
     offset_->setVisible(synced);
     later_->setVisible(synced);
@@ -278,14 +292,14 @@ void LyricsFullscreen::layout() {
         style_ = style;
         for (auto& l : lines_) l.setStyle(style_);
         lineH_.assign(lines_.size(), -1.f);
-        // Translations at half the size, lighter.
-        transStyle_ = {std::round(size * 0.5f), 600, 1.2f, -0.01f};
-        for (auto& t : trans_) t.setStyle(transStyle_);
-        transH_.assign(trans_.size(), -1.f);
+        // Translations and romanizations at half the size, lighter.
+        subStyle_ = {std::round(size * 0.5f), 600, 1.2f, -0.01f};
+        trans_.setStyle(subStyle_);
+        roman_.setStyle(subStyle_);
     }
     const float pad = std::max(48.f, r.w * 0.08f);
     const float w = std::min(r.w - pad * 2, 1200.f);
-    lyricsArea_ = {(r.w - w) * 0.5f, kTopH, w, std::max(100.f, r.h - kTopH - kFooterH)};
+    lyricsArea_ = {std::round((r.w - w) * 0.5f), kTopH, std::round(w), std::max(100.f, r.h - kTopH - kFooterH)};
 
     const float cy = 32, bs = 32;
     float x = r.w - pad - bs;   // the right edge of the label / time column, like the footer's time
@@ -312,6 +326,12 @@ void LyricsFullscreen::layout() {
         translate_->setRect({x, cy - 14, tw, 28});
         x -= 12;
     }
+    if (romanize_->visible()) {
+        const float tw = std::ceil(romanize_->naturalWidth());
+        x -= tw;
+        romanize_->setRect({x, cy - 14, tw, 28});
+        x -= 12;
+    }
     if (picker_->visible()) {
         x -= bs;
         picker_->setRect({x, cy - bs / 2, bs, bs});
@@ -326,7 +346,7 @@ float LyricsFullscreen::lineHeight(int i, float width) {
     }
     if (lineH_[i] < 0) {
         lineH_[i] = lines_[i].measure(width).h;
-        lines_[i].reset();
+        if (!shapes_[i].built()) lines_[i].reset();   // measured only: a line off screen keeps no layout
     }
     return lineH_[i];
 }
@@ -347,12 +367,14 @@ double LyricsFullscreen::paintBackdrop(Canvas& c, const Rect& r) {
     return backdrop_.paint(c, r, t, p && p->isPlaying());
 }
 
-// The sung part of the active line in the accent: per word when the lyrics carry word times, else a sweep across the
-// line lasting until the next line (capped by the line's length, so a long instrumental gap doesn't crawl).
-void LyricsFullscreen::paintSweep(Canvas& c, int i, const Rect& lr, int posMs) {
+// The sung part of the active line: per word when the lyrics carry word times, else a sweep across the line lasting
+// until the next line (capped by the line's length, so a long instrumental gap doesn't crawl). `fill` gets, per visual
+// row of the line, the layout x the fill has reached (lyricsview::drawFill: all of a row / none of it as +-1e9).
+void LyricsFullscreen::sweepRows(int i, float width, int posMs, std::vector<float>& fill) {
+    fill.clear();
     const auto& line = lyrics_.lines[i];
     auto& text = lines_[i];
-    auto* layout = text.layout(lr.w);
+    auto* layout = text.layout(width);
     const UINT32 len = static_cast<UINT32>(text.text().size());
     const auto boxes = rangeBoxes(layout, 0, len);
     const float total = widthOf(boxes);
@@ -382,14 +404,20 @@ void LyricsFullscreen::paintSweep(Canvas& c, int i, const Rect& lr, int posMs) {
         const int dur = std::max(250, std::min(next - line.timeMs - 150, std::max(1500, static_cast<int>(len) * 80)));
         sweep = total * std::clamp(static_cast<float>(posMs - line.timeMs) / static_cast<float>(dur), 0.f, 1.f);
     }
+    // Boxes come one per visual row (left to right); a row's fill is where the sweep has reached in it.
+    UINT32 rows = 0;
+    layout->GetLineMetrics(static_cast<DWRITE_LINE_METRICS*>(nullptr), 0, &rows);
+    std::vector<DWRITE_LINE_METRICS> metrics(rows);
+    if (rows == 0 || FAILED(layout->GetLineMetrics(metrics.data(), rows, &rows))) return;
+    fill.assign(rows, -1e9f);
     float acc = 0;
     for (const auto& b : boxes) {
+        float top = 0;
+        size_t row = 0;
+        for (; row + 1 < rows && top + metrics[row].height * 0.5f < b.top; ++row) top += metrics[row].height;
         const float cover = std::clamp(sweep - acc, 0.f, b.width);
-        if (cover > 0) {
-            c.pushClip({lr.x + b.left, lr.y + b.top - 8, cover, b.height + 16});
-            c.text(text, lr, accent().base);
-            c.popClip();
-        }
+        if (cover >= b.width - 0.01f) fill[row] = std::max(fill[row], 1e9f);
+        else if (cover > 0) fill[row] = std::max(fill[row], b.left + cover);
         acc += b.width;
     }
 }
@@ -425,26 +453,42 @@ void LyricsFullscreen::paintLyrics(Canvas& c, const Rect& area) {
     const int pos = lyricsClockMs(trackId_);   // on the song's timeline, offset applied
     active_ = synced ? lyrics::activeLine(lyrics_, pos + 150) : -1;     // 150 ms lookahead feels in sync
     translation_.sync();   // the setting / target language changed in Now Playing or Ayarlar
+    romanization_.sync();
+    // The sung line grows to full size and brightens, the one before eases back (app/LyricsRender).
+    static constexpr lyricsview::Dim kDim{0.32f, 0.24f, 0.6f};
+    constexpr float kRestScale = 0.9f;   // lines not being sung
+    motion_.setActive(synced ? active_ : -1, kDim);
+    const bool emphasis = synced;
 
-    const float gap = style_.size * 0.55f;
+    // Heights on the pixel grid at rest (a resting line's top lands on a whole pixel), eased in between.
+    const float gap = lyricsview::snap(c, style_.size * 0.55f);
+    auto mainH = [&](int i, float e) {
+        const float h = lineHeight(i, area.w);
+        if (!emphasis) return h;
+        return ui::lerp(lyricsview::ceilPx(c, h * kRestScale), lyricsview::ceilPx(c, h), e);
+    };
     lineRects_.resize(lines_.size());
-    float y = 0, activeTop = 0, activeH = 0;
+    float y = 0, targetY = 0, activeTop = 0, activeH = 0;
     for (int i = 0; i < static_cast<int>(lines_.size()); ++i) {
-        const float h = lineHeight(i, area.w) + translationHeight(i, area.w);   // a line's rect holds its translation
+        const float sub = subHeight(i, area.w);
+        const float h = mainH(i, motion_.emphasis(i)) + sub;   // a line's rect holds its romanization and translation
         lineRects_[i] = {area.x, y, area.w, h};
+        // Where the sung line will be once the change has eased out: the scroll heads there.
+        const float th = mainH(i, motion_.emphasisTarget(i)) + sub;
         if (i == active_) {
-            activeTop = y;
-            activeH = h;
+            activeTop = targetY;
+            activeH = th;
         }
         y += h + gap;
+        targetY += th + gap;
     }
     const float total = y;
     const float lo = -area.h * 0.5f, hi = std::max(0.f, total - area.h * 0.5f);
     scroll_.setBounds(lo, hi);
     if (ui::frame::realNow() >= manualUntil_) {   // the wheel's offset holds for 3 s, then the active line leads again
         float target = scroll_.target();
-        if (synced && active_ >= 0) target = activeTop + activeH * 0.5f - area.h * 0.45f;
-        else if (synced) target = -area.h * 0.35f;
+        if (synced && active_ >= 0) target = lyricsview::snap(c, activeTop + activeH * 0.5f - area.h * 0.45f);
+        else if (synced) target = lyricsview::snap(c, -area.h * 0.35f);
         target = std::clamp(target, lo, hi);
         if (std::abs(target - scroll_.target()) > 0.5f) scroll_.glideTo(target, ui::ScrollFeel::Follow);
     }
@@ -452,38 +496,56 @@ void LyricsFullscreen::paintLyrics(Canvas& c, const Rect& area) {
 
     // The top and bottom fade out: lines are clipped to a band a little taller than the area.
     const Rect band{0, area.y - 24, rect().w, area.h + 48};
+    const Color accentC = accent().base;
+    const float feather = style_.size * 0.6f;
     c.pushClip(band);
     for (int i = 0; i < static_cast<int>(lines_.size()); ++i) {
+        const size_t li = static_cast<size_t>(i);
         Rect lr = lineRects_[i].offset(0, area.y - offY);
         lineRects_[i] = lr;
-        const bool hasTrans = i < static_cast<int>(trans_.size()) && !trans_[i].empty();
         if (lr.bottom() < band.y || lr.y > band.bottom()) {
-            lines_[i].reset();   // scrolled away: drop its layout
-            if (hasTrans) trans_[i].reset();
+            lines_[i].reset();   // scrolled away: drop its layout and shape
+            shapes_[i].reset();
+            trans_.release(li);
+            roman_.release(li);
             continue;
         }
         // Lines near the band's edges fade out.
         const float edge = std::min(lr.cy() - band.y, band.bottom() - lr.cy());
         const float fade = std::clamp(edge / 120.f, 0.f, 1.f);
-        Color colr;
-        if (!synced) colr = col.fgSecondary;
-        else if (i == active_) colr = col.fgPrimary;
-        else {
-            const int dist = std::abs(i - active_);
-            const float a = i < active_ ? 0.32f : 0.24f;
-            colr = col.fgPrimary.withAlpha(dist >= 3 ? a * 0.6f : a);
-        }
-        if (i == hoverLine_ && synced && i != active_) colr = col.fgPrimary.withAlpha(0.7f);
+        const float e = emphasis ? motion_.emphasis(li) : 1.f;
+        Color colr = synced ? col.fgPrimary.withAlpha(motion_.alpha(li)) : col.fgSecondary;
+        if (i == hoverLine_ && synced && i != active_) colr = col.fgPrimary.withAlpha(std::max(0.7f, colr.a));
         colr = colr.mulAlpha(fade);
-        const float th = translationHeight(i, area.w);
-        const Rect main{lr.x, lr.y, lr.w, lr.h - th};
-        c.text(lines_[i], main, colr);
-        if (synced && i == active_ && !ui::motion::reduced() && fade > 0.99f) paintSweep(c, i, main, pos + 150);
-        if (hasTrans) c.text(trans_[i], {lr.x, lr.bottom() - transH_[i], lr.w, transH_[i]}, colr.mulAlpha(0.62f));
+        const float scale = emphasis ? ui::lerp(kRestScale, 1.f, e) : 1.f;
+        const lyricsview::Place at{{lr.x, lr.y}, scale, {area.w * 0.5f, 0}};
+        // The karaoke fill: the sung line fills with the accent behind a soft edge; a line handing over keeps its
+        // fill while it eases back, the accent fading with it.
+        if (synced && e > 0.01f && !ui::motion::reduced()) {
+            if (i == active_) sweepRows(i, area.w, pos + 150, fill_);
+            else fill_.assign(64, i < active_ ? 1e9f : -1e9f);   // sung before / after a seek back
+            lyricsview::drawFill(c, lines_[i], shapes_[i], area.w, at, fill_, Color::lerp(colr, accentC.mulAlpha(fade), e), colr,
+                                 feather);
+        } else {
+            lyricsview::draw(c, lines_[i], shapes_[i], area.w, at, colr);
+        }
+        // Romanization, then translation, under the line (full size, not scaled).
+        float sy = lr.y + mainH(i, e);
+        const float subGap = std::round(style_.size * 0.16f);
+        if (roman_.has(li)) {
+            sy += subGap;
+            roman_.draw(c, li, area.w, {{lr.x, sy}}, colr.mulAlpha(0.72f));
+            sy += roman_.height(li, area.w);
+        }
+        if (trans_.has(li)) {
+            sy += subGap;
+            trans_.draw(c, li, area.w, {{lr.x, sy}}, colr.mulAlpha(0.62f));
+        }
     }
     c.popClip();
+    // The fill's soft edge moves smoothly at ~60 frames a second while it plays (each one a few draw calls).
     if (synced && p && p->isPlaying()) {
-        if (auto* w = window()) w->invalidateAfter(ui::motion::reduced() ? 250 : 33);
+        if (auto* w = window()) w->invalidateAfter(ui::motion::reduced() ? 250 : 16);
     }
 }
 
@@ -522,12 +584,14 @@ void LyricsFullscreen::paintTop(Canvas& c, const Rect& r) {
     label_.setText(label);
     const float pad = std::max(48.f, r.w * 0.08f);
     float controlsX = close_->rect().x;   // the leftmost control shown
-    for (auto* b : {share_, later_, offset_, earlier_, translate_, picker_})
+    for (auto* b : {share_, later_, offset_, earlier_, translate_, romanize_, picker_})
         if (b->visible()) controlsX = std::min(controlsX, b->rect().x);
     const float lw = std::max(40.f, std::min(r.w - pad - 260, controlsX - 16 - pad));
     c.text(label_, {pad, 24, lw, 16}, backdrop_.labelColor(), gfx::VAlign::Center);
-    // The translation's state under it: "ÇEVRİLİYOR…", "ÇEVİRİ ALINAMADI", what is shown.
-    if (const std::wstring note = translation_.note(); !note.empty())
+    // The translation's and the romanization's state under it: "ÇEVRİLİYOR…", "ÇEVİRİ ALINAMADI", what is shown.
+    std::wstring note = romanization_.note();
+    if (const std::wstring t = translation_.note(); !t.empty()) note = note.empty() ? t : note + L"  ·  " + t;
+    if (!note.empty())
         c.text(note, type::monoLabel, {pad, 42, lw, 14}, backdrop_.labelColor(), gfx::TextAlign::Leading, gfx::VAlign::Center);
     // The offset value flashes in the accent right after a change.
     if (offset_->visible()) {

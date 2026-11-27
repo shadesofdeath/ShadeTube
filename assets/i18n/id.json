@@ -2103,5 +2103,14 @@
   "{} · GÖSTERİLMİYOR": "{} · TIDAK DITAMPILKAN",
   "{} · RESMİ VİDEO": "{} · VIDEO RESMI",
   "{} · SESLE EŞLEŞİYOR": "{} · COCOK DENGAN AUDIO",
-  "Dinlenme sayısı": "Jumlah diputar"
+  "Dinlenme sayısı": "Jumlah diputar",
+  "Romanizasyon": "Romanisasi",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "Tampilkan cara baca tiap baris dalam huruf Latin di bawahnya",
+  "Romanizasyon hazırlanıyor…": "Menyiapkan romanisasi…",
+  "Romanizasyon yapılamadı": "Romanisasi gagal",
+  "Japonca": "Jepang",
+  "Korece": "Korea",
+  "Rusça": "Rusia",
+  "Ukraynaca": "Ukraina",
+  "Kanji okunuşu yok": "Tanpa bacaan kanji"
 }

@@ -2103,5 +2103,14 @@
   "{} · GÖSTERİLMİYOR": "{} · 非表示",
   "{} · RESMİ VİDEO": "{} · 公式動画",
   "{} · SESLE EŞLEŞİYOR": "{} · 音声と一致",
-  "Dinlenme sayısı": "再生回数"
+  "Dinlenme sayısı": "再生回数",
+  "Romanizasyon": "ローマ字",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "各行の下にローマ字の読みを表示",
+  "Romanizasyon hazırlanıyor…": "ローマ字を準備中…",
+  "Romanizasyon yapılamadı": "ローマ字に変換できませんでした",
+  "Japonca": "日本語",
+  "Korece": "韓国語",
+  "Rusça": "ロシア語",
+  "Ukraynaca": "ウクライナ語",
+  "Kanji okunuşu yok": "漢字の読みなし"
 }
