@@ -232,10 +232,10 @@ public:
         close_ = add<Button>(ButtonKind::Icon, L"", "close");
         grips_ = add<SquareGrips>();   // last: above everything at the edges
         for (auto* b : {modeBtn_, expand_, close_}) b->setIconSize(14);
-        prev_->setTooltip(tr(L"Önceki"));
-        next_->setTooltip(tr(L"Sonraki"));
-        repeat_->setTooltip(tr(L"Tekrarla"));
-        expand_->setTooltip(tr(L"Büyüt"));
+        prev_->setTooltip(commands::keyTip(tr(L"Önceki"), "previous"));
+        next_->setTooltip(commands::keyTip(tr(L"Sonraki"), "next"));
+        repeat_->setTooltip(commands::keyTip(tr(L"Tekrarla"), "repeat"));
+        expand_->setTooltip(commands::keyTip(tr(L"Büyüt"), "mini-player"));
         close_->setTooltip(tr(L"Kapat"));
         prev_->onClick = [] {
             if (auto* p = ctx().player) p->previous();
@@ -279,7 +279,9 @@ public:
             morph_.snap(1);
         }
         modeBtn_->setIcon(modeIcon(mini::nextMode(m)));
-        modeBtn_->setTooltip(i18n::format(tr(L"Görünüm: {}"), {modeName(mini::nextMode(m))}));
+        // The icon names are the mode actions' ids ("mini-square"): the tooltip shows that key.
+        modeBtn_->setTooltip(commands::keyTip(i18n::format(tr(L"Görünüm: {}"), {modeName(mini::nextMode(m))}),
+                                              std::string(modeIcon(mini::nextMode(m)))));
         const bool wide = m == Mode::Wide, square = m == Mode::Square;
         shuffle_->setVisible(wide);
         repeat_->setVisible(wide);
@@ -314,21 +316,21 @@ public:
         const bool playing = p && p->isPlaying();
         play_->setPlaying(playing);
         play_->setLoading(p && p->status() == player::Status::Resolving);
-        play_->setTooltip(playing ? tr(L"Duraklat") : tr(L"Oynat"));
+        play_->setTooltip(commands::keyTip(playing ? tr(L"Duraklat") : tr(L"Oynat"), "play-pause"));
         // The wave flows only while sound plays (the player bar's rule).
         seek_->setFlowing(p && p->status() == player::Status::Playing);
         seek_->setLive(live_);
         const auto shuffleMode = smartshuffle::mode();
         shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
         shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart" : "shuffle");
-        shuffle_->setTooltip(smartshuffle::modeLabel(shuffleMode));
+        shuffle_->setTooltip(commands::keyTip(smartshuffle::modeLabel(shuffleMode), "shuffle"));
         const auto rep = p ? p->repeat() : RepeatMode::Off;
         repeat_->setActive(rep != RepeatMode::Off);
         repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
         const bool liked = t && (live_ ? radio::store().isFavorite(radio::uuidOf(t->id)) : ctx().library.isLiked(t->id));
         heart_->setIcon(liked ? "heart-filled" : "heart");
         heart_->setActive(liked);
-        heart_->setTooltip(!live_ ? std::wstring(tr(L"Beğen")) : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
+        heart_->setTooltip(!live_ ? commands::keyTip(tr(L"Beğen"), "like") : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
         heart_->setVisible(mode_ == Mode::Wide && t && (live_ || ctx().library.canLike(t->id)));
         // Listen together: a guest's transport follows the host (requests when the host allows it, else off).
         const bool control = !together::guest() || together::guestCanControl();

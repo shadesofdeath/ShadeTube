@@ -47,8 +47,8 @@ public:
         press_.to(0, 160);
         if (e.button == ui::MouseButton::Left && rect().contains(e.pos)) card_->requestToggle();
     }
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     ui::FocusShape focusShape() const override { return ui::FocusShape::Rect; }
 

@@ -864,6 +864,17 @@ void Window::showTooltipFor(Widget* w) {
     invalidate();
 }
 
+namespace {
+std::function<std::wstring(std::string_view)>& tooltipHintResolver() {
+    static std::function<std::wstring(std::string_view)> resolver;
+    return resolver;
+}
+} // namespace
+
+void Window::setTooltipHintResolver(std::function<std::wstring(std::string_view id)> resolver) {
+    tooltipHintResolver() = std::move(resolver);
+}
+
 void Window::paintTooltip(Canvas& c) {
     // Spec "Tooltip": h 28, padX 10, bg.elevated, hairline.strong, B 12 fg.primary, 8 from the anchor; motion-spec:
     // delay 400 ms, opacity 0 -> 1 and 4 DIP up in 120 ms (standard). It fades out (90 ms) when its widget loses the
@@ -903,10 +914,31 @@ void Window::paintTooltip(Canvas& c) {
     }
     if (tip_.alpha < 1.f || tip_.outStart >= 0) frame::requestNext();
     const auto& col = gfx::colors();
-    auto layout = gfx::makeLayout(tip_.text, gfx::type::caption, 320);
+    // "Label\tHint": the hint (a key combo) after the label, as menus show shortcuts.
+    std::wstring_view label = tip_.text, hint;
+    std::wstring resolved;
+    if (const size_t tab = tip_.text.find(L'\t'); tab != std::wstring::npos) {
+        label = std::wstring_view(tip_.text).substr(0, tab);
+        hint = std::wstring_view(tip_.text).substr(tab + 1);
+        if (!hint.empty() && hint.front() == L'@') {
+            const std::wstring_view id = hint.substr(1);
+            std::string key;   // action ids are ASCII
+            for (const wchar_t ch : id) key += static_cast<char>(ch);
+            resolved = tooltipHintResolver() ? tooltipHintResolver()(key) : std::wstring();
+            hint = resolved;
+        }
+    }
+    auto layout = gfx::makeLayout(label, gfx::type::caption, 320);
     DWRITE_TEXT_METRICS m{};
     layout->GetMetrics(&m);
-    const float w = std::ceil(m.width) + 20, h = 28;
+    gfx::ComPtr<IDWriteTextLayout4> hintLayout;
+    DWRITE_TEXT_METRICS hm{};
+    constexpr float kHintGap = 12;
+    if (!hint.empty()) {
+        hintLayout = gfx::makeLayout(hint, gfx::type::monoMeta, 160);
+        hintLayout->GetMetrics(&hm);
+    }
+    const float w = std::ceil(m.width) + (hintLayout ? kHintGap + std::ceil(hm.width) : 0.f) + 20, h = 28;
     const float x = std::clamp(tip_.anchor.cx() - w * 0.5f, 8.f, widthDip_ - w - 8);
     float y = tip_.anchor.bottom() + 8;
     if (y + h > heightDip_ - 8) y = tip_.anchor.y - 8 - h;
@@ -918,6 +950,8 @@ void Window::paintTooltip(Canvas& c) {
     c.pushTransform(D2D1::Matrix3x2F::Translation(0, rise));
     paintOverlaySurface(c, box, overlay::Elevation::Tooltip, tipMaterial_.get());
     c.text(layout.Get(), box.x + 10, box.y + (h - m.height) * 0.5f, col.fgPrimary);
+    if (hintLayout)
+        c.text(hintLayout.Get(), box.x + 10 + std::ceil(m.width) + kHintGap, box.y + (h - hm.height) * 0.5f, col.fgTertiary);
     c.popTransform();
     c.popLayer();
 }

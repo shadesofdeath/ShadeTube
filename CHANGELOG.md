@@ -126,6 +126,15 @@ All notable changes to ShadeTube, newest first.
   mini player, and large libraries and imported listening histories take less room. After browsing a dozen pages it
   now holds about 30 % less than 0.10 (and a third less graphics memory); the mini player alone needs half the
   graphics memory it did.
+- **Polish for the window, the panels and every dialog**: settings controls all line up on the right edge, and pickers
+  (language, font, equalizer preset, output device) look like dropdowns. Tooltips name the keyboard shortcut ("Next
+  Ctrl+→"), and so do more menu items. Delete buttons in confirmations are red, like delete items in menus, and
+  alternatives such as "From file…" sit apart on the left of a dialog. The queue panel got a close button like the
+  friend activity and listen-together panels, its button stays lit while it is open, and all three now slide in and
+  fade out; the full-screen lyrics and the year in review fade out too (none of it with reduced motion or with
+  Windows' animation effects off). The start screen no longer overlaps itself on small windows or at 150 % scale,
+  Now Playing's top label no longer runs into "Collapse" in German or Russian, the Tab key walks Now Playing in reading
+  order, and without Spotify the catalog (YouTube Music or MusicBrainz) can be switched from the title bar.
 
 ## 0.10.0 — 2026-11-23
 

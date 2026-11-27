@@ -2,6 +2,7 @@
 
 #include "app/VideoMode.h"
 #include "core/I18n.h"
+#include "ui/Micro.h"
 #include "ui/Window.h"
 
 namespace st::app {
@@ -64,23 +65,23 @@ void VideoView::onMouseMove(const ui::MouseEvent& e) {
     if (style_ != Style::Inline) return;
     const bool over = showing() && popOutRect().contains(e.pos);
     const bool overMenu = showing() && menuRect().contains(e.pos);
-    if (hover_.target() != 1.f) hover_.to(1, ui::motion::fast);
+    if (hover_.target() != 1.f) hover_.to(1, ui::motion::microMs(ui::motion::fast));
     if (over != overPop_) {
         overPop_ = over;
-        popHover_.to(over ? 1.f : 0.f, ui::motion::fast);
+        popHover_.to(over ? 1.f : 0.f, ui::motion::microMs(ui::motion::fast));
     }
     if (overMenu != overMenu_) {
         overMenu_ = overMenu;
-        menuHover_.to(overMenu ? 1.f : 0.f, ui::motion::fast);
+        menuHover_.to(overMenu ? 1.f : 0.f, ui::motion::microMs(ui::motion::fast));
     }
     invalidate();
 }
 
 void VideoView::onMouseLeave() {
     overPop_ = overMenu_ = false;
-    hover_.to(0, ui::motion::normal);
-    popHover_.to(0, ui::motion::fast);
-    menuHover_.to(0, ui::motion::fast);
+    hover_.to(0, ui::motion::microMs(ui::motion::normal));
+    popHover_.to(0, ui::motion::microMs(ui::motion::fast));
+    menuHover_.to(0, ui::motion::microMs(ui::motion::fast));
     invalidate();
 }
 

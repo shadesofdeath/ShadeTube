@@ -125,15 +125,16 @@ std::unique_ptr<Menu::Panel> Menu::makePanel(std::vector<MenuItem> items, Panel*
 
 void Menu::layoutPanel(Panel& p) {
     const Rect r = rect();
+    // The widest row: its label, plus the hint column only when the row has a hint (a long label without a hint uses
+    // that room instead of being cut short by another row's "Ctrl+Shift+V").
     float h = kPadY * 2, content = 0;
     for (size_t i = 0; i < p.items.size(); ++i) {
         const auto& it = p.items[i];
         h += it.separator ? kSepH : kItemH;
         if (it.separator) continue;
-        content = std::max(content, std::ceil(p.labels[i].measure().w));
+        content = std::max(content, std::ceil(p.labels[i].measure().w) + (p.hints[i].empty() ? 0.f : kHintGap + p.hintW));
     }
-    float w = kPadX + (p.iconCol ? kIcon + kIconGap : 0) + content + (p.hintW > 0 ? kHintGap + p.hintW : 0) +
-              (p.trailCol ? kTrailGap + kTrail : 0) + kPadX;
+    float w = kPadX + (p.iconCol ? kIcon + kIconGap : 0) + content + (p.trailCol ? kTrailGap + kTrail : 0) + kPadX;
     w = std::clamp(std::ceil(w), kMinW, std::max(kMinW, std::min(kMaxW, r.w - kEdge * 2)));
     float x, y;
     if (!p.parent) {
@@ -543,7 +544,7 @@ void Menu::paintPanel(Canvas& c, Panel& p) {
             const float hw = std::ceil(p.hints[i].measure().w);
             c.text(p.hints[i], {right - hw, r.y, hw + 1, r.h}, it.enabled ? col.fgTertiary : col.fgDisabled, gfx::VAlign::Center);
         }
-        if (p.hintW > 0) right -= p.hintW + kHintGap;
+        if (!p.hints[i].empty()) right -= p.hintW + kHintGap;   // rows without a hint keep that room for the label
         c.text(p.labels[i], {lx, r.y, std::max(0.f, right - lx), r.h}, fg, gfx::VAlign::Center);
     }
     if (transformed) c.popTransform();
@@ -727,7 +728,13 @@ void Toasts::paint(Canvas& c) {
         // 2 px progress line along the bottom edge.
         const double age = frame::now() - t.shownAt;
         const float prog = t.dismissed ? 0.f : 1 - static_cast<float>(std::clamp(age / kToastLife, 0.0, 1.0));
-        if (prog > 0) c.fillRect({r.x, r.bottom() - 2, r.w * prog, 2}, accent().base);
+        if (prog > 0) {
+            // Round corners (Ayarlar › Köşeler): the line follows the surface's curve instead of poking out of it.
+            const bool round = overlay::radius() > 2.5f;
+            if (round) c.pushRoundedClip(r, overlay::radius());
+            c.fillRect({r.x, r.bottom() - 2, r.w * prog, 2}, accent().base);
+            if (round) c.popLayer();
+        }
         c.popLayer();
     }
 }
@@ -749,7 +756,10 @@ void Dialog::confirm(Window* window, std::wstring title, std::wstring body, std:
     auto* d = open(window, std::move(title), std::move(body));
     if (!d) return;
     d->addButton(tr(L"Vazgeç"), ButtonKind::Ghost, {});
-    d->addButton(std::move(okLabel), destructive ? ButtonKind::Secondary : ButtonKind::Primary, std::move(onOk));
+    // A destructive confirmation is not the accent's call to action: the error color's outlined pill, as the menus
+    // color their destructive items.
+    auto* ok = d->addButton(std::move(okLabel), destructive ? ButtonKind::Secondary : ButtonKind::Primary, std::move(onOk));
+    if (destructive) ok->setDestructive(true);
 }
 
 Dialog::Dialog(std::wstring title, std::wstring body, float width) : width_(width) {
@@ -770,6 +780,17 @@ Button* Dialog::addButton(std::wstring label, ButtonKind kind, std::function<voi
         if (onClick) onClick();
     };
     buttons_.push_back(b);
+    requestLayout();
+    return b;
+}
+
+Button* Dialog::addLeadingButton(std::wstring label, ButtonKind kind, std::function<void()> onClick, bool closes) {
+    auto* b = add<Button>(kind, std::move(label));
+    b->onClick = [this, onClick = std::move(onClick), closes] {
+        if (closes) close();
+        if (onClick) onClick();
+    };
+    leading_.push_back(b);
     requestLayout();
     return b;
 }
@@ -799,7 +820,7 @@ void Dialog::layout() {
     const float maxBody = r.h - 160 - h;
     const float bodyShown = std::min(bodyH, std::max(0.f, maxBody));
     if (bodyShown > 0) h += 20 + bodyShown;
-    if (!buttons_.empty()) h += 28 + 40;
+    if (!buttons_.empty() || !leading_.empty()) h += 28 + 40;
     h += pad;
     panel_ = {std::round(r.cx() - w * 0.5f), std::round(r.cy() - h * 0.5f), w, h};
     float y = panel_.y + pad;
@@ -821,6 +842,15 @@ void Dialog::layout() {
         bx -= bw;
         (*it)->setRect({bx, panel_.bottom() - pad - 40, bw, 40});
         bx -= 8;
+    }
+    // Leading buttons from the left end; a Ghost one keeps its label on the text column (its pill bleeds into the
+    // padding, as the pill's hover fill does).
+    float lx = panel_.x + pad;
+    for (Button* b : leading_) {
+        const float bw = std::ceil(b->naturalWidth());
+        const float x = b->kind() == ButtonKind::Ghost ? lx - 12 : lx;
+        b->setRect({x, panel_.bottom() - pad - 40, std::min(bw, std::max(0.f, bx - x)), 40});
+        lx = x + bw + 8;
     }
 }
 

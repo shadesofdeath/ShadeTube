@@ -352,7 +352,7 @@ void showPicker(const Song& song, std::function<void()> changed) {
     if (!d) return;
     auto* body = static_cast<ui::Column*>(d->body());
     body->add<Spacer>(60.f);
-    d->addButton(tr(L"Video gösterme"), ui::ButtonKind::Secondary, [song, changed] {
+    d->addLeadingButton(tr(L"Video gösterme"), ui::ButtonKind::Secondary, [song, changed] {
         OfficialDecision none;
         if (const auto* p = cache().raw(song.track.id)) none = *p;
         none.audioVideoId = song.audioVideoId;

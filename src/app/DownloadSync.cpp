@@ -889,7 +889,7 @@ void confirmDisable(const std::string& ruleId) {
     if (!d) return;
     const std::string id = ruleId;
     d->addButton(tr(L"Vazgeç"), ui::ButtonKind::Ghost, {});
-    d->addButton(tr(L"Şarkıları sil"), ui::ButtonKind::Secondary, [id] { removeRule(id, true); });
+    d->addButton(tr(L"Şarkıları sil"), ui::ButtonKind::Secondary, [id] { removeRule(id, true); })->setDestructive(true);
     d->addButton(tr(L"Şarkıları sakla"), ui::ButtonKind::Primary, [id] { removeRule(id, false); });
 }
 

@@ -295,6 +295,7 @@ class DevicePicker : public ui::Button {
 public:
     explicit DevicePicker(std::function<void()> rebuild)
         : ui::Button(ui::ButtonKind::Secondary, currentName(), "chevron-down"), rebuild_(std::move(rebuild)) {
+        setDropdown(true);
         onClick = [this] { open(); };
     }
 
@@ -465,6 +466,7 @@ void buildAudioRows(ui::Column* c, const std::function<void()>& rebuild) {
                                        tr(L"Bir başlangıç noktası seç; bantları sürükleyerek ya da tekerlekle ince ayar "
                                           L"yapabilirsin. Çift tıklama bandı sıfırlar."));
         preset = row->control<ui::Button>(200.f, ui::ButtonKind::Secondary, presetName(s.eqPreset), "chevron-down");
+        preset->setDropdown(true);
         preset->onClick = [preset, rebuild] {
             const std::string cur = Settings::get().eqPreset;
             std::vector<ui::MenuItem> items;

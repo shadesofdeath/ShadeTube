@@ -799,6 +799,7 @@ private:
         auto* pick = row->control<Button>(200.f, ButtonKind::Secondary,
                                           chosen.empty() ? tr(L"Arayüz dili") : lyricsTranslationLanguageName(chosen),
                                           "chevron-down");
+        pick->setDropdown(true);
         pick->onClick = [this, pick] {
             const std::string cur = Settings::get().lyricsTranslateTo;
             auto choose = [this](std::string code) {
@@ -833,6 +834,7 @@ private:
         auto* pick = row->control<Button>(200.f, ButtonKind::Secondary,
                                           std::wstring(chosen.empty() ? tr(L"Windows dili") : target.name),
                                           "chevron-down");
+        pick->setDropdown(true);
         pick->onClick = [this, pick] {
             const std::string cur = Settings::get().language;
             auto choose = [this](std::string code) {

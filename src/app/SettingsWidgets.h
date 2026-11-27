@@ -16,6 +16,7 @@
 #include <cmath>
 #include <functional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace st::app {
@@ -32,7 +33,11 @@ public:
     virtual std::wstring searchText() const = 0;
 };
 
-// label + description on the left, a control on the right, hairline below.
+class Segmented;
+
+// label + description on the left, a control on the right, hairline below. Every control ends on the row's right edge,
+// vertically centered (a toggle 22 DIP, anything else 40): a segmented control is laid out at its own width so it
+// lines up with the toggles and buttons above and below it.
 class SettingRow : public ui::Widget, public SettingsSearchable {
 public:
     SettingRow(std::wstring title, std::wstring desc) : title_(std::move(title), gfx::type::body), desc_(std::move(desc), gfx::type::secondary) {
@@ -49,6 +54,7 @@ public:
         auto* c = add<T>(std::forward<A>(args)...);
         control_ = c;
         if constexpr (requires { c->naturalWidth(); }) natural_ = [c] { return static_cast<float>(c->naturalWidth()); };
+        hug_ = std::is_base_of_v<Segmented, T>;
         return c;
     }
     float controlWidth() const { return natural_ ? std::max(controlW_, std::ceil(natural_())) : controlW_; }
@@ -57,7 +63,9 @@ public:
         if (!control_) return;
         const Rect r = rect();
         const float h = dynamic_cast<ui::Toggle*>(control_) ? 22.f : 40.f;
-        const float cw = controlWidth();
+        // A segmented control paints at its natural width centered in its rect: give it exactly that width, so its
+        // right end is the row's (the text column keeps the designed width either way).
+        const float cw = hug_ && natural_ ? std::ceil(natural_()) : controlWidth();
         control_->setRect({r.w - cw, r.h * 0.5f - h * 0.5f, cw, h});
     }
     void paint(Canvas& c) override {
@@ -76,6 +84,7 @@ private:
     float controlW_ = 0;
     ui::Widget* control_ = nullptr;
     std::function<float()> natural_;
+    bool hug_ = false;   // a Segmented: laid out at its natural width
 };
 
 // The selection is a pill that slides to the picked segment (motion::normal; the labels it passes over change color

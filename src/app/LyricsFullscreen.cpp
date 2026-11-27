@@ -1,6 +1,7 @@
 #include "app/LyricsFullscreen.h"
 
 #include "app/AppContext.h"
+#include "app/Commands.h"
 #include "app/InternetRadio.h"
 #include "app/LyricsPicker.h"
 #include "app/LyricsService.h"
@@ -13,6 +14,7 @@
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
 #include "player/Player.h"
+#include "ui/Acrylic.h"
 #include "ui/Window.h"
 
 #include <algorithm>
@@ -101,7 +103,7 @@ LyricsFullscreen::LyricsFullscreen()
         syncControls();
     };
     earlier_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "minus");
-    earlier_->setTooltip(tr(L"Sözleri daha erken göster"));
+    earlier_->setTooltip(commands::keyTip(tr(L"Sözleri daha erken göster"), "lyrics-earlier"));
     earlier_->onClick = [this] { shiftOffset(-kLyricsOffsetStepMs); };
     offset_ = add<ui::Button>(ui::ButtonKind::Ghost, formatLyricsOffset(0));
     offset_->setTooltip(tr(L"Söz zamanlamasını sıfırla"));
@@ -110,10 +112,10 @@ LyricsFullscreen::LyricsFullscreen()
         syncControls();
     };
     later_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "plus");
-    later_->setTooltip(tr(L"Sözleri daha geç göster"));
+    later_->setTooltip(commands::keyTip(tr(L"Sözleri daha geç göster"), "lyrics-later"));
     later_->onClick = [this] { shiftOffset(kLyricsOffsetStepMs); };
     close_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "close");
-    close_->setTooltip(tr(L"Kapat (Esc)"));
+    close_->setTooltip(tr(L"Kapat") + std::wstring(L"\tEsc"));   // the key as the tooltips show keys
     close_->onClick = [this] { close(); };
     share_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "share");
     share_->setTooltip(tr(L"Sözleri paylaş"));
@@ -127,7 +129,7 @@ LyricsFullscreen::LyricsFullscreen()
     onLyricsChoiceChanged(subs_.ref(), [this](const std::string& id) {
         if (id == trackId_) load();
     });
-    open_.to(1, ui::motion::medium, ui::Ease::Decelerate);
+    open_.to(1, ui::overlay::duration(ui::motion::medium), ui::Ease::Decelerate);
     controls_.snap(1);
     lastMove_ = ui::frame::realNow();
     load();
@@ -138,8 +140,12 @@ LyricsFullscreen::~LyricsFullscreen() {
 }
 
 void LyricsFullscreen::close() {
+    if (closing_) return;
+    closing_ = true;
     if (g_view == this) g_view = nullptr;
     life_.renew();
+    exit_.snap(1);
+    exit_.to(0, ui::overlay::duration(140), ui::Ease::Accelerate);   // the dialogs' close
     if (auto* w = window()) w->removeOverlay(this);
 }
 
@@ -536,7 +542,8 @@ void LyricsFullscreen::paintTop(Canvas& c, const Rect& r) {
 
 void LyricsFullscreen::paint(Canvas& c) {
     const Rect r = rect();
-    const float t = open_;
+    const float t = open_ * (closing_ ? std::clamp(exit_.value(), 0.f, 1.f) : 1.f);
+    if (t <= 0.001f) return;
     if (t < 0.999f) c.pushOpacity(t);
     const double drift = paintBackdrop(c, r);
     paintLyrics(c, lyricsArea_);

@@ -139,6 +139,17 @@ void Button::pulse() {
     invalidate();
 }
 
+void Button::setDestructive(bool on) {
+    destructive_ = on;
+    invalidate();
+}
+
+void Button::setDropdown(bool on) {
+    dropdown_ = on;
+    requestLayout();
+    invalidate();
+}
+
 void Button::setTrailing(std::wstring trailing) {
     trailing_.setText(std::move(trailing));
     invalidate();
@@ -146,6 +157,7 @@ void Button::setTrailing(std::wstring trailing) {
 
 float Button::naturalWidth() {
     const float text = label_.empty() ? 0 : std::ceil(label_.measure().w);
+    if (dropdown_ && kind_ == ButtonKind::Secondary) return text + 8 + 14 + gfx::metrics::pillPadX * 2;   // label · chevron
     const float icon = icon_.empty() ? 0 : (iconSize_ > 0 ? iconSize_ : 16);
     const float gap = (text > 0 && icon > 0) ? 8.f : 0.f;
     switch (kind_) {
@@ -283,9 +295,19 @@ void Button::paint(Canvas& c) {
         c.pushScale(s, {r.cx(), r.cy()});
         c.fillPill(r, Color::lerp(col.overlayHover.withAlpha(0), col.overlayHover, h));
         if (p > 0) c.fillPill(r, col.overlayPressed.mulAlpha(p));
-        c.strokePill(r, Color::lerp(col.hairControl, active_ ? acc.base : col.fgSecondary.withAlpha(0.5f), std::max(h * 0.6f, a)));
-        drawContent(Color::lerp(col.fgPrimary, acc.base, a).mulAlpha(disabled), gfx::metrics::pillPadX,
-                    gfx::TextAlign::Center);
+        if (destructive_)   // the error color's outline: dim at rest, full under the pointer
+            c.strokePill(r, col.error.mulAlpha((0.55f + 0.45f * h) * disabled));
+        else
+            c.strokePill(r, Color::lerp(col.hairControl, active_ ? acc.base : col.fgSecondary.withAlpha(0.5f), std::max(h * 0.6f, a)));
+        const Color fg = (destructive_ ? col.error : Color::lerp(col.fgPrimary, acc.base, a)).mulAlpha(disabled);
+        if (dropdown_) {   // label on the left, the chevron at the right end
+            const float chev = 14, padX = gfx::metrics::pillPadX;
+            c.icon("chevron-down", {r.right() - padX - chev, r.cy() - chev * 0.5f, chev, chev},
+                   Color::lerp(col.fgSecondary, col.fgPrimary, h).mulAlpha(disabled));
+            c.text(label_, {r.x + padX, r.y, std::max(0.f, r.w - padX * 2 - chev - 8), r.h}, fg, gfx::VAlign::Center);
+        } else {
+            drawContent(fg, gfx::metrics::pillPadX, gfx::TextAlign::Center);
+        }
         c.popTransform();
         break;
     }
@@ -293,7 +315,8 @@ void Button::paint(Canvas& c) {
         c.pushScale(1 - 0.02f * p, {r.cx(), r.cy()});
         c.fillPill(r, col.overlayHover.mulAlpha(h));
         if (p > 0) c.fillPill(r, col.overlayPressed.mulAlpha(p));
-        drawContent(Color::lerp(col.fgSecondary, col.fgPrimary, h).mulAlpha(disabled), 12, gfx::TextAlign::Center);
+        const Color fg = destructive_ ? col.error : Color::lerp(col.fgSecondary, col.fgPrimary, h);
+        drawContent(fg.mulAlpha(disabled), 12, gfx::TextAlign::Center);
         c.popTransform();
         break;
     }

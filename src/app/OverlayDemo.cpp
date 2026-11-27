@@ -2,10 +2,14 @@
 #include "app/OverlayDemo.h"
 
 #include "app/AppContext.h"
+#include "app/Blends.h"
 #include "app/CommandPalette.h"
 #include "app/CreditsUi.h"
 #include "app/LyricsPicker.h"
+#include "app/PlaylistTransfer.h"
+#include "app/Shell.h"
 #include "app/Shortcuts.h"
+#include "app/Together.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Utf.h"
@@ -15,6 +19,7 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <unordered_map>
@@ -56,14 +61,69 @@ void run(const Step& s) {
     } else if (s.action == "sleep") {
         showSleepTimerMenu(pointArg(s.arg, {600, 300}));
     } else if (s.action == "key") {
-        const auto combo = shortcuts::parse(s.arg);
+        // "Tab*6": the key that many times (focus walks for screenshots of the ring).
+        std::string key = s.arg;
+        int times = 1;
+        if (const size_t star = key.rfind('*'); star != std::string::npos && star > 0) {
+            times = std::clamp(std::atoi(key.c_str() + star + 1), 1, 200);
+            key.resize(star);
+        }
+        const auto combo = shortcuts::parse(key);
         if (!combo || combo->empty()) {
             ST_LOG_WARN("overlaydemo", "\"{}\" is not a key", s.arg);
             return;
         }
         const UINT scan = MapVirtualKeyW(combo->vk, MAPVK_VK_TO_VSC);
-        PostMessageW(w->hwnd(), WM_KEYDOWN, combo->vk, static_cast<LPARAM>(1 | (scan << 16)));
-        PostMessageW(w->hwnd(), WM_KEYUP, combo->vk, static_cast<LPARAM>(1 | (scan << 16) | 0xC0000000u));
+        const bool mods = combo->ctrl || combo->alt || combo->shift;
+        for (int i = 0; i < times; ++i) {
+            if (!mods) {
+                PostMessageW(w->hwnd(), WM_KEYDOWN, combo->vk, static_cast<LPARAM>(1 | (scan << 16)));
+                PostMessageW(w->hwnd(), WM_KEYUP, combo->vk, static_cast<LPARAM>(1 | (scan << 16) | 0xC0000000u));
+                continue;
+            }
+            // With modifiers ("Alt+Down", "Shift+Tab"): the window reads them with GetKeyState, so they are set in this
+            // thread's key state while the key is sent (synchronously: this timer runs on the window's thread).
+            BYTE saved[256]{}, keys[256]{};
+            GetKeyboardState(saved);
+            std::copy(std::begin(saved), std::end(saved), std::begin(keys));
+            if (combo->ctrl) keys[VK_CONTROL] = keys[VK_LCONTROL] = 0x80;
+            if (combo->alt) keys[VK_MENU] = keys[VK_LMENU] = 0x80;
+            if (combo->shift) keys[VK_SHIFT] = keys[VK_LSHIFT] = 0x80;
+            SetKeyboardState(keys);
+            const UINT down = combo->alt ? WM_SYSKEYDOWN : WM_KEYDOWN, up = combo->alt ? WM_SYSKEYUP : WM_KEYUP;
+            const LPARAM ctx = combo->alt ? (1 << 29) : 0;
+            SendMessageW(w->hwnd(), down, combo->vk, static_cast<LPARAM>(1 | (scan << 16)) | ctx);
+            SendMessageW(w->hwnd(), up, combo->vk, static_cast<LPARAM>(1 | (scan << 16) | 0xC0000000u) | ctx);
+            SetKeyboardState(saved);
+        }
+    } else if (s.action == "focus") {
+        // "focus=queue": the keyboard focus (with its ring) on the visible queue panel, as if Tabbed to, so the keys that
+        // follow ("key=Down*2", "key=Alt+Down"...) drive its row cursor.
+        std::function<ui::Widget*(ui::Widget*)> find = [&](ui::Widget* w) -> ui::Widget* {
+            if (!w || !w->visible()) return nullptr;
+            if (s.arg == "queue" && dynamic_cast<QueuePanel*>(w)) return w;
+            for (const auto& c : w->children())
+                if (auto* hit = find(c.get())) return hit;
+            return nullptr;
+        };
+        if (auto* target = find(w->root())) w->focusByKeyboard(target);
+        else ST_LOG_WARN("overlaydemo", "nothing to focus for \"{}\"", s.arg);
+    } else if (s.action == "newplaylist") {
+        promptNewPlaylist();                                   // "Yeni çalma listesi"
+    } else if (s.action == "rename") {
+        promptRenamePlaylist("overlay-demo", L"Midnight Drive");   // "Yeniden adlandır"
+    } else if (s.action == "details") {
+        editPlaylistDetails("overlay-demo", L"Midnight Drive", L"Late night synthwave for empty highways.", {});
+    } else if (s.action == "matchpicker") {
+        if (ctx().showMatchPicker) ctx().showMatchPicker(sampleTrack());   // "Yanlış eşleşme mi?"
+    } else if (s.action == "blendcreate") {
+        blends::create();                                      // the Blend consent dialog
+    } else if (s.action == "blendjoin") {
+        blends::promptJoin();                                  // "Blend'e katıl"
+    } else if (s.action == "jamjoin") {
+        together::promptJoin();                                // "Birlikte dinleme oturumuna katıl"
+    } else if (s.action == "ytimport") {
+        transfer::importFromLink();                            // "YouTube listesinden içe aktar"
     } else if (s.action == "hover") {
         w->simulatePointer(pointArg(s.arg, {0, 0}));
     } else if (s.action == "dialog") {

@@ -171,7 +171,13 @@ public:
 
     Dialog(std::wstring title, std::wstring body, float width);
     Widget* body() { return body_; }   // add custom content here (laid out as a Column)
+    // Footer buttons, right-aligned in the order added: the dismissal (Ghost "Vazgeç" / "Kapat") first, the dialog's
+    // action (Primary, or a destructive Secondary) last.
     Button* addButton(std::wstring label, ButtonKind kind, std::function<void()> onClick, bool closes = true);
+    // A footer button on the left end, apart from the dismiss / confirm pair: an alternative way to the same goal
+    // ("Dosyadan…", "Otomatik seçime dön", "Video gösterme") or a destructive side action ("Sil"). Never the Enter
+    // default.
+    Button* addLeadingButton(std::wstring label, ButtonKind kind, std::function<void()> onClick, bool closes = true);
     void close();
     std::function<void()> onClosed;
 
@@ -191,6 +197,7 @@ private:
     Label* text_ = nullptr;
     Widget* body_ = nullptr;
     std::vector<Button*> buttons_;
+    std::vector<Button*> leading_;   // addLeadingButton(): left end of the footer
     Anim open_, exit_;
     Acrylic material_;
     bool closing_ = false;

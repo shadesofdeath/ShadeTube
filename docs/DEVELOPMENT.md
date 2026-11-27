@@ -1119,6 +1119,15 @@ feature files' `build*Rows()` hooks.
   are `SettingRow`s / `settingsToggle`s; a custom row widget with its own texts should implement `SettingsSearchable`.
 - **Ctrl+F** (the `search` action) calls `Page::focusSearch()` on the current page first: the Settings page focuses
   its box (unless Now Playing covers it); every other page keeps opening the Search page.
+- **Row anatomy** (0.11.0 polish): a `SettingRow` is the title (`body`, 14/600) at 18 DIP and the description
+  (`secondary`, 13, fg.secondary) at 40, wrapped in the width the control leaves (48 DIP gap); a hairline.subtle
+  below; at least 64 high. Every control ends on the row's right edge, vertically centered: a toggle 22 high, anything
+  else 40. A `Segmented` is laid out at its natural width (it used to be centered in its designed width and ended up
+  to 25 DIP short of the toggles above and below); text fields are 320 wide; a picker is a Secondary *dropdown*
+  (`Button::setDropdown`: the value on the left, the chevron at the right end, like the title bar's account chip;
+  language, lyrics translation, font, equalizer preset, output device, the remote's address); the accent swatches'
+  last ring ends on the edge too. Sub-headings (`settingsSubheading`) are 13/600 fg.secondary, 20 above, 4 below.
+  Status lines under a control (exclusive mode, the song cache) stay in the description, not in extra rows.
 
 ### 3.27 Sidebar width, icon rail and the accent in the chrome
 
@@ -1151,6 +1160,21 @@ feature files' `build*Rows()` hooks.
   at most every 400 ms and only when the color changed; replaced icons are destroyed (`winshell_test` checks for
   leaked handles). The exe's icon (Explorer, pinned shortcuts) stays the static `assets/app.ico`; a pinned taskbar
   button may show the shortcut's icon instead of the window's. The mini player is a tool window without an icon.
+- **Side panels** (the queue, the friend activity, *Birlikte dinle*; 0.11.0 polish): one header: the title
+  (`type::title`) at 20 DIP, 36 high, 20 DIP padding; 32 DIP icon buttons 4 apart at y 22 ending 20 DIP from the
+  right edge: the panel's actions, then *Kapat* last (the queue had no close button and its two actions sat 6 DIP
+  further right). The toggle that opens a panel is lit while it is open (the player bar's queue button now too, like
+  the title bar's friend button). Opening: the page takes its new width at once and the panel fades in sliding 16 DIP
+  from the right (240 ms, decelerate); closing: it fades out drifting 8 DIP right over the widened page (140 ms,
+  accelerate; `Shell::paintSidePanel`, the closed panel painted hidden over a `fillSurface`); none with Hareketi
+  azalt or Windows' animation effects off. Switching panels or opening Now Playing doesn't animate them.
+- **Title bar**: in Now Playing the "ŞİMDİ ÇALIYOR · <kaynak>" label starts 16 DIP after *Küçült*, whatever its
+  language ("Einklappen" and "Свернуть" ran into it). Without Spotify the account chip's menu also picks the open
+  catalog (YouTube Music / MusicBrainz, checked), as Ayarlar › Spotify hesabı does.
+- **Connect screen**: two columns that never overlap at any window size or zoom (margins and gap follow the width,
+  the hero 55 %); the hero takes the largest display size (64 → 36) at which both lines fit; steps wrap to three
+  lines; the content is centered vertically, and on short windows (150 % zoom) the brand lockup gives way, since the
+  title bar names the app. At 960 DIP and 150 % the hero used to run into the steps.
 
 ### 3.28 Smooth scrolling
 
@@ -1636,6 +1660,45 @@ zoom badge use the same surface without the backdrop.
 - **Tooltips** are painted in `--screenshot` captures too (`SHADETUBE_HOVER_AT`).
 - **Checks**: `popups_test` (5.2); `SHADETUBE_OVERLAY_DEMO` (5.4) opens menus, submenus (by key), dialogs, toasts and
   the palette for `--screenshot`, and its `stats` step logs the captures made and the bytes held.
+- **Anatomy** (written down by the 0.11.0 polish pass of the chrome; a new overlay follows it):
+  - *Dialog* (`ui::Dialog`): 480 DIP wide (forms with a picture or a list 520-680, the share card 1040), padding 28;
+    title `type::title` (22/700, fg.primary); the body line 10 below (`bodyRegular`, fg.secondary); the content 20
+    below (a Column, 8 apart); the footer 28 below: 40 DIP buttons, at least 88 wide, 8 apart, right-aligned in this
+    order: the dismissal (Ghost *Vazgeç* / *Kapat*), then the action (Primary; a destructive one is a Secondary with
+    `Button::setDestructive`: the error color's outline and label, as menus color destructive items;
+    `Dialog::confirm(..., destructive)` does it). One Primary at most; Enter presses it, Esc and the scrim cancel.
+    `addLeadingButton` puts an alternative route to the same goal (*Dosyadan…*, *Otomatik seçime dön*, *Video
+    gösterme*) or a side destructive action (the theme editor's *Sil*) at the footer's left end (a Ghost's label on
+    the text column); it is never the Enter default. A dialog with one field lets its title name it (a placeholder
+    only); with two or more each field gets a `caption` label in fg.secondary above it (Ad, Açıklama, the tag editor,
+    Last.fm's user and key). Focus starts on the first field, else the first button; Tab cycles inside.
+  - *Menu*: as above (items 34, padX 12, icon column 16 + 10). Action items carry an icon; a radio group (the open
+    catalog, speed, sleep timer) may go without and lets the check mark speak. The hint column shows the key wherever
+    the action has one, also the keys of the list the menu came from (the queue's row menu: *Şimdi çal* Enter,
+    *Sıradan kaldır* Delete; video mode's menu: its two actions' keys); a row without a hint keeps that room for its
+    label (it used to be cut at 360 DIP by another row's hint). Destructive items are `status.error`, last in their
+    group, and confirm through `Dialog::confirm(..., true)`.
+  - *Toast*: 360 wide, at least 56 high, padX 16; the 16 DIP status icon (info in the accent, success, warning,
+    error) 12 before the text (13/500, up to three lines); the action as accent text on the right; the 2 px accent
+    progress line.
+  - *Tooltip*: 28 high, padX 10, `caption` in fg.primary. `"Label\tHint"` adds the hint after the label in the menus'
+    hint style; `commands::keyTip(label, action)` makes `"Label\t@action"`, which the Window resolves when the tooltip
+    shows (`ui::Window::setTooltipHintResolver`, installed by App: the current binding, so a rebound key is right at
+    once; none = the label alone). Every chrome icon button whose action has a key names it: the player bar, Now
+    Playing, the mini player (its mode button names the next mode's key), the title bar's Geri / İleri / friend
+    activity, the full-screen lyrics' timing buttons; *Kapat* of the full-screen lyrics and the year in review says
+    Esc. A painted link whose text is on screen ("Yanlış eşleşme?", "Yanlış sözler mi?") gets no tooltip.
+  - *Focus*: the Window's 2 px accent ring only (3.3); its shape follows the control (pill buttons, circles, the
+    queue's cursor row, a painted link's proxy rect). Tab order follows reading order: Now Playing goes title bar →
+    heart → "Yanlış eşleşme?" → seek → transport → utilities → tabs → toolbar → "Yanlış sözler mi?" (the heart and
+    the link used to come after the utility row).
+- **Motion, uniform**: overlays and panels open in 240 ms (decelerate: fade + 8 DIP rise, side panels a 16 DIP
+  slide) and close in 140 ms (accelerate); menus 150 / 100, toasts 240 / 180, tooltips 120 / 90 as above. All of it
+  goes through `overlay::duration`, so Hareketi azalt and Windows' animation effects switch it off. The full-screen
+  lyrics and the year-in-review story now do too (they opened on the plain motion token, ignoring Windows' setting,
+  and vanished at once; now they fade out as `OverlayLayer::exiting()` overlays). Chrome hover / press / active fades
+  go through `motion::microMs` (3.32): sidebar rows, the "Daha fazla" header, the sidebar edge, the account chip, the
+  Settings card headers, shortcut rows, credits and lyrics picker rows, the video view and window.
 ### 3.37 Share cards: lyrics cards and the year in review
 
 `app/ShareCard` (painting and export, shared), `app/LyricsShare` (the lyrics card and its dialog), `app/YearReview`
@@ -3345,7 +3408,7 @@ apps*).
 | `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
 | `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
-| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
 | `SHADETUBE_ACCOUNT_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.42): `menu[=x,y]` (the account menu at window DIPs, default under the title bar's tag), `switch[=<id>]` (the next signed-in account, or that one), `signout[=<id>]` (the active one), `add` (the login window), `log` (the active account and its data folder). E.g. `switch@8000;menu@11000` with `--screenshot 12000` |
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.36) |

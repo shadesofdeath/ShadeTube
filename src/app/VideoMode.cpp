@@ -431,7 +431,7 @@ void showMenu(ui::Window* window, gfx::Point anchor) {
     auto& s = S();
     std::vector<ui::MenuItem> items;
     {
-        ui::MenuItem it{windowOpen() ? tr(L"Video penceresini kapat") : tr(L"Video penceresinde aç"), "pop-out", {}, [] { toggleWindow(); }};
+        ui::MenuItem it{windowOpen() ? tr(L"Video penceresini kapat") : tr(L"Video penceresinde aç"), "pop-out", commands::shortcutHint("video-window"), [] { toggleWindow(); }};
         it.enabled = offered();
         items.push_back(std::move(it));
     }
@@ -451,7 +451,7 @@ void showMenu(ui::Window* window, gfx::Point anchor) {
     // "Yanlış video mu?" applies where the official video is the question: the song's own upload has no picture.
     const bool question = s.on && officialOn() && (s.official || s.phase == Phase::Searching || s.phase == Phase::NoVideo);
     {
-        ui::MenuItem it{tr(L"Yanlış video mu?"), "", {}, [] {
+        ui::MenuItem it{tr(L"Yanlış video mu?"), "swap-match", {}, [] {
                             if (auto song = songNow()) officialvideo::showPicker(*song, [] { reloadOfficial(); });
                         }};
         it.enabled = question && songNow().has_value();
@@ -459,14 +459,14 @@ void showMenu(ui::Window* window, gfx::Point anchor) {
         items.push_back(std::move(it));
     }
     {
-        ui::MenuItem it{tr(L"Bu videoyu gösterme"), "", {}, [] {
+        ui::MenuItem it{tr(L"Bu videoyu gösterme"), "close", {}, [] {
                             if (auto song = songNow()) officialvideo::reject(*song, [] { reloadOfficial(); });
                         }};
         it.enabled = s.on && s.official;
         items.push_back(std::move(it));
     }
     items.push_back(ui::MenuItem::sep());
-    items.push_back({s.on ? tr(L"Video modunu kapat") : tr(L"Video modunu aç"), "video", {}, [] { toggle(); }});
+    items.push_back({s.on ? tr(L"Video modunu kapat") : tr(L"Video modunu aç"), "video", commands::shortcutHint("video-mode"), [] { toggle(); }});
     ui::Menu::open(window, anchor, std::move(items));
 }
 

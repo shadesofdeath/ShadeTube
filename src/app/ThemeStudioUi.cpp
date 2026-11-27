@@ -443,7 +443,8 @@ public:
 
 private:
     static constexpr float kStep = 40;
-    Rect swatch(int i) const { return {rect().right() - (6 - static_cast<float>(i)) * kStep, rect().cy() - 17, 34, 34}; }
+    // The last swatch's box (its selection ring) ends on the row's right edge, like the other rows' controls.
+    Rect swatch(int i) const { return {rect().right() - (6 - static_cast<float>(i)) * kStep + 6, rect().cy() - 17, 34, 34}; }
     void pick(int i) {
         if (i == 5) {
             Dispatcher::post([] { themes::openAccentPicker(); });
@@ -1053,10 +1054,10 @@ void openEditor(const std::string& id, bool duplicate) {
     };
     if (!isNew) {
         const std::string existing = id;
-        d->addButton(tr(L"Sil"), ButtonKind::Ghost, [existing] {
-            endPreview();
-            Dispatcher::post([existing] { confirmDelete(existing); });
-        });
+        d->addLeadingButton(tr(L"Sil"), ButtonKind::Ghost, [existing] {
+               endPreview();
+               Dispatcher::post([existing] { confirmDelete(existing); });
+           })->setDestructive(true);
     }
     d->addButton(tr(L"Vazgeç"), ButtonKind::Ghost, {});
     ui::Dialog* dialog = d;
@@ -1169,6 +1170,7 @@ void buildThemeStudioRows(ui::Column* c, const std::function<void()>& rebuild) {
         tr(L"Yazı tipi"), tr(L"Arayüzün yazı tipi: ShadeTube'un kendi yazı tipi, Segoe UI Variable ya da bilgisayarında "
                              L"kurulu başka bir yazı tipi."));
     auto* font = fontRow->control<Button>(220.f, ButtonKind::Secondary, themes::uiFontLabel(), "chevron-down");
+    font->setDropdown(true);
     font->onClick = [] { Dispatcher::post([] { themes::openFontPicker(); }); };
 
     runDevHooks();

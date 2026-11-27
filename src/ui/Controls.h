@@ -80,6 +80,12 @@ public:
     // user made (a click, the like shortcut), not when the button just shows another song.
     void setHeart(std::string outline, std::string filled);
     void pulse();
+    // Secondary / Ghost: a destructive action ("Sil", "Çıkış yap" in a confirmation): label, icon and (Secondary)
+    // outline in status.error, like a destructive menu item.
+    void setDestructive(bool on);
+    // Secondary: a dropdown (a picker that opens a menu): the label on the left and a chevron at the right end, like
+    // the title bar's account chip. The icon given to the constructor is not drawn then.
+    void setDropdown(bool on);
 
     // Width the button wants (pills size to their label).
     float naturalWidth();
@@ -105,6 +111,7 @@ protected:
     std::string icon_;
     float iconSize_ = 0;   // 0 = default for the kind
     bool active_ = false;
+    bool destructive_ = false, dropdown_ = false;
     Anim hover_, press_, activeA_;
     std::string heartOutline_, heartFilled_;   // setHeart()
     HeartPop pop_;

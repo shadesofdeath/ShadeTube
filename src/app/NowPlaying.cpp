@@ -204,25 +204,10 @@ NowPlayingView::NowPlayingView()
     elapsed_.setOptions(right);
 
     // ---- controls (the player bar's, in the same order for the keyboard) ----
-    seek_ = add<ui::Slider>(ui::Slider::Look::Wave);
-    seek_->hitPadding = 6;
-    seek_->onCommit = [](float f) { ctx().player->seek(static_cast<int64_t>(f * ctx().player->durationMs())); };
-    shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle");
-    prev_ = add<Button>(ButtonKind::Icon, L"", "prev");
-    play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
-    next_ = add<Button>(ButtonKind::Icon, L"", "next");
-    repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat");
-    shuffle_->setTooltip(tr(L"Karıştır"));
-    prev_->setTooltip(tr(L"Önceki"));
-    next_->setTooltip(tr(L"Sonraki"));
-    repeat_->setTooltip(tr(L"Tekrarla"));
-    shuffle_->onClick = [] { smartshuffle::cycleMode(); };   // off -> shuffle -> smart shuffle
-    prev_->onClick = [] { ctx().player->previous(); };
-    next_->onClick = [] { ctx().player->next(); };
-    play_->onClick = [] { ctx().player->togglePause(); };
-    repeat_->onClick = [] { ctx().player->cycleRepeat(); };
+    // Tab order follows the reading order: the heart beside the title, "Yanlış eşleşme?" under it, then the seek row, the
+    // transport and the utilities.
     heart_ = add<Button>(ButtonKind::Icon, L"", "heart");
-    heart_->setTooltip(tr(L"Beğen"));
+    heart_->setTooltip(commands::keyTip(tr(L"Beğen"), "like"));
     heart_->setHeart("heart", "heart-filled");   // the like feedback (ui::HeartPop), as in the player bar
     heart_->onClick = [this] {
         const auto* t = ctx().player->current();
@@ -234,6 +219,30 @@ NowPlayingView::NowPlayingView()
         }
         syncControls();
     };
+    // "Yanlış eşleşme?" under the title: painted by this view, a Tab stop through its proxy (no tooltip: its text is
+    // on screen).
+    matchFocus_ = add<ui::FocusProxy>();
+    matchFocus_->onActivateFn = [] {
+        if (const auto* t = ctx().player ? ctx().player->current() : nullptr; t && ctx().showMatchPicker) ctx().showMatchPicker(*t);
+    };
+    matchFocus_->setVisible(false);
+    seek_ = add<ui::Slider>(ui::Slider::Look::Wave);
+    seek_->hitPadding = 6;
+    seek_->onCommit = [](float f) { ctx().player->seek(static_cast<int64_t>(f * ctx().player->durationMs())); };
+    shuffle_ = add<Button>(ButtonKind::Icon, L"", "shuffle");
+    prev_ = add<Button>(ButtonKind::Icon, L"", "prev");
+    play_ = add<ui::PlayButton>(ui::PlayButton::Look::Outline);
+    next_ = add<Button>(ButtonKind::Icon, L"", "next");
+    repeat_ = add<Button>(ButtonKind::Icon, L"", "repeat");
+    shuffle_->setTooltip(commands::keyTip(tr(L"Karıştır"), "shuffle"));
+    prev_->setTooltip(commands::keyTip(tr(L"Önceki"), "previous"));
+    next_->setTooltip(commands::keyTip(tr(L"Sonraki"), "next"));
+    repeat_->setTooltip(commands::keyTip(tr(L"Tekrarla"), "repeat"));
+    shuffle_->onClick = [] { smartshuffle::cycleMode(); };   // off -> shuffle -> smart shuffle
+    prev_->onClick = [] { ctx().player->previous(); };
+    next_->onClick = [] { ctx().player->next(); };
+    play_->onClick = [] { ctx().player->togglePause(); };
+    repeat_->onClick = [] { ctx().player->cycleRepeat(); };
     sleep_ = add<Button>(ButtonKind::Icon, L"", "clock");
     sleep_->onClick = [this] {
         const Rect br = sleep_->toWindow(sleep_->rect());
@@ -274,19 +283,12 @@ NowPlayingView::NowPlayingView()
     knob_->setValue(Settings::get().volume);
     knob_->onChange = [](float v) { ctx().player->setVolume(v); };
     mini_ = add<Button>(ButtonKind::Icon, L"", "mini-player");
-    mini_->setTooltip(tr(L"Mini oynatıcı"));
+    mini_->setTooltip(commands::keyTip(tr(L"Mini oynatıcı"), "mini-player"));
     mini_->onClick = [] {
         if (ctx().openMiniPlayer) ctx().openMiniPlayer();
     };
 
     video_ = add<VideoView>(VideoView::Style::Inline);   // laid over the cover (layout); paints after the track block
-
-    // "Yanlış eşleşme?" under the title: painted by this view, a Tab stop through its proxy.
-    matchFocus_ = add<ui::FocusProxy>(tr(L"Yanlış eşleşme?"));
-    matchFocus_->onActivateFn = [] {
-        if (const auto* t = ctx().player ? ctx().player->current() : nullptr; t && ctx().showMatchPicker) ctx().showMatchPicker(*t);
-    };
-    matchFocus_->setVisible(false);
 
     // ---- tabs, their toolbar and the queue ----
     tabs_ = add<NowPlayingTabs>();
@@ -295,7 +297,7 @@ NowPlayingView::NowPlayingView()
     tabs_->setLabel(Tab::About, tr(L"Hakkında"));
     tabs_->onSelect = [this](Tab t) { showTab(t); };
     buildToolbar();
-    pickerFocus_ = add<ui::FocusProxy>(tr(L"Yanlış sözler mi?"));   // the painted link beside the lyrics label
+    pickerFocus_ = add<ui::FocusProxy>();   // the painted link beside the lyrics label (its text is visible: no tooltip)
     pickerFocus_->onActivateFn = [this] {
         if (const auto* t = ctx().player ? ctx().player->current() : nullptr) showLyricsPicker(*t, lyrics_.lrclibId);
     };
@@ -339,7 +341,7 @@ void NowPlayingView::buildToolbar() {
     translate_->setTooltip(tr(L"Her satırın çevirisini altında göster"));
     translate_->onClick = [this] { translation_.toggle(); };
     earlier_ = add<Button>(ButtonKind::Icon, L"", "minus");
-    earlier_->setTooltip(tr(L"Sözleri daha erken göster"));
+    earlier_->setTooltip(commands::keyTip(tr(L"Sözleri daha erken göster"), "lyrics-earlier"));
     earlier_->onClick = [this] {
         setLyricsOffset(trackId_, lyricsOffset(trackId_) - kLyricsOffsetStepMs);
         syncLyricsControls();
@@ -351,13 +353,13 @@ void NowPlayingView::buildToolbar() {
         syncLyricsControls();
     };
     later_ = add<Button>(ButtonKind::Icon, L"", "plus");
-    later_->setTooltip(tr(L"Sözleri daha geç göster"));
+    later_->setTooltip(commands::keyTip(tr(L"Sözleri daha geç göster"), "lyrics-later"));
     later_->onClick = [this] {
         setLyricsOffset(trackId_, lyricsOffset(trackId_) + kLyricsOffsetStepMs);
         syncLyricsControls();
     };
     fullscreen_ = add<Button>(ButtonKind::Icon, L"", "expand");
-    fullscreen_->setTooltip(tr(L"Tam ekran sözler"));
+    fullscreen_->setTooltip(commands::keyTip(tr(L"Tam ekran sözler"), "lyrics-fullscreen"));
     fullscreen_->onClick = [] {
         if (ctx().toggleLyricsFullscreen) ctx().toggleLyricsFullscreen();
     };
@@ -510,12 +512,13 @@ void NowPlayingView::syncControls() {
     const bool live = t && radio::isStationId(t->id);
     play_->setPlaying(p && p->isPlaying());
     play_->setLoading(p && p->status() == player::Status::Resolving);
+    play_->setTooltip(commands::keyTip(p && p->isPlaying() ? tr(L"Duraklat") : tr(L"Oynat"), "play-pause"));
     seek_->setFlowing(p && p->status() == player::Status::Playing);
     seek_->setLive(live);
     const auto shuffleMode = smartshuffle::mode();
     shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
     shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart" : "shuffle");
-    shuffle_->setTooltip(smartshuffle::modeLabel(shuffleMode));
+    shuffle_->setTooltip(commands::keyTip(smartshuffle::modeLabel(shuffleMode), "shuffle"));
     const auto rep = p ? p->repeat() : RepeatMode::Off;
     repeat_->setActive(rep != RepeatMode::Off);
     repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
@@ -527,7 +530,7 @@ void NowPlayingView::syncControls() {
     if (const std::string id = t ? t->id : std::string(); !id.empty() && id == likedId_ && liked != likedWas_) heart_->pulse();
     likedId_ = t ? t->id : std::string();
     likedWas_ = liked;
-    heart_->setTooltip(!live ? std::wstring(tr(L"Beğen")) : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
+    heart_->setTooltip(!live ? commands::keyTip(tr(L"Beğen"), "like") : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
     heart_->setVisible(t && (live || ctx().library.canLike(t->id)));
     {
         const float sp = p ? p->speed() : 1.f;
@@ -547,8 +550,8 @@ void NowPlayingView::syncControls() {
     videoBtn_->setEnabled(videomode::enabled());
     videoBtn_->setActive(videomode::on());
     videoBtn_->setTooltip(!videomode::enabled() ? std::wstring(tr(L"Bu şarkı için video yok"))
-                          : videomode::on()     ? std::wstring(tr(L"Video modunu kapat"))
-                                                : std::wstring(tr(L"Video modu")));
+                          : videomode::on()     ? commands::keyTip(tr(L"Video modunu kapat"), "video-mode")
+                                                : commands::keyTip(tr(L"Video modu"), "video-mode"));
     for (auto* b : {prev_, next_}) b->setEnabled(t != nullptr);
     // Listen together: a guest's transport follows the host (requests when the host allows it, else off), shuffle and
     // repeat are the host's.

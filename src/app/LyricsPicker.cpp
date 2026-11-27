@@ -122,8 +122,8 @@ public:
             pick();
         }
     }
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     void paint(Canvas& c) override {
         const Rect r = rect();
@@ -316,7 +316,7 @@ void showLyricsPicker(const catalog::Track& t, int64_t shownLrclibId) {
     auto* body = d->body()->add<PickerBody>(t, shownLrclibId, d);
     if (lyricsChoice(t.id).kind != Kind::Auto) {
         const std::string id = t.id;
-        d->addButton(tr(L"Otomatik seçime dön"), ui::ButtonKind::Ghost, [id] {
+        d->addLeadingButton(tr(L"Otomatik seçime dön"), ui::ButtonKind::Ghost, [id] {
             setLyricsChoice(id, lyrics::Choice{});
             toast(tr(L"Sözler yeniden otomatik seçiliyor"));
         });
