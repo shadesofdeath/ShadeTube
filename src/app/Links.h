@@ -13,6 +13,13 @@
 //   musicbrainz.org/{release-group,release,artist,recording}/<mbid>[/...];
 //   shadetube://jam/<base64url token>[/] (a listen-together invite; app/JamInvite decodes the token) and
 //   shadetube://blend/<base64url token>[/] (a Blend invite). Any other shadetube: link is Unsupported.
+//   Other services' lists and songs (app/ServiceImport reads them; Service* kinds):
+//     deezer.com/[<lang>/]{playlist,album,track}/<digits> (id = the digits); the short links link.deezer.com/s/<code>,
+//     deezer.page.link/<code> and dzr.page.link/<code> (ServiceShortLink, id = the https link; resolved before use);
+//     music.apple.com (also geo. / embed. / itunes.apple.com) /<storefront>/{playlist,album,song}/[<slug>/]<id>, an
+//     album link with ?i=<song> being the song (id = "<storefront>/<id>", storefront lower case, "us" when missing);
+//     tidal.com / listen.tidal.com /[browse/]{playlist/<uuid>,album/<digits>,track/<digits>}, .../album/<a>/track/<t>
+//     and embed.tidal.com/{playlists,albums,tracks}/<id> (id = the uuid, lower case, or the digits).
 // Links of those services to things ShadeTube can't open (podcast episodes, YouTube channels, spotify.link short
 // links...) parse as Kind::Unsupported, so the caller can say so instead of searching for a URL.
 //
@@ -22,7 +29,7 @@
 
 namespace st::app::links {
 
-enum class Service { None, Spotify, YouTube, MusicBrainz, ShadeTube };
+enum class Service { None, Spotify, YouTube, MusicBrainz, ShadeTube, Deezer, AppleMusic, Tidal };
 
 enum class Kind {
     None,               // not a link of a known service: search for the text as usual
@@ -43,13 +50,18 @@ enum class Kind {
     BlendInvite,        // shadetube://blend/<token>: a Blend invite (app/Blends; id = the whole link)
     SpotifyShow,        // a podcast: opened in Podcastler through its public feed (app/PodcastsSpotify)
     SpotifyUser,        // a profile (id = the username as the link has it, percent-encoding kept)
+    // Deezer / Apple Music / TIDAL (Link::service says which; app/ServiceImport):
+    ServicePlaylist,    // imported as a local playlist, its songs matched in the active catalog
+    ServiceAlbum,       // opened as the active catalog's album when it has it, else imported
+    ServiceTrack,       // its match in the active catalog plays
+    ServiceShortLink,   // a Deezer short link (id = the link): resolved to one of the three above first
 };
 
 struct Link {
     Kind kind = Kind::None;
     Service service = Service::None;
-    std::string id;     // base62 (Spotify), 11-char video id / playlist id (YouTube), lower-case MBID (MusicBrainz);
-                        // "" for Unsupported
+    std::string id;     // base62 (Spotify), 11-char video id / playlist id (YouTube), lower-case MBID (MusicBrainz),
+                        // the Service* ids above; "" for Unsupported
     explicit operator bool() const { return kind != Kind::None; }
     // "spotify:album:<id>" for the Spotify kinds (the catalog id the app uses), "" otherwise.
     std::string spotifyUri() const;
