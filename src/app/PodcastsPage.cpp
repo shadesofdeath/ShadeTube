@@ -636,16 +636,43 @@ public:
         subscribe_ = add<Button>(ButtonKind::Secondary, tr(L"Abone ol"), "plus");
         more_ = add<Button>(ButtonKind::IconOutline, L"", "more");
         more_->setTooltip(tr(L"Diğer seçenekler"));
-        order_ = add<Button>(ButtonKind::Ghost, tr(L"En yeni önce"), "sort");
+        // The list's order and search as on the album / playlist pages: "SIRALA <order>", then a search icon that
+        // opens the field in their place.
+        order_ = add<Button>(ButtonKind::Ghost, tr(L"En yeni önce"));
+        order_->setTooltip(tr(L"Sırala"));
+        search_ = add<Button>(ButtonKind::Icon, L"", "search");
+        search_->setTooltip(tr(L"Bölümlerde ara"));
+        search_->onClick = [this] {
+            const bool show = !filter_->visible();
+            filter_->setVisible(show);
+            if (show) filter_->focus();
+            else filter_->setText({}, true);
+            requestLayout();
+            invalidate();
+        };
         filter_ = add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Bölümlerde ara"));
+        filter_->setVisible(false);
         gfx::TextOptions wrap;
         wrap.wrap = true;
         wrap.maxLines = 2;
         desc_ = gfx::Text({}, type::secondary, wrap);
+        sortLabel_ = gfx::Text(tr(L"SIRALA"), type::monoLabel);
+    }
+    // Escape in the field: the text first, then the field closes (focus back on the icon).
+    void closeFilter() {
+        if (!filter_->text().empty()) {
+            filter_->setText({}, true);
+            return;
+        }
+        filter_->setVisible(false);
+        search_->focus();
+        requestLayout();
+        invalidate();
     }
 
     void setShow(const Show& s) {
         show_ = s;
+        makeTexts();
         setTitle(toWide(s.title));
         desc_.setText(snippet(s.description, 400));
         images_.clear();
@@ -672,10 +699,13 @@ public:
         const float sw = subscribe_->naturalWidth();
         subscribe_->setRect({56 + 16, y + 8, sw, 40});
         more_->setRect({56 + 16 + sw + 14, y + 8, 40, 40});
-        const float fw = std::min(260.f, std::max(160.f, r.w * 0.28f));
-        filter_->setRect({r.w - fw, y + 6, fw, 44});
+        // The collection header's right end (CollectionPage DetailHeader): search icon, the order, "SIRALA".
+        search_->setRect({r.w - 32, y + 12, 32, 32});
         const float ow = order_->naturalWidth();
-        order_->setRect({r.w - fw - 12 - ow, y + 10, ow, 36});
+        order_->setRect({r.w - 32 - 8 - ow, y + 10, ow, 36});
+        order_->setVisible(!filter_->visible());
+        filter_->setRect({r.w - 32 - 8 - 240, y + 8, 240, 40});
+        sortLabelX_ = r.w - 32 - 8 - ow - 8;
         // Texts (header-local): the title beside the artwork, the notes (two lines at most), the author line.
         const float tx = kCoverSize + 32, tw = std::max(0.f, r.w - tx);
         const float th = fitTitle(tw, {72.f, 56.f, 44.f, 36.f, 28.f}, 44.f, type::displayXL);
@@ -691,7 +721,7 @@ public:
         lineY_ = ty;
     }
 
-    Button *subscribe_, *more_, *order_;
+    Button *subscribe_, *more_, *order_, *search_;
     ui::TextBox* filter_;
 
 protected:
@@ -699,20 +729,30 @@ protected:
         const Rect r = rect();
         const auto& col = colors();
         const float tx = r.x + kCoverSize + 32, tw = std::max(0.f, r.right() - tx);
-        std::wstring label = toUpperTr(tr(L"Podcast"));
-        if (!show_.categories.empty()) label += L" · " + toUpperTr(toWide(show_.categories.front()));
-        c.text(label, type::monoLabel, {tx, r.y + labelY_, tw, 14}, col.fgSecondary);
+        // Laid out when the show changes (setShow), not on every frame of a scroll.
+        c.text(label_, {tx, r.y + labelY_, tw, 14}, col.fgSecondary);
         if (!desc_.empty()) c.text(desc_, {tx, r.y + descY_, descW_, descH_}, col.fgSecondary);
-        std::wstring line = toWide(show_.author);
-        const std::wstring count = i18n::plural(L"{} bölüm", static_cast<int>(show_.episodes.size()));
-        line += line.empty() ? count : L" · " + count;
-        c.text(line, type::body, {tx, r.y + lineY_, tw, 22}, col.fgPrimary, gfx::TextAlign::Leading, gfx::VAlign::Center);
+        c.text(line_, {tx, r.y + lineY_, tw, 22}, col.fgPrimary, gfx::VAlign::Center);
+        if (!filter_->visible()) {
+            const float sw = std::ceil(sortW_);
+            c.text(sortLabel_, {r.x + sortLabelX_ - sw - 1, r.y + 232 + 28, sw + 1, 56}, col.fgTertiary, gfx::VAlign::Center);
+        }
     }
 
 private:
+    void makeTexts() {
+        std::wstring label = toUpperTr(tr(L"Podcast"));
+        if (!show_.categories.empty()) label += L" · " + toUpperTr(toWide(show_.categories.front()));
+        label_ = gfx::Text(label, type::monoLabel);
+        std::wstring line = toWide(show_.author);
+        const std::wstring count = i18n::plural(L"{} bölüm", static_cast<int>(show_.episodes.size()));
+        line += line.empty() ? count : L" · " + count;
+        line_ = gfx::Text(line, type::body);
+        sortW_ = gfx::Text(tr(L"SIRALA"), type::monoLabel).measure().w;
+    }
     Show show_;
-    gfx::Text desc_;
-    float labelY_ = 0, descY_ = 0, descW_ = 0, descH_ = 0, lineY_ = 0;
+    gfx::Text desc_, label_, line_, sortLabel_;
+    float labelY_ = 0, descY_ = 0, descW_ = 0, descH_ = 0, lineY_ = 0, sortLabelX_ = 0, sortW_ = 0;
 };
 
 // ===================================================================================================
@@ -848,7 +888,7 @@ private:
         // Every widget pointer goes with the old content (a rebuild shows a skeleton or an error first).
         header_ = nullptr;
         list_ = nullptr;
-        empty_ = nullptr;
+        empty_ = noMatch_ = nullptr;
         body_ = searchSec_ = progressSec_ = newSec_ = subsSec_ = chartsSec_ = spotifySec_ = nullptr;
         importRows_.clear();
         importSummary_ = nullptr;
@@ -1280,9 +1320,12 @@ private:
             filter_ = foldForSearch(s);
             applyFilter();
         };
-        header_->filter_->onEscape = [this] { header_->filter_->setText({}, true); };
+        header_->filter_->onEscape = [this] { header_->closeFilter(); };
         list_ = c->add<EpisodeList>(EpisodeList::Options{false, false});
-        empty_ = c->add<ui::Label>(tr(L"Bu podcastte çalınabilir bölüm yok."), type::secondary, ui::Tone::Secondary);
+        // The shared states: nothing playable in the feed, nothing matching the search.
+        empty_ = emptyState(c, "podcast", std::wstring(), tr(L"Bu podcastte çalınabilir bölüm yok."));
+        empty_->setCompact(true);
+        noMatch_ = noResultsState(c, tr(L"Aramana uyan bölüm yok."));
         attachHeader(header_, list_);
         applyFilter();
         syncHeaderPlay();
@@ -1298,8 +1341,8 @@ private:
                 foldForSearch(toWide(e.description.substr(0, 2000))).find(filter_) != std::wstring::npos)
                 view.push_back(e);
         if (!newestFirst_) std::reverse(view.begin(), view.end());
-        empty_->setVisible(view.empty());
-        if (!filter_.empty() && view.empty()) empty_->setText(tr(L"Aramana uyan bölüm yok."));
+        empty_->setVisible(view.empty() && filter_.empty());
+        noMatch_->setVisible(view.empty() && !filter_.empty());
         list_->setEpisodes(std::move(view));
         scroll_->contentChanged();
     }
@@ -1646,7 +1689,7 @@ private:
     Show show_;
     ShowHeader* header_ = nullptr;
     EpisodeList* list_ = nullptr;
-    ui::Label* empty_ = nullptr;
+    MessagePanel *empty_ = nullptr, *noMatch_ = nullptr;
     std::wstring filter_;
     bool newestFirst_ = true;
     bool rebuildPosted_ = false, spotifyPosted_ = false;
