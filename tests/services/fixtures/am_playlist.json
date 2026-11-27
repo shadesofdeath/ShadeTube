@@ -1,0 +1,214 @@
+{
+ "data": [
+  {
+   "id": "pl.2b7ed7ebbc6e494caabebc04f2ac71dd",
+   "type": "playlists",
+   "href": "/v1/catalog/us/playlists/pl.2b7ed7ebbc6e494caabebc04f2ac71dd?l=en-US",
+   "attributes": {
+    "artwork": {
+     "hasP3": false,
+     "height": 2400,
+     "url": "https://is1-ssl.mzstatic.com/image/thumb/SG-MQ-US-004-Image-000001/v4/88/10/c7/8810c719-62a9-4d59-d022-9360b4ba50ba/image/{w}x{h}bb.jpg",
+     "width": 2400
+    },
+    "audioTraits": [],
+    "curatorName": "Warner Classics",
+    "description": {
+     "standard": "2019 marks the 150th anniversary of Hector Berlioz’s death. This first-ever complete Berlioz edition brings a wealth of milestone recordings, multi-award winners next to a number of world premiere recordings and as a bonus some historical recordings. If you like a track, add it to your library."
+    },
+    "hasCollaboration": false,
+    "isChart": false,
+    "lastModifiedDate": "2020-02-05T13:11:15Z",
+    "name": "Berlioz: The Complete Works",
+    "playParams": {
+     "id": "pl.2b7ed7ebbc6e494caabebc04f2ac71dd",
+     "kind": "playlist",
+     "versionHash": "ef2ccc956bbaff589102b62a17645bcc1a9f816bc08033549458736c4a8d1b48"
+    },
+    "playlistType": "external",
+    "supportsSing": false,
+    "url": "https://music.apple.com/us/playlist/berlioz-the-complete-works/pl.2b7ed7ebbc6e494caabebc04f2ac71dd"
+   },
+   "relationships": {
+    "curator": {
+     "href": "/v1/catalog/us/playlists/pl.2b7ed7ebbc6e494caabebc04f2ac71dd/curator?l=en-US",
+     "data": [
+      {
+       "id": "1153741571",
+       "type": "curators",
+       "href": "/v1/catalog/us/curators/1153741571?l=en-US"
+      }
+     ]
+    },
+    "tracks": {
+     "href": "/v1/catalog/us/playlists/pl.2b7ed7ebbc6e494caabebc04f2ac71dd/tracks?l=en-US",
+     "next": "/v1/catalog/us/playlists/pl.2b7ed7ebbc6e494caabebc04f2ac71dd/tracks?l=en-US&offset=3",
+     "data": [
+      {
+       "id": "1446788217",
+       "type": "songs",
+       "href": "/v1/catalog/us/songs/1446788217?l=en-US",
+       "attributes": {
+        "albumArtistName": "Various Artists",
+        "albumName": "Berlioz: The Works Collection",
+        "artistName": "Sir Roger Norrington & London Classical Players",
+        "artwork": {
+         "bgColor": "d37e18",
+         "hasP3": false,
+         "height": 3000,
+         "textColor1": "000f0d",
+         "textColor2": "0d201b",
+         "textColor3": "2a250f",
+         "textColor4": "34331b",
+         "url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/4e/63/81/4e6381bc-cbca-3e41-be82-88e7c7a3dbcd/190295502836.jpg/{w}x{h}bb.jpg",
+         "width": 3000
+        },
+        "attribution": "Hector Berlioz",
+        "audioLocale": "zxx",
+        "audioTraits": [
+         "lossless",
+         "lossy-stereo"
+        ],
+        "composerName": "Hector Berlioz",
+        "discNumber": 1,
+        "durationInMillis": 694653,
+        "genreNames": [
+         "Classical",
+         "Music",
+         "Romantic Era"
+        ],
+        "hasLyrics": false,
+        "hasTimeSyncedLyrics": false,
+        "isAppleDigitalMaster": false,
+        "isMasteredForItunes": false,
+        "isVocalAttenuationAllowed": false,
+        "isrc": "GBAYC8805771",
+        "name": "Les Francs-Juges, Op. 3, H. 23d: Overture",
+        "playParams": {
+         "id": "1446788217",
+         "kind": "song"
+        },
+        "previews": [
+         {
+          "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/e3/20/24/e3202437-ffaa-4a39-f8a4-64a9901b91a6/mzaf_14851911131386103339.plus.aac.ep.m4a"
+         }
+        ],
+        "releaseDate": "1990-03-01",
+        "trackNumber": 1,
+        "url": "https://music.apple.com/us/album/les-francs-juges-op-3-h-23d-overture/1446788049?i=1446788217"
+       }
+      },
+      {
+       "id": "1446788226",
+       "type": "songs",
+       "href": "/v1/catalog/us/songs/1446788226?l=en-US",
+       "attributes": {
+        "albumArtistName": "Various Artists",
+        "albumName": "Berlioz: The Works Collection",
+        "artistName": "Sir Adrian Boult & London Philharmonic Orchestra",
+        "artwork": {
+         "bgColor": "d37e18",
+         "hasP3": false,
+         "height": 3000,
+         "textColor1": "000f0d",
+         "textColor2": "0d201b",
+         "textColor3": "2a250f",
+         "textColor4": "34331b",
+         "url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/4e/63/81/4e6381bc-cbca-3e41-be82-88e7c7a3dbcd/190295502836.jpg/{w}x{h}bb.jpg",
+         "width": 3000
+        },
+        "attribution": "Hector Berlioz",
+        "audioLocale": "zxx",
+        "audioTraits": [
+         "lossless",
+         "lossy-stereo"
+        ],
+        "composerName": "Hector Berlioz",
+        "discNumber": 1,
+        "durationInMillis": 618800,
+        "genreNames": [
+         "Classical",
+         "Music",
+         "Romantic Era"
+        ],
+        "hasLyrics": false,
+        "hasTimeSyncedLyrics": false,
+        "isAppleDigitalMaster": false,
+        "isMasteredForItunes": false,
+        "isVocalAttenuationAllowed": false,
+        "isrc": "GBAYC1801482",
+        "name": "Overture \"Waverley\", Op. 1, H. 26",
+        "playParams": {
+         "id": "1446788226",
+         "kind": "song"
+        },
+        "previews": [
+         {
+          "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/72/6e/f0/726ef010-4489-99e0-aa31-338f89d16b75/mzaf_17687995269532529234.plus.aac.ep.m4a"
+         }
+        ],
+        "releaseDate": "2010-11-01",
+        "trackNumber": 2,
+        "url": "https://music.apple.com/us/album/overture-waverley-op-1-h-26/1446788049?i=1446788226"
+       }
+      },
+      {
+       "id": "1446788228",
+       "type": "songs",
+       "href": "/v1/catalog/us/songs/1446788228?l=en-US",
+       "attributes": {
+        "albumArtistName": "Various Artists",
+        "albumName": "Berlioz: The Works Collection",
+        "artistName": "Sir Adrian Boult & London Philharmonic Orchestra",
+        "artwork": {
+         "bgColor": "d37e18",
+         "hasP3": false,
+         "height": 3000,
+         "textColor1": "000f0d",
+         "textColor2": "0d201b",
+         "textColor3": "2a250f",
+         "textColor4": "34331b",
+         "url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/4e/63/81/4e6381bc-cbca-3e41-be82-88e7c7a3dbcd/190295502836.jpg/{w}x{h}bb.jpg",
+         "width": 3000
+        },
+        "attribution": "Hector Berlioz",
+        "audioLocale": "zxx",
+        "audioTraits": [
+         "lossless",
+         "lossy-stereo"
+        ],
+        "composerName": "Hector Berlioz",
+        "discNumber": 1,
+        "durationInMillis": 946373,
+        "genreNames": [
+         "Classical",
+         "Music",
+         "Romantic Era"
+        ],
+        "hasLyrics": false,
+        "hasTimeSyncedLyrics": false,
+        "isAppleDigitalMaster": false,
+        "isMasteredForItunes": false,
+        "isVocalAttenuationAllowed": false,
+        "isrc": "GBAYC1801483",
+        "name": "Overture \"Le Roi Lear\", Op. 4, H. 53",
+        "playParams": {
+         "id": "1446788228",
+         "kind": "song"
+        },
+        "previews": [
+         {
+          "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/2a/7c/b5/2a7cb56b-fd6e-f95e-4767-7018125f2dca/mzaf_9087720275541185953.plus.aac.ep.m4a"
+         }
+        ],
+        "releaseDate": "2010-11-01",
+        "trackNumber": 3,
+        "url": "https://music.apple.com/us/album/overture-le-roi-lear-op-4-h-53/1446788049?i=1446788228"
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

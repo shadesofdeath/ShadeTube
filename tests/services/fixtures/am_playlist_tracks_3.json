@@ -1,0 +1,166 @@
+{
+ "data": [
+  {
+   "id": "1446788230",
+   "type": "songs",
+   "href": "/v1/catalog/us/songs/1446788230?l=en-US",
+   "attributes": {
+    "albumArtistName": "Various Artists",
+    "albumName": "Berlioz: The Works Collection",
+    "artistName": "Sir Adrian Boult & London Philharmonic Orchestra",
+    "artwork": {
+     "bgColor": "d37e18",
+     "hasP3": false,
+     "height": 3000,
+     "textColor1": "000f0d",
+     "textColor2": "0d201b",
+     "textColor3": "2a250f",
+     "textColor4": "34331b",
+     "url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/4e/63/81/4e6381bc-cbca-3e41-be82-88e7c7a3dbcd/190295502836.jpg/{w}x{h}bb.jpg",
+     "width": 3000
+    },
+    "attribution": "Hector Berlioz",
+    "audioLocale": "zxx",
+    "audioTraits": [
+     "lossless",
+     "lossy-stereo"
+    ],
+    "composerName": "Hector Berlioz",
+    "discNumber": 1,
+    "durationInMillis": 725787,
+    "genreNames": [
+     "Classical",
+     "Music",
+     "Romantic Era"
+    ],
+    "hasLyrics": false,
+    "hasTimeSyncedLyrics": false,
+    "isAppleDigitalMaster": false,
+    "isMasteredForItunes": false,
+    "isVocalAttenuationAllowed": false,
+    "isrc": "GBAYC1801484",
+    "name": "Overture \"Intrata di Rob-Roy MacGregor\", H. 54",
+    "playParams": {
+     "id": "1446788230",
+     "kind": "song"
+    },
+    "previews": [
+     {
+      "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview128/v4/ed/27/8a/ed278a23-144d-4aac-cc0d-feac84225965/mzaf_8705913436433589382.plus.aac.ep.m4a"
+     }
+    ],
+    "releaseDate": "2010-11-01",
+    "trackNumber": 4,
+    "url": "https://music.apple.com/us/album/overture-intrata-di-rob-roy-macgregor-h-54/1446788049?i=1446788230"
+   }
+  },
+  {
+   "id": "1446788382",
+   "type": "songs",
+   "href": "/v1/catalog/us/songs/1446788382?l=en-US",
+   "attributes": {
+    "albumArtistName": "Various Artists",
+    "albumName": "Berlioz: The Works Collection",
+    "artistName": "Mariss Jansons & Royal Concertgebouw Orchestra",
+    "artwork": {
+     "bgColor": "d37e18",
+     "hasP3": false,
+     "height": 3000,
+     "textColor1": "000f0d",
+     "textColor2": "0d201b",
+     "textColor3": "2a250f",
+     "textColor4": "34331b",
+     "url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/4e/63/81/4e6381bc-cbca-3e41-be82-88e7c7a3dbcd/190295502836.jpg/{w}x{h}bb.jpg",
+     "width": 3000
+    },
+    "attribution": "Hector Berlioz",
+    "audioLocale": "zxx",
+    "audioTraits": [
+     "lossless",
+     "lossy-stereo"
+    ],
+    "composerName": "Hector Berlioz",
+    "discNumber": 1,
+    "durationInMillis": 23560,
+    "genreNames": [
+     "Classical",
+     "Music",
+     "Romantic Era"
+    ],
+    "hasLyrics": false,
+    "hasTimeSyncedLyrics": false,
+    "isAppleDigitalMaster": false,
+    "isMasteredForItunes": false,
+    "isVocalAttenuationAllowed": false,
+    "isrc": "GBAYC9101957",
+    "name": "Le Carnaval romain, Op. 9, H. 95: I. Allegro assai con fuoco",
+    "playParams": {
+     "id": "1446788382",
+     "kind": "song"
+    },
+    "previews": [
+     {
+      "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/79/38/1a/79381ad4-c7a5-321e-6874-1c55b756fe5a/mzaf_80906676201921515.plus.aac.p.m4a"
+     }
+    ],
+    "releaseDate": "1992-08-01",
+    "trackNumber": 5,
+    "url": "https://music.apple.com/us/album/le-carnaval-romain-op-9-h-95-i-allegro-assai-con-fuoco/1446788049?i=1446788382"
+   }
+  },
+  {
+   "id": "1446788389",
+   "type": "songs",
+   "href": "/v1/catalog/us/songs/1446788389?l=en-US",
+   "attributes": {
+    "albumArtistName": "Various Artists",
+    "albumName": "Berlioz: The Works Collection",
+    "artistName": "Mariss Jansons & Royal Concertgebouw Orchestra",
+    "artwork": {
+     "bgColor": "d37e18",
+     "hasP3": false,
+     "height": 3000,
+     "textColor1": "000f0d",
+     "textColor2": "0d201b",
+     "textColor3": "2a250f",
+     "textColor4": "34331b",
+     "url": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/4e/63/81/4e6381bc-cbca-3e41-be82-88e7c7a3dbcd/190295502836.jpg/{w}x{h}bb.jpg",
+     "width": 3000
+    },
+    "attribution": "Hector Berlioz",
+    "audioLocale": "zxx",
+    "audioTraits": [
+     "lossless",
+     "lossy-stereo"
+    ],
+    "composerName": "Hector Berlioz",
+    "discNumber": 1,
+    "durationInMillis": 203080,
+    "genreNames": [
+     "Classical",
+     "Music",
+     "Romantic Era"
+    ],
+    "hasLyrics": false,
+    "hasTimeSyncedLyrics": false,
+    "isAppleDigitalMaster": false,
+    "isMasteredForItunes": false,
+    "isVocalAttenuationAllowed": false,
+    "isrc": "GBAYC9101958",
+    "name": "Le Carnaval romain, Op. 9, H. 95: II. Andante sostenuto",
+    "playParams": {
+     "id": "1446788389",
+     "kind": "song"
+    },
+    "previews": [
+     {
+      "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/22/dd/2b/22dd2b44-71b9-e869-ef1d-3fab52e05ba8/mzaf_988526676074799885.plus.aac.ep.m4a"
+     }
+    ],
+    "releaseDate": "1992-01-01",
+    "trackNumber": 6,
+    "url": "https://music.apple.com/us/album/le-carnaval-romain-op-9-h-95-ii-andante-sostenuto/1446788049?i=1446788389"
+   }
+  }
+ ]
+}

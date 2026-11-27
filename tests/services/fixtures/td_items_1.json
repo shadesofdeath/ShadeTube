@@ -1,0 +1,409 @@
+{
+ "data": [
+  {
+   "id": "165842038",
+   "type": "tracks",
+   "meta": {
+    "itemId": "5fc0c5ad-06fa-41cf-a1cf-0e1c83d73ef9",
+    "addedAt": "2021-04-24T12:39:32.904255Z"
+   }
+  },
+  {
+   "id": "136832214",
+   "type": "tracks",
+   "meta": {
+    "itemId": "6629496d-f4bc-40bc-9247-d93a04cd6e4f",
+    "addedAt": "2021-04-24T12:39:41.700857Z"
+   }
+  },
+  {
+   "id": "175898049",
+   "type": "tracks",
+   "meta": {
+    "itemId": "20fb6215-2e98-4eea-9532-a57c4c4e2c07",
+    "addedAt": "2021-04-24T12:40:59.984895Z"
+   }
+  }
+ ],
+ "links": {
+  "self": "/playlists/4fd2cace-5255-409b-8748-b3661380bc7a/relationships/items?include=items.albums%2Citems.artists&countryCode=US",
+  "next": "/playlists/4fd2cace-5255-409b-8748-b3661380bc7a/relationships/items?include=items.albums%2Citems.artists&countryCode=US&page%5Bcursor%5D=eyJ2ZXJzaW9uIjoxLCJwbGF5bGlzdElkIjoiNGZkMmNhY2UtNTI1NS00MDliLTg3NDgtYjM2NjEzODBiYzdhIiwic29ydCI6IklURU1fSU5ERVgiLCJzb3J0RGlyZWN0aW9uIjoiQVNDIiwicm93SWQiOjQ4NTkzNjI4NzAsImluZGV4U29ydFZhbHVlIjoyMDAwMDAwLCJhZGRlZEF0IjoiMjAyMS0wNS0wNVQxMTozNToyOC41ODg0NzkifQ",
+  "meta": {
+   "nextCursor": "eyJ2ZXJzaW9uIjoxLCJwbGF5bGlzdElkIjoiNGZkMmNhY2UtNTI1NS00MDliLTg3NDgtYjM2NjEzODBiYzdhIiwic29ydCI6IklURU1fSU5ERVgiLCJzb3J0RGlyZWN0aW9uIjoiQVNDIiwicm93SWQiOjQ4NTkzNjI4NzAsImluZGV4U29ydFZhbHVlIjoyMDAwMDAwLCJhZGRlZEF0IjoiMjAyMS0wNS0wNVQxMTozNToyOC41ODg0NzkifQ"
+  }
+ },
+ "included": [
+  {
+   "id": "136832212",
+   "type": "albums",
+   "attributes": {
+    "title": "async",
+    "barcodeId": "731383683060",
+    "numberOfVolumes": 1,
+    "numberOfItems": 14,
+    "duration": "PT1H35S",
+    "explicit": false,
+    "ai": false,
+    "releaseDate": "2017-04-28",
+    "copyright": {
+     "text": "(P) 2017 KAB America, under exclusive license to Milan Entertainment Inc."
+    },
+    "popularity": 0.6160131311655477,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/136832212",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "ALBUM",
+    "albumType": "ALBUM"
+   }
+  },
+  {
+   "id": "165842024",
+   "type": "albums",
+   "attributes": {
+    "title": "TRON: Legacy - The Complete Edition (Original Motion Picture Soundtrack)",
+    "barcodeId": "00050087478704",
+    "numberOfVolumes": 1,
+    "numberOfItems": 31,
+    "duration": "PT1H23M10S",
+    "explicit": false,
+    "ai": false,
+    "releaseDate": "2010-12-07",
+    "copyright": {
+     "text": "© 2020 Disney"
+    },
+    "popularity": 0.7584259033750487,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/165842024",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "ALBUM",
+    "albumType": "ALBUM",
+    "version": "Original Motion Picture Soundtrack",
+    "createdAt": "2020-12-11T22:02:35Z"
+   }
+  },
+  {
+   "id": "175898048",
+   "type": "albums",
+   "attributes": {
+    "title": "Scary Hours 2",
+    "barcodeId": "00602435945590",
+    "numberOfVolumes": 1,
+    "numberOfItems": 3,
+    "duration": "PT12M34S",
+    "explicit": true,
+    "ai": false,
+    "releaseDate": "2021-03-05",
+    "copyright": {
+     "text": "© 2021 OVO"
+    },
+    "popularity": 0.8382444431386842,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/175898048",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "SINGLE",
+    "albumType": "SINGLE",
+    "createdAt": "2021-03-04T13:57:07Z"
+   }
+  },
+  {
+   "id": "1315",
+   "type": "artists",
+   "attributes": {
+    "name": "Ryuichi Sakamoto",
+    "popularity": 0.7478233360058596,
+    "numberOfFollowers": 47110,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/1315",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "contributionsEnabled": false,
+    "ownerType": "LABEL",
+    "ownerAgeRestricted": false
+   }
+  },
+  {
+   "id": "3632070",
+   "type": "artists",
+   "attributes": {
+    "name": "Drake",
+    "popularity": 0.9920331301811972,
+    "numberOfFollowers": 4128725,
+    "externalLinks": [
+     {
+      "href": "https://twitter.com/Drake",
+      "meta": {
+       "type": "TWITTER"
+      }
+     },
+     {
+      "href": "https://tidal.com/browse/artist/3632070",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "contributionsEnabled": false,
+    "ownerType": "LABEL",
+    "ownerAgeRestricted": false
+   }
+  },
+  {
+   "id": "8847",
+   "type": "artists",
+   "attributes": {
+    "name": "Daft Punk",
+    "popularity": 0.9363624453544617,
+    "numberOfFollowers": 1586444,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/8847",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "contributionsEnabled": false,
+    "ownerType": "LABEL",
+    "ownerAgeRestricted": false
+   }
+  },
+  {
+   "id": "136832214",
+   "type": "tracks",
+   "attributes": {
+    "title": "disintegration",
+    "version": null,
+    "isrc": "JPB601700372",
+    "duration": "PT5M46S",
+    "copyright": {
+     "text": "(P) 2017 KAB America, under exclusive license to Milan Entertainment Inc."
+    },
+    "explicit": false,
+    "ai": false,
+    "key": "Eb",
+    "keyScale": "MAJOR",
+    "bpm": 89.0,
+    "popularity": 0.5036922822517745,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/136832214",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2020-04-08T19:50:03Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "1315",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/136832214/relationships/artists?countryCode=US"
+     }
+    },
+    "albums": {
+     "data": [
+      {
+       "id": "136832212",
+       "type": "albums"
+      }
+     ],
+     "links": {
+      "self": "/tracks/136832214/relationships/albums?countryCode=US"
+     }
+    }
+   }
+  },
+  {
+   "id": "165842038",
+   "type": "tracks",
+   "attributes": {
+    "title": "Fall",
+    "version": null,
+    "isrc": "USWD11054889",
+    "duration": "PT1M23S",
+    "copyright": {
+     "text": "℗ 2010 Walt Disney Records"
+    },
+    "explicit": false,
+    "ai": false,
+    "key": "E",
+    "keyScale": "MINOR",
+    "bpm": 90.0,
+    "popularity": 0.5946962514439861,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/165842038",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2020-12-11T22:02:36Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "8847",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/165842038/relationships/artists?countryCode=US"
+     }
+    },
+    "albums": {
+     "data": [
+      {
+       "id": "165842024",
+       "type": "albums"
+      }
+     ],
+     "links": {
+      "self": "/tracks/165842038/relationships/albums?countryCode=US"
+     }
+    }
+   }
+  },
+  {
+   "id": "175898049",
+   "type": "tracks",
+   "attributes": {
+    "title": "What’s Next",
+    "version": null,
+    "isrc": "USUG12101041",
+    "duration": "PT2M58S",
+    "copyright": {
+     "text": "℗ 2021 OVO"
+    },
+    "explicit": true,
+    "ai": false,
+    "key": "B",
+    "keyScale": "MAJOR",
+    "bpm": 130.0,
+    "popularity": 0.8437190564536851,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/175898049",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2021-03-04T13:57:07Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "3632070",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/175898049/relationships/artists?countryCode=US"
+     }
+    },
+    "albums": {
+     "data": [
+      {
+       "id": "175898048",
+       "type": "albums"
+      }
+     ],
+     "links": {
+      "self": "/tracks/175898049/relationships/albums?countryCode=US"
+     }
+    }
+   }
+  }
+ ]
+}

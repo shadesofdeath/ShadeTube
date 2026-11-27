@@ -1,0 +1,11 @@
+{
+ "errors": [
+  {
+   "id": "Z35STLTVOGFGC3BWCXFC3IMJW4",
+   "title": "Resource Not Found",
+   "detail": "Resource with requested id was not found",
+   "status": "404",
+   "code": "40400"
+  }
+ ]
+}

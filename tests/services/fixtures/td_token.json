@@ -1,0 +1,7 @@
+{
+ "access_token": "test-token",
+ "clientName": "test",
+ "expires_in": 14400,
+ "scope": "",
+ "token_type": "Bearer"
+}

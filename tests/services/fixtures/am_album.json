@@ -1,0 +1,224 @@
+{
+ "data": [
+  {
+   "id": "1889992111",
+   "type": "albums",
+   "href": "/v1/catalog/us/albums/1889992111?l=en-US",
+   "attributes": {
+    "artistName": "Olivia Rodrigo",
+    "artwork": {
+     "bgColor": "7c939f",
+     "hasP3": false,
+     "height": 4000,
+     "textColor1": "070605",
+     "textColor2": "141413",
+     "textColor3": "1e2224",
+     "textColor4": "282d2f",
+     "url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1d/1b/f9/1d1bf9b1-44c6-9a6c-6ffb-c158488c06ce/26UMGIM39303.rgb.jpg/{w}x{h}bb.jpg",
+     "width": 4000
+    },
+    "audioTraits": [
+     "atmos",
+     "lossless",
+     "lossy-stereo",
+     "spatial"
+    ],
+    "contentRating": "explicit",
+    "copyright": "℗ 2026 Olivia Rodrigo, under exclusive license to Geffen Records",
+    "editorialNotes": {
+     "short": "A pop savant raises her game and her standards on her third album.",
+     "standard": "<b>A pop savant raises her game and her standards on her third album.</b>\n\nOlivia Rodrigo has loved and lost many times since she cried through the suburbs as the heartbroken teenager in “drivers license.” She’s grown up, and her standards have gotten higher—for a good love song, but also for what makes a good relationship. \n\nWith her third album, <i>you seem pretty sad for a girl so in love</i>, Rodrigo is eager to share what she’s learned. “I found a lot of interesting pieces of myself in this album,” she tells Apple Music. “I just wanted to perfect a sad love song. All of my favorite love songs are so beautiful because there’s an element of yearning or melancholy or fear.”\n\nShe’s not the first woman to fall in love while waiting in the bathroom line at the bar, as she does in <b>“drop dead,”</b> but you’d be hard-pressed to find someone who can voice that specific, oh-so-familiar scene so vividly. \n\nShe sings of hoping to impress a boy’s sister on <b>“u + me = ᐸ3”</b> (“I try to win her over with my cynical humor and yacht rock music taste”); she captures that moment when a love develops from new butterflies into something deeper with <b>“purple”</b> (“I used to visit your town like a tourist/Now I’ve got a local grocery store and a favorite florist”).\n\nIt’s not all googly eyes, though: <b>“expectations”</b> taps into the mortification that sets in when the party goggles wear off and a dude goes from cute to cringe real fast (“I think he was on drugs/He wasn’t smart or funny/I convinced myself he was... And now his number’s blocked”), and she invokes the pop-punk snarl of Avril Lavigne and Paramore for <b>“my way.”</b>\n\nAnd even if she has fun between the ballads, the sadder, sparser songs lay out—again, in characteristically vivid detail—how Rodrigo believes the mistakes we make in the name of love are painful but effective teachers. \n\n<b>“cigarette smoke”</b> delivers one of Rodrigo’s strongest vocal performances, as well as a one-liner you wish you thought of in that final text to an ex (“I thought that we played the perfect couple/Until you didn’t want the part”). <b>“less,”</b> which brings her back to the piano by herself, teaches her that love isn’t all you need to make a relationship work: “If loving me means letting go and wishing me the best/Then I guess I wish, I wish, I wish you loved me less.” \n\nAlso effective teachers are the rock stars who came before her: “the cure,” a meditation on the baggage that sinks relationships, boasts a guitar riff that, let’s say, pays homage to “Everlong” as well as <i>Mellon Collie and the Infinite Sadness</i>-worthy strings, while the longing “what’s wrong with me” goes straight to the source by bringing Robert Smith of The Cure (the band, not the Olivia Rodrigo song) in for a duet.\n\nMaybe <i>you seem pretty sad for a girl so in love</i> is a collection of love notes, but not the kind you send: This is further proof of Rodrigo’s great capacity for feeling, and feeling it all—the brutal lows, sure, but also the bottomless hope that sparks with a look from a stranger in a crowded bar that could potentially change your life.",
+     "tagline": "New Album"
+    },
+    "genreNames": [
+     "Pop",
+     "Music"
+    ],
+    "isCompilation": false,
+    "isComplete": true,
+    "isMasteredForItunes": true,
+    "isPrerelease": false,
+    "isSingle": false,
+    "name": "you seem pretty sad for a girl so in love",
+    "playParams": {
+     "id": "1889992111",
+     "kind": "album"
+    },
+    "recordLabel": "Olivia Rodrigo PS",
+    "releaseDate": "2026-06-12",
+    "trackCount": 14,
+    "upc": "00199957777902",
+    "url": "https://music.apple.com/us/album/you-seem-pretty-sad-for-a-girl-so-in-love/1889992111"
+   },
+   "relationships": {
+    "tracks": {
+     "href": "/v1/catalog/us/albums/1889992111/tracks?l=en-US",
+     "data": [
+      {
+       "id": "1889992113",
+       "type": "songs",
+       "href": "/v1/catalog/us/songs/1889992113?l=en-US",
+       "attributes": {
+        "albumArtistName": "Olivia Rodrigo",
+        "albumName": "you seem pretty sad for a girl so in love",
+        "artistName": "Olivia Rodrigo",
+        "artwork": {
+         "bgColor": "7c939f",
+         "hasP3": false,
+         "height": 4000,
+         "textColor1": "070605",
+         "textColor2": "141413",
+         "textColor3": "1e2224",
+         "textColor4": "282d2f",
+         "url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1d/1b/f9/1d1bf9b1-44c6-9a6c-6ffb-c158488c06ce/26UMGIM39303.rgb.jpg/{w}x{h}bb.jpg",
+         "width": 4000
+        },
+        "audioLocale": "en-US",
+        "audioTraits": [
+         "atmos",
+         "lossless",
+         "lossy-stereo",
+         "spatial"
+        ],
+        "composerName": "Olivia Rodrigo, Daniel Nigro & Amy Allen",
+        "discNumber": 1,
+        "durationInMillis": 224999,
+        "genreNames": [
+         "Pop",
+         "Music"
+        ],
+        "hasLyrics": true,
+        "hasTimeSyncedLyrics": true,
+        "isAppleDigitalMaster": true,
+        "isMasteredForItunes": true,
+        "isVocalAttenuationAllowed": true,
+        "isrc": "USUG12601721",
+        "name": "drop dead",
+        "playParams": {
+         "id": "1889992113",
+         "kind": "song"
+        },
+        "previews": [
+         {
+          "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/89/57/ad/8957adf6-1862-4e4e-bcb5-810d6cf79cc4/mzaf_17505264633075662220.plus.aac.ep.m4a"
+         }
+        ],
+        "releaseDate": "2026-04-16",
+        "trackNumber": 1,
+        "url": "https://music.apple.com/us/album/drop-dead/1889992111?i=1889992113"
+       }
+      },
+      {
+       "id": "1889992115",
+       "type": "songs",
+       "href": "/v1/catalog/us/songs/1889992115?l=en-US",
+       "attributes": {
+        "albumArtistName": "Olivia Rodrigo",
+        "albumName": "you seem pretty sad for a girl so in love",
+        "artistName": "Olivia Rodrigo",
+        "artwork": {
+         "bgColor": "7c939f",
+         "hasP3": false,
+         "height": 4000,
+         "textColor1": "070605",
+         "textColor2": "141413",
+         "textColor3": "1e2224",
+         "textColor4": "282d2f",
+         "url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1d/1b/f9/1d1bf9b1-44c6-9a6c-6ffb-c158488c06ce/26UMGIM39303.rgb.jpg/{w}x{h}bb.jpg",
+         "width": 4000
+        },
+        "audioLocale": "en-US",
+        "audioTraits": [
+         "atmos",
+         "lossless",
+         "lossy-stereo",
+         "spatial"
+        ],
+        "composerName": "Olivia Rodrigo & Daniel Nigro",
+        "discNumber": 1,
+        "durationInMillis": 209680,
+        "genreNames": [
+         "Pop",
+         "Music"
+        ],
+        "hasLyrics": true,
+        "hasTimeSyncedLyrics": true,
+        "isAppleDigitalMaster": true,
+        "isMasteredForItunes": true,
+        "isVocalAttenuationAllowed": true,
+        "isrc": "USUG12601723",
+        "name": "stupid song",
+        "playParams": {
+         "id": "1889992115",
+         "kind": "song"
+        },
+        "previews": [
+         {
+          "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/ab/d6/78/abd678a1-bf4e-7ee9-d0b2-ba8afee10914/mzaf_3726531799916235303.plus.aac.ep.m4a"
+         }
+        ],
+        "releaseDate": "2026-06-12",
+        "trackNumber": 2,
+        "url": "https://music.apple.com/us/album/stupid-song/1889992111?i=1889992115"
+       }
+      },
+      {
+       "id": "1889992116",
+       "type": "songs",
+       "href": "/v1/catalog/us/songs/1889992116?l=en-US",
+       "attributes": {
+        "albumArtistName": "Olivia Rodrigo",
+        "albumName": "you seem pretty sad for a girl so in love",
+        "artistName": "Olivia Rodrigo",
+        "artwork": {
+         "bgColor": "7c939f",
+         "hasP3": false,
+         "height": 4000,
+         "textColor1": "070605",
+         "textColor2": "141413",
+         "textColor3": "1e2224",
+         "textColor4": "282d2f",
+         "url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1d/1b/f9/1d1bf9b1-44c6-9a6c-6ffb-c158488c06ce/26UMGIM39303.rgb.jpg/{w}x{h}bb.jpg",
+         "width": 4000
+        },
+        "audioLocale": "en-US",
+        "audioTraits": [
+         "atmos",
+         "lossless",
+         "lossy-stereo",
+         "spatial"
+        ],
+        "composerName": "Olivia Rodrigo",
+        "discNumber": 1,
+        "durationInMillis": 223013,
+        "genreNames": [
+         "Pop",
+         "Music"
+        ],
+        "hasLyrics": true,
+        "hasTimeSyncedLyrics": true,
+        "isAppleDigitalMaster": true,
+        "isMasteredForItunes": true,
+        "isVocalAttenuationAllowed": true,
+        "isrc": "USUG12601724",
+        "name": "honeybee",
+        "playParams": {
+         "id": "1889992116",
+         "kind": "song"
+        },
+        "previews": [
+         {
+          "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/07/7f/68/077f68ac-3720-0963-8185-347458b4a3c8/mzaf_1421009084999712264.plus.aac.ep.m4a"
+         }
+        ],
+        "releaseDate": "2026-06-12",
+        "trackNumber": 3,
+        "url": "https://music.apple.com/us/album/honeybee/1889992111?i=1889992116"
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

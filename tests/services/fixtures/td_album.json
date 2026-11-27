@@ -1,0 +1,161 @@
+{
+ "data": {
+  "id": "165842024",
+  "type": "albums",
+  "attributes": {
+   "title": "TRON: Legacy - The Complete Edition (Original Motion Picture Soundtrack)",
+   "barcodeId": "00050087478704",
+   "numberOfVolumes": 1,
+   "numberOfItems": 31,
+   "duration": "PT1H23M10S",
+   "explicit": false,
+   "ai": false,
+   "releaseDate": "2010-12-07",
+   "copyright": {
+    "text": "© 2020 Disney"
+   },
+   "popularity": 0.7584259033750487,
+   "accessType": "PUBLIC",
+   "availability": [
+    "STREAM",
+    "DJ"
+   ],
+   "mediaTags": [
+    "HIRES_LOSSLESS",
+    "LOSSLESS"
+   ],
+   "externalLinks": [
+    {
+     "href": "https://tidal.com/browse/album/165842024",
+     "meta": {
+      "type": "TIDAL_SHARING"
+     }
+    }
+   ],
+   "type": "ALBUM",
+   "albumType": "ALBUM",
+   "version": "Original Motion Picture Soundtrack",
+   "createdAt": "2020-12-11T22:02:35Z"
+  },
+  "relationships": {
+   "artists": {
+    "data": [
+     {
+      "id": "8847",
+      "type": "artists"
+     }
+    ],
+    "links": {
+     "self": "/albums/165842024/relationships/artists?countryCode=US"
+    }
+   },
+   "coverArt": {
+    "data": [
+     {
+      "id": "2xpmpI1s9DzIH8HyhLmYa4",
+      "type": "artworks"
+     }
+    ],
+    "links": {
+     "self": "/albums/165842024/relationships/coverArt?countryCode=US"
+    }
+   }
+  }
+ },
+ "links": {
+  "self": "/albums/165842024?include=artists%2CcoverArt&countryCode=US"
+ },
+ "included": [
+  {
+   "id": "8847",
+   "type": "artists",
+   "attributes": {
+    "name": "Daft Punk",
+    "popularity": 0.9363624453544617,
+    "numberOfFollowers": 1586444,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/8847",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "contributionsEnabled": false,
+    "ownerType": "LABEL",
+    "ownerAgeRestricted": false
+   }
+  },
+  {
+   "id": "2xpmpI1s9DzIH8HyhLmYa4",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/c0355002/f5c9/438d/9116/e11c4b03608b/1280x1280.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 1280,
+       "height": 1280
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/c0355002/f5c9/438d/9116/e11c4b03608b/1080x1080.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/c0355002/f5c9/438d/9116/e11c4b03608b/750x750.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 750,
+       "height": 750
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/c0355002/f5c9/438d/9116/e11c4b03608b/640x640.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 640,
+       "height": 640
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/c0355002/f5c9/438d/9116/e11c4b03608b/320x320.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/c0355002/f5c9/438d/9116/e11c4b03608b/160x160.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/c0355002/f5c9/438d/9116/e11c4b03608b/80x80.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 80,
+       "height": 80
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#307F93",
+     "blurHash": "UD2%^9ayVsj]pyfkfQfkRPkCo#aycGaxkCaz",
+     "status": "OK"
+    }
+   }
+  }
+ ]
+}
