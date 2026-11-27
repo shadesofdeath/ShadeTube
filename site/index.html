@@ -72,7 +72,7 @@
 
 <section class="facts">
   <div class="wrap facts-in">
-    <div class="fact reveal"><b>15&nbsp;MB</b><span data-i18n="facts.size">one exe, nothing to install</span></div>
+    <div class="fact reveal"><b>15&nbsp;MB</b><span data-i18n="facts.size">setup or portable, your choice</span></div>
     <div class="fact reveal"><b>0</b><span data-i18n="facts.zero">ads, telemetry or servers of ours</span></div>
     <div class="fact reveal"><b>11</b><span data-i18n="facts.langs">languages</span></div>
     <div class="fact reveal"><b>Direct2D</b><span data-i18n="facts.native">native drawing, no web view</span></div>
@@ -149,7 +149,7 @@
         <button class="g-arrow" id="gNext" aria-label="Next"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m9.500 6 6 6-6 6"/></svg></button>
       </div>
     </div>
-    <p class="g-sub reveal" data-i18n="g.sub">Sixteen screens of the app at full size. Scroll sideways, or click one to enlarge it.</p>
+    <p class="g-sub reveal" data-i18n="g.sub">The app at full size, screen by screen. Scroll sideways, or click one to enlarge it.</p>
     <div class="chips reveal" id="gChips">
       <button class="chip" data-go="0" data-i18n="g1.t">Home</button>
       <button class="chip" data-go="1" data-i18n="g2.t">Artist</button>
@@ -167,6 +167,11 @@
       <button class="chip" data-go="13" data-i18n="g14.t">Command palette</button>
       <button class="chip" data-go="14" data-i18n="g15.t">Theme studio</button>
       <button class="chip" data-go="15" data-i18n="g16.t">Mini player</button>
+      <button class="chip" data-go="16" data-i18n="g17.t">Visualizer</button>
+      <button class="chip" data-go="17" data-i18n="g18.t">Rule-based playlist</button>
+      <button class="chip" data-go="18" data-i18n="g19.t">Recognize a song</button>
+      <button class="chip" data-go="19" data-i18n="g20.t">Lyrics synchronizer</button>
+      <button class="chip" data-go="20" data-i18n="g21.t">Setup</button>
     </div>
   </div>
   <div class="g-track reveal" id="gTrack" tabindex="0">
@@ -234,6 +239,26 @@
       <button class="g-img" data-zoom="15"><img loading="lazy" src="img/mini.webp" width="910" height="294" alt=""></button>
       <figcaption><b data-i18n="g16.t">Mini player</b><span data-i18n="g16.d">A small always-on-top window; this is the wide one, with lyrics.</span></figcaption>
     </figure>
+    <figure class="g-slide" data-i="16">
+      <button class="g-img" data-zoom="16"><img loading="lazy" src="img/visualizer.webp" width="1800" height="953" alt=""></button>
+      <figcaption><b data-i18n="g17.t">Visualizer</b><span data-i18n="g17.d">Full screen in the colours of the cover: spectrum, ring, wave or aurora.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="17">
+      <button class="g-img" data-zoom="17"><img loading="lazy" src="img/bpm.webp" width="1800" height="953" alt=""></button>
+      <figcaption><b data-i18n="g18.t">Rule-based playlist</b><span data-i18n="g18.d">A list that fills itself from your rules and stays up to date.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="18">
+      <button class="g-img" data-zoom="18"><img loading="lazy" src="img/recognize.webp" width="1800" height="953" alt=""></button>
+      <figcaption><b data-i18n="g19.t">Recognize a song</b><span data-i18n="g19.d">What is playing on this PC or in the room, named in a few seconds.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="19">
+      <button class="g-img" data-zoom="19"><img loading="lazy" src="img/sync.webp" width="1800" height="953" alt=""></button>
+      <figcaption><b data-i18n="g20.t">Lyrics synchronizer</b><span data-i18n="g20.d">Time plain lyrics yourself by tapping along with the song.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="20">
+      <button class="g-img" data-zoom="20"><img loading="lazy" src="img/setup.webp" width="1200" height="930" alt=""></button>
+      <figcaption><b data-i18n="g21.t">Setup</b><span data-i18n="g21.d">The installer, drawn in the same style as the app.</span></figcaption>
+    </figure>
   </div>
 </section>
 
@@ -274,6 +299,14 @@
     <p class="tag reveal" data-i18n="f.tag">Everything else</p>
     <h2 class="big reveal" data-i18n="f.title">Small exe. Long list.</h2>
     <div class="f-grid" id="fGrid">
+      <article class="f reveal"><span class="ic" data-icon="recognize"></span><h3 data-i18n="f17.t">Recognize a song</h3><p data-i18n="f17.d">ShadeTube listens for a few seconds to what plays on this PC or in the room and tells you the song. Only a fingerprint leaves your computer.</p></article>
+      <article class="f reveal"><span class="ic" data-icon="filter"></span><h3 data-i18n="f18.t">Rule-based playlists</h3><p data-i18n="f18.d">Liked, played fewer than ten times, 150 to 175 BPM: lists that fill themselves from your rules and stay up to date.</p></article>
+      <article class="f reveal"><span class="ic" data-icon="equalizer"></span><h3 data-i18n="f19.t">BPM</h3><p data-i18n="f19.d">The tempo of your songs as a column, for sorting and filtering. Read from tags or measured on your PC.</p></article>
+      <article class="f reveal"><span class="ic" data-icon="visualizer"></span><h3 data-i18n="f20.t">Visualizer</h3><p data-i18n="f20.d">A full-screen view in the colours of the cover: spectrum, ring, wave or aurora. Press V.</p></article>
+      <article class="f reveal"><span class="ic" data-icon="edit"></span><h3 data-i18n="f21.t">Lyrics synchronizer</h3><p data-i18n="f21.d">Lyrics without timing? Tap along with the song to time them yourself, and send them to LRCLIB if you like.</p></article>
+      <article class="f reveal"><span class="ic" data-icon="lyrics"></span><h3 data-i18n="f22.t">Romanization</h3><p data-i18n="f22.d">Read Japanese, Korean and Cyrillic lyrics in Latin letters, right under the original line.</p></article>
+      <article class="f reveal"><span class="ic" data-icon="search"></span><h3 data-i18n="f23.t">Find a song by its lyrics</h3><p data-i18n="f23.d">Type a line you remember into Search and get the song.</p></article>
+      <article class="f reveal"><span class="ic" data-icon="playlist"></span><h3 data-i18n="f24.t">Import from other services</h3><p data-i18n="f24.d">Paste a Deezer, Apple Music or TIDAL playlist link and it becomes your own playlist.</p></article>
       <article class="f reveal"><span class="ic" data-icon="shuffle-smart"></span><h3 data-i18n="f1.t">Smart shuffle and Enhance</h3><p data-i18n="f1.d">Premium's recommendations for free: fitting songs mixed into the queue or between the songs of a playlist.</p></article>
       <article class="f reveal"><span class="ic" data-icon="radio"></span><h3 data-i18n="f2.t">Radio and endless play</h3><p data-i18n="f2.d">Start a radio from a song, artist, album or list; when the queue ends, similar songs keep going.</p></article>
       <article class="f reveal"><span class="ic" data-icon="sliders"></span><h3 data-i18n="f3.t">Equalizer and crossfade</h3><p data-i18n="f3.d">10 bands with presets, smart crossfade that keeps albums gapless, loudness levelling and pitch-safe speed.</p></article>
@@ -289,7 +322,7 @@
       <article class="f reveal"><span class="ic" data-icon="link"></span><h3 data-i18n="f13.t">Paste a link</h3><p data-i18n="f13.d">A Spotify, YouTube or MusicBrainz link pasted anywhere opens the album, list or artist, or plays the song.</p></article>
       <article class="f reveal"><span class="ic" data-icon="drag-handle"></span><h3 data-i18n="f14.t">Drag and drop</h3><p data-i18n="f14.d">Drag songs onto a playlist, Liked Songs or the queue; drop files and folders from Explorer to play them.</p></article>
       <article class="f reveal"><span class="ic" data-icon="close"></span><h3 data-i18n="f15.t">Block list</h3><p data-i18n="f15.d">Songs and artists you block never play on their own.</p></article>
-      <article class="f reveal"><span class="ic" data-icon="refresh"></span><h3 data-i18n="f16.t">Updates itself</h3><p data-i18n="f16.d">New versions install from inside the app. Runs without installing; one click installs it, no admin rights.</p></article>
+      <article class="f reveal"><span class="ic" data-icon="refresh"></span><h3 data-i18n="f16.t">Updates itself</h3><p data-i18n="f16.d">New versions install from inside the app with one click, for the setup and the portable zip alike.</p></article>
     </div>
   </div>
 </section>
@@ -335,13 +368,15 @@
   <div class="wrap install-in">
     <p class="tag reveal" data-i18n="i.tag">Install</p>
     <h2 class="big reveal" data-i18n="i.title">Two clicks and it plays.</h2>
-    <p class="lead center reveal" data-i18n="i.body">Download the zip, unpack it, run ShadeTube.exe. No installer, no admin rights, no account needed to start.</p>
+    <p class="lead center reveal" data-i18n="i.body">Run the setup, or unpack the portable zip and start ShadeTube.exe. No admin rights, no account needed to start.</p>
     <div class="cta center reveal">
       <a class="btn btn-primary btn-lg js-download" href="https://github.com/shadesofdeath/ShadeTube/releases/latest">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4.500-4.500M12 15l4.500-4.500M5 19.500h14"/></svg>
-        <span data-i18n="hero.cta">Download for Windows</span>
+        <span data-i18n="i.setup">Download the setup</span>
       </a>
+      <a class="btn btn-ghost btn-lg js-portable" href="https://github.com/shadesofdeath/ShadeTube/releases/latest" data-i18n="i.portable">Portable zip</a>
     </div>
+    <p class="meta center reveal" data-i18n="i.editions">Setup: installs for your user, no admin rights. Portable: unzip and run, nothing is installed.</p>
     <div class="cmds reveal">
       <div class="cmd">
         <span class="cmd-l">Scoop</span>

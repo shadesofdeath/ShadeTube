@@ -173,8 +173,10 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (rel) {
         if (!rel) return;
-        var zip = (rel.assets || []).filter(function (a) { return /win64\.zip$/i.test(a.name); })[0];
-        if (zip) doc.querySelectorAll(".js-download").forEach(function (a) { a.href = zip.browser_download_url; });
+        var pick = function (re) { return (rel.assets || []).filter(function (a) { return re.test(a.name); })[0]; };
+        var zip = pick(/win64\.zip$/i), setup = pick(/setup\.exe$/i) || zip;
+        if (setup) doc.querySelectorAll(".js-download").forEach(function (a) { a.href = setup.browser_download_url; });
+        if (zip) doc.querySelectorAll(".js-portable").forEach(function (a) { a.href = zip.browser_download_url; });
         if (rel.tag_name) doc.querySelectorAll(".js-version").forEach(function (v) { v.textContent = rel.tag_name; });
       })
       .catch(function () {});

@@ -337,3 +337,5 @@ body.locked { overflow: hidden; }
   .cl-count { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .g-slide { transition: none; } .lightbox { animation: none; } }
+.center.meta, p.meta.center { text-align: center; margin-top: 18px; }
+.cmd code { min-width: 0; }
