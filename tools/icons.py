@@ -1309,6 +1309,16 @@ def _(g):
     g.pline((x1, yc - a), (xr, yc - b), (xr, yc + b), (x1, yc + a), r=g.U(0.75))
 
 
+@icon("visualizer")
+def _(g):
+    # The full-screen visualizer: five strokes of a spectrum standing on the middle line both ways, the tallest in the
+    # middle (the player's filled equalizer stands on a floor; this one is drawn in the outline language).
+    cy = g.X(12)
+    for x, h in zip(g.rows(4, 20, 5), (3, 6, 8, 5, 2.5)):
+        hh = g.half(cy, h)
+        g.pline((x, cy - hh), (x, cy + hh))
+
+
 @icon("warning")
 def _(g):
     l, r = g.X(3), g.X(21)

@@ -2324,5 +2324,14 @@
   "{} · GÖSTERİLMİYOR": "{} · WIRD NICHT GEZEIGT",
   "{} · RESMİ VİDEO": "{} · OFFIZIELLES VIDEO",
   "{} · SESLE EŞLEŞİYOR": "{} · PASST ZUM TON",
-  "Dinlenme sayısı": "Wiedergabeanzahl"
+  "Dinlenme sayısı": "Wiedergabeanzahl",
+  "Görselleştirici": "Visualisierung",
+  "Spektrum": "Spektrum",
+  "Halka": "Ring",
+  "Dalga": "Welle",
+  "Aurora": "Polarlicht",
+  "Görselleştirici için önce bir şey çal": "Spiel zuerst etwas ab, um die Visualisierung zu öffnen",
+  "Söz satırını göster": "Liedtextzeile anzeigen",
+  "Söz satırını gizle": "Liedtextzeile ausblenden",
+  "Duraklatıldı": "Pausiert"
 }

@@ -83,6 +83,8 @@ constexpr Action kActions[] = {
     // Video modu (app/VideoMode): the song's music video, and its own window.
     {"video-mode", [] { return tr(L"Video modunu aç / kapat"); }, Category::View, "Ctrl+Shift+V", kMini, "video"},
     {"video-window", [] { return tr(L"Video penceresi"); }, Category::View, "", kMini, "pop-out"},
+    // The full-screen visualizer (app/Visualizer).
+    {"visualizer", [] { return tr(L"Görselleştirici"); }, Category::View, "V", 0, "visualizer"},
 };
 
 // English key names of the text form. Letters and digits are their own name.

@@ -112,6 +112,7 @@ private:
     ui::PlayButton* play_;
     ui::Button *sleep_, *speed_, *jam_, *jamLabel_, *mini_;
     ui::Button* videoBtn_;               // video mode's toggle (songs only), beside the sleep timer
+    ui::Button* vizBtn_;                 // the full-screen visualizer (app/Visualizer), after it
     VideoView* video_;                   // video mode's picture over the cover (app/VideoView)
     ui::Knob* knob_;
     NowPlayingTabs* tabs_;

@@ -253,6 +253,9 @@ NowPlayingView::NowPlayingView()
     videoBtn_ = add<Button>(ButtonKind::Icon, L"", "video");
     videoBtn_->onClick = [] { videomode::toggle(); };
     videoBtn_->onContext = [](const ui::MouseEvent& e) { videomode::showMenu(ctx().window, e.windowPos); };   // video mode's menu
+    vizBtn_ = add<Button>(ButtonKind::Icon, L"", "visualizer");
+    vizBtn_->setTooltip(commands::keyTip(tr(L"Görselleştirici"), "visualizer"));
+    vizBtn_->onClick = [] { commands::run("visualizer"); };
     // Playback speed: always offered for podcast episodes, for songs once it isn't 1x (keys / palette set it).
     speed_ = add<Button>(ButtonKind::Ghost, speedLabel(1.f));
     speed_->setTooltip(tr(L"Çalma hızı"));
@@ -740,7 +743,7 @@ void NowPlayingView::layout() {
         seekRow = {ix, y, iw, kSeekH};
         y += kSeekH + kTransGap;
         const float transportW = 4 * transport + playSize + 4 * gapT;
-        const float utilW = 32 + 6 + 32 + 6 + 64 + 6 + 32 + 16 + 36 + 6 + 32;   // sleep, video, speed, jam | knob, mini
+        const float utilW = 32 + 6 + 32 + 6 + 32 + 6 + 64 + 6 + 32 + 16 + 36 + 6 + 32;   // sleep, video, viz, speed, jam | knob, mini
         if (iw >= transportW + 24 + utilW) {   // one row: transport on the left, the utilities on the right
             transRow = {ix, y, transportW, playSize};
             utilRow = {ix + transportW + 24, y + (playSize - kUtilH) * 0.5f, iw - transportW - 24, kUtilH};
@@ -789,6 +792,8 @@ void NowPlayingView::layout() {
             videoBtn_->setRect({lx, cy - 16, 32, 32});
             lx += 32 + 6;
         }
+        vizBtn_->setRect({lx, cy - 16, 32, 32});
+        lx += 32 + 6;
         if (speed_->visible()) {
             const float sw = std::max(44.f, std::ceil(speed_->naturalWidth()));
             speed_->setRect({lx, cy - 16, sw, 32});

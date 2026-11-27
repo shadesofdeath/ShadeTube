@@ -2103,5 +2103,14 @@
   "{} · GÖSTERİLMİYOR": "{} · 非表示",
   "{} · RESMİ VİDEO": "{} · 公式動画",
   "{} · SESLE EŞLEŞİYOR": "{} · 音声と一致",
-  "Dinlenme sayısı": "再生回数"
+  "Dinlenme sayısı": "再生回数",
+  "Görselleştirici": "ビジュアライザー",
+  "Spektrum": "スペクトラム",
+  "Halka": "リング",
+  "Dalga": "波形",
+  "Aurora": "オーロラ",
+  "Görselleştirici için önce bir şey çal": "ビジュアライザーを開くには、まず何かを再生してください",
+  "Söz satırını göster": "歌詞の行を表示",
+  "Söz satırını gizle": "歌詞の行を非表示",
+  "Duraklatıldı": "一時停止中"
 }

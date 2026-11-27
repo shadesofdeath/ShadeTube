@@ -2324,5 +2324,14 @@
   "{} · GÖSTERİLMİYOR": "{} · NON AFFICHÉE",
   "{} · RESMİ VİDEO": "{} · CLIP OFFICIEL",
   "{} · SESLE EŞLEŞİYOR": "{} · CORRESPOND AU SON",
-  "Dinlenme sayısı": "Nombre d'écoutes"
+  "Dinlenme sayısı": "Nombre d'écoutes",
+  "Görselleştirici": "Visualiseur",
+  "Spektrum": "Spectre",
+  "Halka": "Anneau",
+  "Dalga": "Onde",
+  "Aurora": "Aurore",
+  "Görselleştirici için önce bir şey çal": "Lance d'abord une lecture pour ouvrir le visualiseur",
+  "Söz satırını göster": "Afficher la ligne de paroles",
+  "Söz satırını gizle": "Masquer la ligne de paroles",
+  "Duraklatıldı": "En pause"
 }

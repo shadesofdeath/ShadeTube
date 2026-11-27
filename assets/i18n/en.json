@@ -2324,5 +2324,14 @@
   "{} · GÖSTERİLMİYOR": "{} · NOT SHOWN",
   "{} · RESMİ VİDEO": "{} · OFFICIAL VIDEO",
   "{} · SESLE EŞLEŞİYOR": "{} · MATCHES THE AUDIO",
-  "Dinlenme sayısı": "Play count"
+  "Dinlenme sayısı": "Play count",
+  "Görselleştirici": "Visualizer",
+  "Spektrum": "Spectrum",
+  "Halka": "Ring",
+  "Dalga": "Wave",
+  "Aurora": "Aurora",
+  "Görselleştirici için önce bir şey çal": "Play something first to open the visualizer",
+  "Söz satırını göster": "Show the lyric line",
+  "Söz satırını gizle": "Hide the lyric line",
+  "Duraklatıldı": "Paused"
 }

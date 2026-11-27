@@ -2324,5 +2324,14 @@
   "{} · GÖSTERİLMİYOR": "{} · NÃO MOSTRADO",
   "{} · RESMİ VİDEO": "{} · VÍDEO OFICIAL",
   "{} · SESLE EŞLEŞİYOR": "{} · CORRESPONDE AO ÁUDIO",
-  "Dinlenme sayısı": "Número de reproduções"
+  "Dinlenme sayısı": "Número de reproduções",
+  "Görselleştirici": "Visualizador",
+  "Spektrum": "Espectro",
+  "Halka": "Anel",
+  "Dalga": "Onda",
+  "Aurora": "Aurora",
+  "Görselleştirici için önce bir şey çal": "Toque algo primeiro para abrir o visualizador",
+  "Söz satırını göster": "Mostrar a linha da letra",
+  "Söz satırını gizle": "Ocultar a linha da letra",
+  "Duraklatıldı": "Pausado"
 }

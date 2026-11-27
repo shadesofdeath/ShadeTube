@@ -161,6 +161,8 @@ void Settings::load() {
     read(j, "audioCacheMb", audioCacheMb);
     audioCacheMb = std::clamp(audioCacheMb, 0, 100 * 1024);
     read(j, "trackColumns", trackColumns);
+    read(j, "visualizerMode", visualizerMode);
+    read(j, "visualizerLyrics", visualizerLyrics);
     volume = std::clamp(volume, 0.0f, 1.0f);
 }
 
@@ -263,6 +265,8 @@ void Settings::save() const {
         {"videoH", videoH},
         {"audioCacheMb", audioCacheMb},
         {"trackColumns", trackColumns},
+        {"visualizerMode", visualizerMode},
+        {"visualizerLyrics", visualizerLyrics},
     };
     // Write-then-rename so a crash never leaves a truncated settings file.
     const auto path = paths::settingsFile();

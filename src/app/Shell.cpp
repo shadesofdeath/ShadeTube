@@ -1076,6 +1076,10 @@ PlayerBar::PlayerBar()
     video_ = add<Button>(ButtonKind::Icon, L"", "video");
     video_->onClick = [] { videomode::toggle(); };
     video_->onContext = [](const ui::MouseEvent& e) { videomode::showMenu(ctx().window, e.windowPos); };   // video mode's menu
+    // The full-screen visualizer (app/Visualizer), beside video mode: another way to watch the song.
+    viz_ = add<Button>(ButtonKind::Icon, L"", "visualizer");
+    viz_->setTooltip(commands::keyTip(tr(L"Görselleştirici"), "visualizer"));
+    viz_->onClick = [] { commands::run("visualizer"); };
     sync();
 }
 
@@ -1190,12 +1194,20 @@ void PlayerBar::layout() {
     place(knob_, 36, 12);
     place(queue_, 32, 6);
     place(lyrics_, 32, 6);
+    // The visualizer's button only where it costs the center column nothing it needs: shown while the column keeps its
+    // 380 DIP with it (wide windows), hidden otherwise (the key, the palette and Now Playing's button still open it).
+    const float cx = std::round(r.w * 0.5f);
+    {
+        const float rest = 38.f + (video_->visible() ? 38.f : 0.f) + 42.f;   // viz, video, sleep (with their gaps)
+        const bool fits = !nowPlaying_ && std::min(cx - 230.f, rx - rest - 38 - 16 - cx) >= 190.f;
+        viz_->setVisible(fits);
+        if (fits) place(viz_, 32, 6);
+    }
     if (video_->visible()) place(video_, 32, 6);
     place(sleep_, 32, 10);
     // Center column: the transport row over the seek row (elapsed · wave · total), centered on the bar; 40 % of the
     // width (380..640 DIP) as far as the left info (at least ~140 DIP of text) and the right group (with the jam icon
     // that always follows) leave room.
-    const float cx = std::round(r.w * 0.5f);
     const float room = std::min(cx - 230.f, rx - 38 - 16 - cx);
     const float colW = std::round(std::max(240.f, std::min({std::max(380.f, r.w * 0.4f), 640.f, 2 * room})));
     const float colX = cx - std::round(colW * 0.5f);
@@ -1252,6 +1264,10 @@ void PlayerBar::layout() {
 
 bool PlayerBar::onMouseDown(const ui::MouseEvent& e) {
     const gfx::Point p{e.pos.x - rect().x, e.pos.y - rect().y};
+    if (e.button == ui::MouseButton::Left && nowPlaying_ && stripRect_.contains(p)) {   // the spectrum strip
+        commands::run("visualizer");
+        return true;
+    }
     if (e.button == ui::MouseButton::Left && !nowPlaying_ && (artRect_.contains(p) || infoRect_.contains(p)) &&
         ctx().player->current()) {
         const auto* t = ctx().player->current();
@@ -1349,6 +1365,7 @@ void PlayerBar::paint(Canvas& c) {
         float bands[48] = {};
         const bool live = p && p->spectrum(bands, 48);
         const float x0 = 28, baseY = kBarMidY + 6;
+        stripRect_ = {x0 - 6, baseY - 22, 48 * 2.5f + 12, 28};
         for (int i = 0; i < 48; ++i) {
             const float v = live ? bands[i] : 0.f;
             const float h = 2 + v * 14;

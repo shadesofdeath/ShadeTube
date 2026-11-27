@@ -2103,5 +2103,14 @@
   "{} · GÖSTERİLMİYOR": "{} · 표시 안 함",
   "{} · RESMİ VİDEO": "{} · 공식 동영상",
   "{} · SESLE EŞLEŞİYOR": "{} · 오디오와 일치",
-  "Dinlenme sayısı": "재생 횟수"
+  "Dinlenme sayısı": "재생 횟수",
+  "Görselleştirici": "비주얼라이저",
+  "Spektrum": "스펙트럼",
+  "Halka": "링",
+  "Dalga": "파형",
+  "Aurora": "오로라",
+  "Görselleştirici için önce bir şey çal": "비주얼라이저를 열려면 먼저 무언가를 재생하세요",
+  "Söz satırını göster": "가사 줄 표시",
+  "Söz satırını gizle": "가사 줄 숨기기",
+  "Duraklatıldı": "일시 정지됨"
 }
