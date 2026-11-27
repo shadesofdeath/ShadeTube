@@ -1,5 +1,5 @@
-// Per-user install / uninstall: exe copy, Start menu shortcut, HKCU uninstall key, deferred folder removal, the
-// relaunch after exit and the `--uninstall` command. See Installer.h.
+// Per-user install / uninstall: exe copy, shortcuts, HKCU uninstall key, deferred folder removal, the relaunch after
+// exit, the `--uninstall` command and the setup's sandbox. See Installer.h.
 #include "app/Installer.h"
 
 #include "app/Autostart.h"
@@ -9,10 +9,14 @@
 #include "core/Paths.h"
 #include "core/Utf.h"
 
+#include <nlohmann/json.hpp>
+
 #include <windows.h>
 #include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <exdisp.h>    // IShellWindows (after shlobj.h: it needs the OLE headers)
+#include <shldisp.h>   // IShellDispatch2
 #include <propvarutil.h>
 #include <wrl/client.h>
 // PKEY_AppUserModel_* are only declared unless INITGUID is set where propkey.h is first included.
@@ -23,6 +27,7 @@
 #include <cwctype>
 #include <format>
 #include <fstream>
+#include <iterator>
 #include <mutex>
 #include <stdexcept>
 
@@ -76,15 +81,6 @@ bool samePath(const fs::path& a, const fs::path& b) {
     return iequals(a.lexically_normal().wstring(), b.lexically_normal().wstring());
 }
 
-// Files ShadeTube itself puts in its folder: the exe, install()'s temp copy, the portable package's readme and the
-// exact names the updater creates (ShadeTube.old.exe, ShadeTube.old-<n>.exe, ...). Anything else counts as a user's.
-bool isOwnFile(const fs::path& name) {
-    const std::wstring n = name.filename().wstring();
-    for (const wchar_t* f : {L"ShadeTube.exe", L"ShadeTube.exe.tmp", L"BENIOKU.txt"})
-        if (iequals(n, f)) return true;
-    return updater::isUpdaterFileName(n);
-}
-
 // COM for the shell link on whatever thread we are on (the UI thread already has an STA: S_FALSE, balanced).
 struct ComScope {
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -117,7 +113,8 @@ HRESULT setLinkAppId(IShellLinkW* link, const std::wstring& appId, bool quiet) {
 
 // `quiet`: a shortcut ShadeTube makes on its own (portable copy), see ensureStartShortcut(). Under a test AUMID with the
 // real Start menu folder (leaveRealShortcut) the link gets no AUMID: the real app stamps its own on its next start.
-void createShortcut(const fs::path& lnk, const fs::path& exe, bool quiet = false) {
+// `desktop`: the setup's desktop shortcut (only the error text differs).
+void createShortcut(const fs::path& lnk, const fs::path& exe, bool quiet = false, bool desktop = false) {
     ComScope com;
     std::error_code ec;
     fs::create_directories(lnk.parent_path(), ec);
@@ -135,9 +132,16 @@ void createShortcut(const fs::path& lnk, const fs::path& exe, bool quiet = false
     ComPtr<IPersistFile> file;
     if (SUCCEEDED(hr)) hr = link.As(&file);
     if (SUCCEEDED(hr)) hr = file->Save(lnk.c_str(), TRUE);
-    if (FAILED(hr))
-        fail(i18n::format(tr(L"Başlat menüsü kısayolu oluşturulamadı ({})."), {std::format(L"0x{:08X}", static_cast<unsigned>(hr))}));
+    if (FAILED(hr)) {
+        const std::wstring code = std::format(L"0x{:08X}", static_cast<unsigned>(hr));
+        fail(desktop ? i18n::format(tr(L"Masaüstü kısayolu oluşturulamadı ({})."), {code})
+                     : i18n::format(tr(L"Başlat menüsü kısayolu oluşturulamadı ({})."), {code}));
+    }
     SHChangeNotify(SHCNE_CREATE, SHCNF_PATHW | SHCNF_FLUSHNOWAIT, lnk.c_str(), nullptr);
+}
+
+void removeShortcut(const fs::path& lnk) {
+    if (DeleteFileW(lnk.c_str())) SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW | SHCNF_FLUSHNOWAIT, lnk.c_str(), nullptr);
 }
 
 // Adds the AUMID to an existing shortcut (installed by a version that did not set it). True when it carries it now.
@@ -161,7 +165,7 @@ bool stampShortcut(const fs::path& lnk) {
 // Installer tests redirect the locations; unless they also give a test AUMID they must not touch the real identity.
 bool testLocationsWithoutTestAppId() {
     const bool redirected = !env(L"SHADETUBE_INSTALL_DIR").empty() || !env(L"SHADETUBE_SHORTCUT_DIR").empty() ||
-                            !env(L"SHADETUBE_UNINSTALL_KEY").empty();
+                            !env(L"SHADETUBE_DESKTOP_DIR").empty() || !env(L"SHADETUBE_UNINSTALL_KEY").empty();
     return redirected && !appUserModelIdOverridden();
 }
 
@@ -353,11 +357,68 @@ Choice confirmUninstall(const fs::path& dir, bool running, bool others) {
     return {true, data};
 }
 
-// A running ShadeTube: a process (not this one) with a window of ShadeTube's class, and its exe.
-struct Instance {
-    DWORD pid = 0, tid = 0;
-    fs::path image;
-};
+// FNV-1a of the lower-cased sandbox folder: the sandbox's registry key and instance names.
+std::wstring sandboxId(const std::wstring& folder) {
+    uint32_t h = 2166136261u;
+    for (wchar_t ch : folder) {
+        h ^= static_cast<uint32_t>(towlower(ch));
+        h *= 16777619u;
+    }
+    return std::format(L"{:08x}", h);
+}
+
+// Explorer starts `exe args` (IShellDispatch2::ShellExecute on the desktop's shell view): an elevated process launches
+// the app with the user's normal rights that way.
+bool launchThroughExplorer(const fs::path& exe, const std::wstring& args) {
+    ComScope com;
+    ComPtr<IShellWindows> windows;
+    ComPtr<IDispatch> desktop;
+    ComPtr<IServiceProvider> provider;
+    ComPtr<IShellBrowser> browser;
+    ComPtr<IShellView> view;
+    ComPtr<IDispatch> background;
+    ComPtr<IShellFolderViewDual> folderView;
+    ComPtr<IDispatch> app;
+    ComPtr<IShellDispatch2> shell;
+    VARIANT empty{};
+    long hwnd = 0;
+    HRESULT hr = CoCreateInstance(CLSID_ShellWindows, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&windows));
+    if (SUCCEEDED(hr)) hr = windows->FindWindowSW(&empty, &empty, SWC_DESKTOP, &hwnd, SWFO_NEEDDISPATCH, &desktop);
+    if (hr == S_FALSE) hr = E_FAIL;
+    if (SUCCEEDED(hr)) hr = desktop.As(&provider);
+    if (SUCCEEDED(hr)) hr = provider->QueryService(SID_STopLevelBrowser, IID_PPV_ARGS(&browser));
+    if (SUCCEEDED(hr)) hr = browser->QueryActiveShellView(&view);
+    if (SUCCEEDED(hr)) hr = view->GetItemObject(SVGIO_BACKGROUND, IID_PPV_ARGS(&background));
+    if (SUCCEEDED(hr)) hr = background.As(&folderView);
+    if (SUCCEEDED(hr)) hr = folderView->get_Application(&app);
+    if (SUCCEEDED(hr)) hr = app.As(&shell);
+    if (FAILED(hr)) return false;
+    BSTR file = SysAllocString(exe.c_str()), params = SysAllocString(args.c_str()), dir = SysAllocString(exe.parent_path().c_str());
+    VARIANT vParams{}, vDir{}, vOp{}, vShow{};
+    vParams.vt = VT_BSTR;
+    vParams.bstrVal = params;
+    vDir.vt = VT_BSTR;
+    vDir.bstrVal = dir;
+    vShow.vt = VT_I4;
+    vShow.lVal = SW_SHOWNORMAL;
+    hr = shell->ShellExecute(file, vParams, vDir, vOp, vShow);
+    SysFreeString(file);
+    SysFreeString(params);
+    SysFreeString(dir);
+    return SUCCEEDED(hr);
+}
+
+bool processElevated() {
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return false;
+    TOKEN_ELEVATION e{};
+    DWORD n = 0;
+    const bool elevated = GetTokenInformation(token, TokenElevation, &e, sizeof e, &n) && e.TokenIsElevated;
+    CloseHandle(token);
+    return elevated;
+}
+
+} // namespace
 
 std::vector<Instance> runningInstances() {
     struct Search {
@@ -387,8 +448,6 @@ std::vector<Instance> runningInstances() {
     return search.found;
 }
 
-// The single-instance mutex is held (by a ShadeTube that may have no window yet). Not meaningful inside the app,
-// which holds it itself.
 bool instanceMutexHeld() {
     if (const HANDLE m = OpenMutexW(SYNCHRONIZE, FALSE, instanceMutex().c_str())) {
         CloseHandle(m);
@@ -397,9 +456,7 @@ bool instanceMutexHeld() {
     return false;
 }
 
-// Asks those processes to quit (App::run ends on WM_QUIT and saves everything on the way out, like "Çıkış") and waits.
-// False when one of them is still running (or could not be waited for).
-bool closeInstances(const std::vector<Instance>& instances) {
+bool closeInstances(const std::vector<Instance>& instances, unsigned long timeoutMs) {
     bool all = true;
     for (const auto& i : instances) {
         const HANDLE proc = OpenProcess(SYNCHRONIZE, FALSE, i.pid);
@@ -408,13 +465,40 @@ bool closeInstances(const std::vector<Instance>& instances) {
             all = false;
             continue;
         }
-        if (WaitForSingleObject(proc, 30000) != WAIT_OBJECT_0) all = false;
+        if (WaitForSingleObject(proc, timeoutMs) != WAIT_OBJECT_0) all = false;
         CloseHandle(proc);
     }
     return all;
 }
 
-} // namespace
+bool isOwnFile(const fs::path& name) {
+    const std::wstring n = name.filename().wstring();
+    for (const wchar_t* f : {L"ShadeTube.exe", L"ShadeTube.exe.tmp", L"BENIOKU.txt", L"LICENSE.txt", L"THIRD_PARTY_NOTICES.md", L"OFL.txt"})
+        if (iequals(n, f)) return true;
+    return updater::isUpdaterFileName(n);
+}
+
+std::wstring applySandbox() {
+    const std::wstring folder = env(L"SHADETUBE_SETUP_SANDBOX");
+    if (folder.empty()) return {};
+    const fs::path root = fs::absolute(fs::path(folder)).lexically_normal();
+    std::error_code ec;
+    fs::create_directories(root, ec);
+    const std::wstring id = sandboxId(root.wstring());
+    const std::wstring key = L"Software\\ShadeTubeSandbox\\" + id;
+    const auto set = [](const wchar_t* name, const std::wstring& value) {
+        if (env(name).empty()) SetEnvironmentVariableW(name, value.c_str());
+    };
+    set(L"SHADETUBE_INSTALL_DIR", (root / L"Programs" / L"ShadeTube").wstring());
+    set(L"SHADETUBE_SHORTCUT_DIR", (root / L"Start Menu" / L"Programs").wstring());
+    set(L"SHADETUBE_DESKTOP_DIR", (root / L"Desktop").wstring());
+    set(L"SHADETUBE_UNINSTALL_KEY", key + L"\\Uninstall\\ShadeTube");
+    set(L"SHADETUBE_RUN_KEY", key + L"\\Run");
+    set(L"SHADETUBE_DATA_DIR", (root / L"Data").wstring());
+    set(L"SHADETUBE_INSTANCE_CLASS", L"ShadeTube.Window.Sandbox." + id);
+    set(L"SHADETUBE_INSTANCE_MUTEX", L"Local\\ShadeTube.Sandbox." + id);
+    return key;
+}
 
 std::wstring instanceClass() {
     const std::wstring c = env(L"SHADETUBE_INSTANCE_CLASS");
@@ -441,6 +525,9 @@ Locations locations() {
     fs::path links = env(L"SHADETUBE_SHORTCUT_DIR");
     if (links.empty()) links = knownFolder(FOLDERID_Programs);
     l.shortcut = links / L"ShadeTube.lnk";
+    fs::path desktop = env(L"SHADETUBE_DESKTOP_DIR");
+    if (desktop.empty()) desktop = knownFolder(FOLDERID_Desktop);
+    l.desktopShortcut = desktop / L"ShadeTube.lnk";
     l.uninstallKey = kUninstallKey;
     if (std::wstring k = env(L"SHADETUBE_UNINSTALL_KEY"); !k.empty()) {
         // Always HKCU: a hive prefix is stripped ("HKCU\Software\X" and "Software\X" mean the same key). A malformed
@@ -550,37 +637,114 @@ fs::path shortcutTarget(const fs::path& lnk) {
     return target;
 }
 
+bool shortcutPointsAt(const fs::path& lnk, const fs::path& exe) {
+    std::error_code ec;
+    if (!fs::exists(lnk, ec)) return false;
+    const fs::path target = shortcutTarget(lnk);
+    if (target.empty()) return false;
+    return samePath(target, exe) || (iequals(target.filename().wstring(), L"ShadeTube.exe") && samePath(target.parent_path(), exe.parent_path()));
+}
+
 // ---- Install / uninstall --------------------------------------------------------------------------------------
 
-void install(const fs::path& sourceExe) {
+void install(const fs::path& sourceExe, const InstallOptions& options) {
     const Locations loc = locations();
+    const fs::path dir = options.dir.empty() ? loc.dir : options.dir;
+    const fs::path exe = dir / L"ShadeTube.exe";
     std::error_code ec;
-    fs::create_directories(loc.dir, ec);
-    if (ec) fail(i18n::format(tr(L"Kurulum klasörü oluşturulamadı ({})."), {loc.dir.wstring()}));
-    if (!samePath(sourceExe, loc.exe)) {
+    fs::create_directories(dir, ec);
+    if (ec || !fs::is_directory(dir, ec)) fail(i18n::format(tr(L"Kurulum klasörü oluşturulamadı ({})."), {dir.wstring()}));
+    if (!samePath(sourceExe, exe)) {
         // Copy next to the target first, then replace it in one rename: never a half-written ShadeTube.exe.
-        const fs::path tmp = loc.dir / L"ShadeTube.exe.tmp";
+        const fs::path tmp = dir / L"ShadeTube.exe.tmp";
         if (!CopyFileW(sourceExe.c_str(), tmp.c_str(), FALSE))
             fail(i18n::format(tr(L"ShadeTube kurulum klasörüne kopyalanamadı ({})."), {winError(GetLastError())}));
-        if (!MoveFileExW(tmp.c_str(), loc.exe.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        if (!MoveFileExW(tmp.c_str(), exe.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
             // An older installed exe that is still mapped (running in another session) cannot be overwritten, but it
             // can be renamed away (its ShadeTube.old.exe is removed by the installed copy's next start).
             try {
-                updater::swapExe(loc.exe, tmp);
+                updater::swapExe(exe, tmp);
             } catch (const std::exception&) {
                 DeleteFileW(tmp.c_str());
                 throw;
             }
         }
     }
-    writeRegistration(loc.exe);
-    createShortcut(loc.shortcut, loc.exe);
-    ST_LOG_INFO("install", "installed {} to {}", updater::fileProductVersion(loc.exe), toUtf8(loc.exe.wstring()));
+    for (const auto& f : options.extraFiles) {   // the licenses: replaced in place (nothing runs them)
+        if (!isOwnFile(f.filename())) continue;
+        if (!CopyFileW(f.c_str(), (dir / f.filename()).c_str(), FALSE))
+            ST_LOG_WARN("install", "{} not copied: {}", toUtf8(f.filename().wstring()), toUtf8(winError(GetLastError())));
+    }
+    writeRegistration(exe);
+    // Shortcuts: the ones asked for point at this exe; one of ours that is no longer wanted goes (a user's own
+    // shortcut elsewhere is never touched).
+    if (options.startMenuShortcut) createShortcut(loc.shortcut, exe);
+    else if (shortcutPointsAt(loc.shortcut, exe)) removeShortcut(loc.shortcut);
+    if (options.desktopShortcut) createShortcut(loc.desktopShortcut, exe, false, true);
+    else if (shortcutPointsAt(loc.desktopShortcut, exe)) removeShortcut(loc.desktopShortcut);
+    ST_LOG_INFO("install", "installed {} to {}", updater::fileProductVersion(exe), toUtf8(exe.wstring()));
+}
+
+bool startWithWindowsSetting() {
+    try {
+        std::ifstream f(paths::settingsFile(), std::ios::binary);
+        if (!f) return false;
+        const auto j = nlohmann::json::parse(f, nullptr, false);
+        const auto it = j.is_object() ? j.find("startWithWindows") : j.end();
+        return it != j.end() && it->is_boolean() && it->get<bool>();
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+bool setStartWithWindows(bool on, const fs::path& exe) {
+    // The settings file is patched, not rewritten from a Settings object: values this build does not know (a newer
+    // version's) stay. Write-then-rename like Settings::save().
+    const fs::path file = paths::settingsFile();
+    nlohmann::json j = nlohmann::json::object();
+    std::error_code ec;
+    if (fs::exists(file, ec)) {
+        std::ifstream f(file, std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        auto parsed = nlohmann::json::parse(text, nullptr, false);
+        if (!parsed.is_object()) {
+            ST_LOG_WARN("install", "settings.json unreadable: start with Windows not changed");
+            return false;
+        }
+        j = std::move(parsed);
+    }
+    bool written = true;
+    if (const auto it = j.find("startWithWindows"); it == j.end() || !it->is_boolean() || it->get<bool>() != on) {
+        j["startWithWindows"] = on;
+        fs::path tmp = file;
+        tmp += L".tmp";
+        {
+            std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+            f << j.dump(2);
+            f.close();
+            written = !f.fail();
+        }
+        if (written) fs::rename(tmp, file, ec);
+        if (!written || ec) {
+            fs::remove(tmp, ec);
+            ST_LOG_WARN("install", "settings.json not written: start with Windows not changed");
+            return false;
+        }
+    }
+    if (on) autostart::clearWindowsDisabled();
+    autostart::sync(on, exe);
+    ST_LOG_INFO("install", "start with Windows {}", on ? "on" : "off");
+    return true;
 }
 
 void unregister() {
     const Locations loc = locations();
-    if (DeleteFileW(loc.shortcut.c_str())) SHChangeNotify(SHCNE_DELETE, SHCNF_PATHW | SHCNF_FLUSHNOWAIT, loc.shortcut.c_str(), nullptr);
+    // The desktop shortcut goes when it starts the installed copy (read before the key below is deleted).
+    if (const auto installed = installedExe(); installed && shortcutPointsAt(loc.desktopShortcut, *installed))
+        removeShortcut(loc.desktopShortcut);
+    else if (shortcutPointsAt(loc.desktopShortcut, loc.exe))
+        removeShortcut(loc.desktopShortcut);
+    removeShortcut(loc.shortcut);
     // The identity (key, <data>\shell, jump list) is shared by every copy: another ShadeTube that keeps running (a
     // portable copy while the installed one goes) still uses it, and registers it again at its next start anyway.
     if (!testLocationsWithoutTestAppId()) {
@@ -659,6 +823,19 @@ void launchAfterExit(const fs::path& exe, std::wstring args) {
     p.workDir = exe.parent_path().wstring();
     AllowSetForegroundWindow(ASFW_ANY);   // this click owns the foreground right: the new instance may take it
     ST_LOG_INFO("install", "will start {} after exit", toUtf8(p.commandLine));
+}
+
+bool launch(const fs::path& exe, const std::wstring& args) {
+    AllowSetForegroundWindow(ASFW_ANY);   // the click that asked for it owns the foreground right: hand it over
+    if (processElevated() && launchThroughExplorer(exe, args)) {
+        ST_LOG_INFO("install", "started {} through Explorer (not elevated)", toUtf8(exe.wstring()));
+        return true;
+    }
+    const std::wstring cmd = L"\"" + exe.wstring() + L"\"" + (args.empty() ? L"" : L" " + args);
+    const bool ok = startDetached(cmd, exe.parent_path().wstring(), 0);
+    if (ok) ST_LOG_INFO("install", "started {}", toUtf8(cmd));
+    else ST_LOG_WARN("install", "could not start {}: {}", toUtf8(cmd), toUtf8(winError(GetLastError())));
+    return ok;
 }
 
 bool hasArg(std::wstring_view flag) {

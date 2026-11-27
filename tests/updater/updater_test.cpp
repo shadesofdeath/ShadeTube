@@ -279,6 +279,24 @@ void testRelease() {
     other.assets = {{"notes.txt", "u", 1, {}}};
     CHECK(up::pickAsset(other) == nullptr);
 
+    // 0.12.0 on: the setup (ShadeTube-<ver>-setup.exe) next to the portable package. An installed and a portable copy
+    // both update from the zip (the exe swapped in place), whatever the order of the assets; the setup is never taken
+    // for the app, also when it is the only exe.
+    up::Release both;
+    both.version = "0.12.0";
+    both.assets = {{"ShadeTube-0.12.0-setup.exe", "s", 9, {}},
+                   {"ShadeTube-0.12.0-setup.exe.sha256", "s2", 1, {}},
+                   {"ShadeTube-0.12.0-win64.zip", "z", 7, {}},
+                   {"ShadeTube-0.12.0-win64.zip.sha256", "z2", 1, {}}};
+    CHECK(up::pickAsset(both) && up::pickAsset(both)->name == "ShadeTube-0.12.0-win64.zip");
+    both.assets = {{"ShadeTube-0.12.0-setup.exe", "s", 9, {}}, {"ShadeTube-win64-portable.zip", "z", 7, {}}};
+    CHECK(up::pickAsset(both) && up::pickAsset(both)->name == "ShadeTube-win64-portable.zip");
+    both.assets = {{"ShadeTube-0.12.0-setup.exe", "s", 9, {}}, {"ShadeTube.exe", "e", 7, {}}};
+    CHECK(up::pickAsset(both) && up::pickAsset(both)->name == "ShadeTube.exe");
+    both.assets = {{"ShadeTube-0.12.0-setup.exe", "s", 9, {}}, {"ShadeTubeSetup.exe", "s3", 9, {}}, {"ShadeTube-Installer.exe", "i", 9, {}},
+                   {"ShadeTube-0.12.0-setup.zip", "sz", 9, {}}};
+    CHECK(up::pickAsset(both) == nullptr);
+
     CHECK(up::findSha256("SHA256: " + std::string(64, 'A') + "\nfoo " + std::string(64, 'b')) ==
           std::vector<std::string>{std::string(64, 'a')});
     CHECK(up::findSha256("sha256 (ShadeTube-0.4.0-win64.zip) = " + std::string(64, 'c') + " " + std::string(65, 'd')) ==
@@ -542,10 +560,12 @@ void testInstaller(const fs::path& root, const fs::path& appExe) {
     const fs::path installDir = root / "Programs" / "ShadeTube", links = root / "Start Menu" / "Programs";
     SetEnvironmentVariableW(L"SHADETUBE_INSTALL_DIR", installDir.c_str());
     SetEnvironmentVariableW(L"SHADETUBE_SHORTCUT_DIR", links.c_str());
+    SetEnvironmentVariableW(L"SHADETUBE_DESKTOP_DIR", (root / "Desktop").c_str());
     SetEnvironmentVariableW(L"SHADETUBE_UNINSTALL_KEY", L"HKEY_CURRENT_USER\\Software\\ShadeTubeTest\\Uninstall\\ShadeTube\\");
     const ins::Locations loc = ins::locations();
     const bool safe = loc.uninstallKey == L"Software\\ShadeTubeTest\\Uninstall\\ShadeTube" && loc.dir == installDir &&
-                      loc.shortcut == links / L"ShadeTube.lnk" && loc.exe == installDir / L"ShadeTube.exe";
+                      loc.shortcut == links / L"ShadeTube.lnk" && loc.exe == installDir / L"ShadeTube.exe" &&
+                      loc.desktopShortcut == root / "Desktop" / L"ShadeTube.lnk";
     CHECK(safe);
     if (!safe) {
         std::printf("  skip  installer tests: the overrides did not apply, refusing to touch real locations\n");
