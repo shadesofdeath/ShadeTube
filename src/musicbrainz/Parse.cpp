@@ -425,6 +425,8 @@ std::vector<RecordingHit> parseRecordingHits(const json& root) {
         h.track.durationMs = static_cast<int>(num(r, "length"));
         h.track.artists = parseArtistCredit(get(r, "artist-credit"));
         h.score = static_cast<double>(num(r, "score"));
+        for (const auto& isrc : arr(r, "isrcs"))
+            if (isrc.is_string()) h.isrcs.push_back(isrc.get<std::string>());
 
         const json& releases = arr(r, "releases");
         h.releaseCount = static_cast<int>(releases.size());

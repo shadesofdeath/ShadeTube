@@ -9,6 +9,7 @@
 #include <YoutubeExplode/Exceptions.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <atomic>
 #include <cstdlib>
 #include <format>
@@ -350,6 +351,61 @@ std::vector<std::string> findRecordings(const std::string& title, const std::str
     auto ids = detail::rankRecordings(root, title, artist, durationMs);
     if (ids.size() > max) ids.resize(max);
     return ids;
+}
+
+std::unordered_map<std::string, std::vector<Track>> recordingsByIsrc(const std::vector<std::string>& isrcs, const CT& ct) {
+    std::unordered_map<std::string, std::vector<Track>> out;
+    std::vector<std::string> valid;
+    for (const auto& i : isrcs) {
+        std::string up = i;
+        for (char& c : up) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        // CC-XXX-YY-NNNNN without dashes: 12 letters / digits.
+        if (up.size() == 12 && std::all_of(up.begin(), up.end(), [](char c) { return std::isalnum(static_cast<unsigned char>(c)); }) &&
+            std::find(valid.begin(), valid.end(), up) == valid.end())
+            valid.push_back(std::move(up));
+    }
+    constexpr size_t kBatch = 20;
+    for (size_t i = 0; i < valid.size(); i += kBatch) {
+        std::string q;
+        std::vector<std::string> batch;
+        for (size_t k = i; k < std::min(valid.size(), i + kBatch); ++k) {
+            q += (q.empty() ? "isrc:" : " OR isrc:") + valid[k];
+            batch.push_back(valid[k]);
+        }
+        const json root = mbGet(std::format("recording?query={}&limit=100", enc(q)), net::ttl::search, ct);
+        auto hits = detail::parseRecordingHits(root);
+        std::stable_sort(hits.begin(), hits.end(), [](const detail::RecordingHit& a, const detail::RecordingHit& b) {
+            return a.official != b.official ? a.official : a.releaseCount > b.releaseCount;
+        });
+        for (auto& h : hits)
+            for (std::string isrc : h.isrcs) {
+                for (char& c : isrc) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                if (std::find(batch.begin(), batch.end(), isrc) != batch.end()) out[isrc].push_back(h.track);
+            }
+    }
+    return out;
+}
+
+std::string releaseGroupByBarcode(const std::string& barcode, const CT& ct) {
+    std::string digits;
+    for (char c : barcode)
+        if (c >= '0' && c <= '9') digits.push_back(c);
+    if (digits.size() < 8) return {};
+    std::vector<std::string> forms{digits};
+    std::string trimmed = digits;
+    while (trimmed.size() > 12 && trimmed.front() == '0') {   // EAN-14 / EAN-13 with leading zeros -> UPC-A
+        trimmed.erase(trimmed.begin());
+        forms.push_back(trimmed);
+    }
+    if (digits.size() == 12) forms.push_back("0" + digits);   // UPC-A as EAN-13
+    std::string q;
+    for (const auto& f : forms) q += (q.empty() ? "barcode:" : " OR barcode:") + f;
+    const json root = mbGet(std::format("release?query={}&limit=10", enc(q)), net::ttl::search, ct);
+    for (const auto& rel : detail::arr(root, "releases")) {
+        const std::string rg = detail::str(detail::get(rel, "release-group"), "id");
+        if (!rg.empty()) return rg;
+    }
+    return {};
 }
 
 Credits songCredits(const std::string& title, const std::string& artist, int durationMs, const CT& ct) {

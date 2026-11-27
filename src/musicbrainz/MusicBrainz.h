@@ -16,6 +16,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace st::mb {
@@ -57,6 +58,13 @@ std::vector<std::string> findRecordings(const std::string& title, const std::str
 // Credits of a song by name: the first of findRecordings' recordings with relationships beyond its artist credit
 // (else the first one's credit alone). Empty Credits (provider "musicbrainz") when MusicBrainz doesn't know the song.
 Credits songCredits(const std::string& title, const std::string& artist, int durationMs, const CT& ct = {});
+// The recordings that carry these ISRCs (playlist imports, app/CatalogMatch): one search per 20 ISRCs ("isrc:A OR
+// isrc:B ..."), rate limited like every request. ISRC (upper case) -> its recordings, most releases first; ISRCs
+// MusicBrainz doesn't know are absent.
+std::unordered_map<std::string, std::vector<Track>> recordingsByIsrc(const std::vector<std::string>& isrcs,
+                                                                      const CT& ct = {});
+// The release group of a release with this barcode (UPC / EAN; with and without leading zeros), "" = none.
+std::string releaseGroupByBarcode(const std::string& barcode, const CT& ct = {});
 
 // --- ListenBrainz ----------------------------------------------------------------------------------------
 std::vector<Track> topTracksForArtist(const std::string& artistId, int limit = 10, const CT& ct = {});

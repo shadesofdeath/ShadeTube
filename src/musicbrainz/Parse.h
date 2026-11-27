@@ -63,6 +63,7 @@ struct RecordingHit {
     int releaseCount = 0;
     bool official = false;
     double score = 0;          // MusicBrainz search score
+    std::vector<std::string> isrcs;   // the recording's ISRCs (search answers carry them)
 };
 std::vector<RecordingHit> parseRecordingHits(const json& root);
 std::vector<Track> rankRecordingSearch(std::vector<RecordingHit> hits, const std::string& query, bool freeText,
