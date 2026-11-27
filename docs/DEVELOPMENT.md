@@ -112,7 +112,8 @@ ShadeTube/
 │                                Credits + CreditsUi (song credits), LyricsPicker ("Yanlış sözler mi?"; both 3.46),
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts +
 │                                PodcastsSpotify (Spotify shows -> public feeds, 3.54), Links +
-│                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
+│                                LinkOpener (pasted links), ServiceImport + CatalogMatch (Deezer / Apple Music / TIDAL
+│                                lists matched to the catalog, 3.57), WinShell (taskbar buttons / progress, jump list),
 │                                Preview + PreviewSession (song preview, 3.30),
 │                                VideoMode + VideoView + VideoWindow (3.41), OfficialVideo + OfficialVideoCache (3.42),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState),
@@ -124,7 +125,7 @@ ShadeTube/
                                  audiodsp, blend, browse, codecs, collections, credits, downloads, headers, history,
                                  icons, jam, library, links, lists, liveaudio, localfiles, lyrics, memory, micro,
                                  miniplayer, musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups,
-                                 preview, radio, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
+                                 preview, radio, remote, review, scrobble, scroll, services, shortcuts, smartlists, smartshuffle,
                                  smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
                                  winshell, ytmusic, ytstreams
 ```
@@ -574,7 +575,9 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
   spclient `metadata/4` JSON, base62 id -> hex gid) or a MusicBrainz recording (`mb::recording`) plays in its album
   from that song and shows the album; a YouTube video becomes a `yt:<videoId>` track titled from the video
   (`links::videoSong`: "Artist - Title (Official Video)" -> artist / title) whose video is pinned in `MatchService`,
-  so it never re-matches. A `shadetube://jam/` invite joins a listen-together session (3.24; never logged). Spotify
+  so it never re-matches. Deezer, Apple Music and TIDAL playlists, albums and songs (and Deezer's short links) are
+  imported / opened / played through their match in the catalog (3.57). A `shadetube://jam/` invite joins a
+  listen-together session (3.24; never logged). Spotify
   shows open in Podcastler and Spotify users their profile page (3.54 Search kinds). Spotify links need a session
   (logged out: the connect screen); links of those services to anything else (episodes, YouTube channels,
   `spotify.link` short links) only toast; other text is searched.
@@ -873,7 +876,8 @@ history (`ListenStats`: this PC's plays and the imported Spotify history, stream
   through YoutubeExplode, at most 5 000). Every row becomes a song with the best id it names (Spotify, MusicBrainz,
   `yt:<video>` with that video pinned as its source, a local file read through the local library's tag reader and
   remembered like a dropped file, else `import:<hash>` matched by name like the history import); songs named only by
-  an id get their title from Spotify / YouTube / MusicBrainz (at most 300 lookups). A preview names the playlist and
+  an id get their title from Spotify / YouTube / MusicBrainz (at most 300 lookups); Deezer, Apple Music and TIDAL lists are
+  read and their songs matched in the active catalog first (3.57). A preview names the playlist and
   counts the songs, local files, videos and the rows that name no song (the first 6 with their line numbers); "İçe
   aktar" creates a **local** playlist and opens it. Logged in, "Spotify'da da oluştur" also creates a Spotify playlist
   with the songs that have Spotify ids (100 per request). Reading and resolving run on a worker (`collections_test`
@@ -3227,6 +3231,72 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   search, paging songs and playlists, the full discography, the disk cache) and plays a search result through
   `MatchService` to check the video is the one YouTube Music named.
 
+### 3.57 Import from Deezer, Apple Music and TIDAL
+
+`app/ServiceImport` reads a list of another service without an account (standalone: core + catalog + JSON);
+`app/CatalogMatch` finds its songs in the active catalog (standalone: core, catalog, spotify, ytmusic, musicbrainz,
+`PlaylistIO`); `app/PlaylistTransfer` runs the flow (3.21). Both standalone files are compiled by `services_test`.
+
+- **Links** (`app/Links`, `Kind::Service*`, `Link::service` names the service): `deezer.com/[<lang>/]{playlist,album,
+  track}/<digits>`; Deezer's short links `link.deezer.com/s/<code>`, `deezer.page.link/<code>`, `dzr.page.link/<code>`
+  (`ServiceShortLink`); `music.apple.com` (also `geo.` / `embed.` / `itunes.apple.com`) `/<storefront>/{playlist,album,
+  song}/[<slug>/]<id>`, an album link with `?i=<song>` being the song (id `"<storefront>/<id>"`); `tidal.com` /
+  `listen.tidal.com` `/[browse/]{playlist/<uuid>,album/<n>,track/<n>}`, `/album/<a>/track/<t>`, `embed.tidal.com/
+  {playlists,albums,tracks}/<id>`. Their artists, mixes, podcasts and Apple's private `library/` links are Unsupported
+  (a toast names what is supported). Search's link row and Ctrl+V (`LinkOpener`) label them ("Deezer çalma listesi" …)
+  and hand them to `transfer::openServiceLink`.
+- **Reading** (`svc::read`, a worker; every request through a `Fetch` = the shared transport, retried twice on a
+  transport failure, 429 or 5xx):
+  - *Deezer*: the public API, no key. `api.deezer.com/playlist/<id>` (name, description, cover, `nb_tracks`, creator),
+    then `/playlist/<id>/tracks?index=0&limit=500` following `next` (each row has its ISRC; the header's embedded list
+    stops at 400). Albums: `/album/<id>` (UPC, release date) + `/album/<id>/tracks` (the embedded list has no ISRC);
+    songs: `/track/<id>` (all contributors). Errors come as `{"error":{…}}` with HTTP 200: code 800 "no data" = missing
+    or private, 4 = the 50-requests-per-5-s quota (waited out). A short link is fetched (redirects followed) and the
+    landing page's canonical / `og:url` link names the list; an expired one lands on `deezer-links-404`.
+  - *Apple Music*: there is no keyless official API. The web player's catalog API `amp-api.music.apple.com` answers
+    with the developer token its own web bundle carries (a JWT with kid `WebPlayKid`, valid ~10 weeks; the one seen
+    on 2026-11-27 expires 2027-01-15): the music.apple.com page names the bundle (`/assets/index~….js`), the token is
+    read from it and kept in memory until it expires (a 401 / 403 reads the bundle again once). `/v1/catalog/
+    <storefront>/playlists/<id>?include=tracks&limit[tracks]=300` + `/tracks?offset=N&limit=300` pages (ISRC per song;
+    music videos skipped), `/albums/<id>`, `/songs/<id>`; requests carry `Origin: https://music.apple.com`. Without a
+    token (or when amp-api keeps refusing it) the page's own `serialized-server-data` is read instead: header and
+    songs without ISRC, **at most 300** (a 424-song list showed 300 and counted 300: the page cannot tell it is cut, so
+    a full page is reported as possibly partial). The storefront of the link is used; a list missing there is a 404.
+  - *TIDAL*: TIDAL's own JSON:API `openapi.tidal.com/v2` with a client-credentials token
+    (`auth.tidal.com/v1/oauth2/token`) of the public client the signed-out tidal.com web app uses (its id and key sit
+    in the web bundle's client table; kept 3 h). When that client is refused, the bundle named by the list's
+    tidal.com page is read for the current pair. `/playlists/<uuid>?include=coverArt,owners` +
+    `/relationships/items?include=items,items.artists,items.albums` (20 rows a page, `links.next` cursor);
+    `/albums/<id>` + its items; `/tracks?filter[id]=`. A row whose track is not included (no longer on TIDAL) or a
+    video is skipped and counted. Country `US`. The older `api.tidal.com/v1` with the well-known `x-tidal-token`s now
+    answers 404 / "a user is required" for everything; the embed player's page lists only the first 50 songs.
+- **Matching** (`catmatch::matchAll`, a worker): Spotify (logged in): `isrc:<code>` search (exact), else title +
+  artist, two at a time ~100 ms apart. YouTube Music: a songs search per song (`ytm::searchKind`), four at a time; a
+  429 waits 4 s once. MusicBrainz: `mb::recordingsByIsrc` (20 ISRCs per Lucene `isrc:A OR isrc:B …` search, rate
+  limited like every MusicBrainz request), then a search by name for the rest (at most 150 per import). `score()`
+  compares title words without edition noise (remastered, feat., radio edit, years; Spotify's " - Remastered 2011"),
+  artists (the best pair: Apple gives one "A & B" string) and length; a live / remix / acoustic … version on one side
+  costs 35. Search hits count from 70, ISRC hits from 40 (the code is exact, the spelling may differ). A song nothing
+  fits stays known by name (`import:<hash>`, like a CSV row: MatchService finds its video when it plays). Twelve
+  failed lookups in a row give the rest up (reported). Albums (`findAlbum`): Spotify `upc:` then title + artist,
+  MusicBrainz by barcode (`mb::releaseGroupByBarcode`, UPC / EAN with and without leading zeros) then by name, YouTube
+  Music by name.
+- **Flow**: a playlist link opens a progress dialog ("Çalma listesi içe aktarılıyor": reading N / M, then matching
+  N / M with the matched and ISRC counts, a 2 px line; "Vazgeç" / Escape / closing the app cancels), then the 3.21
+  preview with the service's summary ("100 şarkı okundu · YouTube Music: 98 eşleşti · 2 bulunamadı"), the first six
+  songs not found with their positions and "Bulunamayanları da ekle" (on: they are added by name). "İçe aktar" creates
+  the local playlist with the list's description and its cover (fetched on the worker, `pledit::squareJpeg`). An album
+  link opens the catalog's album when `findAlbum` has one, else goes through the same import; from the import dialog
+  an album is always imported. A song link plays its match (or the song by name). Errors toast what happened
+  (private, missing or region-locked, the service refusing anonymous reading, no answer).
+- **Measured** (2026-11-27, YouTube Music catalog, `services_test live-set ytm`): Deezer "Top Worldwide" 100 songs read
+  in 1.3 s, 98 matched in 20 s; Deezer "500 Greatest Songs" 500 songs in 3.6 s, 498 matched in 94 s; Apple Music
+  "Today's Hits" 50 in 3.2 s (token read included), 50 matched in 8 s; Apple Music "Berlioz: The Complete Works" 424
+  in 2.0 s, 366 matched (86 %, classical titles) in 76 s; TIDAL "Test Trax" 132 in 3.4 s, 129 matched in 34 s.
+  MusicBrainz catalog (`live-set mb`, on a day MusicBrainz answered 503 to ~260 requests): 96 / 100 (77 by ISRC) in
+  64 s, 456 / 500 (327 by ISRC) in 6.5 min, 50 / 50 (49 by ISRC) in 6 s, 166 / 424 (29 by ISRC; classical) in 7 min,
+  126 / 132 (107 by ISRC) in 68 s: the time goes into the one-a-second name searches and the 503 back-offs.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -3300,6 +3370,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `history_test` | Last.fm / ListenBrainz import (`app/ScrobbleImport`, 3.55): dates, Retry-After, Last.fm track objects and pages (now playing, images, MBIDs, a single-object page, errors), ListenBrainz listens (mapped artists, artist_names, durations, covers), every export format (lastfm-to-csv, Ghan CSV / JSON, lastfmstats CSV / JSON, the ListenBrainz ZIP / JSONL / old JSON; other files and the other service's left out), fake Last.fm / ListenBrainz servers (oldest-first paging, 429 + Retry-After, error 8, 503, X-RateLimit, the resume overlap, cancel, unknown user / private / bad key / no key / no network), one history from this PC + Spotify + Last.fm + ListenBrainz counted once (pauses, repeats, credit splitting, MBID matching, estimated minutes, removal per source, incremental runs, persistence), resume after a cancel, an account switch (each account's imported files and cursors, a running import stopped into the account left and resumed when back, the superseded result not touching the new account, a pending removal written by `detach`, the pre-filled account), 100 000-scrobble files and `runJob` (time, peak memory) | offline; sections by name (`timing dates records files lastfm lb merge resume accounts`); `live lb <user> [<max>]`, `live lastfm <user> [<max>]` (key in `SHADETUBE_LASTFM_KEY`): a real import into a temp store, then again (only the new) |
 | `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
+| `services_test` | Deezer / Apple Music / TIDAL (3.57): every link form (playlists, albums, songs, short links, storefronts, browse / listen / embed hosts) and the Unsupported ones; parsers on recorded answers (`tests/services/fixtures`, cut down by `record_fixtures.py`; the token-carrying bundles are stand-ins with fake values): Deezer header / pages / track / errors, Apple's page data, bundle token, amp-api resources and pages, TIDAL's JSON:API header / item pages / track list / bundle client; `svc::read` on a replaying transport (Deezer paging, Apple through amp-api with its headers, a refused token falling back to the page, TIDAL's token and cursor pages, a refused client replaced by the bundle's, 404s, short links, transport retries); `catmatch` scoring (versions, featuring, live / remix, wrong artist, lengths, Turkish letters, other scripts, albums) | offline; `live <link…> [ytm\|mb\|spotify\|none] [--quiet]` (reads and matches real lists, timings and match rate; `spotify` uses an anonymous web-player token, search only); `live-set [ytm\|mb]` (two public lists per service) |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
 | `credits_test` | song credits: role folding and groups, merging, the Spotify credits query and legacy JSON, MusicBrainz recording / work / label relationships, title cleaning and the recording ranking, `app/Credits` (JSON round trip and expiry, the provider chain, memory + disk cache, the summary) | offline (fixtures); `live ["Artist" "Title" [seconds]]` (MusicBrainz search + credits, read-only; Spotify too with `SHADETUBE_SPDC`, track `SHADETUBE_CREDITS_TRACK`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
@@ -3445,7 +3516,7 @@ apps*).
 | `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
 | `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
-| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport[=deezer\|apple\|tidal]` (that service's link dialog, 3.57), `importmenu=x,y` (the "İçe aktar" menu), `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
 | `SHADETUBE_ACCOUNT_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.48): `menu[=x,y]` (the account menu at window DIPs, default under the title bar's tag), `switch[=<id>]` (the next signed-in account, or that one), `signout[=<id>]` (the active one), `add` (the login window), `log` (the active account and its data folder). E.g. `switch@8000;menu@11000` with `--screenshot 12000` |
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.36) |
@@ -3533,6 +3604,18 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   aktar" makes a local copy). No search suggestions (the other catalogs have none either). A Search page answer costs
   five parallel requests (the palette's one); a page 1-2 requests of 0.3-1.5 s (answers are 0.2-1 MB of JSON; a mood
   category up to 3 MB) unless the disk cache has it.
+- **Deezer / Apple Music / TIDAL imports** (3.57). Deezer's public API is documented and keyless (robust; 50 requests
+  per 5 s). Apple Music has no keyless API: the import borrows the web player's developer token from its JS bundle and
+  calls the undocumented amp-api; a changed bundle layout or token check falls back to the page data, which holds at
+  most 300 songs and no ISRCs (lists longer than that are then imported in part, and the preview says so). TIDAL's
+  openapi v2 is documented, but the client-credentials pair is the signed-out web app's (read again from the web
+  bundle when refused); if TIDAL closes it to that client, TIDAL imports stop with a clear message. TIDAL's hosts
+  reset connections from this network now and then (retried). Deezer's `deezer.page.link` short links belong to
+  Firebase Dynamic Links, which Google shut down in 2025: old ones may no longer resolve (`link.deezer.com` ones do);
+  no real short link was available for a live test (the expired-link path and a recorded landing page were). The
+  Spotify path (ISRC search with a logged-in session) was not run live during development (no Spotify sandbox
+  session). YouTube Music has no ISRCs, so that catalog matches by name only (98-100 % on pop lists, 86 % on a
+  classical box); matching a 500-song list takes about 1.5 min there, MusicBrainz is bound to one request a second.
 - **YouTube** matching can pick the wrong video (*Wrong match?* fixes it per track), and stream access depends on
   YoutubeExplode keeping up with YouTube changes.
 - **Public Piped / Invidious instances are volatile**: the built-in list goes stale, and many instances serve search

@@ -2,6 +2,17 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.12.0 — unreleased
+
+- **Import from Deezer, Apple Music and TIDAL**: paste a public playlist link from any of them (in Search, or Ctrl+V
+  anywhere), or pick "Deezer'dan / Apple Music'ten / TIDAL'dan içe aktar…" under "İçe aktar", and ShadeTube reads the
+  whole list — long ones included — without an account, finds every song in the catalog you use (Spotify, YouTube
+  Music or MusicBrainz; with Spotify and MusicBrainz exactly by the song's ISRC code where the service gives one) and
+  makes a local playlist with the list's name, description and cover. A progress window shows how far it got and can
+  be stopped; before importing you see how many songs were found and which ones weren't, and choose whether those
+  are added by name anyway. A pasted album link opens that album in your catalog, a song link plays the song, and
+  Deezer's short share links work too. A private or region-locked list says so instead of failing silently.
+
 ## 0.11.0 — 2026-11-27
 
 - **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or
