@@ -9,7 +9,7 @@ namespace {
 constexpr struct {
     Column col;
     std::string_view name;
-} kNames[] = {{Album, "album"}, {Added, "added"}, {Year, "year"}, {Plays, "plays"}};
+} kNames[] = {{Album, "album"}, {Added, "added"}, {Year, "year"}, {Plays, "plays"}, {Bpm, "bpm"}};
 } // namespace
 
 uint32_t parseColumns(std::string_view text) {
@@ -53,13 +53,14 @@ Layout layout(const Spec& spec) {
     l.title = l.num + kNumW + kGap;
     const float tmin = titleMin(spec.compact);
 
-    // The optional columns that fit, dropping plays, year, added, album in that order; then the queue action.
-    static constexpr Column dropOrder[] = {Plays, Year, Added, Album};
+    // The optional columns that fit, dropping plays, BPM, year, added, album in that order; then the queue action.
+    static constexpr Column dropOrder[] = {Plays, Bpm, Year, Added, Album};
     auto fixedW = [](uint32_t cols) {
         float w = 0;
         if (cols & Year) w += kGap + kYearW;
         if (cols & Added) w += kGap + kAddedW;
         if (cols & Plays) w += kGap + kPlaysW;
+        if (cols & Bpm) w += kGap + kBpmW;
         return w;
     };
     auto needs = [&](uint32_t cols) { return fixedW(cols) + ((cols & Album) ? kGap + kAlbumMin : 0.f) + tmin; };
@@ -101,6 +102,11 @@ Layout layout(const Spec& spec) {
     if (cols & Plays) {
         l.plays = x;
         l.playsW = kPlaysW;
+        x += kPlaysW + kGap;
+    }
+    if (cols & Bpm) {
+        l.bpm = x;
+        l.bpmW = kBpmW;
     }
     return l;
 }

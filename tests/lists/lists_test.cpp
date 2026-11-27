@@ -48,7 +48,7 @@ int g_failures = 0;
 void columns() {
     std::printf("columns\n");
     using namespace trackcols;
-    const uint32_t all = Album | Added | Year | Plays;
+    const uint32_t all = Album | Added | Year | Plays | Bpm;
     // Wide: everything fits, in order, right end fixed.
     {
         const Layout l = layout({48, 1400, all, false});
@@ -63,7 +63,8 @@ void columns() {
         CHECK(l.album + l.albumW <= l.year);
         CHECK(l.year + l.yearW <= l.added);
         CHECK(l.added + l.addedW <= l.plays);
-        CHECK(l.plays + l.playsW <= l.queue);
+        CHECK(l.plays + l.playsW <= l.bpm);
+        CHECK(l.bpm + l.bpmW <= l.queue);
         CHECK(l.albumW >= kAlbumMin && l.albumW <= kAlbumMax);
         CHECK(l.titleW >= titleMin(false));
     }
@@ -91,11 +92,12 @@ void columns() {
             next(l.year, l.yearW);
             next(l.added, l.addedW);
             next(l.plays, l.playsW);
+            next(l.bpm, l.bpmW);
             EXPECT(x <= l.queue + 0.01f, "w=%.0f columns run into the actions", w);
             if (l.shown) EXPECT(l.titleW >= titleMin(compact) - 0.01f, "w=%.0f title %.1f under its minimum", w, l.titleW);
             EXPECT(l.titleW >= 0, "w=%.0f negative title", w);
         }
-        const std::vector<uint32_t> expected{all, all & ~Plays, Album | Added, Album, 0};
+        const std::vector<uint32_t> expected{all, all & ~Plays, Album | Added | Year, Album | Added, Album, 0};
         CHECK(order == expected);
         CHECK(bad == 0);
         CHECK(!prevQueue);   // at 300 DIP the queue action is gone too
@@ -114,6 +116,7 @@ void columns() {
     CHECK(parseColumns("") == kDefault);
     CHECK(parseColumns("album,plays") == (Album | Plays));
     CHECK(parseColumns(" added , year ") == (Added | Year));
+    CHECK(parseColumns("album,bpm") == (Album | Bpm) && formatColumns(Bpm | Plays) == "plays,bpm");
     CHECK(parseColumns("bogus,album") == Album);
     CHECK(parseColumns("-") == 0);
     CHECK(formatColumns(0) == "-");

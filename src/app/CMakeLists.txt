@@ -41,6 +41,8 @@ add_executable(ShadeTube WIN32
     CatalogJson.cpp CatalogJson.h
     Autostart.cpp Autostart.h
     Blacklist.cpp Blacklist.h
+    Bpm.cpp Bpm.h
+    BpmStore.cpp BpmStore.h
     ArtistPage.cpp
     BrowseModel.cpp BrowseModel.h
     BrowsePages.cpp
@@ -129,6 +131,9 @@ add_executable(ShadeTube WIN32
     SongNotifier.cpp
     SmartShuffle.cpp SmartShuffle.h
     SmartLists.cpp SmartLists.h
+    RuleLists.cpp RuleLists.h
+    RuleListsPage.cpp RuleListsPage.h
+    RuleSources.cpp RuleSources.h
     SmartListsPage.cpp SmartListsPage.h
     Blend.cpp Blend.h
     Blends.cpp Blends.h

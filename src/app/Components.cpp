@@ -1,6 +1,7 @@
 #include "app/Components.h"
 
 #include "app/Blacklist.h"
+#include "app/Bpm.h"
 #include "app/Display.h"
 #include "app/DragDrop.h"
 #include "app/LyricsFullscreen.h"
@@ -16,6 +17,7 @@
 #include "gfx/Theme.h"
 #include "ui/Layout.h"
 #include "ui/Popups.h"
+#include "ui/TextBox.h"
 #include "ui/Window.h"
 
 #include <algorithm>
@@ -468,12 +470,54 @@ ui::ScrollView* scrollViewAbove(const ui::Widget* w) {
 // Sorting from the header: text columns start ascending, time / count columns descending.
 bool startsDescending(TrackTable::SortKey k) { return k == TrackTable::SortKey::Added || k == TrackTable::SortKey::Plays; }
 
+// "bpm:150-175" / "bpm:>140" / "bpm:<100" / "bpm:128" (±2 %) out of a search text: the range, and the rest of the text.
+std::wstring takeBpmRange(const std::wstring& text, float& lo, float& hi) {
+    lo = hi = 0;
+    std::wstring rest;
+    size_t i = 0;
+    while (i < text.size()) {
+        size_t j = text.find(L' ', i);
+        if (j == std::wstring::npos) j = text.size();
+        const std::wstring word = text.substr(i, j - i);
+        bool used = false;
+        if (word.size() > 4 && (word.rfind(L"bpm:", 0) == 0 || word.rfind(L"BPM:", 0) == 0)) {
+            const std::wstring v = word.substr(4);
+            float a = 0, b = 0;
+            if (swscanf_s(v.c_str(), L"%f-%f", &a, &b) == 2 && a > 0 && b > 0) {
+                lo = std::min(a, b);
+                hi = std::max(a, b);
+                used = true;
+            } else if (v[0] == L'>' && swscanf_s(v.c_str() + 1, L"%f", &a) == 1) {
+                lo = a + 0.5f;
+                hi = 999;
+                used = true;
+            } else if (v[0] == L'<' && swscanf_s(v.c_str() + 1, L"%f", &a) == 1) {
+                lo = 1;
+                hi = a - 0.5f;
+                used = true;
+            } else if (swscanf_s(v.c_str(), L"%f", &a) == 1 && a > 0) {
+                lo = a * 0.98f;
+                hi = a * 1.02f;
+                used = true;
+            }
+        }
+        if (!used && !word.empty()) rest += (rest.empty() ? L"" : L" ") + word;
+        i = j + 1;
+    }
+    return rest;
+}
+
 } // namespace
 
 TrackTable::TrackTable(Options opts) : opts_(opts) {
     focusable = true;
     // The "downloaded" marks follow the downloads (rows re-read theirs; no text is rebuilt).
     ctx().downloads.subscribe(life_.ref(), [this] { ++dlRev_; });
+    // New tempos (app/Bpm): the cells re-read theirs; a sort / range by BPM is applied again.
+    bpm::subscribe(life_.ref(), [this] {
+        if (sortKey_ == SortKey::Bpm || bpmHi_ > 0) rebuildView();
+        else invalidate();
+    });
 }
 
 TrackTable::~TrackTable() {
@@ -553,7 +597,7 @@ void TrackTable::runDemoStep(const std::string& step) {
         const bool desc = arg.find(":desc") != std::string::npos;
         const std::string k = arg.substr(0, arg.find(':'));
         const SortKey key = k == "title" ? SortKey::Title : k == "album" ? SortKey::Album : k == "added" ? SortKey::Added
-                            : k == "duration" ? SortKey::Duration : k == "plays" ? SortKey::Plays : SortKey::None;
+                            : k == "duration" ? SortKey::Duration : k == "plays" ? SortKey::Plays : k == "bpm" ? SortKey::Bpm : SortKey::None;
         sortBy(key, desc);
     } else if (action == "columns") {
         Settings::get().trackColumns = arg;
@@ -614,7 +658,17 @@ void TrackTable::appendTracks(std::vector<catalog::Track> tracks) {
 }
 
 void TrackTable::setFilter(const std::wstring& text) {
-    filter_ = foldForSearch(text);
+    float lo = 0, hi = 0;
+    const std::wstring rest = takeBpmRange(text, lo, hi);
+    filter_ = foldForSearch(rest);
+    bpmLo_ = hi > 0 ? lo : menuBpmLo_;
+    bpmHi_ = hi > 0 ? hi : menuBpmHi_;
+    rebuildView();
+}
+
+void TrackTable::setBpmRange(float lo, float hi) {
+    menuBpmLo_ = bpmLo_ = hi > 0 ? std::min(lo, hi) : 0;
+    menuBpmHi_ = bpmHi_ = hi > 0 ? std::max(lo, hi) : 0;
     rebuildView();
 }
 
@@ -641,6 +695,10 @@ void TrackTable::rebuildView() {
             const std::wstring hay = foldForSearch(toWide(t.name + " " + t.artistLine() + " " + t.album.name));
             if (hay.find(filter_) == std::wstring::npos) continue;
         }
+        if (bpmHi_ > 0) {
+            const float b = bpm::of(tracks_[i]);
+            if (b <= 0 || b < bpmLo_ || b > bpmHi_) continue;
+        }
         view_.push_back(i);
     }
     if (sortKey_ != SortKey::None) {
@@ -650,7 +708,18 @@ void TrackTable::rebuildView() {
             keys.resize(tracks_.size());
             for (int i : view_) keys[i] = foldForSearch(toWide(sortKey_ == SortKey::Title ? tracks_[i].name : tracks_[i].album.name));
         }
+        std::vector<float> tempo;   // BPM: read once per row (unknown sorts last both ways)
+        if (sortKey_ == SortKey::Bpm) {
+            tempo.assign(tracks_.size(), 0.f);
+            for (int i : view_) tempo[i] = bpm::of(tracks_[i]);
+        }
         const auto key = sortKey_;
+        if (key == SortKey::Bpm) {
+            std::stable_sort(view_.begin(), view_.end(), [&](int a, int b) {
+                if ((tempo[a] > 0) != (tempo[b] > 0)) return tempo[a] > 0;
+                return sortDesc_ ? tempo[a] > tempo[b] : tempo[a] < tempo[b];
+            });
+        } else
         std::stable_sort(view_.begin(), view_.end(), [&](int a, int b) {
             const auto& x = tracks_[a];
             const auto& y = tracks_[b];
@@ -663,7 +732,7 @@ void TrackTable::rebuildView() {
             default: return false;
             }
         });
-        if (sortDesc_) std::reverse(view_.begin(), view_.end());
+        if (sortDesc_ && key != SortKey::Bpm) std::reverse(view_.begin(), view_.end());
     }
     texts_.clear();
     hover_ = -1;
@@ -702,7 +771,9 @@ uint32_t TrackTable::wantedColumns() const {
     if (opts_.showAlbum) can |= trackcols::Album;
     if (opts_.showAdded) can |= trackcols::Added;
     if (hasPlays_) can |= trackcols::Plays;
-    return can & userCols_;
+    can |= trackcols::Bpm;   // any list (unknown tempos are empty cells)
+    const uint32_t shown = can & userCols_;
+    return bpmHi_ > 0 ? shown | trackcols::Bpm : shown;   // a BPM range shows the column it filters by
 }
 
 Layout TrackTable::columns() const {
@@ -754,6 +825,12 @@ TrackTable::RowText& TrackTable::rowText(int di) {
         it = texts_.emplace(di, std::move(rt)).first;
     }
     RowText& rt = it->second;
+    if (rt.bpmRev != bpm::revision()) {   // new tempos since: re-read this row's only
+        rt.bpmRev = bpm::revision();
+        gfx::TextOptions right;
+        right.align = gfx::TextAlign::Trailing;
+        rt.bpm = gfx::Text(bpm::label(bpm::of(tracks_[view_[di]])), type::caption, right);
+    }
     if (rt.dlRev != dlRev_) {   // the downloads changed since: re-read the mark only
         rt.dlRev = dlRev_;
         const auto& t = tracks_[view_[di]];
@@ -771,6 +848,7 @@ int TrackTable::headerColumnAt(float x) const {
     if (in(cl.album, cl.albumW)) return static_cast<int>(SortKey::Album);
     if (in(cl.added, cl.addedW)) return static_cast<int>(SortKey::Added);
     if (in(cl.plays, cl.playsW)) return static_cast<int>(SortKey::Plays);
+    if (in(cl.bpm, cl.bpmW)) return static_cast<int>(SortKey::Bpm);
     if (x >= cl.dur - 8 && x < cl.more + trackcols::kActionW) return static_cast<int>(SortKey::Duration);
     return -1;
 }
@@ -787,6 +865,7 @@ void TrackTable::paintHeader(Canvas& c, const Rect& r) {
         hdr_.album = gfx::Text(toUpperTr(tr(L"Albüm")), type::monoLabel);
         hdr_.added = gfx::Text(toUpperTr(tr(L"Eklendi")), type::monoLabel);
         hdr_.plays = gfx::Text(toUpperTr(tr(L"Dinlenme")), type::monoLabel);
+        hdr_.bpm = gfx::Text(L"BPM", type::monoLabel);
         hdr_.dur = gfx::Text(toUpperTr(tr(L"Süre")), type::monoLabel);
         hdr_.count = gfx::Text({}, type::monoLabel);
     }
@@ -821,6 +900,10 @@ void TrackTable::paintHeader(Canvas& c, const Rect& r) {
     if (cl.albumW > 0 && !opts_.albumNumbering) label(hdr_.album, cl.album, cl.albumW, SortKey::Album);
     if (cl.addedW > 0) label(hdr_.added, cl.added, cl.addedW, SortKey::Added);
     if (cl.playsW > 0) label(hdr_.plays, cl.plays, cl.playsW, SortKey::Plays, true);
+    if (cl.bpmW > 0) {
+        label(hdr_.bpm, cl.bpm, cl.bpmW, SortKey::Bpm, true);
+        if (bpmHi_ > 0) c.fillCircle({cl.bpm + cl.bpmW - std::ceil(hdr_.bpm.measure().w) - 6, y + kHeaderH * 0.5f}, 2.5f, acc.base);   // filtered
+    }
     label(hdr_.dur, cl.dur, cl.durW, SortKey::Duration, true);
     c.hline(r.x, r.right(), y + kHeaderH, col.hairDefault);
 }
@@ -879,6 +962,34 @@ void TrackTable::showColumnsMenu(gfx::Point windowPos) {
     item(tr(L"Albüm"), trackcols::Album, opts_.showAlbum);
     item(tr(L"Eklenme tarihi"), trackcols::Added, opts_.showAdded);
     item(tr(L"Dinlenme sayısı"), trackcols::Plays, hasPlays_);
+    item(L"BPM", trackcols::Bpm, true);
+    // A BPM range (running, walking, focus): kept until removed, beside the page's search.
+    ui::MenuItem range{tr(L"BPM aralığı"), "filter", L"", {}};
+    range.submenu = [ref = life_.ref(), this] {
+        std::vector<ui::MenuItem> sub;
+        auto preset = [&](std::wstring label, float lo, float hi) {
+            ui::MenuItem m{std::move(label), "", i18n::format(L"{}–{}", {std::to_wstring(static_cast<int>(lo)), std::to_wstring(static_cast<int>(hi))}),
+                           [ref, this, lo, hi] {
+                               if (!ref.expired()) setBpmRange(lo, hi);
+                           }};
+            m.checked = bpmHi_ > 0 && std::abs(bpmLo_ - lo) < 0.5f && std::abs(bpmHi_ - hi) < 0.5f;
+            sub.push_back(std::move(m));
+        };
+        preset(tr(L"Sakin"), 60, 90);
+        preset(tr(L"Yürüyüş"), 100, 125);
+        preset(tr(L"Tempolu"), 125, 145);
+        preset(tr(L"Koşu"), 150, 175);
+        sub.push_back(ui::MenuItem::sep());
+        sub.push_back({tr(L"Özel aralık…"), "", L"", [ref, this] {
+                           if (!ref.expired()) showBpmRangeDialog();
+                       }});
+        if (bpmHi_ > 0)
+            sub.push_back({tr(L"Aralığı kaldır"), "close", L"", [ref, this] {
+                               if (!ref.expired()) setBpmRange(0, 0);
+                           }});
+        return sub;
+    };
+    items.push_back(std::move(range));
     if (items.empty()) return;
     items.push_back(ui::MenuItem::sep());
     items.push_back({tr(L"Varsayılan sütunlar"), "refresh", L"", [ref = life_.ref(), this] {
@@ -891,6 +1002,42 @@ void TrackTable::showColumnsMenu(gfx::Point windowPos) {
                          }
                      }});
     ui::Menu::open(ctx().window, windowPos, std::move(items));
+}
+
+// "Özel aralık…": two numbers, applied with Enter / "Uygula".
+void TrackTable::showBpmRangeDialog() {
+    auto* d = ui::Dialog::open(ctx().window, tr(L"BPM aralığı"), tr(L"Yalnızca temposu bu aralıkta olan şarkılar gösterilir."), 420);
+    if (!d) return;
+    auto* row = d->body()->add<ui::Box>();
+    auto* lo = row->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"En az"));
+    auto* dash = row->add<ui::Label>(L"–", type::body, ui::Tone::Secondary);
+    auto* hi = row->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"En fazla"));
+    if (bpmHi_ > 0) {
+        lo->setText(std::to_wstring(static_cast<int>(std::lround(bpmLo_))));
+        hi->setText(std::to_wstring(static_cast<int>(std::lround(std::min(bpmHi_, 300.f)))));
+    }
+    row->onPreferredHeight = [](float) { return 44.f; };
+    row->onLayout = [lo, dash, hi](ui::Box& b) {
+        const float w = (b.rect().w - 32) / 2;
+        lo->setRect({0, 0, w, 44});
+        dash->setRect({w, 0, 32, 44});
+        dash->setAlign(gfx::TextAlign::Center);
+        hi->setRect({w + 32, 0, w, 44});
+    };
+    auto apply = [d, lo, hi, ref = life_.ref(), this] {
+        const float a = static_cast<float>(_wtof(lo->text().c_str())), b = static_cast<float>(_wtof(hi->text().c_str()));
+        if (!(a > 0) && !(b > 0)) {
+            lo->setError(true);
+            return;
+        }
+        if (!ref.expired()) setBpmRange(a > 0 ? a : 1, b > 0 ? b : 999);
+        d->close();
+    };
+    lo->onSubmit = [apply](const std::wstring&) { apply(); };
+    hi->onSubmit = [apply](const std::wstring&) { apply(); };
+    d->addButton(tr(L"Vazgeç"), ui::ButtonKind::Ghost, {});
+    d->addButton(tr(L"Uygula"), ui::ButtonKind::Primary, apply, false);
+    lo->focus();
 }
 
 // ---- Rows -------------------------------------------------------------------------------------------------------------
@@ -1028,6 +1175,7 @@ void TrackTable::paintRow(Canvas& c, int i, const Rect& r, const Layout& cl) {
     if (cl.albumW > 0) c.text(tx.album, {cl.album, r.y, cl.albumW, r.h}, col.fgSecondary.mulAlpha(alpha), gfx::VAlign::Center);
     if (cl.addedW > 0) c.text(tx.added, {cl.added, r.y, cl.addedW, r.h}, col.fgTertiary.mulAlpha(alpha), gfx::VAlign::Center);
     if (cl.playsW > 0) c.text(tx.plays, {cl.plays, r.y, cl.playsW, r.h}, col.fgTertiary.mulAlpha(alpha), gfx::VAlign::Center);
+    if (cl.bpmW > 0) c.text(tx.bpm, {cl.bpm, r.y, cl.bpmW, r.h}, col.fgTertiary.mulAlpha(alpha), gfx::VAlign::Center);
 
     // Actions: [add to queue][heart] 03:42 [more]. The heart stays while liked; the others fade and slide in on hover
     // (into room that is always reserved: nothing moves). A "Geliştir" recommendation: "+" (add it to the list) in the

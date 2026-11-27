@@ -8,6 +8,7 @@
 #include "app/CollapsingHeader.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/RuleListsPage.h"
 #include "app/Source.h"
 #include "core/Dispatcher.h"
 #include "core/I18n.h"
@@ -1063,6 +1064,7 @@ void addSection(ui::Column* c, std::function<ui::Widget*(ui::Column*)> makeRow) 
 
 std::unique_ptr<Page> makeSmartListPage(const std::string& rawId) {
     if (rawId.rfind("blend:", 0) == 0) return makeBlendPage(rawId.substr(6));   // a Blend (app/BlendPage.cpp)
+    if (rawId.rfind("rule", 0) == 0) return makeRuleListPage(rawId);            // Kurallı listeler (app/RuleListsPage)
     std::string id = rawId;
     bool autoplay = false;
     if (const auto hash = id.find("#play"); hash != std::string::npos) {

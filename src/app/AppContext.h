@@ -196,6 +196,8 @@ void initShareFeatures();      // app/YearReviewView.cpp (lyrics cards, the year
 void initVideoMode();          // app/VideoMode.cpp      (Video modu: the song's music video, silent, slaved to the audio)
 void initSongNotifications();  // app/SongNotifier.cpp   (a Windows notification when a song starts out of sight)
 void initBlends();             // app/Blends.cpp         (Blend: shared playlists from friends' taste)
+void initTempo();              // app/Bpm.cpp            (BPM: tags + the background tempo analysis)
+void initRuleLists();          // app/RuleListsPage.cpp  (Kurallı listeler: rule-based playlists)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -217,6 +219,8 @@ inline void initFeatures() {
     initVideoMode();
     initSongNotifications();
     initBlends();
+    initTempo();
+    initRuleLists();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the

@@ -159,6 +159,7 @@ void Settings::load() {
     read(j, "videoW", videoW);
     read(j, "videoH", videoH);
     read(j, "audioCacheMb", audioCacheMb);
+    read(j, "bpmAnalysis", bpmAnalysis);
     audioCacheMb = std::clamp(audioCacheMb, 0, 100 * 1024);
     read(j, "trackColumns", trackColumns);
     volume = std::clamp(volume, 0.0f, 1.0f);
@@ -262,6 +263,7 @@ void Settings::save() const {
         {"videoW", videoW},
         {"videoH", videoH},
         {"audioCacheMb", audioCacheMb},
+        {"bpmAnalysis", bpmAnalysis},
         {"trackColumns", trackColumns},
     };
     // Write-then-rename so a crash never leaves a truncated settings file.

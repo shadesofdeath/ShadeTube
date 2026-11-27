@@ -2,11 +2,11 @@
 // The track table's geometry (app/Components TrackTable), standalone so lists_test checks it without a window:
 // which columns a width has room for, where each one sits, and the runs of a selection.
 //
-//   # | [art] Title / artists          | Album      | Year | Added      | Plays | [queue][heart] | 03:42 | [more]
+//   # | [art] Title / artists          | Album      | Year | Added      | Plays | BPM | [queue][heart] | 03:42 | [more]
 //
 // The right end is fixed (the row actions and the duration never move: the hover actions fade into reserved room,
 // they don't push anything). The optional columns sit left of the actions and give way to the title as the table
-// narrows, in this order: plays, year, added, album; below that the hover "add to queue" button goes too.
+// narrows, in this order: plays, BPM, year, added, album; below that the hover "add to queue" button goes too.
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -16,9 +16,10 @@
 namespace st::app::trackcols {
 
 // Optional columns (bit flags). Album, Added and Plays are on by default where a list has them (Plays: some row has a
-// play count); Year has no data yet (catalog::Track carries no release year).
-enum Column : uint32_t { Album = 1, Added = 2, Year = 4, Plays = 8 };
-inline constexpr uint32_t kAll = Album | Added | Year | Plays;
+// play count); Year has no data yet (catalog::Track carries no release year); BPM (the tempo, app/Bpm) is the user's
+// pick (an empty cell when unknown).
+enum Column : uint32_t { Album = 1, Added = 2, Year = 4, Plays = 8, Bpm = 16 };
+inline constexpr uint32_t kAll = Album | Added | Year | Plays | Bpm;
 inline constexpr uint32_t kDefault = Album | Added | Plays;   // plays only show where the songs have counts
 // Settings::trackColumns <-> flags: "album,added,plays" (unknown names ignored); "" = kDefault.
 uint32_t parseColumns(std::string_view text);
@@ -37,6 +38,7 @@ struct Layout {
     float year = 0, yearW = 0;
     float added = 0, addedW = 0;
     float plays = 0, playsW = 0;
+    float bpm = 0, bpmW = 0;
     float queue = 0, heart = 0;         // the 28 DIP action slots left of the duration (queue: 0 width = no room)
     float queueW = 0;
     float dur = 0, durW = 0;            // right-aligned duration text
@@ -45,7 +47,7 @@ struct Layout {
 };
 
 inline constexpr float kPadX = 12, kGap = 16, kNumW = 40, kActionW = 28, kDurW = 56;
-inline constexpr float kAddedW = 120, kYearW = 52, kPlaysW = 88;
+inline constexpr float kAddedW = 120, kYearW = 52, kPlaysW = 88, kBpmW = 48;
 inline constexpr float kAlbumMin = 140, kAlbumMax = 320;
 float titleMin(bool compact);   // 240 / 200
 
