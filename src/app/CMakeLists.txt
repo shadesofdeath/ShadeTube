@@ -96,6 +96,8 @@ add_executable(ShadeTube WIN32
     PlaylistTransfer.cpp PlaylistTransfer.h
     Radio.cpp Radio.h
     RadioPage.cpp
+    Recognition.cpp Recognition.h   # Şarkıyı tanı: the song -> a catalog track, recognized.json (standalone)
+    RecognizeUi.cpp Recognize.h     # Şarkıyı tanı: the dialog and its entry points
     RemoteApi.cpp RemoteApi.h
     RemoteAuth.cpp RemoteAuth.h
     RemoteControl.cpp
@@ -162,7 +164,7 @@ add_executable(ShadeTube WIN32
 # windowsapp: C++/WinRT SystemMediaTransportControls (Smtc). bcrypt: MD5 for Last.fm signatures, AES-GCM / ECDH for
 # "Birlikte dinle". crypt32: DPAPI. winhttp: the MQTT WebSocket of "Birlikte dinle". secur32: the Windows display name.
 # ws2_32 + iphlpapi + qrcodegen: the phone remote control (LAN server, adapter addresses, pairing QR code).
-target_link_libraries(ShadeTube PRIVATE st_ui st_video st_player st_lyrics st_musicbrainz st_spotify st_youtube st_ytmusic st_catalog st_audio st_core webview2
+target_link_libraries(ShadeTube PRIVATE st_ui st_video st_recognize st_player st_lyrics st_musicbrainz st_spotify st_youtube st_ytmusic st_catalog st_audio st_core webview2
     windowsapp bcrypt crypt32 winhttp secur32 ws2_32 iphlpapi qrcodegen)
 # "ShadeTube 0.3" in Ayarlar > Hakkında.
 target_compile_definitions(ShadeTube PRIVATE ST_VERSION_SHORT="${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")

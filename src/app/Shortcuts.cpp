@@ -54,6 +54,8 @@ constexpr Action kActions[] = {
     {"go-new-releases", [] { return tr(L"Yeni çıkanlar"); }, Category::Navigation, "", 0, "sparkle"},
     {"settings", [] { return tr(L"Ayarlar"); }, Category::Navigation, "Ctrl+Comma", 0, "settings"},
     {"import-playlist", [] { return tr(L"Çalma listesi içe aktar"); }, Category::Navigation, "", 0, "list"},
+    // "Şarkıyı tanı" (app/Recognize): a global key brings the window up and listens.
+    {"recognize-song", [] { return tr(L"Şarkıyı tanı"); }, Category::Navigation, "", kGlobal, "recognize"},
 
     {"now-playing", [] { return tr(L"Şimdi Çalıyor ekranı"); }, Category::View, "F11", 0, "expand"},
     {"toggle-sidebar", [] { return tr(L"Kenar çubuğunu daralt / genişlet"); }, Category::View, "Ctrl+B", 0, "sidebar"},
