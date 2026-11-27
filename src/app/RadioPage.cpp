@@ -482,93 +482,60 @@ private:
     bool heartHot_ = false;
 };
 
-// Section title + mono meta + links on the right (SectionHeader with several links).
-class SectionBar : public ui::Widget {
+// Wrapping row of buttons (genre chips). One Tab stop for the whole row (the chip last moved to): Left / Right (and Up /
+// Down) step through the chips, Home / End jump to the ends, Enter opens one; a row of 17 genres is not 17 Tab stops.
+class ChipFlow : public ui::Widget {
 public:
-    SectionBar(std::wstring title, std::wstring meta) : title_(std::move(title), type::title), meta_(std::move(meta), type::monoLabel) {
-        hitTestVisible = false;
-    }
-    Button* addLink(std::wstring label, std::string icon, std::function<void()> fn) {
-        auto* b = add<Button>(ButtonKind::Link, std::move(label), std::move(icon));
-        b->onClick = std::move(fn);
-        links_.push_back(b);
-        return b;
-    }
-    float preferredHeight(float) override { return 48; }
+    explicit ChipFlow(float itemH) : itemH_(itemH) { hitTestVisible = false; }
+    float preferredHeight(float width) override { return place(width, false); }
     void layout() override {
-        float x = rect().w;
-        for (auto* b : links_) {
-            const float w = b->naturalWidth();
-            x -= w;
-            b->setRect({x, 0, w, 36});
-            x -= 24;
+        place(rect().w, true);
+        const int n = static_cast<int>(children().size());
+        current_ = std::clamp(current_, 0, std::max(0, n - 1));
+        for (int i = 0; i < n; ++i) children()[static_cast<size_t>(i)]->focusable = i == current_;
+    }
+    bool onKeyDown(const ui::KeyEvent& e) override {
+        if (e.ctrl || e.alt || children().empty()) return false;
+        const int n = static_cast<int>(children().size());
+        int at = current_;
+        for (int i = 0; i < n; ++i)
+            if (children()[static_cast<size_t>(i)]->focused()) at = i;
+        int next;
+        switch (e.vk) {
+        case VK_LEFT:
+        case VK_UP: next = std::max(0, at - 1); break;
+        case VK_RIGHT:
+        case VK_DOWN: next = std::min(n - 1, at + 1); break;
+        case VK_HOME: next = 0; break;
+        case VK_END: next = n - 1; break;
+        default: return false;
         }
-        linksW_ = rect().w - x;
-    }
-    void paint(Canvas& c) override {
-        const Rect r = rect();
-        const float room = std::max(0.f, r.w - linksW_ - 16);
-        const float tw = std::min(std::ceil(title_.measure().w), room);
-        c.text(title_, {r.x, r.y, tw + 1, 36}, colors().fgPrimary, gfx::VAlign::Center);
-        if (!meta_.empty() && tw + 14 < room)
-            c.text(meta_, {r.x + tw + 14, r.y + 4, room - tw - 14, 36}, colors().fgTertiary, gfx::VAlign::Center);
-        c.hline(r.x, r.right(), r.y + 44, colors().hairDefault);
-        paintChildren(c);
+        current_ = next;
+        for (int i = 0; i < n; ++i) children()[static_cast<size_t>(i)]->focusable = i == next;
+        if (auto* w = window()) w->focusByKeyboard(children()[static_cast<size_t>(next)].get());
+        return true;
     }
 
 private:
-    gfx::Text title_, meta_;
-    std::vector<Button*> links_;
-    float linksW_ = 0;
-};
-
-// Compact error line inside a section: icon + text + "Tekrar dene".
-class InlineError : public ui::Widget {
-public:
-    InlineError(std::wstring text, std::function<void()> retry) : text_(std::move(text), type::secondary) {
-        hitTestVisible = false;
-        retry_ = add<Button>(ButtonKind::Link, tr(L"Tekrar dene"), "refresh");
-        retry_->onClick = std::move(retry);
-    }
-    float preferredHeight(float) override { return 56; }
-    void layout() override {
-        const float tw = std::ceil(text_.measure().w);
-        retry_->setRect({8 + 16 + 10 + tw + 16, 10, retry_->naturalWidth(), 36});
-    }
-    void paint(Canvas& c) override {
-        const Rect r = rect();
-        c.icon("offline", {r.x + 8, r.cy() - 8, 16, 16}, colors().fgTertiary);
-        c.text(text_, {r.x + 8 + 16 + 10, r.y, r.w - 60, r.h}, colors().fgSecondary, gfx::VAlign::Center);
-        paintChildren(c);
-    }
-
-private:
-    gfx::Text text_;
-    Button* retry_;
-};
-
-// Wrapping row of buttons (genre chips).
-ui::Box* addFlow(ui::Column* col, float itemH) {
-    auto* flow = col->add<ui::Box>();
-    flow->hitTestVisible = false;
-    auto place = [itemH](ui::Box& b, float width, bool apply) {
+    float place(float width, bool apply) {
         float x = 0, y = 0;
-        for (const auto& child : b.children()) {
+        for (const auto& child : children()) {
             auto* btn = static_cast<Button*>(child.get());
             const float w = std::min(btn->naturalWidth(), width);
             if (x > 0 && x + w > width) {
                 x = 0;
-                y += itemH + 8;
+                y += itemH_ + 8;
             }
-            if (apply) btn->setRect({x, y, w, itemH});
+            if (apply) btn->setRect({x, y, w, itemH_});
             x += w + 8;
         }
-        return b.children().empty() ? 0.f : y + itemH;
-    };
-    flow->onLayout = [place](ui::Box& b) { place(b, b.rect().w, true); };
-    flow->onPreferredHeight = [flow, place](float w) { return place(*flow, w, false); };
-    return flow;
-}
+        return children().empty() ? 0.f : y + itemH_;
+    }
+    float itemH_;
+    int current_ = 0;
+};
+
+ChipFlow* addFlow(ui::Column* col, float itemH) { return col->add<ChipFlow>(itemH); }
 
 // Country picker (dialog): a filter field over the countries radio-browser.info lists, most stations first.
 class CountryList : public ui::Widget {
@@ -771,12 +738,12 @@ private:
 
     // ---- build -----------------------------------------------------------------------------------------
     void build() {
-        auto* c = resetContent(24.f);
+        auto* c = resetContent(24.f);   // title block, genre chips, then the sections (32 apart)
         buildHeader(c);
         if (view_ == View::Home) {
             buildGenreChips(c);
             body_ = c->add<ui::Column>(gfx::metrics::sectionGap);
-            c->setSpacingBefore(body_, 8);
+            c->setSpacingBefore(body_, gfx::metrics::sectionGap);
             favSec_ = body_->add<ui::Column>(16.f);
             recentSec_ = body_->add<ui::Column>(16.f);
             countrySec_ = body_->add<ui::Column>(16.f);
@@ -796,14 +763,13 @@ private:
         contentReady();
     }
 
+    // The page title (app/PageWidgets): the kicker says where a sub-view belongs, which goes back with a Ghost button.
     void buildHeader(ui::Column* c) {
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(viewTitle(), view_ == View::Home ? type::displayM : type::displayS);
-        title->setVAlign(gfx::VAlign::Center);
-        ui::TextBox* box = nullptr;
-        Button* back = nullptr;
-        if (view_ == View::Home) {
-            box = top->add<ui::TextBox>(ui::TextBox::Look::Search, tr(L"İstasyon ara"));
+        const bool home = view_ == View::Home;
+        auto* top = c->add<PageTitle>(viewTitle(), std::wstring(),
+                                      home ? toUpperTr(tr(L"Canlı radyo")) + L" · RADIO-BROWSER.INFO" : viewKicker());
+        if (home) {
+            auto* box = top->addSearch(tr(L"İstasyon ara"));
             box->setText(query_);
             box->onChange = [this](const std::wstring& s) { scheduleSearch(s); };
             box->onSubmit = [this](const std::wstring& s) {
@@ -812,29 +778,9 @@ private:
             };
             box->onEscape = [box] { box->setText({}, true); };
         } else {
-            back = top->add<Button>(ButtonKind::Ghost, tr(L"Radyo"), "arrow-back");
+            auto* back = top->addAction(ButtonKind::Ghost, tr(L"Radyo"), "arrow-back");
             back->onClick = [] { ctx().router->navigate({RouteKind::Radio}); };
         }
-        const bool home = view_ == View::Home;
-        top->onPreferredHeight = [home](float) { return home ? 64.f : 56.f; };
-        top->onLayout = [title, box, back](ui::Box& b) {
-            const float w = b.rect().w, h = b.rect().h;
-            float right = w;
-            if (box) {
-                const float bw = std::clamp(w * 0.4f, 220.f, 380.f);
-                box->setRect({w - bw, h * 0.5f - gfx::metrics::searchH * 0.5f, bw, gfx::metrics::searchH});
-                right = w - bw - 24;
-            }
-            if (back) {
-                const float bw = back->naturalWidth();
-                back->setRect({w - bw, h * 0.5f - 18, bw, 36});
-                right = w - bw - 24;
-            }
-            title->setRect({0, 0, std::max(0.f, right), h});
-        };
-        auto* kicker = c->add<ui::Label>(home ? toUpperTr(tr(L"Canlı radyo")) + L" · RADIO-BROWSER.INFO" : viewKicker(), type::monoLabel,
-                                         ui::Tone::Tertiary);
-        c->setSpacingBefore(kicker, 2);
     }
 
     void buildGenreChips(ui::Column* c) {
@@ -854,7 +800,7 @@ private:
             sec->clearChildren();
             sec->setVisible(!list.empty() && !searching());
             if (list.empty()) return;
-            auto* bar = sec->add<SectionBar>(title, std::to_wstring(list.size()));
+            auto* bar = sec->add<SectionHeader>(title, std::to_wstring(list.size()));
             const std::string r = route;
             bar->addLink(tr(L"Tümünü gör"), "arrow-forward", [r] { ctx().router->navigate({RouteKind::Radio, r}); });
             auto* grid = sec->add<ui::Grid>(kTileMinW, 12.f, [](float) { return kTileH; }, 1);
@@ -938,10 +884,10 @@ private:
         switch (ls.phase) {
         case ListState::Phase::Idle:
         case ListState::Phase::Loading: sec->add<StationSkeleton>(maxRows); break;
-        case ListState::Phase::Error: sec->add<InlineError>(ls.error, std::move(retry)); break;
+        case ListState::Phase::Error: errorState(sec, ls.error, std::move(retry))->setCompact(true); break;
         case ListState::Phase::Ready:
             if (ls.stations.empty()) {
-                sec->add<ui::Label>(tr(L"Burada henüz çalınabilir istasyon yok."), type::secondary, ui::Tone::Tertiary);
+                emptyState(sec, "radio", tr(L"Burada henüz çalınabilir istasyon yok."), {})->setCompact(true);
                 break;
             }
             auto* rows = sec->add<RowList>();
@@ -957,7 +903,7 @@ private:
         countrySec_->clearChildren();
         countrySec_->setVisible(!searching() && !allOffline());
         const std::wstring name = radio::countryName(countryShown_, countryShown_);
-        auto* bar = countrySec_->add<SectionBar>(i18n::format(tr(L"Popüler · {}"), {name}), toUpperTr(tr(L"En çok dinlenen")));
+        auto* bar = countrySec_->add<SectionHeader>(i18n::format(tr(L"Popüler · {}"), {name}), toUpperTr(tr(L"En çok dinlenen")));
         const std::string code = countryShown_;
         bar->addLink(tr(L"Tümünü gör"), "arrow-forward", [code] { ctx().router->navigate({RouteKind::Radio, "country:" + code}); });
         bar->addLink(tr(L"Ülke değiştir"), "chevron-down", [this] {
@@ -974,7 +920,7 @@ private:
     void buildWorldSection() {
         worldSec_->clearChildren();
         worldSec_->setVisible(!searching() && !allOffline());
-        auto* bar = worldSec_->add<SectionBar>(tr(L"Dünyada popüler"), toUpperTr(tr(L"En çok oy alan")));
+        auto* bar = worldSec_->add<SectionHeader>(tr(L"Dünyada popüler"), toUpperTr(tr(L"En çok oy alan")));
         bar->addLink(tr(L"Tümünü gör"), "arrow-forward", [] { ctx().router->navigate({RouteKind::Radio, "votes"}); });
         fillSection(worldSec_, world_, 10, tr(L"Dünyada popüler"), "radio:votes", [this] {
             fetch(world_, [](const CancellationToken& ct) { return radio::Client::shared().topVote(24, 0, ct); }, [this] { buildWorldSection(); });
@@ -985,7 +931,7 @@ private:
     void buildTrendSection() {
         trendSec_->clearChildren();
         trendSec_->setVisible(!searching() && !allOffline());
-        auto* bar = trendSec_->add<SectionBar>(tr(L"Şu an çok dinlenen"), toUpperTr(tr(L"Son 24 saat")));
+        auto* bar = trendSec_->add<SectionHeader>(tr(L"Şu an çok dinlenen"), toUpperTr(tr(L"Son 24 saat")));
         bar->addLink(tr(L"Tümünü gör"), "arrow-forward", [] { ctx().router->navigate({RouteKind::Radio, "top"}); });
         fillSection(trendSec_, trend_, 10, tr(L"Şu an çok dinlenen"), "radio:top", [this] {
             fetch(trend_, [](const CancellationToken& ct) { return radio::Client::shared().topClick(24, 0, ct); }, [this] { buildTrendSection(); });
@@ -1104,7 +1050,7 @@ private:
 
     void buildSearchSection() {
         searchSec_->clearChildren();
-        auto* bar = searchSec_->add<SectionBar>(i18n::format(tr(L"“{}” için sonuçlar"), {query_}),
+        auto* bar = searchSec_->add<SectionHeader>(i18n::format(tr(L"“{}” için sonuçlar"), {query_}),
                                                 search_.phase == ListState::Phase::Ready ? std::to_wstring(search_.stations.size()) : L"");
         if (search_.more) {   // the full list pages on ("Daha fazla yükle") and sorts by votes too
             const std::string q = toUtf8(query_);
@@ -1193,7 +1139,7 @@ private:
                                                   "musica", "webradio", "local",  "local radio", "internet radio",
                                                   "online radio", "entretenimiento", "entertainment", "information",
                                                   "variety", "full service", "regional"};
-        auto addChips = [this](ui::Box* flow, bool genres) {
+        auto addChips = [this](ui::Widget* flow, bool genres) {
             for (const auto& t : genres_) {
                 if (radio::isGenre(t.name) != genres) continue;
                 if (!genres && std::find(std::begin(kNoise), std::end(kNoise), t.name) != std::end(kNoise)) continue;
@@ -1203,10 +1149,10 @@ private:
                 chip->onClick = [tag] { ctx().router->navigate({RouteKind::Radio, "tag:" + tag}); };
             }
         };
-        auto* known = body_->add<SectionBar>(tr(L"Türler"), L"");
+        auto* known = body_->add<SectionHeader>(tr(L"Türler"), L"");
         body_->setSpacingBefore(known, 24);
         addChips(addFlow(body_, 32), true);
-        auto* other = body_->add<SectionBar>(tr(L"Diğer etiketler"), L"");
+        auto* other = body_->add<SectionHeader>(tr(L"Diğer etiketler"), L"");
         body_->setSpacingBefore(other, 32);
         addChips(addFlow(body_, 32), false);
     }

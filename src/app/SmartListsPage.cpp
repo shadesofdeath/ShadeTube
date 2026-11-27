@@ -810,8 +810,7 @@ private:
         if (makeRow_) {
             row = makeRow_(this);
         } else {
-            auto* grid = add<ui::Grid>(maxRows_ == 1 ? 150.f : 170.f, gfx::metrics::cardGap,
-                                       [](float w) { return w + 10 + 18 + 4 + 16; }, maxRows_);
+            auto* grid = add<ui::Grid>(cardMinCell(), gfx::metrics::cardGap, [](float w) { return w + 10 + 18 + 4 + 16; }, maxRows_);
             setSpacingBefore(grid, 16);
             row = grid;
         }

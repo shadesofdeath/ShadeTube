@@ -100,40 +100,6 @@ std::wstring scanLine() {
     return s;
 }
 
-// Row of tab buttons with the hairline underneath (like Kitaplık).
-class Tabs : public ui::Widget {
-public:
-    Tabs(std::vector<std::wstring> labels, int selected) {
-        hitTestVisible = false;
-        for (size_t i = 0; i < labels.size(); ++i) {
-            auto* b = add<Button>(ButtonKind::Tab, labels[i]);
-            b->setActive(static_cast<int>(i) == selected);
-            b->onClick = [this, i] {
-                for (size_t k = 0; k < buttons_.size(); ++k) buttons_[k]->setActive(k == i);
-                if (onSelect) onSelect(static_cast<int>(i));
-            };
-            buttons_.push_back(b);
-        }
-    }
-    std::function<void(int)> onSelect;
-    float preferredHeight(float) override { return 37; }
-    void layout() override {
-        float x = 0;
-        for (auto* b : buttons_) {
-            const float w = b->naturalWidth();
-            b->setRect({x, 0, w, 36});
-            x += w + 24;
-        }
-    }
-    void paint(Canvas& c) override {
-        c.hline(rect().x, rect().right(), rect().bottom() - 1, colors().hairDefault);
-        paintChildren(c);
-    }
-
-private:
-    std::vector<Button*> buttons_;
-};
-
 // ---- Klasörler ----------------------------------------------------------------------------------------------------
 
 // The songs of a folder and its subfolders, in tree order ("" = every listed folder). Resolved when asked (cards keep
@@ -334,7 +300,7 @@ private:
 
     void refreshStatus() {
         const auto& lib = LocalLibrary::get();
-        if (status_) status_->setText(statusText());
+        if (title_) title_->setMeta(statusShown_ ? statusText() : std::wstring());
         if (rescan_) {
             rescan_->setLabel(lib.scanning() ? tr(L"Taranıyor…") : tr(L"Yeniden tara"));
             rescan_->setEnabled(!lib.scanning());
@@ -359,34 +325,24 @@ private:
         body_ = nullptr;
         more_ = nullptr;
         showsTree_ = waitingForTree_ = false;
-        auto* c = resetContent(20.f);
+        auto* c = resetContent(24.f);   // the page's header rhythm: title, tabs, toolbar, content 24 apart
 
-        // Title + actions.
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(tr(L"Yerel dosyalar"), type::displayM);
-        title->setVAlign(gfx::VAlign::Top);
-        auto* add = top->add<Button>(ButtonKind::Secondary, tr(L"Klasör ekle"), "plus");
-        add->setTooltip(tr(L"Taranacak bir müzik klasörü seç"));
-        add->onClick = [] { addFolderPosted(); };
-        rescan_ = top->add<Button>(ButtonKind::Ghost, tr(L"Yeniden tara"), "refresh");
+        // Title + actions (the main one last).
+        title_ = c->add<PageTitle>(tr(L"Yerel dosyalar"));
+        rescan_ = title_->addAction(ButtonKind::Ghost, tr(L"Yeniden tara"), "refresh");
         rescan_->setTooltip(tr(L"Klasörlerdeki yeni, değişen ve silinen dosyaları bul"));
         rescan_->onClick = [] { LocalLibrary::get().rescan(); };
-        top->onPreferredHeight = [](float) { return 64.f; };
-        top->onLayout = [title, add, r = rescan_](ui::Box& b) {
-            const float w = b.rect().w;
-            float x = w - add->naturalWidth();
-            add->setRect({x, 12, add->naturalWidth(), 40});
-            x -= r->naturalWidth() + 10;
-            r->setRect({x, 12, r->naturalWidth(), 40});
-            title->setRect({0, 0, std::max(0.f, x - 16), 64});
-        };
-        status_ = c->add<ui::Label>(L"", type::secondary, ui::Tone::Tertiary);
+        auto* add = title_->addAction(ButtonKind::Secondary, tr(L"Klasör ekle"), "plus");
+        add->setTooltip(tr(L"Taranacak bir müzik klasörü seç"));
+        add->onClick = [] { addFolderPosted(); };
+        statusShown_ = true;
         refreshStatus();
 
         // Empty states.
         if (Settings::get().localFolders.empty() && lib.tracks().empty()) {
             rescan_->setVisible(false);
-            status_->setVisible(false);
+            statusShown_ = false;
+            title_->setMeta({});
             emptyState(c, "folder", tr(L"Bilgisayarındaki müziği ekle"),
                        tr(L"Müzik klasörlerini seç; şarkılar etiketleri ve kapaklarıyla burada listelenir, internet "
                           L"olmadan çalar. Dosyaların yalnızca sen etiketlerini düzenlediğinde değiştirilir."),
@@ -408,7 +364,10 @@ private:
             return;
         }
 
-        // Play / shuffle + search.
+        auto* tabs = c->add<PageTabs>(std::vector<std::wstring>{tr(L"Şarkılar"), tr(L"Albümler"), tr(L"Sanatçılar"), tr(L"Klasörler")},
+                                      static_cast<int>(tab_));
+
+        // The tab's toolbar: play / shuffle (and the open folder's menu) at the left, the search pill at the right.
         auto* bar = c->add<ui::Box>();
         play_ = bar->add<ui::PlayButton>(ui::PlayButton::Look::Accent);
         play_->setTooltip(tr(L"Çal"));
@@ -422,7 +381,7 @@ private:
             const Rect br = more_->toWindow(more_->rect());
             showFolderMenu(shownFolder_, shownName_, {br.x, br.bottom() + 6});
         };
-        filterBox_ = bar->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Yerel dosyalarda ara"));
+        filterBox_ = bar->add<ui::TextBox>(ui::TextBox::Look::Search, tr(L"Yerel dosyalarda ara"));
         filterBox_->setText(filter_);
         filterBox_->onChange = [this](const std::wstring& s) {
             filter_ = s;
@@ -439,21 +398,20 @@ private:
         };
         bar->onPreferredHeight = [](float) { return 56.f; };
         bar->onLayout = [p = play_, shuffle, more = more_, box = filterBox_](ui::Box& b) {
+            // The collection pages' action row: play 56, then 16, then 40 DIP buttons 8 apart.
             const float w = b.rect().w;
             p->setRect({0, 0, 56, 56});
             const float sw = shuffle->naturalWidth();
             shuffle->setRect({56 + 16, 8, sw, 40});
             float used = 56 + 16 + sw;
             if (more->visible()) {
-                more->setRect({used + 14, 8, 40, 40});
-                used += 14 + 40;
+                more->setRect({used + 8, 8, 40, 40});
+                used += 8 + 40;
             }
-            const float bw = std::min(280.f, std::max(160.f, w - (used + 24)));
+            const float bw = std::min(300.f, std::max(160.f, w - (used + 24)));
             box->setRect({w - bw, 6, bw, 44});
         };
 
-        auto* tabs = c->add<Tabs>(std::vector<std::wstring>{tr(L"Şarkılar"), tr(L"Albümler"), tr(L"Sanatçılar"), tr(L"Klasörler")},
-                                  tab_);
         tabs->onSelect = [this, bar](int i) {
             closeGroup();
             tab_ = static_cast<Tab>(i);
@@ -531,7 +489,7 @@ private:
         if (!tree) {
             waitingForTree_ = true;
             body_->add<ui::Label>(tr(L"Klasörler hazırlanıyor…"), type::secondary, ui::Tone::Tertiary);
-            body_->add<SkeletonCards>(1, 168.f);   // the folder tree is being built
+            body_->add<SkeletonCards>(1, cardMinCell());   // the folder tree is being built
             return;
         }
         showsTree_ = true;
@@ -589,7 +547,7 @@ private:
         for (int k : kids)
             if (needle.empty() || foldForSearch(nodes[static_cast<size_t>(k)].name).find(needle) != std::wstring::npos) shown.push_back(k);
         if (!shown.empty()) {
-            auto* grid = body_->add<ui::Grid>(168.f, gfx::metrics::cardGap, [](float w) { return w + 10 + 18 + 4 + 16; });
+            auto* grid = addCardGrid(body_);
             for (size_t i = 0; i < shown.size() && i < kMaxCards; ++i) {
                 const local::FolderNode& f = nodes[static_cast<size_t>(shown[i])];
                 const std::vector<Image> images = f.cover >= 0 && f.cover < static_cast<int>(all.size())
@@ -704,7 +662,7 @@ private:
                     taken[t] = 1;
                     gridTracks_.push_back(t);
                 }
-        auto* grid = body_->add<ui::Grid>(168.f, gfx::metrics::cardGap, [](float w) { return w + 10 + 18 + 4 + 16; });
+        auto* grid = addCardGrid(body_);
         const bool albums = tab_ == Albums;
         for (size_t k = 0; k < shown.size() && k < kMaxCards; ++k) {
             const int gi = shown[k];
@@ -836,7 +794,8 @@ private:
     std::wstring filter_;           // the search box
     std::wstring gridFilter_;       // the grid's search while a group is open
     std::vector<int> gridTracks_;   // what Play plays on a grid
-    ui::Label* status_ = nullptr;
+    PageTitle* title_ = nullptr;
+    bool statusShown_ = false;   // the scan status line under the title (none on the empty page)
     Button* rescan_ = nullptr;
     ui::PlayButton* play_ = nullptr;
     ui::TextBox* filterBox_ = nullptr;

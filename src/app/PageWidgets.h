@@ -2,6 +2,7 @@
 // Small widgets shared by the page implementations.
 #include "app/Components.h"
 #include "ui/Layout.h"
+#include "ui/TextBox.h"
 
 #include <functional>
 #include <string>
@@ -51,6 +52,8 @@ private:
     Rect artRect() const { return {rect().x + 4, rect().cy() - 22, 44, 44}; }
     SharedCover cover() const { return pagetx::imageCover(*this, artRect(), circle_ ? 22.f : 2.f, images_); }
     gfx::Text title_, subtitle_, meta_;
+    float metaW_ = 0;
+    uint64_t metaGen_ = ~0ull;
     std::vector<catalog::Image> images_;
     bool circle_;
     ui::Anim hover_;
@@ -255,5 +258,74 @@ private:
 
 // Horizontal row of cards with a fixed number of visible columns (Grid with maxRows = 1).
 ui::Grid* addCardRow(ui::Column* col, float minCell, int maxRows = 1);
+
+// ---- Page layout (docs/DEVELOPMENT.md "Page layout") ------------------------------------------------------------------
+// The smallest column of a media-card grid on every page: 160 DIP (Sıkı list density: 140), Home's shelves' width, so
+// cards are the same size on Home, the Library, Search, an artist, Podcasts, New releases, Local files and Stats.
+float cardMinCell();
+// addCardRow with that column.
+ui::Grid* addCardGrid(ui::Column* col, int maxRows = 0);
+
+// The title block of a top-level page and of its sub-pages (Kitaplık, İndirilenler, Yerel dosyalar, Podcastler, Radyo,
+// İstatistikler, Yeni çıkanlar...): one look everywhere.
+//  - an optional mono kicker above the title (where a sub-page belongs: "PODCASTLER", "RADYO · TÜR"), fg.tertiary;
+//  - the title in display type, 56 / 44 / 36 DIP by page width (Home's greeting steps), smaller still when a long
+//    name would not fit, then an ellipsis;
+//  - an optional meta line under it (secondary, fg.tertiary, at most two lines);
+//  - the actions at the right, centered on the title's line, 8 DIP apart, in the order added (the main one last, as a
+//    Secondary pill; Ghost buttons before it), and optionally a search pill after them. When they don't fit beside the
+//    title they move to a row under it, starting at the left.
+class PageTitle : public ui::Widget {
+public:
+    explicit PageTitle(std::wstring title, std::wstring meta = {}, std::wstring kicker = {});
+    ui::Button* addAction(ui::ButtonKind kind, std::wstring label, std::string icon = {});
+    ui::TextBox* addSearch(std::wstring placeholder);   // the search pill (ui::TextBox::Look::Search), rightmost
+    void setTitle(std::wstring title);
+    void setMeta(std::wstring meta);
+    void setKicker(std::wstring kicker);
+    float preferredHeight(float width) override;
+    void layout() override;
+    void paint(Canvas& c) override;
+
+    static constexpr float kActionGap = 8;
+
+private:
+    struct Geometry {
+        float size = 56;          // the title's display size
+        float kickerH = 0;        // kicker line + its gap
+        float titleH = 0;
+        float metaY = 0, metaH = 0;
+        float rowY = -1;          // the actions' own row (narrow); -1 = beside the title
+        float height = 0;
+    };
+    Geometry geometry(float width);
+    float rightWidth() const;     // the actions side by side
+    float searchWidth(float width) const;
+    float titleWidth(float size);
+    gfx::Text title_, meta_, kicker_;
+    std::vector<std::pair<float, float>> widths_;   // display size -> the title's natural width
+    uint64_t fontGen_ = 0;
+    std::vector<ui::Button*> actions_;
+    ui::TextBox* search_ = nullptr;
+};
+
+// The underline tabs of a page's views (Kitaplık's Çalma listeleri / Albümler..., Yerel dosyalar' Şarkılar / Albümler...;
+// spec "Tabs": B 14/600, 36 DIP, 24 apart, the accent underline, a hairline under the row). One Tab stop: only the
+// selected tab takes focus, Left / Right / Home / End move to another tab and select it (like ChipTabs).
+class PageTabs : public ui::Widget {
+public:
+    PageTabs(std::vector<std::wstring> labels, int selected = 0);
+    std::function<void(int)> onSelect;
+    void select(int i, bool notify = true);
+    int selected() const { return selected_; }
+    float preferredHeight(float) override { return 37; }
+    void layout() override;
+    void paint(Canvas& c) override;
+    bool onKeyDown(const ui::KeyEvent& e) override;
+
+private:
+    std::vector<ui::Button*> buttons_;
+    int selected_ = 0;
+};
 
 } // namespace st::app

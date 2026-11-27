@@ -3,6 +3,7 @@
 #include "app/BrowseWidgets.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/Social.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Utf.h"
@@ -10,7 +11,12 @@
 #include "spotify/SpotifyApi.h"
 #include "ui/Window.h"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <optional>
 
 namespace st::app {
 
@@ -20,6 +26,8 @@ namespace type = gfx::type;
 
 namespace {
 
+// The avatar, then the page title's look (app/PageWidgets PageTitle): the mono kicker, the name in display type (56 / 44
+// / 36 by width, smaller for a long name), the counts in secondary text.
 class ProfileHeader : public ui::Widget {
 public:
     explicit ProfileHeader(const Profile& p) : profile_(p) {
@@ -28,26 +36,57 @@ public:
         auto add = [&](const std::wstring& part) { meta += (meta.empty() ? L"" : L" · ") + part; };
         if (p.followers >= 0) add(i18n::plural(L"{} takipçi", static_cast<long long>(p.followers)));
         if (p.publicPlaylists > 0) add(i18n::plural(L"{} herkese açık çalma listesi", p.publicPlaylists));
-        meta_ = gfx::Text(meta, type::body);
+        meta_ = gfx::Text(meta, type::secondary);
         name_ = gfx::Text(toWide(p.name), type::displayM);
+        kicker_ = gfx::Text(toUpperTr(tr(L"Profil")), type::monoLabel);
     }
-    float preferredHeight(float) override { return kAvatar + 8; }
+    float preferredHeight(float width) override { return width < 560 ? kAvatar * 0.75f : kAvatar; }
     void paint(Canvas& c) override {
         const Rect r = rect();
         const auto& col = colors();
-        drawArtwork(c, profile_.images, {r.x, r.y, kAvatar, kAvatar}, kAvatar * 0.5f, Placeholder::Artist, true);
-        const float tx = r.x + kAvatar + 28, tw = std::max(0.f, r.right() - tx);
-        const float cy = r.y + kAvatar * 0.5f;
-        c.text(toUpperTr(tr(L"Profil")), type::monoLabel, {tx, cy - 50, tw, 14}, col.fgSecondary);
-        c.text(name_, {tx, cy - 32, tw, 48}, col.fgPrimary);
-        if (!meta_.empty()) c.text(meta_, {tx, cy + 22, tw, 22}, col.fgSecondary);
+        const float av = r.w < 560 ? kAvatar * 0.75f : kAvatar;
+        drawArtwork(c, profile_.images, {r.x, r.y, av, av}, av * 0.5f, Placeholder::Artist, true);
+        const float tx = r.x + av + 28, tw = std::max(0.f, r.right() - tx);
+        float size = r.w >= 900 ? 56.f : r.w >= 560 ? 44.f : 36.f;
+        while (size > 36.f && nameWidth(size) > tw) size -= 8.f;
+        name_.setStyle(type::displayM.withSize(size));
+        const float nh = std::ceil(size * 1.14f), cy = r.y + av * 0.5f;
+        const float top = cy - (22 + nh + (meta_.empty() ? 0.f : 4 + 18)) * 0.5f;
+        c.text(kicker_, {tx, top, tw, 14}, col.fgTertiary, gfx::VAlign::Center);
+        c.text(name_, {tx - 2, top + 22, tw + 2, nh}, col.fgPrimary);
+        if (!meta_.empty()) c.text(meta_, {tx, top + 22 + nh + 4, tw, 18}, col.fgTertiary, gfx::VAlign::Center);
     }
 
 private:
+    float nameWidth(float size) {   // measured once per size on a copy (the drawn text keeps one layout)
+        for (const auto& [s, w] : widths_)
+            if (s == size) return w;
+        const float w = std::ceil(gfx::Text(name_.text(), type::displayM.withSize(size)).measure().w);
+        widths_.emplace_back(size, w);
+        return w;
+    }
     static constexpr float kAvatar = 136;
     Profile profile_;
-    gfx::Text name_, meta_;
+    gfx::Text name_, meta_, kicker_;
+    std::vector<std::pair<float, float>> widths_;
 };
+
+// Dev (SHADETUBE_SPOTIFY_DEMO, app/Social.h): profile.json / profile_playlists.json in that folder (the raw answers,
+// tests/spotify/fixtures) stand in for any profile while logged out, so the page can be looked at without a session.
+std::optional<std::pair<Profile, spotify::ProfilePlaylists>> demoProfile() {
+    const auto dir = socialDemoDir();
+    if (dir.empty() || !std::filesystem::exists(dir / "profile.json")) return std::nullopt;
+    auto read = [](const std::filesystem::path& p) {
+        std::ifstream f(p, std::ios::binary);
+        return nlohmann::json::parse(f, nullptr, false);
+    };
+    std::pair<Profile, spotify::ProfilePlaylists> out;
+    out.first = spotify::Api::parseProfile(read(dir / "profile.json"));
+    if (std::filesystem::exists(dir / "profile_playlists.json"))
+        out.second = spotify::Api::parseProfilePlaylists(read(dir / "profile_playlists.json"), 0, 50);
+    out.second.nextOffset = -1;   // no paging in the demo
+    return out;
+}
 
 class ProfileView : public ScrollPage {
 public:
@@ -65,9 +104,12 @@ private:
     void load() {
         spotify::Api* api = source::activeApi();
         if (!api) {
+            if (auto demo = demoProfile()) {
+                build({std::move(demo->first), std::move(demo->second)});
+                return;
+            }
             auto* c = resetContent();
-            c->setPadding(gfx::metrics::pageX, 20, 48);
-            c->add<MessagePanel>("user", tr(L"Spotify'a bağlı değilsin"), tr(L"Profilleri görmek için Spotify hesabınla bağlan."));
+            emptyState(c, "user", tr(L"Spotify'a bağlı değilsin"), tr(L"Profilleri görmek için Spotify hesabınla bağlan."));
             contentReady();
             return;
         }
@@ -97,19 +139,19 @@ private:
         if (l.profile.publicPlaylists < 0) l.profile.publicPlaylists = l.first.total;
         playlists_ = std::move(l.first.playlists);
         next_ = l.first.nextOffset;
-        auto* c = resetContent(24.f);
-        c->setPadding(gfx::metrics::pageX, 28, 48);
+        auto* c = resetContent();   // the page's gutters and top (no padding of its own); sections 32 apart
         c->add<ProfileHeader>(l.profile);
         if (playlists_.empty()) {
-            c->add<MessagePanel>("playlist", tr(L"Herkese açık çalma listesi yok"),
-                                 tr(L"Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış."));
+            emptyState(c, "playlist", tr(L"Herkese açık çalma listesi yok"),
+                       tr(L"Bu kullanıcı profilinde henüz bir çalma listesi paylaşmamış."));
             contentReady();
             return;
         }
-        c->add<SectionHeader>(tr(L"Herkese açık çalma listeleri"));
-        grid_ = addCardRow(c, 160, 0);
+        auto* sec = c->add<ui::Column>(16.f);
+        sec->add<SectionHeader>(tr(L"Herkese açık çalma listeleri"));
+        grid_ = addCardGrid(sec);
         for (const auto& p : playlists_) addPlaylistCard(grid_, p);
-        more_ = addLoadMore(c, [this] { loadMore(); });
+        more_ = addLoadMore(sec, [this] { loadMore(); });
         setLoadMore(more_, next_ >= 0, false);
         contentReady();
     }

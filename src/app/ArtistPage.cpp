@@ -699,7 +699,7 @@ private:
         head_->requestLayout();
         body_->clearChildren();
         const bool withArtist = g == browse::Group::AppearsOn;
-        ui::Widget* parent = grid_ ? static_cast<ui::Widget*>(addCardRow(body_, home::kMinCard, 0)) : home::shelfRow(body_);
+        ui::Widget* parent = grid_ ? static_cast<ui::Widget*>(addCardGrid(body_)) : home::shelfRow(body_);
         if (grid_) body_->setSpacingBefore(parent, 16);
         for (const auto& a : list) addAlbumCard(parent, a, albumSubtitle(a, withArtist));
         if (grid_ && partial)   // the rest is on its way: placeholders where it will be

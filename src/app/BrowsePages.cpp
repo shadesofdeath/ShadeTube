@@ -44,41 +44,6 @@ namespace type = gfx::type;
 
 namespace {
 
-// Row of tab buttons with the accent underline.
-class Tabs : public ui::Widget {
-public:
-    explicit Tabs(std::vector<std::wstring> labels) {
-        hitTestVisible = false;
-        for (size_t i = 0; i < labels.size(); ++i) {
-            auto* b = add<Button>(ButtonKind::Tab, labels[i]);
-            b->onClick = [this, i] { select(static_cast<int>(i)); };
-            buttons_.push_back(b);
-        }
-        buttons_[0]->setActive(true);
-    }
-    std::function<void(int)> onSelect;
-    void select(int i, bool notify = true) {
-        for (size_t k = 0; k < buttons_.size(); ++k) buttons_[k]->setActive(static_cast<int>(k) == i);
-        if (notify && onSelect) onSelect(i);
-    }
-    float preferredHeight(float) override { return 37; }
-    void layout() override {
-        float x = 0;
-        for (auto* b : buttons_) {
-            const float w = b->naturalWidth();
-            b->setRect({x, 0, w, 36});
-            x += w + 24;
-        }
-    }
-    void paint(Canvas& c) override {
-        c.hline(rect().x, rect().right(), rect().bottom() - 1, colors().hairDefault);
-        paintChildren(c);
-    }
-
-private:
-    std::vector<Button*> buttons_;
-};
-
 
 // ===================================================================================================
 // Library: playlists (with the Spotify folders), albums, artists and the play history. Grid or list, sorted and
@@ -194,7 +159,7 @@ private:
         view_ = nullptr;
         table_ = nullptr;
         noMatch_ = nullptr;
-        folderMeta_ = nullptr;
+        folderTitle_ = nullptr;
         auto* c = resetContent(24.f);
         // A folder that is gone (moved / deleted on Spotify, logged out): the whole library instead.
         const spotify::PlaylistFolder* folder = currentFolder();
@@ -212,31 +177,20 @@ private:
     }
 
     void addHeader(ui::Column* c) {
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(tr(L"Kitaplık"), type::displayM);
-        title->setVAlign(gfx::VAlign::Top);
-        // Logged in this creates the playlist on the user's Spotify account; logged out, a local one.
-        Button* create = top->add<Button>(ButtonKind::Secondary, tr(L"Yeni çalma listesi"), "plus");
-        create->onClick = [] {
-            promptNewPlaylist([](const std::string& id) { ctx().router->navigate({RouteKind::Playlist, id}); });
-        };
+        auto* top = c->add<PageTitle>(tr(L"Kitaplık"));
         // A playlist file or a YouTube playlist -> a local playlist (app/PlaylistTransfer).
-        Button* import = top->add<Button>(ButtonKind::Ghost, tr(L"İçe aktar"), "list");
+        Button* import = top->addAction(ButtonKind::Ghost, tr(L"İçe aktar"), "list");
         import->onClick = [import] {
             const Rect br = import->toWindow(import->rect());
             transfer::showImportMenu({br.x, br.bottom() + 6});
         };
-        top->onPreferredHeight = [](float) { return 64.f; };
-        top->onLayout = [title, create, import](ui::Box& b) {
-            const float w = b.rect().w;
-            title->setRect({0, 0, w * 0.6f, 64});
-            const float cw = create->naturalWidth(), iw = import->naturalWidth();
-            create->setRect({w - cw, 12, cw, 40});
-            import->setRect({w - cw - 10 - iw, 12, iw, 40});
+        // Logged in this creates the playlist on the user's Spotify account; logged out, a local one.
+        Button* create = top->addAction(ButtonKind::Secondary, tr(L"Yeni çalma listesi"), "plus");
+        create->onClick = [] {
+            promptNewPlaylist([](const std::string& id) { ctx().router->navigate({RouteKind::Playlist, id}); });
         };
-        auto* tabs = c->add<Tabs>(
-            std::vector<std::wstring>{tr(L"Çalma listeleri"), tr(L"Albümler"), tr(L"Sanatçılar"), tr(L"Geçmiş")});
-        tabs->select(tab_, false);
+        auto* tabs = c->add<PageTabs>(
+            std::vector<std::wstring>{tr(L"Çalma listeleri"), tr(L"Albümler"), tr(L"Sanatçılar"), tr(L"Geçmiş")}, tab_);
         tabs->onSelect = [this](int i) {
             tab_ = g_lastTab = i;
             Dispatcher::post([this, ref = life_.ref()] {
@@ -249,26 +203,15 @@ private:
     void addFolderHeader(ui::Column* c, const spotify::PlaylistFolder& f) {
         const auto& tree = ctx().session->library().tree;
         const auto* parent = f.parentId.empty() ? nullptr : tree.folder(f.parentId);
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(f.name.empty() ? std::wstring(tr(L"Adsız klasör")) : toWide(f.name), type::displayM);
-        title->setVAlign(gfx::VAlign::Top);
-        // Up one level: the parent folder, else the whole library.
+        auto* top = c->add<PageTitle>(f.name.empty() ? std::wstring(tr(L"Adsız klasör")) : toWide(f.name), std::wstring(),
+                                      toUpperTr(i18n::plural(L"{} çalma listesi", f.playlistCount)));
+        // Up one level: the parent folder, else the whole library (a sub-page's way back: a Ghost button).
         const std::wstring upLabel = parent ? (parent->name.empty() ? std::wstring(tr(L"Adsız klasör")) : toWide(parent->name))
                                             : std::wstring(tr(L"Kitaplık"));
-        Button* up = top->add<Button>(ButtonKind::Secondary, upLabel, "arrow-back");
+        Button* up = top->addAction(ButtonKind::Ghost, upLabel, "arrow-back");
         const Route upRoute = parent ? Route{RouteKind::Library, "folder:" + parent->id} : Route{RouteKind::Library};
         up->onClick = [upRoute] { ctx().router->navigate(upRoute); };
-        auto* meta = top->add<ui::Label>(toUpperTr(i18n::plural(L"{} çalma listesi", f.playlistCount)), type::monoLabel,
-                                         ui::Tone::Tertiary);
-        folderMeta_ = meta;
-        top->onPreferredHeight = [](float) { return 84.f; };
-        top->onLayout = [title, up, meta](ui::Box& b) {
-            const float w = b.rect().w;
-            const float uw = up->naturalWidth();
-            meta->setRect({0, 0, w * 0.6f, 16});
-            title->setRect({0, 20, w - uw - 24, 64});
-            up->setRect({w - uw, 32, uw, 40});
-        };
+        folderTitle_ = top;
     }
 
     // One toolbar row: "Kitaplıkta ara" (the search pill) and how many items show on the left; "SIRALA <sort>" and the
@@ -439,7 +382,7 @@ private:
             syncCount(0, 0);
         } else {
             view_ = body_->add<LibraryView>(viewMode_ == libview::View::List ? LibraryView::Mode::List : LibraryView::Mode::Grid,
-                                           tab_ == 2 ? 160.f : 170.f);
+                                           cardMinCell());
             view_->onOpen = [this](uint32_t i) { openCell(i); };
             view_->onPlay = [this](uint32_t i) { playCell(i); };
             view_->onContext = [this](uint32_t i, gfx::Point wp) { menuFor(i, wp); };
@@ -464,8 +407,8 @@ private:
             rebuild();
             return;
         }
-        if (const auto* f = currentFolder(); f && folderMeta_)
-            folderMeta_->setText(toUpperTr(i18n::plural(L"{} çalma listesi", f->playlistCount)));
+        if (const auto* f = currentFolder(); f && folderTitle_)
+            folderTitle_->setKicker(toUpperTr(i18n::plural(L"{} çalma listesi", f->playlistCount)));
         if (tab_ == 3 || !view_) {
             buildBody();
             return;
@@ -762,7 +705,7 @@ private:
     LibraryView* view_ = nullptr;
     TrackTable* table_ = nullptr;          // Geçmiş
     ui::Widget* noMatch_ = nullptr;        // the compact "no results" state
-    ui::Label* folderMeta_ = nullptr;
+    PageTitle* folderTitle_ = nullptr;
     ui::TextBox* filterBox_ = nullptr;
     Button* sortBtn_ = nullptr;
     ViewToggle* viewToggle_ = nullptr;

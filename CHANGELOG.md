@@ -72,6 +72,15 @@ All notable changes to ShadeTube, newest first.
   queued songs before the rest of the album or playlist (like Spotify), the queue panel and Now Playing's "Wrong
   match?" / "Wrong lyrics?" links work with the keyboard, artist photos from Wikipedia load again, and the playing
   animation no longer wakes high refresh-rate displays more than 30 times a second.
+- **Every page in step**: Library, Downloads, Local files, Podcasts, Radio, Stats, New releases and profiles now share
+  one page header (the same title sizes, shrinking on narrow windows and at large interface scales instead of being
+  cut off, the main button always on the right, the way back from a folder or list as a "←" button), the same spacing
+  between sections and the same card size as Home and Search. Local files has its tabs under the title and the round
+  search box like the Library; Podcasts' commands are plain buttons, a show's episodes sort and search like an album;
+  New releases filters with the same chips as Search. An empty playlist greys out play, shuffle and "Enhance", songs
+  of an imported history no longer show "00:00", a failed download says why, and the keyboard moves through a page in
+  the order you see it (the Library's and Local files' tabs and Radio's genres are one stop each, arrow keys move
+  between them).
 - **Several Spotify accounts**: add more accounts and switch between them from the account menu in the title bar (click
   "SPOTIFY · your name"), Settings › Spotify account or the command palette, without logging in again. The music and
   the queue keep playing. Each account keeps its own library, playlists, friend activity, new releases, listening stats,

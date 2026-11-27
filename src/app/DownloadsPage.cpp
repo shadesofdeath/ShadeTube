@@ -51,6 +51,9 @@ public:
     explicit DownloadRow(const DownloadItem& item) : item_(item), title_(toWide(item.track.name), type::body),
                                                      sub_(toWide(item.track.artistLine()), type::caption) {
         focusable = true;
+        // A failed download says why under its title (in plain words: friendlyError), next to the retry button.
+        if (item.state == DlState::Failed && !item.error.empty())
+            sub_.setText((sub_.empty() ? std::wstring() : sub_.text() + L" · ") + friendlyError(toWide(item.error)));
     }
     std::function<void()> onCancel;
     std::function<void()> onRetry;
@@ -150,42 +153,7 @@ private:
 
     void rebuild() {
         auto& dm = ctx().downloads;
-        auto* c = resetContent(24.f);
-
-        // Header + actions.
-        auto* top = c->add<ui::Box>();
-        const std::wstring heading = collectionFilter_.empty() ? std::wstring(tr(L"İndirilenler")) : collectionName();
-        auto* title = top->add<ui::Label>(heading, type::displayM);
-        title->setVAlign(gfx::VAlign::Top);
-        auto* newBtn = top->add<Button>(ButtonKind::Secondary, tr(L"Yeni klasör"), "plus");
-        auto* openBtn = top->add<Button>(ButtonKind::Ghost, tr(L"Klasörü aç"), "folder");
-        Button* back =
-            collectionFilter_.empty() ? nullptr : top->add<Button>(ButtonKind::Ghost, tr(L"Tümü"), "arrow-back");
-        newBtn->onClick = [this] {
-            promptNewCollection();
-        };
-        openBtn->onClick = [this] { openFolder(); };
-        if (back) back->onClick = [this] {
-            collectionFilter_.clear();
-            rebuild();
-        };
-        top->onPreferredHeight = [](float) { return 64.f; };
-        top->onLayout = [title, newBtn, openBtn, back](ui::Box& b) {
-            const float w = b.rect().w;
-            title->setRect({0, 0, w * 0.5f, 64});
-            float x = w;
-            const float ow = openBtn->naturalWidth();
-            x -= ow;
-            openBtn->setRect({x, 12, ow, 40});
-            const float nw = newBtn->naturalWidth();
-            x -= nw + 10;
-            newBtn->setRect({x, 12, nw, 40});
-            if (back) {
-                const float bw = back->naturalWidth();
-                x -= bw + 10;
-                back->setRect({x, 12, bw, 40});
-            }
-        };
+        auto* c = resetContent();   // sections 32 apart; a section's header and its content 16 (Column(16))
 
         // Stats.
         const int done = static_cast<int>(std::count_if(dm.items().begin(), dm.items().end(),
@@ -203,7 +171,24 @@ private:
             cutMs += i.cutMs;
         }
         if (cutSegments > 0) stats += L" · " + cutSummary(cutSegments, cutMs);
-        c->add<ui::Label>(stats, type::secondary, ui::Tone::Tertiary);
+
+        // Header + actions: a folder is a sub-page (the way back first), the main action last.
+        const bool inFolder = !collectionFilter_.empty();
+        auto* top = c->add<PageTitle>(inFolder ? collectionName() : std::wstring(tr(L"İndirilenler")), stats,
+                                      inFolder ? toUpperTr(tr(L"İndirilenler")) : std::wstring());
+        if (inFolder) {
+            Button* back = top->addAction(ButtonKind::Ghost, tr(L"Tümü"), "arrow-back");
+            back->onClick = [this] {
+                collectionFilter_.clear();
+                Dispatcher::post([this, ref = life_.ref()] {   // rebuilt after the click: the button that asked goes
+                    if (!ref.expired()) rebuild();
+                });
+            };
+        }
+        Button* openBtn = top->addAction(ButtonKind::Ghost, tr(L"Klasörü aç"), "folder");
+        openBtn->onClick = [this] { openFolder(); };
+        Button* newBtn = top->addAction(ButtonKind::Secondary, tr(L"Yeni klasör"), "plus");
+        newBtn->onClick = [this] { promptNewCollection(); };
 
         if (collectionFilter_.empty()) {
             // Active downloads. Sync downloads waiting or failed are summed up per collection below instead of one
@@ -214,9 +199,11 @@ private:
                 if (i.state == DlState::Downloading || i.state == DlState::Queued || i.state == DlState::Failed) active.push_back(&i);
             }
             if (!active.empty()) {
-                c->add<SectionHeader>(tr(L"İndiriliyor"), std::to_wstring(active.size()));
+                auto* sec = c->add<ui::Column>(16.f);
+                sec->add<SectionHeader>(tr(L"İndiriliyor"), std::to_wstring(active.size()));
+                auto* rows = sec->add<ui::Column>(0.f);
                 for (const auto* i : active) {
-                    auto* row = c->add<DownloadRow>(*i);
+                    auto* row = rows->add<DownloadRow>(*i);
                     const std::string id = i->track.id;
                     // Cancelling a sync download takes the song out of its synced collection (else the next pass
                     // would queue it again).
@@ -228,15 +215,17 @@ private:
 
             // Collections kept offline (download sync).
             sync::buildSyncSection(c);
-
-            // Collections (user folders).
-            c->add<SectionHeader>(tr(L"Klasörlerin"), std::to_wstring(dm.collections().size()));
+        }
+        // Collections (user folders); a page with nothing downloaded and no folder shows only its empty state below.
+        if (collectionFilter_.empty() && (!dm.items().empty() || !dm.collections().empty())) {
+            auto* folders = c->add<ui::Column>(16.f);
+            folders->add<SectionHeader>(tr(L"Klasörlerin"), std::to_wstring(dm.collections().size()));
             if (dm.collections().empty()) {
-                c->add<ui::Label>(tr(L"Henüz klasör yok. İndirdiklerini gruplamak için \"Yeni klasör\" oluştur."),
-                                  type::secondary, ui::Tone::Tertiary);
+                // The compact state's one line is its title (like noResultsState and Podcastler's subscriptions).
+                emptyState(folders, "folder", tr(L"Henüz klasör yok. İndirdiklerini gruplamak için \"Yeni klasör\" oluştur."), {})
+                    ->setCompact(true);
             } else {
-                auto* grid = addCardRow(c, 150, 1);
-                c->setSpacingBefore(grid, 12);
+                auto* grid = addCardGrid(folders, 1);
                 for (const auto& col2 : dm.collections()) {
                     std::vector<Image> imgs;
                     const auto tracks = dm.collectionTracks(col2.id);
@@ -248,7 +237,9 @@ private:
                     const std::string cid = col2.id;
                     card->onOpen = [this, cid] {
                         collectionFilter_ = cid;
-                        rebuild();
+                        Dispatcher::post([this, ref = life_.ref()] {   // rebuilt after the click (the card goes)
+                            if (!ref.expired()) rebuild();
+                        });
                     };
                     card->onContext = [this, cid](gfx::Point wp) { collectionMenu(cid, wp); };
                 }
@@ -264,11 +255,12 @@ private:
             tracks = dm.collectionTracks(collectionFilter_);
         }
         if (!tracks.empty()) {
-            if (collectionFilter_.empty()) c->add<SectionHeader>(tr(L"Şarkılar"), std::to_wstring(tracks.size()));
+            auto* sec = c->add<ui::Column>(16.f);
+            if (collectionFilter_.empty()) sec->add<SectionHeader>(tr(L"Şarkılar"), std::to_wstring(tracks.size()));
             TrackTable::Options o;
             o.showAdded = false;
             o.markDownloaded = false;   // every song here is one
-            auto* table = c->add<TrackTable>(o);
+            auto* table = sec->add<TrackTable>(o);
             table->setTracks(tracks);
             table->onPlay = [tracks](int i) {
                 ctx().player->playContext(tracks, i, {"downloads", tr(L"İndirilenler")});

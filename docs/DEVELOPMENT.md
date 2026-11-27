@@ -2607,6 +2607,63 @@ Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two di
   - Catalog tags in mono labels use `toUpperData` (invariant casing unless the text has Turkish letters: "TURKISH
     ROCK", not "TURKİSH ROCK"); the top search result drops a subtitle that only repeats its kind; the Blend chip's
     label is laid out once per row instead of every frame.
+- **Page layout** (the content pages' system; `PageTitle`, `PageTabs`, `cardMinCell` / `addCardGrid` in
+  `app/PageWidgets`; taken from Home, the collection / artist headers, Search and the track table):
+  - Frame: 48 DIP gutters (`metrics::pageX`), 36 at the top (`pageTop`), 48 at the bottom, set by `ScrollPage` (a page
+    never pads itself). No maximum width: the content fills the window and long text keeps its own measure (the search
+    box ≤ 720, descriptions ≤ 640, the top result ≤ 520).
+  - Rhythm: a page's header block (title, then its tabs / chips / toolbar) 24 apart; the first section 32 below it and
+    the sections 32 apart (`metrics::sectionGap`); a section's header and its content 16 apart (a `ui::Column(16)` per
+    section); rows of a list touch. Detail pages: the hero header (232 cover, 3.38), then the list.
+  - Type: page titles `displayM` at 56 / 44 / 36 DIP by page width (≥ 900 / ≥ 560 / less: Home's greeting steps), 8 DIP
+    smaller per step down to 36 for a long name, then an ellipsis; detail headers `displayXL` fitted 88-36, the artist
+    `hero`; section titles `title` 22/700 with a mono count / label 14 after it, "Tümünü gör →" at the right and a
+    hairline at 44 (`SectionHeader`, 48 tall, more links with `addLink`, the title never runs under them); card titles
+    13/600 (artists 14/600), subtitles `caption` 12 fg.secondary; the line under a title `secondary` 13 fg.tertiary;
+    mono labels (`monoLabel`, `toUpperTr` / `toUpperData`) fg.tertiary on plain pages, fg.secondary on hero headers.
+  - Page title (`PageTitle`): an optional kicker above the title (a sub-page's context: "ABONELİKLERİNDEN", "RADYO ·
+    TÜR", a folder's "12 ÇALMA LİSTESİ"), the title, an optional meta line (≤ 2 lines); actions right-aligned, centered on
+    the title's line, 8 apart, the main one last as a Secondary pill with its icon, the others Ghost; a sub-page's way
+    back is a Ghost "← <parent>"; a page's search is the search pill after them (48, 220-380 wide). What doesn't fit
+    beside the title moves under it. Used by Kitaplık (+ folders), İndirilenler (+ folders), Yerel dosyalar, Podcastler
+    (+ Yeni / İndirilen bölümler, the Spotify import), Radyo (+ its lists), İstatistikler and Yeni çıkanlar; the profile
+    header draws the same texts beside its avatar. Ayarlar keeps its own header (the chrome's).
+  - Controls: `PageTabs` (underline) for a page's views (Kitaplık, Yerel dosyalar); `ChipTabs` for filtering what a page
+    shows (search kinds, discography groups, Yeni çıkanlar); `Segmented` for a mode switch of a few short options
+    (İstatistikler' period, `ViewToggle`); plain `Chip` buttons only as shortcuts that navigate (Radyo's genres). Each is
+    one Tab stop with arrows (the genre row too). A page's own search is the search pill (`TextBox::Look::Search`, 44 in
+    a toolbar); a detail header's search is the icon that opens a 40 DIP field in place of "SIRALA <order>" (album,
+    playlist, podcast show).
+  - Cards: one column for every media-card grid and shelf: ≥ 160 DIP (Sıkı 140), gap 16, as many as fit (`cardMinCell`,
+    `addCardGrid`, Home's `cardWidth`, the Library's `LibraryView`); the card look of 3.32. Editorial tiles (genres,
+    moods, stations) keep their own height with the 12 DIP `gridGap`.
+  - Rows: the track table 56 / 40; list rows (`ListRow`, the Library list, episodes, stations, downloads, sync rules) 64
+    with 44-48 DIP art.
+  - Buttons: the accent `PlayButton` 56 for "play this"; Secondary pills (40) for a page's main action and shuffle;
+    Ghost for the other commands; `IconOutline` 40 circles in a detail action row (14 apart, in the tree in their visual
+    order); `Link` for "Tümünü gör". Disabled is 38 %: an empty list disables play, shuffle, Geliştir, offline, sort and
+    search (`DetailHeader::setListEmpty`).
+  - Outlines: 1 px `hairline.default` for section rules and card / panel outlines (`hairline.strong` on hover),
+    `hairline.control` for control outlines; corners from `gfx::radii()`.
+  - States: only the shared ones above (compact inside a section, the full panel for a page); an unknown song length
+    shows nothing (an imported history), never "00:00".
+  - Keyboard: Tab follows what is seen: sidebar, the page's header actions, its controls, the content, the player bar.
+    `SHADETUBE_FOCUS_LOG=1` logs every focus change (class, window rect, tooltip): with `SHADETUBE_OVERLAY_DEMO`'s
+    `key=Tab` steps it gives a page's order without looking (checked for Search: box → chips → top result → "Tümünü
+    gör" → songs → artists...; the Library, Yerel dosyalar, İndirilenler, Podcastler, Radyo, İstatistikler, Home, a
+    playlist and an artist). Paint: a text drawn every frame is a `gfx::Text` measured once (on a copy when its natural
+    width is needed): `SectionHeader`, the collection and podcast show headers laid out several DirectWrite layouts per
+    frame before.
+- **The 5 000-song list's open, measured again** (the previous pass read a slowest frame of 22.6 ms against 17-19 and a
+  mean of 11.3 against 9-10 ms, Debug): `SHADETUBE_MEM_DEMO` (`route=playlist:<5 000 songs>`, `frames=` 3 s later, then
+  20 wheel notches), the pre-polish build (84d845f), the polish build and this one run alternately on one profile, six
+  runs each: open mean 8.92 / 8.62 / 8.82 ms, slowest 19.3 / 18.5 / 18.6 ms (medians of the runs), scrolling 6.90 /
+  6.99 / 6.78 ms. Single runs of the same build ranged 6-13 ms mean and 14-42 ms slowest while other builds ran, so the
+  earlier reading was that noise, not a regression. The page layout pass, the same way (dev-0.11.0 before it / after
+  it, medians of 4-6 alternating runs, frame CPU while opening / scrolling 15 notches, process CPU 15-25 s in): Home
+  open 3.8 / 3.8, scroll 6.9 / 6.7 ms; the 5 000-song list 9.2 / 9.7 open, 6.8 / 6.7 scroll; an artist 5.5 / 4.5 open,
+  7.4 / 6.6 scroll; Search 4.3 / 4.7 open, 4.7 / 4.8 scroll; the Library 7.8 / 7.7 open, 6.9 / 6.9 scroll; idle CPU 0 %
+  on every page but Search (0.3-0.6 %, the box's caret). `memory_test` passes.
 - Dev: `SHADETUBE_LIST_DEMO` (5.4) selects rows, sorts through the header path, sets the columns, queues rows, opens
   the queue, scrolls, shows a reorder drag in place and fakes play counts for `--screenshot`.
 ### 3.42 Several Spotify accounts
@@ -3403,7 +3460,8 @@ apps*).
 | `SHADETUBE_HOVER_AT` | `x,y[@ms]`: after `ms` (default 2000) the main window acts as if the pointer rested at window DIPs x,y, until the real pointer moves over it (hover looks for `--screenshot`, e.g. `1412,20` = the close button of a 1440 DIP window) |
 | `SHADETUBE_CLIENT_ANIM` | `0` / `1`: Windows' animation effects off / on for the micro-interactions (3.32), instead of `SPI_GETCLIENTAREAANIMATION` |
 | `SHADETUBE_HOME_DEMO` | `scroll:<DIPs>`, `shelf:<pages>[@<n>]` (comma separated): once Home has its content it scrolls down that far and glides the n-th scrollable shelf (0 = the first) by that many pages, as its arrows do (screenshots) |
-| `SHADETUBE_SPOTIFY_DEMO` | `<folder>`: friend activity and new releases without a session from `buddylist.json` / `whatsnew.json` there (app/Social.h); a `home.json` gives the logged-out Home Spotify's shelves (3.34); an `artist.json` (a raw `queryArtistOverview` answer) stands in for any `artist:spotify:artist:<id>` route while logged out (3.42) |
+| `SHADETUBE_SPOTIFY_DEMO` | `<folder>`: friend activity and new releases without a session from `buddylist.json` / `whatsnew.json` there (app/Social.h); a `home.json` gives the logged-out Home Spotify's shelves (3.34); an `artist.json` (a raw `queryArtistOverview` answer) stands in for any `artist:spotify:artist:<id>` route while logged out (3.42); `search.json` (a searchV2 answer) + `search_users.json` answer every search (the Spotify kinds: playlists, podcasts, profiles), `profile.json` + `profile_playlists.json` any `profile:` route, `library_shows.json` the followed shows (Podcastler's Spotify section and `podcasts:spotify`); the files of `tests/spotify/fixtures` fit |
+| `SHADETUBE_FOCUS_LOG` | `1`: every keyboard focus change is logged (`focus` lines: the widget's class, window rect and tooltip); with `SHADETUBE_OVERLAY_DEMO`'s `key=Tab` steps it checks a page's Tab order (3.42 Lists) |
 | `SHADETUBE_THEME_PRESET` | `<theme id>` (`nord`, `pastel`, `user:<file>`...): that theme for this run, whatever the mode; nothing is saved (3.35) |
 | `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
@@ -3457,6 +3515,10 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   for shows (`"Podcasts & Shows"`) and the logged-in `searchUsers` answer were not seen live by the development
   session (no logged-in Spotify sandbox was available); both have fallbacks or captured shapes (an unfiltered library
   walk; the anonymous answer has the same shape).
+- **Page layout pass** (3.42 Lists, "Page layout"): the Spotify-only layouts (search kinds, profiles, followed shows,
+  new releases, the logged-in Home's shelves, an artist) were checked through the `SHADETUBE_SPOTIFY_DEMO` fixtures
+  only, and a Spotify library folder's page not at all (no logged-in sandbox). A density change re-lays out the card
+  grids but keeps their column width (160 / 140) until the page is opened again.
 - **WebView2 Runtime** is required for the Spotify login (present on Windows 11; installable on Windows 10).
 - **Song credits** (3.42): Spotify's credits query was taken from the web player's bundle (2026-11-26) and is
   covered by fixtures, but was not run against a logged-in account during development (no sandbox `sp_dc`); its
