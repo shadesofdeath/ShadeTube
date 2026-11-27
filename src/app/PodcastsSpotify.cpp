@@ -4,6 +4,7 @@
 
 #include "app/AppContext.h"
 #include "app/Podcasts.h"
+#include "app/Social.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -14,9 +15,13 @@
 #include "spotify/SpotifyApi.h"
 #include "ui/Window.h"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cwctype>
 #include <deque>
+#include <filesystem>
+#include <fstream>
 #include <unordered_map>
 
 namespace st::app {
@@ -157,6 +162,20 @@ const std::vector<PodcastShow>& followed() { return st().list; }
 void ensureFollowed(bool force) {
     auto& s = st();
     spotify::Api* api = source::activeApi();
+    // Dev (SHADETUBE_SPOTIFY_DEMO, app/Social.h): library_shows.json there (a raw libraryV3 answer of shows, `data` or
+    // not) is the followed list while logged out, so the Spotify section and the import preview can be looked at.
+    if (const auto dir = socialDemoDir(); !api && !dir.empty() && std::filesystem::exists(dir / "library_shows.json")) {
+        if (s.state == ListState::Ready && s.account == "demo") return;
+        std::ifstream f(dir / "library_shows.json", std::ios::binary);
+        nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+        s.list = spotify::Api::parseLibraryShows(j.is_object() && j.contains("data") ? j["data"] : j);
+        s.account = "demo";
+        s.state = ListState::Ready;
+        s.loadedMs = steadyMs();
+        for (const auto& show : s.list) s.seen[show.id] = show;
+        notify();
+        return;
+    }
     if (!api) {
         if (s.state != ListState::NoSession || !s.list.empty()) {
             s.list.clear();

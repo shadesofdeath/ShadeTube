@@ -2,6 +2,7 @@
 
 #include "app/AppContext.h"
 #include "app/Router.h"
+#include "app/Social.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Settings.h"
@@ -11,7 +12,12 @@
 #include "ui/Window.h"
 #include "ytmusic/YtMusic.h"
 
+#include <nlohmann/json.hpp>
+
 #include <atomic>
+#include <filesystem>
+#include <fstream>
+#include <optional>
 
 namespace st::app::source {
 
@@ -54,8 +60,27 @@ void applyOpenCatalog(bool reopen) {
     if (changed && ctx().window) ctx().window->invalidate();   // the title bar's source tag
 }
 
+// Dev (SHADETUBE_SPOTIFY_DEMO, app/Social.h): search.json in that folder (a raw searchV2 answer, `data` or not) and
+// search_users.json (a searchUsers answer) answer every search while logged out, so the Spotify kinds (playlists,
+// podcasts, profiles) can be looked at without a session. Worker thread; nothing cached.
+static std::optional<catalog::SearchResults> demoSearch() {
+    const auto dir = socialDemoDir();
+    if (dir.empty() || !std::filesystem::exists(dir / "search.json")) return std::nullopt;
+    auto read = [](const std::filesystem::path& p) {
+        std::ifstream f(p, std::ios::binary);
+        nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+        return j.is_object() && j.contains("data") ? j["data"] : j;
+    };
+    const nlohmann::json s = read(dir / "search.json");
+    catalog::SearchResults r = spotify::Api::parseSearch(s.is_object() && s.contains("searchV2") ? s["searchV2"] : s);
+    if (std::filesystem::exists(dir / "search_users.json"))
+        r.profiles = spotify::Api::parseSearchBatch(spotify::SearchKind::Profiles, read(dir / "search_users.json")).results.profiles;
+    return r;
+}
+
 catalog::SearchResults search(spotify::Api* api, const std::string& query, int limit, const CT& ct) {
     if (api) return api->search(query, limit, ct);
+    if (auto demo = demoSearch()) return *demo;
     if (g_ytm) return ytm::search(query, limit, ct);
     return mb::search(query, limit, ct);
 }
