@@ -81,5 +81,8 @@ Outcome publish(const Submission& s, const YoutubeExplode::CancellationToken& ct
                 const std::function<void()>& onSolving = {});
 
 inline constexpr const char* kBaseUrl = "https://lrclib.net";
+// Where publish() sends its requests: kBaseUrl, or SHADETUBE_LRCLIB_URL (dev: a local mock server, so the whole flow can
+// be run from the app without publishing anything).
+std::string baseUrl();
 
 } // namespace st::lyrics::lrclib

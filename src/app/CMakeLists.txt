@@ -80,6 +80,7 @@ add_executable(ShadeTube WIN32
     LyricsPicker.cpp LyricsPicker.h
     LyricsService.cpp LyricsService.h
     LyricsShare.cpp LyricsShare.h
+    LyricsSync.cpp LyricsSync.h
     MemDemo.cpp MemDemo.h MemProfile.h
     MiniLayout.cpp MiniLayout.h
     MiniPlayer.cpp MiniPlayer.h

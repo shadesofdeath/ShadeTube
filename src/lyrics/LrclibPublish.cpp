@@ -7,6 +7,8 @@
 #include <YoutubeExplode/Exceptions.hpp>
 #include <nlohmann/json.hpp>
 
+#include <windows.h>
+
 #include <algorithm>
 #include <atomic>
 #include <charconv>
@@ -235,6 +237,17 @@ std::optional<uint64_t> solve(const Challenge& c, const YoutubeExplode::Cancella
 
 std::string publishToken(const Challenge& c, uint64_t nonce) { return c.prefix + ":" + std::to_string(nonce); }
 
+std::string baseUrl() {
+    static const std::string url = [] {
+        char b[512] = {};
+        const DWORD n = GetEnvironmentVariableA("SHADETUBE_LRCLIB_URL", b, sizeof b);
+        std::string s = n > 0 && n < sizeof b ? std::string(b, n) : std::string(kBaseUrl);
+        while (!s.empty() && s.back() == '/') s.pop_back();
+        return s;
+    }();
+    return url;
+}
+
 std::string publishBody(const Submission& s) {
     json j{{"trackName", s.title}, {"artistName", s.artist}, {"albumName", s.album}, {"duration", s.durationSec}};
     if (!s.plainLyrics.empty()) j["plainLyrics"] = s.plainLyrics;
@@ -259,7 +272,7 @@ Outcome publish(const Submission& s, const YoutubeExplode::CancellationToken& ct
     try {
         YoutubeExplode::Http::HttpRequest req;
         req.method = "POST";
-        req.url = std::string(kBaseUrl) + "/api/request-challenge";
+        req.url = baseUrl() + "/api/request-challenge";
         req.headers = {{"User-Agent", ua}, {"Accept", "application/json"}};
         auto resp = sendVia(transport, req, ct);
         if (resp.statusCode != 200) {
@@ -279,7 +292,7 @@ Outcome publish(const Submission& s, const YoutubeExplode::CancellationToken& ct
             out.kind = ct.isCancellationRequested() ? Outcome::Kind::Cancelled : Outcome::Kind::Failed;
             return out;
         }
-        req.url = std::string(kBaseUrl) + "/api/publish";
+        req.url = baseUrl() + "/api/publish";
         req.headers = {{"User-Agent", ua},
                        {"Accept", "application/json"},
                        {"Content-Type", "application/json"},

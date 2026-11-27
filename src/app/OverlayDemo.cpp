@@ -6,6 +6,7 @@
 #include "app/CommandPalette.h"
 #include "app/CreditsUi.h"
 #include "app/LyricsPicker.h"
+#include "app/LyricsSync.h"
 #include "app/PlaylistTransfer.h"
 #include "app/Shell.h"
 #include "app/Shortcuts.h"
@@ -143,6 +144,8 @@ void run(const Step& s) {
         showCredits(sampleTrack());          // the "Krediler" dialog (app/CreditsUi)
     } else if (s.action == "lyricspicker") {
         showLyricsPicker(sampleTrack());     // "Yanlış sözler mi?" (app/LyricsPicker)
+    } else if (s.action == "lyricsync") {
+        showLyricsSync(sampleTrack());       // "Söz senkronlayıcı" (app/LyricsSync); key=Ctrl+Enter steps on
     } else if (s.action == "stats") {
         ST_LOG_INFO("overlaydemo", "acrylic captures {}, bytes held {}", ui::Acrylic::captureCount(), ui::Acrylic::liveBytes());
     } else {

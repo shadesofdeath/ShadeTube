@@ -8,6 +8,7 @@
 #include "app/LyricsPicker.h"
 #include "app/LyricsService.h"
 #include "app/LyricsShare.h"
+#include "app/LyricsSync.h"
 #include "app/PodcastUi.h"
 #include "app/Router.h"
 #include "app/Shell.h"
@@ -367,9 +368,16 @@ void NowPlayingView::buildToolbar() {
     share_ = add<Button>(ButtonKind::Icon, L"", "share");
     share_->setTooltip(tr(L"Sözleri paylaş"));
     share_->onClick = [this] { openLyricsShare(lyrics_, active_, translation_); };
+    // Plain lyrics: time them by tapping along (app/LyricsSync).
+    syncLyrics_ = add<Button>(ButtonKind::Chip, tr(L"Senkronla"));
+    syncLyrics_->setTooltip(tr(L"Sözleri şarkıyla birlikte kendin zamanla (söz senkronlayıcı)"));
+    syncLyrics_->onClick = [] {
+        if (const auto* t = ctx().player ? ctx().player->current() : nullptr) showLyricsSync(*t);
+    };
     auto synced = [this] { return state_ == LyricsState::Synced; };
     auto hasText = [this] { return state_ == LyricsState::Synced || state_ == LyricsState::Plain; };
     toolbar_ = {
+        {syncLyrics_, Tab::Lyrics, [this] { return state_ == LyricsState::Plain && kind() == Kind::Song; }, 12},
         {translate_, Tab::Lyrics, [this, hasText] { return hasText() && translation_.offered(); }, 12},
         {earlier_, Tab::Lyrics, synced, 2},
         {offset_, Tab::Lyrics, synced, 2},
