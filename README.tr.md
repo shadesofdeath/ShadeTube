@@ -5,7 +5,7 @@
 # ShadeTube
 
 **Spotify kitaplığın, YouTube'dan çalan sesle — hızlı, yerel bir Windows uygulamasında.**<br/>
-Reklam yok. Premium yok. Electron yok. Sıfırdan C++ ile yazılmış, yaklaşık 15 MB'lık tek bir exe.
+Reklam yok. Premium yok. Electron yok. Sıfırdan C++ ile yazılmış, yaklaşık 17 MB'lık tek bir exe.
 
 [![Sürüm](https://img.shields.io/github/v/release/shadesofdeath/ShadeTube?style=flat-square&color=DDFF47&labelColor=0F0D0B&label=s%C3%BCr%C3%BCm)](https://github.com/shadesofdeath/ShadeTube/releases/latest)
 [![İndirme](https://img.shields.io/github/downloads/shadesofdeath/ShadeTube/total?style=flat-square&color=DDFF47&labelColor=0F0D0B&label=indirme)](https://github.com/shadesofdeath/ShadeTube/releases)
@@ -117,7 +117,7 @@ kalır.
   kalan listeler.
 - 🥁 **BPM** — şarkılarının temposu sütun olarak; sıralama ve filtre için. Etiketten okunur ya da bilgisayarında ölçülür.
 - 🌈 **Görselleştirici** — kapağın renklerinde tam ekran görünüm: spektrum, halka, dalga ya da aurora (V tuşu).
-- ⚡ **Hafif ve kendini güncelleyen** — yaklaşık 15 MB'lık bir exe; kurmadan çalışan taşınabilir zip'i ya da kullanıcına
+- ⚡ **Hafif ve kendini güncelleyen** — yaklaşık 17 MB'lık bir exe; kurmadan çalışan taşınabilir zip'i ya da kullanıcına
   kuran kurulumu seç (yönetici izni gerekmez). Yeni sürümler uygulama içinden güncellenir.
 - 🔒 **Gizlilik** — telemetri yok, bizim bir sunucumuz yok. Spotify oturumun Windows DPAPI ile şifreli saklanır.
 

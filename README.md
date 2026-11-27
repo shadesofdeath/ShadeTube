@@ -5,7 +5,7 @@
 # ShadeTube
 
 **Your Spotify library, played from YouTube — in a fast, native Windows app.**<br/>
-No ads. No Premium. No Electron. One ~15 MB exe, written from scratch in C++.
+No ads. No Premium. No Electron. One ~17 MB exe, written from scratch in C++.
 
 [![Release](https://img.shields.io/github/v/release/shadesofdeath/ShadeTube?style=flat-square&color=DDFF47&labelColor=0F0D0B)](https://github.com/shadesofdeath/ShadeTube/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/shadesofdeath/ShadeTube/total?style=flat-square&color=DDFF47&labelColor=0F0D0B)](https://github.com/shadesofdeath/ShadeTube/releases)
@@ -116,7 +116,7 @@ starts instantly and stays light.
   rules and stay up to date.
 - 🥁 **BPM** — the tempo of your songs as a column, for sorting and filtering; read from tags or measured on your PC.
 - 🌈 **Visualizer** — a full-screen view in the cover's colours: spectrum, ring, wave or aurora (press V).
-- ⚡ **Light and self-updating** — a ~15 MB exe; take the portable zip that runs without installing, or the setup
+- ⚡ **Light and self-updating** — a ~17 MB exe; take the portable zip that runs without installing, or the setup
   that installs it for your user (no admin). New versions update in place.
 - 🔒 **Private** — no telemetry, no accounts of ours. Your Spotify session is stored encrypted with Windows DPAPI.
 

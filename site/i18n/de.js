@@ -12,7 +12,7 @@ window.ST_I18N.de = {
  "hero.lead": "Melde dich mit Spotify an oder stöbere ganz ohne Konto in YouTube Music. Jeder Song wird von seiner passenden YouTube-Aufnahme abgespielt. Keine Webseite im Fenster: Die gesamte Oberfläche wird nativ gezeichnet, startet sofort und bleibt leicht.",
  "hero.cta": "Für Windows herunterladen",
  "hero.cta2": "Auf GitHub ansehen",
- "hero.meta": "~15 MB · kostenlos · Open Source",
+ "hero.meta": "~17 MB · kostenlos · Open Source",
  "facts.size": "Setup oder portabel, du hast die Wahl",
  "facts.zero": "Werbung, Telemetrie oder eigene Server",
  "facts.langs": "Sprachen",
