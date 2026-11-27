@@ -250,7 +250,7 @@ void ScrollView::paint(Canvas& c) {
     if (maxScroll() <= 0) return;
     if (frame::realNow() - lastActivity_ > 1200 && !draggingThumb_ && !thumbHover_ && barAlpha_.target() > 0)
         barAlpha_.to(0, 400);
-    const float a = barAlpha_;
+    const float a = barAlways ? 1.f : barAlpha_.value();
     if (a <= 0.01f) return;
     const Rect t = thumbRect();
     const float alpha = (thumbHover_ || draggingThumb_) ? 0.45f : 0.25f;

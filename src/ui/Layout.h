@@ -108,6 +108,7 @@ public:
     // Content height changed (e.g. more rows loaded): re-measure without resetting the offset.
     void contentChanged() { requestLayout(); }
     float topInset = 0;     // area covered by a sticky header (scrollbar starts below it)
+    bool barAlways = false; // the scrollbar stays visible at rest (a short list in a dialog: shows there is more)
     float notchDip = 120;   // one wheel notch at Windows' default 3 lines (a line: notchDip / 3)
 
 private:

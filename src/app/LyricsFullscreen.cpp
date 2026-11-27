@@ -288,7 +288,7 @@ void LyricsFullscreen::layout() {
     lyricsArea_ = {(r.w - w) * 0.5f, kTopH, w, std::max(100.f, r.h - kTopH - kFooterH)};
 
     const float cy = 32, bs = 32;
-    float x = r.w - 24 - bs;
+    float x = r.w - pad - bs;   // the right edge of the label / time column, like the footer's time
     close_->setRect({x, cy - bs / 2, bs, bs});
     x -= 16;
     if (share_->visible()) {

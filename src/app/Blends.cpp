@@ -422,7 +422,7 @@ void startTimer() {
 void addProfileList(ui::Widget* body, const blend::Profile& p) {
     auto* box = body->add<ui::Box>();
     auto* scroll = box->add<ui::ScrollView>();
-    auto* col = scroll->setContent<ui::Column>(0.f);
+    auto* col = scroll->setContent<ui::Column>(0.f, 16.f);   // the scrollbar gets the right gutter, not the text
     auto label = [col](const std::wstring& text, const gfx::TextStyle& style, ui::Tone tone) {
         auto* l = col->add<ui::Label>(text, style, tone);
         l->setWrap(true);
@@ -444,8 +444,9 @@ void addProfileList(ui::Widget* body, const blend::Profile& p) {
         auto* l = label(line, gfx::type::secondary, ui::Tone::Secondary);
         l->setWrap(true, 2);
     }
+    scroll->barAlways = true;   // the list is longer than the box: say so before the user agrees
     box->onPreferredHeight = [](float) { return 260.f; };
-    box->onLayout = [scroll](ui::Box& b) { scroll->setRect({0, 0, b.rect().w, b.rect().h}); };
+    box->onLayout = [scroll](ui::Box& b) { scroll->setRect({-16, 0, b.rect().w + 32, b.rect().h}); };
 }
 
 // Builds today's profile on a worker and shows it; `onAgree` gets it when the user agrees.

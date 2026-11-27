@@ -294,7 +294,8 @@ void showEpisodeDetails(const Episode& e) {
     box->onPreferredHeight = [](float) { return 320.f; };
     box->onLayout = [scroll](ui::Box& b) { scroll->setRect({0, 0, b.rect().w, b.rect().h}); };
     d->addButton(tr(L"Kapat"), ButtonKind::Ghost, {});
-    if (isDownloaded(e.id())) d->addButton(tr(L"İndirileni sil"), ButtonKind::Secondary, [e] { deleteDownload(e); });
+    if (isDownloaded(e.id()))
+        d->addLeadingButton(tr(L"İndirileni sil"), ButtonKind::Ghost, [e] { deleteDownload(e); })->setDestructive(true);
     else if (!downloadProgress(e.id())) d->addButton(tr(L"İndir"), ButtonKind::Secondary, [e] { startDownload(e); });
     d->addButton(isPlayingNow(e.id()) ? tr(L"Duraklat") : tr(L"Çal"), ButtonKind::Primary, [e] { togglePlay(e); });
 }
