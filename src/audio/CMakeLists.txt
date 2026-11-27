@@ -23,6 +23,7 @@ add_library(st_audio STATIC
     TimeStretch.cpp TimeStretch.h               # playback speed without a pitch change (WSOLA)
     Downloader.cpp Downloader.h                 # offline download + MF PCM->MP3 transcode + ID3
     TagWriter.cpp TagWriter.h                   # tag editor core: ID3v2 / FLAC / MP4 read + safe rewrite
+    Tempo.cpp Tempo.h                           # BPM: onset envelope + autocorrelation comb, file analysis
     LiveStream.cpp LiveStream.h                 # live radio: playlists, ICY / HLS, rolling buffer, reconnects
     LiveParsers.cpp LiveParsers.h               # MPEG / ADTS / Ogg framing, ICY, playlists, HLS, TS, fMP4
     LiveDecoder.cpp LiveDecoder.h               # decoder MFT fed one compressed frame at a time

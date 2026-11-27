@@ -630,6 +630,14 @@ AudioCache::Stats AudioCache::stats() const {
     return {static_cast<int>(entries_.size()), bytes_};
 }
 
+std::vector<std::pair<CachedSong, std::wstring>> AudioCache::songs() const {
+    std::lock_guard lock(mutex_);
+    std::vector<std::pair<CachedSong, std::wstring>> out;
+    out.reserve(entries_.size());
+    for (const auto& e : entries_) out.emplace_back(e, pathOf(e));
+    return out;
+}
+
 bool AudioCache::hasVideo(const std::string& videoId) const {
     std::lock_guard lock(mutex_);
     return std::any_of(entries_.begin(), entries_.end(), [&](const CachedSong& e) { return e.videoId == videoId; });

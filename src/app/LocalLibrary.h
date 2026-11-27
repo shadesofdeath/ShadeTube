@@ -202,6 +202,8 @@ public:
 
     const std::vector<catalog::Track>& tracks() const { return tracks_; }
     const std::vector<local::Entry>& entries() const { return *entries_; }   // parallel to tracks() (same order)
+    // The same entries, shared: a worker may read them while the library moves on (they are never modified in place).
+    std::shared_ptr<const std::vector<local::Entry>> sharedEntries() const { return entries_; }
     int64_t totalMs() const { return totalMs_; }
     uint64_t generation() const { return generation_; }   // bumps whenever tracks() changes
     // The file of a "local:" id, ready for Win32 file APIs (see local::openablePath); "" when unknown.

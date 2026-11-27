@@ -17,6 +17,7 @@
 #include "app/PodcastUi.h"
 #include "app/Preview.h"
 #include "app/Router.h"
+#include "app/RuleListsPage.h"
 #include "app/Shell.h"
 #include "app/Smtc.h"
 #include "app/Social.h"
@@ -650,6 +651,9 @@ void App::showShell() {
         shell_->sidebar()->refresh();
         shell_->playerBar()->sync();
         window_->invalidate();
+    });
+    rulelists::subscribe(life_.ref(), [this] {   // the rule lists' rows (names, counts, covers)
+        if (shell_) shell_->sidebar()->refresh();
     });
     if (player_) wirePlayer();
     initFeatures();

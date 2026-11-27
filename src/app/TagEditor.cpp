@@ -1,5 +1,7 @@
 // "Etiketleri düzenle…" (see TagEditor.h). UI thread; tag reads and writes on workers.
 #include "app/TagEditor.h"
+#include "app/Bpm.h"
+#include "app/RuleLists.h"
 
 #include "app/AppContext.h"
 #include "app/Components.h"
@@ -86,7 +88,7 @@ struct Field {
 struct Loaded {
     std::vector<Target> targets;   // the files that were read (writable formats)
     int skipped = 0;               // files in another format, or unreadable
-    Field title, artist, album, albumArtist, genre, track, disc, year;
+    Field title, artist, album, albumArtist, genre, track, disc, year, bpm;
     std::optional<tags::Picture> cover;   // the first file's
     bool coverMixed = false;
     std::vector<std::string> formats;
@@ -125,6 +127,7 @@ std::shared_ptr<Loaded> load(std::vector<Target> targets) {
         out->track.merge(number(g.track));
         out->disc.merge(number(g.disc));
         out->year.merge(number(g.year));
+        out->bpm.merge(number(g.bpm));
         if (firstCover) {
             out->cover = g.cover;
             firstCover = false;
@@ -158,7 +161,7 @@ struct Outcome {
 };
 
 // UI thread: the written files show their new tags everywhere, without a rescan.
-void applyResults(const std::vector<Outcome>& results) {
+void applyResults(const std::vector<Outcome>& results, std::optional<int> tempo) {
     std::vector<local::Entry> library;
     std::vector<local::Entry> droppedFiles;
     int ok = 0, failed = 0;
@@ -170,6 +173,12 @@ void applyResults(const std::vector<Outcome>& results) {
             continue;
         }
         ++ok;
+        if (tempo && r.fresh) {   // the written BPM tag: the store knows it now (app/Bpm), for the file and the song
+            std::vector<std::string> ids{local::trackIdFor(r.fresh->path)};
+            if (!r.target.track.id.empty() && r.target.track.id != ids.front()) ids.push_back(r.target.track.id);
+            bpm::noteTag(ids, r.target.track.name.empty() ? std::wstring() : rules::songKey(r.target.track), *tempo,
+                         bpm::stampOf(r.fresh->size, r.fresh->mtime));
+        }
         if (!r.fresh) continue;
         // A download keeps its catalog metadata (its Spotify / MusicBrainz name); only a local copy of the path changes.
         const std::string id = local::trackIdFor(r.fresh->path);
@@ -201,6 +210,7 @@ void applyResults(const std::vector<Outcome>& results) {
 void write(std::vector<Target> targets, tags::Edit edit) {
     g_busy = true;
     if (targets.size() > 1) toast(i18n::plural(L"{} dosyanın etiketleri kaydediliyor…", static_cast<int64_t>(targets.size())));
+    const std::optional<int> tempo = edit.bpm;
     async(
         Priority::Normal, g_life.ref(),
         [targets = std::move(targets), edit = std::move(edit)] {
@@ -219,13 +229,13 @@ void write(std::vector<Target> targets, tags::Edit edit) {
             }
             return out;
         },
-        [](Result<std::vector<Outcome>> r) {
+        [tempo](Result<std::vector<Outcome>> r) {
             g_busy = false;
             if (!r) {
                 toast(tr(L"Etiketler kaydedilemedi"), true);
                 return;
             }
-            applyResults(*r);
+            applyResults(*r, tempo);
         });
 }
 
@@ -246,6 +256,7 @@ public:
         addField(track_, tr(L"Parça no"), l.track);
         addField(disc_, tr(L"Disk no"), l.disc);
         addField(year_, tr(L"Yıl"), l.year);
+        addField(bpm_, L"BPM", l.bpm);
         addField(genre_, tr(L"Tür"), l.genre);
         choose_ = add<ui::Button>(ui::ButtonKind::Secondary, tr(L"Görsel seç…"));
         choose_->onClick = [this] { pick(); };
@@ -294,6 +305,7 @@ public:
         bad |= !numberField(track_, e.track, 9999);
         bad |= !numberField(disc_, e.disc, 999);
         bad |= !numberField(year_, e.year, 9999);
+        bad |= !numberField(bpm_, e.bpm, 999);
         if (bad) return std::nullopt;
         e.cover = cover_;
         if (cover_ == Cover::Set) {
@@ -313,7 +325,7 @@ public:
     void layout() override {
         const float w = rect().w;
         const float x = kSide + kGap, fw = std::max(160.f, w - x);
-        const float half = (fw - 16) / 2, third = (fw - 32) / 3;
+        const float half = (fw - 16) / 2, quarter = (fw - 48) / 4;
         float y = 0;
         place(title_, x, y, fw);
         y += kRowH + kRowGap;
@@ -322,9 +334,10 @@ public:
         place(album_, x, y, half);
         place(albumArtist_, x + half + 16, y, half);
         y += kRowH + kRowGap;
-        place(track_, x, y, third);
-        place(disc_, x + third + 16, y, third);
-        place(year_, x + 2 * (third + 16), y, third);
+        place(track_, x, y, quarter);
+        place(disc_, x + quarter + 16, y, quarter);
+        place(year_, x + 2 * (quarter + 16), y, quarter);
+        place(bpm_, x + 3 * (quarter + 16), y, quarter);
         y += kRowH + kRowGap;
         place(genre_, x, y, fw);
         y += kRowH;
@@ -473,7 +486,7 @@ private:
     }
 
     std::shared_ptr<const Loaded> loaded_;
-    Box title_, artist_, album_, albumArtist_, track_, disc_, year_, genre_;
+    Box title_, artist_, album_, albumArtist_, track_, disc_, year_, bpm_, genre_;
     ui::Button *choose_ = nullptr, *remove_ = nullptr, *save_ = nullptr;
     ui::Label* note_ = nullptr;
     Cover cover_ = Cover::Keep;
@@ -495,7 +508,7 @@ void showDialog(std::shared_ptr<Loaded> loaded) {
     auto save = [d, form, loaded] {
         const auto e = form->edit();
         if (!e) {
-            toast(tr(L"Parça no, disk no ve yıl yalnızca rakamlardan oluşabilir"), true);
+            toast(tr(L"Parça no, disk no, yıl ve BPM yalnızca rakamlardan oluşabilir"), true);
             return;
         }
         if (!e->empty()) write(loaded->targets, *e);

@@ -1,4 +1,5 @@
 // Settings page and the page factory.
+#include "app/Bpm.h"
 #include "app/Accounts.h"
 #include "app/LyricsService.h"
 #include "app/PageWidgets.h"
@@ -445,6 +446,7 @@ private:
 
         c = card("local", "folder", tr(L"Yerel müzik"), tr(L"Müzik klasörleri ve tarama"));
         buildLocalFilesSection(c, rebuilder());
+        bpm::buildSettingsRows(c, rebuilder());   // Tempo (BPM) analizi (app/Bpm)
 
         c = card("storage", "cache", tr(L"Kitaplık ve depolama"), tr(L"Kitaplık dosyası, önbellek, çökme raporları"));
         {

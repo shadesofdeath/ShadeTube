@@ -136,6 +136,10 @@ public:
     std::function<void()> onLink;
     // More links left of the main one ("Ülke değiştir" before "Tümünü gör"), in the order added (right to left).
     ui::Button* addLink(std::wstring label, std::string icon, std::function<void()> onClick);
+    void setMeta(std::wstring meta) {
+        meta_.setText(std::move(meta));
+        invalidate();
+    }
     float preferredHeight(float) override { return 48; }
     void layout() override;
     void paint(Canvas& c) override;
@@ -203,8 +207,11 @@ public:
     const std::vector<catalog::Track>& tracks() const { return tracks_; }
     // Visible tracks in display order (after sort/filter) — this is what gets queued on play.
     std::vector<catalog::Track> displayedTracks() const;
+    // The search text; "bpm:150-175", "bpm:>140", "bpm:<100" or "bpm:128" in it keep only songs of that tempo (app/Bpm).
     void setFilter(const std::wstring& text);
-    enum class SortKey { None, Title, Album, Added, Duration, Plays };
+    // A BPM range kept besides the search (the column header's menu: presets, a custom range); 0, 0 = none.
+    void setBpmRange(float lo, float hi);
+    enum class SortKey { None, Title, Album, Added, Duration, Plays, Bpm };
     void setSort(SortKey key, bool descending);
     SortKey sortKey() const { return sortKey_; }
     bool sortDescending() const { return sortDesc_; }
@@ -290,6 +297,8 @@ private:
     enum class Hit { None, Number, Artist, Heart, Queue, More, RecAdd, RecHide };
     struct RowText {
         gfx::Text title, artist, album, added, dur, num, plays, chip;   // chip: chipFor's label, "" = none
+        gfx::Text bpm;            // the tempo (app/Bpm), "" = unknown; re-read when bpmRev changes
+        uint64_t bpmRev = ~0ull;
         // Natural widths, measured once: a gfx::Text keeps one layout per width, so measuring at another width than
         // the one it is drawn at would lay the text out again on every frame.
         float titleW = 0, artistW = 0;
@@ -356,12 +365,15 @@ private:
     bool reorderable_ = false;
     bool headerDocked_ = false;
     bool hasPlays_ = false;          // some row has a play count (the Dinlenme column may show)
+    float bpmLo_ = 0, bpmHi_ = 0;    // the search's bpm: range, else the menu's (0, 0 = none)
+    float menuBpmLo_ = 0, menuBpmHi_ = 0;
+    void showBpmRangeDialog();
     int rangeFrom_ = -1;             // where a Shift range starts (display index)
     mutable std::string userColsSrc_;   // Settings::trackColumns as last parsed
     mutable uint32_t userCols_ = 0;
     mutable bool userColsRead_ = false;
     struct HeaderTexts {
-        gfx::Text num, title, album, added, plays, dur, count;
+        gfx::Text num, title, album, added, plays, dur, count, bpm;
         int64_t countN = -1;
         bool made = false;
     } hdr_;

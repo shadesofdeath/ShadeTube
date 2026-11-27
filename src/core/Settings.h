@@ -151,6 +151,9 @@ struct Settings {
     int videoW = 640, videoH = 360;      // ... and size (DIPs)
     // Song cache (player/AudioCache): played streams kept on disk up to this many MB; 0 = off.
     int audioCacheMb = 1024;
+    // Tempo (BPM) analysis of songs on this PC in the background (app/Bpm): local files, downloads, the song cache.
+    // Tags are read either way; off = no audio is decoded for it.
+    bool bpmAnalysis = true;
     // Track lists' optional columns the user picked in a column header's menu (app/TrackColumns): "album", "added",
     // "plays", comma separated; "" = the default (all three, where a list has them; plays only with play counts).
     std::string trackColumns;

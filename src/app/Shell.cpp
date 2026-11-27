@@ -10,6 +10,7 @@
 #include "app/LyricsFullscreen.h"
 #include "app/NowPlaying.h"
 #include "app/PlaylistTransfer.h"
+#include "app/RuleListsPage.h"
 #include "app/PodcastUi.h"
 #include "app/SmartShuffle.h"
 #include "app/Social.h"
@@ -216,7 +217,7 @@ public:
             x += 20;
         } else if (!icon_.empty()) {   // the playing indicator (live bars, ui/Micro)
             if (icon_ == "equalizer") drawPlayingBars(c, this, {x, r.cy() - 7, 14, 14}, acc.base);
-            else c.icon(icon_, {x, r.cy() - 7, 14, 14}, acc.base);
+            else c.icon(icon_, {x, r.cy() - 7, 14, 14}, col.fgTertiary);   // a mark (a rule list's filter)
             x += 20;
         }
         label_.setStyle(type::secondary.withWeight(active_ ? 600.f : 400.f));
@@ -550,8 +551,10 @@ Sidebar::Sidebar() {
         std::vector<ui::MenuItem> items = {
             {tr(L"Yeni çalma listesi"), "plus", L"",
              [] { promptNewPlaylist([](const std::string& id) { ctx().router->navigate({RouteKind::Playlist, id}); }); }},
+            rulelists::createMenuItems()[0],   // "Kurallı liste"
             ui::MenuItem::sep()};
         for (auto& m : transfer::importMenuItems()) items.push_back(std::move(m));   // file, YouTube, Deezer, Apple Music, TIDAL
+        items.push_back(rulelists::createMenuItems()[1]);   // a rule list's JSON
         ui::Menu::open(ctx().window, {br.x, br.bottom() + 6}, std::move(items));
     };
     list_ = add<ui::ScrollView>();
@@ -671,6 +674,12 @@ void Sidebar::refresh() {
                                 std::move(del)});
             };
         }
+    }
+    for (const auto& l : rulelists::lists()) {   // Kurallı listeler (app/RuleListsPage)
+        auto* b = addItem(toWide(l.def.name), l.evaluated ? static_cast<int>(l.count) : -1, {RouteKind::SmartList, "rule:" + l.id});
+        b->setArt(l.covers.empty() ? std::vector<catalog::Image>{} : std::vector<catalog::Image>{l.covers.front()}, false);
+        b->setTooltip(rulelists::subtitle(l));
+        b->onContext = [id = l.id](const ui::MouseEvent& e) { rulelists::showMenu(id, e.windowPos); };
     }
     for (auto& [b, _] : items_) {
         b->setCompact(compact_);   // the rail's tiles
@@ -814,10 +823,12 @@ void Sidebar::syncActive() {
     // Show an equalizer next to the playlist that is currently playing.
     const auto* p = ctx().player;
     for (auto& [b, route] : items_) {
+        const bool rule = route.kind == RouteKind::SmartList;   // a rule list: its mark, or the bars while it plays
         const bool playing = p && p->isPlaying() &&
                              ((route.kind == RouteKind::Playlist && p->context().uri == "playlist:" + route.id) ||
-                              (route.kind == RouteKind::Liked && p->context().uri == "liked"));
-        b->setIcon(playing ? "equalizer" : "");
+                              (route.kind == RouteKind::Liked && p->context().uri == "liked") ||
+                              (rule && p->context().uri == "smart:" + route.id));
+        b->setIcon(playing ? "equalizer" : rule ? "filter" : "");
     }
 }
 

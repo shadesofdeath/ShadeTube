@@ -1,4 +1,5 @@
 #include "app/NowPlaying.h"
+#include "app/Bpm.h"
 
 #include "app/Commands.h"
 #include "app/Credits.h"
@@ -1410,6 +1411,11 @@ float NowPlayingView::paintAboutSong(Canvas& c, float x, float y, float w) {
     const auto* t = ctx().player->current();
     const float y0 = y;
     const bool loading = about_.state == About::State::Loading;
+    // The tempo, when known (app/Bpm: the file's tag or the app's analysis).
+    if (const float tempo = bpm::of(*t); tempo > 0) {
+        c.text(toUpperTr(tr(L"Tempo")) + L" · " + bpm::label(tempo) + L" BPM", type::monoLabel, {x, y, w, 14}, label.mulAlpha(fade));
+        y += 14 + 24;
+    }
     // The album: its picture, name, kind and year, length and label.
     if (!t->album.name.empty() || about_.album) {
         const catalog::Album* a = about_.album ? &*about_.album : nullptr;

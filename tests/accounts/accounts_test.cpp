@@ -78,7 +78,8 @@ static bool has(const fs::path& p) {
 static const std::vector<std::wstring> kPerAccount = {L"listening.json",        L"listening-imported.json",
                                                       L"listening-lastfm.json", L"listening-listenbrainz.json",
                                                       L"blacklist.json",        L"new-releases.json",
-                                                      L"smart-lists.json",      L"library-recents.json"};
+                                                      L"smart-lists.json",      L"library-recents.json",
+                                                      L"rule-lists.json",       L"rule-sources.json"};
 
 static void testMigration() {
     std::printf("migration of a single-account profile:\n");

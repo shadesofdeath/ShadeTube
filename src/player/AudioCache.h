@@ -114,6 +114,8 @@ public:
     };
     Stats stats() const;
     bool hasVideo(const std::string& videoId) const;
+    // Every entry as it is now, with the full path of its file (app/Bpm analyses the cached songs' tempo).
+    std::vector<std::pair<CachedSong, std::wstring>> songs() const;
     // SponsorBlock segments of a video (opaque JSON for the categories `key`): kept with its entries, and with one
     // stored later in this run (the lookup usually lands before the stream is complete).
     void setSponsor(const std::string& videoId, const std::string& key, std::string json);

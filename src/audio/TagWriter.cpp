@@ -132,6 +132,19 @@ std::pair<int, int> numberPair(std::string_view s) {
     return {a, slash == std::string_view::npos ? 0 : leadingInt(s.substr(slash + 1))};
 }
 
+// "128", "127.6", " 90 BPM" -> 128 / 128 / 90 (0 = none / out of 1..999).
+int bpmOf(std::string_view s) {
+    size_t i = 0;
+    while (i < s.size() && s[i] == ' ') ++i;
+    double v = 0;
+    int digits = 0;
+    for (; i < s.size() && s[i] >= '0' && s[i] <= '9' && digits < 6; ++i, ++digits) v = v * 10 + (s[i] - '0');
+    if (!digits) return 0;
+    if (i + 1 < s.size() && (s[i] == '.' || s[i] == ',') && s[i + 1] >= '0' && s[i + 1] <= '9') v += (s[i + 1] - '0') / 10.0;
+    const int n = static_cast<int>(v + 0.5);
+    return n >= 1 && n <= 999 ? n : 0;
+}
+
 int yearOf(std::string_view s) {
     const std::string t = trim(s);
     if (t.size() < 4) return 0;
@@ -356,7 +369,7 @@ bool isFree(const char* type) { return std::memcmp(type, "free", 4) == 0 || std:
 std::string extensionOf(const fs::path& file) { return lowerAscii(toUtf8(file.extension().wstring())); }
 
 // What the edit touches (text fields), in the order new fields are appended.
-enum Field { kTitle, kArtist, kAlbumArtist, kAlbum, kTrack, kDisc, kYear, kGenre, kFieldCount };
+enum Field { kTitle, kArtist, kAlbumArtist, kAlbum, kTrack, kDisc, kYear, kGenre, kBpm, kFieldCount };
 
 bool edits(const Edit& e, Field f) {
     switch (f) {
@@ -368,6 +381,7 @@ bool edits(const Edit& e, Field f) {
     case kDisc: return e.disc.has_value();
     case kYear: return e.year.has_value();
     case kGenre: return e.genre.has_value();
+    case kBpm: return e.bpm.has_value();
     default: return false;
     }
 }
@@ -721,6 +735,7 @@ Tags tagsOf(const Parsed& p) {
             t.genre = joined(names);
         } else if (f.id == "TRCK" && first(kTrack) && !v.empty()) std::tie(t.track, t.trackTotal) = numberPair(v[0]);
         else if (f.id == "TPOS" && first(kDisc) && !v.empty()) std::tie(t.disc, t.discTotal) = numberPair(v[0]);
+        else if (f.id == "TBPM" && first(kBpm) && !v.empty()) t.bpm = bpmOf(v[0]);
         else if (f.id == "TYER" && tyer.empty() && !v.empty()) tyer = v[0];
         else if (f.id == "TDRC" && tdrc.empty() && !v.empty()) tdrc = v[0];
     }
@@ -798,6 +813,7 @@ std::vector<std::string> idsOf(Field f) {
     case kDisc: return {"TPOS"};
     case kYear: return {"TYER", "TDRC"};
     case kGenre: return {"TCON"};
+    case kBpm: return {"TBPM"};
     default: return {};
     }
 }
@@ -871,6 +887,7 @@ Plan plan(const Parsed& p, const Edit& e, const Tags& current) {
         if (id == "TPOS")
             return next.disc <= 0 ? "" : next.discTotal > 0 ? std::to_string(next.disc) + "/" + std::to_string(next.discTotal)
                                                              : std::to_string(next.disc);
+        if (id == "TBPM") return next.bpm > 0 ? std::to_string(next.bpm) : "";
         if (id == "TYER") return next.year > 0 ? withYear("", next.year) : "";
         if (id == "TDRC") return next.year > 0 ? withYear(existing, next.year) : "";
         return {};
@@ -1059,6 +1076,7 @@ std::vector<std::string> keysOf(Field f) {
     case kDisc: return {"DISCNUMBER", "DISCTOTAL", "TOTALDISCS"};
     case kYear: return {"DATE", "YEAR"};
     case kGenre: return {"GENRE"};
+    case kBpm: return {"BPM", "TEMPO"};
     default: return {};
     }
 }
@@ -1154,6 +1172,7 @@ Tags tagsOf(const Parsed& p) {
                 else if ((k == "DISCTOTAL" || k == "TOTALDISCS") && discTotal == 0) discTotal = leadingInt(val);
                 else if (k == "DATE" && date.empty()) date = val;
                 else if (k == "YEAR" && year.empty()) year = val;
+                else if ((k == "BPM" || k == "TEMPO") && t.bpm == 0) t.bpm = bpmOf(val);
             }
             t.artist = id3::joined(artists);
             t.genre = id3::joined(genres);
@@ -1280,6 +1299,9 @@ Vorbis editedVorbis(Vorbis v, const Edit& e, const Tags& next) {
         case kGenre:
             if (!next.genre.empty()) add.push_back("GENRE=" + next.genre);
             break;
+        case kBpm:
+            if (next.bpm > 0) add.push_back("BPM=" + std::to_string(next.bpm));
+            break;
         default: break;
         }
         v.comments.insert(v.comments.begin() + static_cast<std::ptrdiff_t>(std::min(at, v.comments.size())), add.begin(), add.end());
@@ -1296,7 +1318,7 @@ Plan plan(const Parsed& p, const Edit& e, const Tags& current) {
         picPlaced = true;
         if (e.cover == Edit::Cover::Set && !e.picture.data.empty()) out.push_back({kPicture, pictureBlock(e.picture), 0});
     };
-    const bool textEdit = e.title || e.artist || e.album || e.albumArtist || e.genre || e.track || e.disc || e.year;
+    const bool textEdit = e.title || e.artist || e.album || e.albumArtist || e.genre || e.track || e.disc || e.year || e.bpm;
     for (size_t i = 0; i < p.blocks.size(); ++i) {
         const Block& b = p.blocks[i];
         if (b.type == kPadding) continue;
@@ -1517,7 +1539,7 @@ std::string text(const Bytes& d) { return trim(std::string(d.begin(), d.end()));
 std::string keyOf(const Box& b) { return std::string(b.type, 4); }
 
 const std::string kNam = "\xA9nam", kArt = "\xA9" "ART", kAlb = "\xA9" "alb", kAart = "aART", kGen = "\xA9gen",
-                  kGnre = "gnre", kDay = "\xA9" "day", kTrkn = "trkn", kDisk = "disk", kCovr = "covr";
+                  kGnre = "gnre", kDay = "\xA9" "day", kTrkn = "trkn", kDisk = "disk", kCovr = "covr", kTmpo = "tmpo";
 
 std::vector<std::string> keysOf(Field f) {
     switch (f) {
@@ -1529,6 +1551,7 @@ std::vector<std::string> keysOf(Field f) {
     case kDisc: return {kDisk};
     case kYear: return {kDay};
     case kGenre: return {kGen, kGnre};
+    case kBpm: return {kTmpo};
     default: return {};
     }
 }
@@ -1562,6 +1585,9 @@ Tags tagsOf(const Parsed& p) {
         } else if (key == kDisk && v.size() >= 6) {
             t.disc = static_cast<int>(be16(&v[2]));
             t.discTotal = static_cast<int>(be16(&v[4]));
+        } else if (key == kTmpo && t.bpm == 0 && v.size() >= 2) {   // a 16-bit integer (type 21; some writers say 0)
+            const int n = static_cast<int>(be16(v.data()));
+            t.bpm = n >= 1 && n <= 999 ? n : 0;
         } else if (key == kCovr && !t.cover && !v.empty()) {
             Picture pic;
             pic.data = v;
@@ -1723,6 +1749,12 @@ Plan plan(Source& s, const Parsed& p, const Edit& e, const Tags& current) {
             if (key == kTrkn) putBE16(v, 0);
             return item(key, 0, v);
         }
+        if (key == kTmpo) {
+            if (next.bpm <= 0) return {};
+            Bytes v;
+            putBE16(v, static_cast<uint32_t>(std::min(next.bpm, 999)));
+            return item(kTmpo, 21, v);
+        }
         if (key == kCovr) {
             if (e.cover != Edit::Cover::Set || e.picture.data.empty()) return {};
             const std::string mime = e.picture.mime.empty() ? mimeOf(e.picture.data) : e.picture.mime;
@@ -1741,7 +1773,7 @@ Plan plan(Source& s, const Parsed& p, const Edit& e, const Tags& current) {
         if (!placed.insert(groupOf(key)).second) continue;
         append(items, newItems(groupOf(key)));
     }
-    for (const std::string& key : {kNam, kArt, kAart, kAlb, kTrkn, kDisk, kDay, kGen, kCovr}) {
+    for (const std::string& key : {kNam, kArt, kAart, kAlb, kTrkn, kDisk, kDay, kGen, kTmpo, kCovr}) {
         if (!editedItem(key, e) || placed.contains(key)) continue;
         append(items, newItems(key));
     }
@@ -2055,7 +2087,7 @@ bool writableExtension(const fs::path& file) {
 }
 
 bool Edit::empty() const {
-    return !title && !artist && !album && !albumArtist && !genre && !track && !disc && !year && cover == Cover::Keep;
+    return !title && !artist && !album && !albumArtist && !genre && !track && !disc && !year && !bpm && cover == Cover::Keep;
 }
 
 std::string normalizeList(const std::string& s) {
@@ -2086,6 +2118,7 @@ Tags applied(Tags t, const Edit& e) {
         if (t.disc == 0) t.discTotal = 0;
     }
     if (e.year) t.year = std::max(0, *e.year);
+    if (e.bpm) t.bpm = std::clamp(*e.bpm, 0, 999);
     if (e.cover == Edit::Cover::Remove) t.cover.reset();
     else if (e.cover == Edit::Cover::Set) {
         Picture p = e.picture;

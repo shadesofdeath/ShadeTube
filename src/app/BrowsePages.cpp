@@ -9,6 +9,7 @@
 #include "app/LinkOpener.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
+#include "app/RuleListsPage.h"
 #include "app/SmartListsPage.h"
 #include "app/PlaylistTransfer.h"
 #include "app/Source.h"
@@ -93,6 +94,7 @@ public:
         rebuild();
         ctx().library.subscribe(libLife_.ref(), [this] { refreshItems(); });
         if (ctx().session) ctx().session->subscribe(libLife_.ref(), [this] { refreshItems(); });
+        rulelists::subscribe(libLife_.ref(), [this] { refreshItems(); });   // Kurallı listeler' cards
         sync::subscribe(libLife_.ref(), [this] {   // the "downloaded" marks
             if (view_) view_->invalidate();
         });
@@ -109,7 +111,7 @@ private:
     // What a cell opens and which menu it has (parallel to cells_ and the model's items).
     struct Act {
         Route open;
-        enum class Menu { None, Playlist, Album } menu = Menu::None;
+        enum class Menu { None, Playlist, Album, Rule } menu = Menu::None;
         sync::Target offline;   // its images come from the cell when the menu opens
     };
 
@@ -589,6 +591,24 @@ private:
                 add(std::move(it), std::move(cell),
                     {Route{RouteKind::Playlist, p.id}, Act::Menu::Playlist, sync::Target{sync::Kind::Playlist, p.id, p.name, {}}});
             }
+        }
+        if (tab_ == 0) {   // Kurallı listeler (app/RuleListsPage), with the playlists in both modes
+            for (const auto& l : rulelists::lists()) {
+                const std::string context = "smart:rule:" + l.id;
+                libview::Item it;
+                it.id = "rule:" + l.id;
+                it.name = toWide(l.def.name);
+                it.recent = std::max(recents.at(context), l.updated);
+                it.added = l.created;
+                LibraryCell cell;
+                cell.key = it.id;
+                cell.title = it.name;
+                cell.gridSubtitle = rulelists::subtitle(l);
+                cell.listSubtitle = cell.gridSubtitle;
+                cell.images = l.covers;
+                cell.context = context;
+                add(std::move(it), std::move(cell), {Route{RouteKind::SmartList, "rule:" + l.id}, Act::Menu::Rule, {}});
+            }
         } else if (tab_ == 1) {
             for (const auto& a : snap ? snap->albums : lib.albums()) {
                 const std::string artist = a.artists.empty() ? std::string() : a.artists[0].name;
@@ -674,6 +694,7 @@ private:
         offline.images = (*cells_)[i].images;
         if (a.menu == Act::Menu::Playlist) showPlaylistCardMenu(a.open, offline, wp);
         else if (a.menu == Act::Menu::Album) showAlbumCardMenu(a.open.id, offline, wp);
+        else if (a.menu == Act::Menu::Rule) rulelists::showMenu(a.open.id.substr(5), wp);   // "rule:<id>"
     }
 
     // The list's right-hand column: when it was last played / added, for those sorts.
