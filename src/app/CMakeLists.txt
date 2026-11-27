@@ -94,6 +94,8 @@ add_executable(ShadeTube WIN32
     PlaylistEditing.cpp PlaylistEditing.h
     PlaylistIO.cpp PlaylistIO.h
     PlaylistTransfer.cpp PlaylistTransfer.h
+    ServiceImport.cpp ServiceImport.h
+    CatalogMatch.cpp CatalogMatch.h
     Radio.cpp Radio.h
     RadioPage.cpp
     RemoteApi.cpp RemoteApi.h

@@ -1111,7 +1111,6 @@
   "Çalma listesi olarak kaydet": "Simpan sebagai playlist",
   "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "Lagu-lagu ini tidak diunduh saat \"{}\" disinkronkan. Lagu yang kamu kembalikan diunduh pada sinkronisasi berikutnya.",
   "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "Tempel tautan playlist YouTube atau YouTube Music. Videonya menjadi playlist lokal yang memutar persis rekaman itu.",
-  "Bu bir YouTube oynatma listesi bağlantısı değil": "Itu bukan tautan playlist YouTube",
   "CSV tablosu (Excel)": "Tabel CSV (Excel)",
   "Dosyadan içe aktar…": "Impor dari file…",
   "Dosyayı göster": "Tampilkan file",
@@ -2103,5 +2102,50 @@
   "{} · GÖSTERİLMİYOR": "{} · TIDAK DITAMPILKAN",
   "{} · RESMİ VİDEO": "{} · VIDEO RESMI",
   "{} · SESLE EŞLEŞİYOR": "{} · COCOK DENGAN AUDIO",
-  "Dinlenme sayısı": "Jumlah diputar"
+  "Dinlenme sayısı": "Jumlah diputar",
+  "{} şarkı okundu": {
+    "other": "{} lagu dibaca"
+  },
+  "{}: {} eşleşti": "{}: {} cocok",
+  "{} tanesi ISRC ile birebir": {
+    "other": "{} tepat lewat ISRC"
+  },
+  "{} bulunamadı": {
+    "other": "{} tidak ditemukan"
+  },
+  "{} bu listenin yalnızca ilk {} şarkısını verdi; liste daha uzun olabilir.": "{} hanya memberikan {} lagu pertama dari daftar ini; daftarnya mungkin lebih panjang.",
+  "{} öğe atlandı: video ya da serviste artık olmayan şarkı.": {
+    "other": "{} item dilewati: video atau lagu yang sudah tidak ada di layanan."
+  },
+  "Eşleştirme bağlantı sorunları yüzünden yarıda kaldı; kalan şarkılar adlarıyla eklenir.": "Pencocokan terhenti karena masalah koneksi; lagu sisanya ditambahkan berdasarkan nama.",
+  "Bulunamayanları da ekle": "Tambahkan juga yang tidak ditemukan",
+  "Adlarıyla eklenirler; çalınırken YouTube'da adlarıyla aranırlar.": "Lagu ditambahkan berdasarkan nama dan dicari di YouTube berdasarkan nama saat diputar.",
+  "{} albümü": "Album {}",
+  "{} şarkısı": "Lagu {}",
+  "Bu çalma listesi açılamadı: gizli, silinmiş ya da bu ülkede kapalı olabilir.": "Playlist ini tidak bisa dibuka: mungkin privat, sudah dihapus, atau tidak tersedia di negara ini.",
+  "Bu albüm ya da şarkı bulunamadı: kaldırılmış ya da bu ülkede kapalı olabilir.": "Album atau lagu ini tidak ditemukan: mungkin sudah dihapus atau tidak tersedia di negara ini.",
+  "Bu liste gizli: sahibi herkese açık yapmadıkça okunamıyor.": "Daftar ini privat: tidak bisa dibaca kecuali pemiliknya membuatnya publik.",
+  "Bu liste bu ülkede açılamıyor.": "Daftar ini tidak tersedia di negara ini.",
+  "{} şu anda hesapsız okumaya izin vermiyor. Biraz sonra yeniden dene.": "{} saat ini tidak mengizinkan membaca tanpa akun. Coba lagi nanti.",
+  "{} yanıt vermiyor. Bağlantını kontrol et.": "{} tidak merespons. Periksa koneksi Anda.",
+  "{} yanıtı okunamadı.": "Jawaban {} tidak bisa dibaca.",
+  "{} okunuyor…": "Membaca {}…",
+  "Şarkılar, adları ve ISRC kodlarıyla okunuyor.": "Lagu dibaca beserta nama dan kode ISRC-nya.",
+  "{} kataloğunda eşleştiriliyor…": "Mencocokkan di katalog {}…",
+  "{} şarkı eşleşti": {
+    "other": "{} lagu cocok"
+  },
+  "Çalma listesi içe aktarılıyor": "Mengimpor playlist",
+  "Bu Deezer bağlantısının süresi dolmuş ya da bir liste, albüm veya şarkıya gitmiyor.": "Tautan Deezer ini sudah kedaluwarsa atau tidak mengarah ke playlist, album, atau lagu.",
+  "Deezer'dan içe aktar": "Impor dari Deezer",
+  "Deezer'dan içe aktar…": "Impor dari Deezer…",
+  "Apple Music'ten içe aktar": "Impor dari Apple Music",
+  "Apple Music'ten içe aktar…": "Impor dari Apple Music…",
+  "TIDAL'dan içe aktar": "Impor dari TIDAL",
+  "TIDAL'dan içe aktar…": "Impor dari TIDAL…",
+  "Bir {} çalma listesinin ya da albümünün bağlantısını yapıştır. Şarkılar {} kataloğunda eşleştirilir ve bir yerel listeye dönüşür; liste herkese açık olmalı.": "Tempel tautan playlist atau album {}. Lagu-lagunya dicocokkan di katalog {} dan menjadi playlist lokal; daftarnya harus publik.",
+  "Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm bağlantıları desteklenir.": "Tautan ini tidak bisa diimpor. Tautan playlist atau album YouTube, Deezer, Apple Music, dan TIDAL didukung.",
+  "{} bağlantısı": "Tautan {}",
+  "Bağlantıyı aç": "Buka tautan",
+  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Tautan {} ini tidak bisa dibuka. Tautan playlist, album, dan lagu didukung."
 }

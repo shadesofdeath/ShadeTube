@@ -123,7 +123,13 @@ void run(const Step& s) {
     } else if (s.action == "jamjoin") {
         together::promptJoin();                                // "Birlikte dinleme oturumuna katıl"
     } else if (s.action == "ytimport") {
-        transfer::importFromLink();                            // "YouTube listesinden içe aktar"
+        // "YouTube listesinden içe aktar"; =deezer / =apple / =tidal: that service's link dialog.
+        transfer::importFromLink(s.arg == "deezer" ? links::Service::Deezer
+                                 : s.arg == "apple" ? links::Service::AppleMusic
+                                 : s.arg == "tidal" ? links::Service::Tidal
+                                                    : links::Service::YouTube);
+    } else if (s.action == "importmenu") {
+        transfer::showImportMenu(pointArg(s.arg, {300, 200}));   // the "İçe aktar" menu at window DIPs
     } else if (s.action == "hover") {
         w->simulatePointer(pointArg(s.arg, {0, 0}));
     } else if (s.action == "dialog") {
