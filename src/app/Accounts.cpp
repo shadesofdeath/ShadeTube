@@ -100,6 +100,27 @@ std::vector<ui::MenuItem> menuItems() {
         m.action = [id = a.id] { switchTo(id); };
         items.push_back(std::move(m));
     }
+    // Without Spotify the chip names the open catalog ("AÇIK KATALOG · MUSICBRAINZ"): pick it here, as in Ayarlar ›
+    // Spotify hesabı › "Spotify olmadan katalog".
+    if (!s->loggedIn()) {
+        const bool yt = Settings::get().openCatalog == "ytmusic";
+        auto pick = [](const char* id) {
+            return [id = std::string(id)] {
+                if (Settings::get().openCatalog == id) return;
+                Settings::get().openCatalog = id;
+                Settings::get().markDirty();
+                source::applyOpenCatalog();
+            };
+        };
+        // A choice of two: the check mark says which (no icons, like the menus' other radio groups).
+        ui::MenuItem ytm{L"YouTube Music", "", L"", pick("ytmusic")};
+        ytm.checked = yt;
+        ui::MenuItem mb{L"MusicBrainz", "", L"", pick("musicbrainz")};
+        mb.checked = !yt;
+        if (!items.empty()) items.push_back(ui::MenuItem::sep());
+        items.push_back(std::move(ytm));
+        items.push_back(std::move(mb));
+    }
     if (!items.empty()) items.push_back(ui::MenuItem::sep());
     if (signedIn.empty()) items.push_back({tr(L"Spotify ile bağlan"), "spotify-link", L"", [] { add(); }});
     else items.push_back({tr(L"Hesap ekle…"), "plus", L"", [] { add(); }});
@@ -244,9 +265,9 @@ void AccountChip::onMouseUp(const ui::MouseEvent& e) {
     if (was && rect().contains(e.pos)) open();
 }
 
-void AccountChip::onMouseEnter() { hover_.to(1, ui::motion::fast); }
+void AccountChip::onMouseEnter() { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
 
-void AccountChip::onMouseLeave() { hover_.to(0, ui::motion::fast); }
+void AccountChip::onMouseLeave() { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
 
 bool AccountChip::onActivate() {
     open();

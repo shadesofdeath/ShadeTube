@@ -419,7 +419,8 @@ void confirmUninstall() {
     toggle->setEnabled(!others);
     toggle->onChange = [removeData](bool v) { *removeData = v; };
     d->addButton(tr(L"Vazgeç"), ButtonKind::Ghost, {});
-    d->addButton(tr(L"Uygulamayı kaldır"), ButtonKind::Secondary, [removeData, self] { runUninstall(*removeData, self); });
+    d->addButton(tr(L"Uygulamayı kaldır"), ButtonKind::Secondary, [removeData, self] { runUninstall(*removeData, self); })
+        ->setDestructive(true);
 }
 
 // ---- Section ---------------------------------------------------------------------------------------------------

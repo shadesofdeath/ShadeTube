@@ -874,10 +874,14 @@ void openScrobbleDialog(scrobbles::Service service) {
                     L"sonraki seferlerde yalnızca yeniler gelir."),
         520);
     if (!d) return;
+    // Two fields: each gets the dialogs' caption label above it (one field is named by the dialog's title).
+    if (needKey) d->body()->add<ui::Label>(tr(L"Kullanıcı adı"), type::caption, ui::Tone::Secondary);
     auto* name = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Kullanıcı adı"));
     name->setText(toWide(user));
     ui::TextBox* key = nullptr;
     if (needKey) {
+        d->body()->add<Spacer>(4.f);
+        d->body()->add<ui::Label>(tr(L"Last.fm API anahtarı"), type::caption, ui::Tone::Secondary);
         key = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Last.fm API anahtarı"));
         if (sc && g_lastfmKeyRejected) {   // the stored one was refused: shown to be corrected
             key->setText(toWide(sc->lastfmApiKey()));
@@ -926,7 +930,7 @@ void openScrobbleDialog(scrobbles::Service service) {
         key->onSubmit = [submit](const std::wstring&) { submit(); };
         key->onChange = [key](const std::wstring&) { key->setError(false); };
     }
-    d->addButton(tr(L"Dosyadan…"), ButtonKind::Ghost, [service] { pickScrobbleFilesPosted(service); });
+    d->addLeadingButton(tr(L"Dosyadan…"), ButtonKind::Ghost, [service] { pickScrobbleFilesPosted(service); });
     d->addButton(tr(L"Vazgeç"), ButtonKind::Ghost, {});
     d->addButton(tr(L"Getir"), ButtonKind::Primary, submit, false);
     if (key && !user.empty()) key->focus();
