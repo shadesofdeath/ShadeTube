@@ -52,6 +52,8 @@ private:
     Rect artRect() const { return {rect().x + 4, rect().cy() - 22, 44, 44}; }
     SharedCover cover() const { return pagetx::imageCover(*this, artRect(), circle_ ? 22.f : 2.f, images_); }
     gfx::Text title_, subtitle_, meta_;
+    float metaW_ = 0;
+    uint64_t metaGen_ = ~0ull;
     std::vector<catalog::Image> images_;
     bool circle_;
     ui::Anim hover_;

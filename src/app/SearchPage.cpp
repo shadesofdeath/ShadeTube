@@ -1172,8 +1172,7 @@ void SearchPage::runTagSearch(const std::wstring& title, const std::string& tag)
               nav_.clear();
               auto* c = resetContent(0.f);
               c->setPadding(metrics::pageX, 20, 48);
-              auto* heading = c->add<ui::Label>(title, type::displayM);
-              heading->setVAlign(gfx::VAlign::Top);
+              c->add<PageTitle>(title);   // the content pages' title (fits narrow pages)
               if (!r->artists.empty()) {
                   auto* head = c->add<SectionHeader>(tr(L"Sanatçılar"), std::to_wstring(r->artists.size()));
                   c->setSpacingBefore(head, 24);
@@ -1183,7 +1182,7 @@ void SearchPage::runTagSearch(const std::wstring& title, const std::string& tag)
               if (!r->albums.empty()) {
                   auto* head = c->add<SectionHeader>(tr(L"Albümler"), std::to_wstring(r->albums.size()));
                   c->setSpacingBefore(head, metrics::sectionGap);
-                  auto* g = addCardRow(c, 160, 0);
+                  auto* g = addCardGrid(c);
                   c->setSpacingBefore(g, 16);
                   for (const auto& a : r->albums) nav(addAlbumCard(g, a));
               }
@@ -1280,8 +1279,7 @@ void SearchPage::runMoodSearch(const std::wstring& title, const std::string& par
               nav_.clear();
               auto* c = resetContent(metrics::sectionGap);
               c->setPadding(metrics::pageX, 20, 48);
-              auto* heading = c->add<ui::Label>(title, type::displayM);
-              heading->setVAlign(gfx::VAlign::Top);
+              c->add<PageTitle>(title);   // the content pages' title (fits narrow pages)
               for (const auto& shelf : *r) {
                   auto* row = home::addShelf(c, toWide(shelf.title), {});
                   for (const auto& it : shelf.items)
@@ -1387,7 +1385,7 @@ void SearchPage::buildKind(ui::Column* c, size_t k) {
     if (kind.custom) {
         (this->*kind.custom)(c, true);
     } else {
-        kindGrid_ = addCardRow(c, 160, 0);
+        kindGrid_ = addCardGrid(c);
         const size_t n = kind.count(results_);
         for (size_t i = 0; i < n; ++i) addCard(kindGrid_, kind.entry(results_, i));
     }

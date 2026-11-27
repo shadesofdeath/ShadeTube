@@ -887,7 +887,7 @@ private:
         case ListState::Phase::Error: errorState(sec, ls.error, std::move(retry))->setCompact(true); break;
         case ListState::Phase::Ready:
             if (ls.stations.empty()) {
-                emptyState(sec, "radio", std::wstring(), tr(L"Burada henüz çalınabilir istasyon yok."))->setCompact(true);
+                emptyState(sec, "radio", tr(L"Burada henüz çalınabilir istasyon yok."), {})->setCompact(true);
                 break;
             }
             auto* rows = sec->add<RowList>();

@@ -51,6 +51,9 @@ public:
     explicit DownloadRow(const DownloadItem& item) : item_(item), title_(toWide(item.track.name), type::body),
                                                      sub_(toWide(item.track.artistLine()), type::caption) {
         focusable = true;
+        // A failed download says why under its title (in plain words: friendlyError), next to the retry button.
+        if (item.state == DlState::Failed && !item.error.empty())
+            sub_.setText((sub_.empty() ? std::wstring() : sub_.text() + L" · ") + friendlyError(toWide(item.error)));
     }
     std::function<void()> onCancel;
     std::function<void()> onRetry;
@@ -212,13 +215,14 @@ private:
 
             // Collections kept offline (download sync).
             sync::buildSyncSection(c);
-
-            // Collections (user folders).
+        }
+        // Collections (user folders); a page with nothing downloaded and no folder shows only its empty state below.
+        if (collectionFilter_.empty() && (!dm.items().empty() || !dm.collections().empty())) {
             auto* folders = c->add<ui::Column>(16.f);
             folders->add<SectionHeader>(tr(L"Klasörlerin"), std::to_wstring(dm.collections().size()));
             if (dm.collections().empty()) {
-                emptyState(folders, "folder", std::wstring(),
-                           tr(L"Henüz klasör yok. İndirdiklerini gruplamak için \"Yeni klasör\" oluştur."))
+                // The compact state's one line is its title (like noResultsState and Podcastler's subscriptions).
+                emptyState(folders, "folder", tr(L"Henüz klasör yok. İndirdiklerini gruplamak için \"Yeni klasör\" oluştur."), {})
                     ->setCompact(true);
             } else {
                 auto* grid = addCardGrid(folders, 1);

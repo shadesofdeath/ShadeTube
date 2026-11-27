@@ -1369,7 +1369,8 @@ public:
                std::function<void()> onAction, std::wstring link, const char* linkIcon, std::function<void()> onLink)
         : icon_(icon), title_(std::move(title), type::sectionTitle), body_(std::move(body), type::secondary, {gfx::TextAlign::Leading, true}) {
         hitTestVisible = false;
-        action_ = add<Button>(ButtonKind::Primary, std::move(action), actionIcon);
+        // A Secondary pill like the year in review banner's: three cards side by side are not three main actions.
+        action_ = add<Button>(ButtonKind::Secondary, std::move(action), actionIcon);
         action_->onClick = [fn = std::move(onAction)] {
             const auto f = fn;   // may rebuild the page
             if (f) f();
@@ -1382,7 +1383,10 @@ public:
     }
     float preferredHeight(float w) override { return buttonsY(w) + (stacked(w) ? 2 * gfx::metrics::pillH + 8 : gfx::metrics::pillH) + kPad; }
     void layout() override {   // children are placed in this widget's own space
-        const float w = rect().w, y = buttonsY(w);
+        // In a row of cards (equal heights) the buttons sit on the card's bottom, so they line up across the row.
+        const float w = rect().w;
+        const float block = stacked(w) ? 2 * gfx::metrics::pillH + 8 : gfx::metrics::pillH;
+        const float y = std::max(buttonsY(w), rect().h - kPad - block);
         const float aw = std::min(action_->naturalWidth(), std::max(0.f, w - 2 * kPad));
         action_->setRect({kPad, y, aw, gfx::metrics::pillH});
         const float lw = std::min(link_->naturalWidth(), std::max(0.f, w - 2 * kPad));

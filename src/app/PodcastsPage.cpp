@@ -1323,7 +1323,7 @@ private:
         header_->filter_->onEscape = [this] { header_->closeFilter(); };
         list_ = c->add<EpisodeList>(EpisodeList::Options{false, false});
         // The shared states: nothing playable in the feed, nothing matching the search.
-        empty_ = emptyState(c, "podcast", std::wstring(), tr(L"Bu podcastte çalınabilir bölüm yok."));
+        empty_ = emptyState(c, "podcast", tr(L"Bu podcastte çalınabilir bölüm yok."), {});
         empty_->setCompact(true);
         noMatch_ = noResultsState(c, tr(L"Aramana uyan bölüm yok."));
         attachHeader(header_, list_);

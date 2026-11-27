@@ -55,7 +55,11 @@ void ListRow::paint(Canvas& c) {
     const Rect art = artRect();
     if (pagetx::presence(this) > 0.f)   // 0: the page transition draws this cover
         drawArtwork(c, images_, art, gfx::radii().art, circle_ ? Placeholder::Artist : Placeholder::Album, circle_);
-    const float mw = meta_.empty() ? 0 : std::ceil(meta_.measure().w);
+    if (metaGen_ != gfx::Fonts::generation()) {   // the meta's natural width, once (on a copy: one layout per frame)
+        metaGen_ = gfx::Fonts::generation();
+        metaW_ = meta_.empty() ? 0.f : std::ceil(gfx::Text(meta_.text(), meta_.style()).measure().w);
+    }
+    const float mw = metaW_;
     const float tx = art.right() + 14, tw = r.right() - tx - mw - 20;
     c.text(title_, {tx, r.cy() - 19, tw, 20}, col.fgPrimary, gfx::VAlign::Center);
     c.text(subtitle_, {tx, r.cy() + 1, tw, 18}, col.fgSecondary, gfx::VAlign::Center);
