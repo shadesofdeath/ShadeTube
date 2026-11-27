@@ -2,6 +2,24 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.12.0 — unreleased
+
+- **Rule-based playlists ("Kurallı liste")**: build a playlist from rules instead of picking songs — "released after
+  2020, played fewer than 50 times, artist is not X, liked, longer than 3 minutes, BPM between 150 and 175, sorted by
+  last played, at most 100 songs". Rules cover title / artist / album, release year, length, BPM, play and skip
+  counts, first / last played, date added and liked, liked / downloaded / local file / explicit, in or not in a
+  playlist and the source catalog, with "all" or "any" and one level of rule groups, any sort order (or a random
+  order that changes daily) and a limit in songs or minutes. The editor shows the matching songs live while you type.
+  The songs come from what ShadeTube knows on this PC: your liked songs, your playlists (Spotify's too), saved albums,
+  local files, downloads and your listening history, each song once. The list sits with your playlists in the sidebar
+  and the Library, plays, shuffles, downloads, exports and queues like any playlist, updates itself when its sources
+  change, and "Save as playlist" freezes it. Rules can be exported and imported as a file.
+- **BPM for your songs**: ShadeTube now knows the tempo of songs. It reads BPM tags of local files and measures the
+  rest itself, quietly in the background — local files, downloads and songs in the song cache, a few a minute without
+  slowing playback (Settings › Local music turns it off). Add a "BPM" column to any song list from the column header's
+  menu, sort by it, keep only a tempo range (presets for calm, walking, upbeat and running, or type `bpm:150-175` in a
+  list's search), see the tempo in Now Playing's About tab, and set or fix it in the tag editor.
+
 ## 0.11.0 — 2026-11-27
 
 - **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or

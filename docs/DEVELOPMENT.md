@@ -85,7 +85,8 @@ ShadeTube/
 │   ytmusic/     st_ytmusic      YouTube Music catalog: Parse (tolerant InnerTube parsers), YtMusic (endpoints, cache)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
-│                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52)
+│                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52),
+│                                Tempo (BPM estimate of audio, 3.58)
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
 │                                cache, 3.45)
@@ -119,13 +120,14 @@ ShadeTube/
 │                                Accounts (several Spotify accounts, 3.48), SongNotification + SongNotifier (3.49),
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.50),
-│                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements
+│                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements,
+│                                RuleLists + RuleListsPage + RuleSources (Kurallı listeler, 3.57), Bpm + BpmStore (tempo, 3.58)
 └─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiocache,
                                  audiodsp, blend, browse, codecs, collections, credits, downloads, headers, history,
                                  icons, jam, library, links, lists, liveaudio, localfiles, lyrics, memory, micro,
                                  miniplayer, musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups,
-                                 preview, radio, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
-                                 smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
+                                 preview, radio, remote, review, rules, scrobble, scroll, shortcuts, smartlists, smartshuffle,
+                                 smtc, songnotify, sponsorblock, spotify, stats, sync, tags, tempo, theme, updater, video,
                                  winshell, ytmusic, ytstreams
 ```
 
@@ -675,8 +677,9 @@ uploaded. The next launch shows a one-time notice; *Settings › Library and sto
 Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `settings.json`, `accounts.json` and
 `accounts\<id>\` (one folder per Spotify account, 3.48: `spotify.dat` (DPAPI), its login's `webview2\`, and its
 `listening.json`, `listening-imported.json`, `listening-lastfm.json`, `listening-listenbrainz.json` (3.55),
-`blacklist.json`, `new-releases.json`, `smart-lists.json` and `library-recents.json`, which sit in the root itself
-while there is no account), `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`,
+`blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`, `rule-lists.json` and
+`rule-sources.json` + `rule-sources\` (3.57), which sit in the root itself while there is no account), `bpm.json`
+(the songs' tempo, per PC, 3.58), `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`,
 `downloads.json`, `sync.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`, `radio.json`,
 `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json` (timing offsets and lyrics picks; `lyrics\`
 holds picked .lrc / .txt copies, 3.46), `jam.json` (listen together: the device id, a guest's saved playback
@@ -2480,11 +2483,11 @@ Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two di
 `ui::paintSkeleton` in `ui/MicroPaint`.
 
 - **Track table columns** (`trackcols::layout`, a pure function of the width): `# | [art] title / artists | album | year
-  | added | plays | [queue][heart] | duration | [more]`. The right end never moves: the 28 DIP slots of the hover actions
-  are always reserved, the actions fade in and slide 6 DIP into them (`HoverFade`, 120 ms; instant without
+  | added | plays | BPM | [queue][heart] | duration | [more]`. The right end never moves: the 28 DIP slots of the hover
+  actions are always reserved, the actions fade in and slide 6 DIP into them (`HoverFade`, 120 ms; instant without
   micro-interactions), the heart stays while liked. As the table narrows the optional columns give way to the title
-  (240 DIP minimum, 200 compact) in this order: plays, year, added, album, then the queue action; narrowing never brings
-  one back. Which optional columns a list shows is the user's (`Settings::trackColumns`, `"album,added,plays"`; the
+  (240 DIP minimum, 200 compact) in this order: plays, BPM, year, added, album, then the queue action; narrowing never
+  brings one back. BPM (3.58) is offered in every list but on only when the user picks it. Which optional columns a list shows is the user's (`Settings::trackColumns`, `"album,added,plays"`; the
   column header's context menu toggles them, *Varsayılan sütunlar* resets) intersected with what the list has
   (`Options::showAlbum / showAdded`; *Dinlenme* only when a row has a play count, `Track::listenCount`). There is no
   year or "added by" data in `catalog::Track` yet, so the Year column is laid out but never offered.
@@ -2661,7 +2664,9 @@ Several Spotify accounts on one PC, switched without logging in again (`spotify/
 - **Per account / per PC.** Per account (`accounts::perAccountFiles()`; a name also covers its `.old` / `.bak` / `.tmp`
   siblings): `listening.json` + `listening-imported.json` + `listening-lastfm.json` + `listening-listenbrainz.json`
   (stats, the year in review, the Library's play recency; the imported histories with their import cursors, 3.55 Last.fm
-  and ListenBrainz history import), `blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`. In memory, the Session keeps the
+  and ListenBrainz history import), `blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`,
+  `rule-lists.json` and `rule-sources.json` (3.57; the cached track lists sit in the account folder's `rule-sources\`).
+  In memory, the Session keeps the
   library snapshot (playlists, folders, saved albums, followed artists, liked ids) per account and parks the one it
   leaves for an instant switch back (a reload follows); Home and the friend activity reload. Per PC (the root):
   settings, themes, downloads (`downloads.json`, the files), `sync.json`, local files, `library.json` (local likes and
@@ -3227,6 +3232,146 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   search, paging songs and playlists, the full discography, the disk cache) and plays a search result through
   `MatchService` to check the video is the one YouTube Music named.
 
+### 3.57 Rule-based playlists (Kurallı listeler)
+
+Playlists the user builds from rules ("released after 2020, played fewer than 50 times, artist is not X, liked, longer
+than 3 minutes, sorted by last played, at most 100 songs"). `app/RuleLists` is the pure part (definitions and their
+JSON, the song pool, the evaluation; standalone, `rules_test`), `app/RuleListsPage` the app side (the store, the engine,
+the list page, the editor, menus, import / export), `app/RuleSources` the cached Spotify / saved-album collections.
+
+- **Universe** (`rules::Source`, a definition picks any of them; all by default): the liked songs (Spotify's while
+  signed in, from the collection cache; else the local ones), the user's playlists (local ones signed out, Spotify's
+  signed in, as the sidebar shows them), saved albums whose track lists are known (collection cache; their tracks get
+  the album's release year), Yerel dosyalar (year from the tags), the downloads and every song of the listening history
+  (`ListenStats`: this PC's and the imported plays). **De-duplication**: copies with the same catalog id are one track
+  (interned once, its metadata completed from the others: cover, length, video); tracks with different ids merge by the
+  history's song identity (folded title + first artist, `ListenStats::keysFor`), so a song liked on Spotify, downloaded,
+  kept as a file and heard 40 times is one row. The row plays the first copy in this order: local file, download,
+  liked, playlist, album, history (a local file / download plays from disk). Facts of a merged song: year = any known,
+  added = the earliest `addedAt` of its library copies, liked date from the liked copy, liked = a liked copy or the
+  account's liked ids, downloaded / local file / explicit = any copy, playlists = every playlist slice it is in, plays /
+  skips / first / last played from the history, BPM from 3.58.
+- **Fields and operators**: title / artist / album (contains, does not contain, is, is not, starts with; artist: any of
+  its artists), release year and BPM (>, <, between, =, ≠, known, unknown), length in seconds (`m:ss` in the editor),
+  plays and skips (a play = a stream by `ListenStats`' rule; a skip = a stored play that wasn't one: this PC's under
+  30 s, the imported histories' short rows; scrobbles never are), last / first played (in / not in the last N days,
+  after / before a date, never), date added / liked (the same without "never"), liked / downloaded / local file /
+  explicit (yes, no), in / not in playlist X, source catalog (Spotify, YouTube Music, MusicBrainz, local file, other =
+  imported). "All / any" over the rows plus one level of groups with their own "all / any". **Unknown values** never
+  match a comparison (only "unknown"); a date that means "never" (never played) matches "not in the last N days" and
+  "never"; sorting puts unknown values last in either direction. Left out: genre (the local scanner doesn't keep it and
+  catalogs give none per song), ratings and "added by" (no data), audio features other than BPM (no source), a release
+  year for Spotify / YouTube Music playlist and liked songs (`catalog::Track` carries none: only local files and saved
+  albums have one).
+- **Order and limit**: any field ascending / descending, or random seeded by the list and the local day and keyed by
+  song (stable all day, a new song doesn't reshuffle the others); at most N songs or N minutes (songs taken in order
+  until the next would pass the minutes; unknown lengths count 3:30).
+- **Store** (`rule-lists.json`, per account): `{"v":1,"lists":[{"id","created","updated","def":<definition>,
+  "last":{"count","ms","covers","done"}}]}`; "last" is the latest evaluation, so the sidebar and the Library show counts
+  and covers at once after a start. A definition (also the exported file, *Kuralları dışa aktar…*): `{"shadetube.rulelist":1,
+  "name","match":"all|any","groups":[{"match","rules":[{"field","op","text"?,"a"?,"b"?}]}],"sort":{"by","desc"},
+  "limit":{"kind":"none|songs|minutes","value"},"sources":[...]}` with names, not numbers; reading drops rules with an
+  unknown field / operator (counted, toasted on import), clamps limits and values, keeps at most 40 rules and refuses
+  files that aren't rule lists or are of a newer version.
+- **Engine** (UI thread + one job at a time on a Low worker; the pool is touched only by jobs): every input change
+  (the local library store, the session, Yerel dosyalar, downloads, the history, BPMs, the collection cache, the day)
+  posts one coalesced `kick()`; the job carries only what changed, by fingerprints computed on the UI thread without
+  copying (track ids / added times / names of each local collection, the local library's generation, the downloads'
+  done ids, the liked ids as an order-free hash, the history's size / plays / newest play, the BPM store's revision,
+  the cache's fetch times). The job applies the slices (folding them: the expensive part, off the UI thread), merges
+  once, applies facts without a merge (play statistics: only the songs whose counts changed when the history only got
+  plays) and evaluates again only the lists whose dependencies moved (`rules::depsOf` × the pool's revisions per
+  `Dep`; relative dates and random orders also at a new day). It returns each changed list's summary and the full songs
+  of lists a page shows (`watch`) or the editor's draft (first 50). The history is aggregated on the UI thread at most
+  every 15 s (one pass over the plays). Nothing is evaluated before the history, the local library, the BPM store and
+  (signed in) the library snapshot are loaded, and summaries are not saved while the collection cache is still
+  fetching (they are evaluated again when it settles), so counts don't jump after a start. With no list and no editor
+  open the pool is released and nothing is fetched.
+- **Collection cache** (`app/RuleSources`): fetched only while a list (or the editor's draft) draws from that source, one collection at a time
+  on a Low worker (Spotify pages 300 ms apart, collections 1.5 s apart, a 429 pauses Spotify fetches 10 min, a failure
+  waits 15 min); again when the library says it changed (another track count, a playlist edit made here; Liked Songs at
+  most every 5 min), or when old (playlists / Liked Songs 6 h, albums 7 days); collections gone from the library are
+  dropped with their files. Track lists live in `<account>\rule-sources\<fnv>.json` (one cover per track, no row uids),
+  the index in `rule-sources.json`; in memory only the index (a job reads a list when it changed).
+- **UI**: the sidebar lists rule lists after the playlists with a filter mark (the playing bars while one plays) and
+  their song count, the "+" menu has *Yeni kurallı liste…* / *Kurallı liste içe aktar…*, the Library's playlists tab
+  shows them as cells ("Kurallı liste · 42 şarkı", the card menu). The list page (`smart:rule:<id>`; `#play` starts it)
+  is a collection page: generated cover (four covers above a band, like the smart lists'), a line saying how it is
+  made, play / shuffle / *Kuralları düzenle* / download (queues the songs not downloaded yet: a one-off, not a sync
+  rule) / "…" (queue, *Çalma listesi olarak kaydet* = the current result frozen through `promptNewPlaylist`, export
+  through `transfer::exportTracks`, copy, rules export, delete). The editor (`smart:rule-edit:<id>`, `smart:rule-new`):
+  the name, the rows (field ▾ · operator ▾ · value box(es) or a playlist / catalog picker · ×), groups in an outlined
+  box with their own "all / any", *Kural ekle* / *Grup ekle*, sort ▾ + direction, limit ▾ + number, the sources as
+  check / plus pills and the live preview (count, length, the first 50 songs) evaluated in the engine at every change.
+  Every control is a Tab stop (text boxes, dropdown buttons, segmented controls), Enter in the name saves.
+- **Measured** (Debug build). `rules_test`: 5 000 songs over 23 slices (6 667 distinct tracks): preparing the slices
+  326 ms, the merge 76 ms, facts 34 ms, one evaluation with 4 rules + sort + limit 4.8 ms, a text rule 2.2 ms, a random
+  order of all 3.8 ms; pool ~7.0 MB (`Pool::memoryBytes`, ~1 KB per distinct track: the interned track with one cover,
+  its folded texts, the indexes). 50 000 songs: 3.2 s / 0.79 s / 0.33 s / 51 ms, ~70 MB. In the app on a 5 000-song
+  sandbox (1 200 likes, 12 local playlists, 12 local files, 69 415 plays over 4 902 songs; four lists): the first job
+  (everything prepared, four lists) 265-435 ms on the worker, later jobs after one input changed (a BPM landed, a play)
+  8-31 ms; nothing on the UI thread beyond the fingerprints and the history aggregation.
+
+### 3.58 Tempo (BPM)
+
+The tempo of songs, for the track tables (a column, sorting, a range filter), Now Playing and the rule lists (3.57).
+`audio/Tempo` (the estimator and the file analysis; `tempo_test`), `app/BpmStore` (the store; `rules_test`), `app/Bpm`
+(the worker, lookups, settings rows, the tag editor's hand-over).
+
+- **Sources**, in order: a BPM tag in the file (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM` / `TEMPO`; read by `audio/TagWriter`
+  for local files and downloads), else ShadeTube's own analysis of audio it already has: local files, downloads and the
+  song cache (`player/AudioCache::songs()`). No catalog offers a tempo without credentials ShadeTube doesn't have:
+  Spotify's audio features are a Web API call (an app token, closed to new apps since 2024; the web player token is
+  rate-limited there, 3.5), MusicBrainz has no tempo, AcousticBrainz is shut down, the BPM databases want an API key.
+  Nothing is asked on the network.
+- **Estimator** (`audio/Tempo.h` has the details): mono at 11.025 kHz, 512-point frames every 128 samples; onset
+  strength = log-compressed spectral flux over 20 log-spaced bands, minus its 1 s moving average, rectified, smoothed
+  over 5 frames; its autocorrelation; a comb score (the autocorrelation at P, 2P, 3P, 4P) × a broad log-normal prior
+  around 120 BPM picks the period; an explicit octave check doubles it when the events halfway are about as strong
+  (0.78 of the beat's; past 180 BPM 0.92, and the comb must agree) and halves it when P is a subdivision; the period is refined
+  over up to 8 harmonics' peaks (0.1 BPM resolution); a held tone / noise gives no tempo (mean onset strength, the
+  autocorrelation as the confidence).
+- **Worker** (`app/Bpm`, UI-thread scheduling from the housekeeping tick, one job at a time, Low priority, the thread at
+  below-normal priority while it runs): nothing in the first minute, nothing while the player resolves / buffers a song;
+  tags in batches of 25 files every 3 s; one analysis (70 s of the song from 20 % in) every 12 s at most (≈ 5 a minute);
+  `Settings.bpmAnalysis` off (*Ayarlar › Yerel müzik › Tempo (BPM) analizi*) = tags only. Candidates are listed again
+  when the local library's generation, the downloads or the song cache change (and every 30 min); a file is done when
+  the store has its id with the same stamp (size + last write time), so a changed file is looked at again. No toast or
+  progress: the settings row counts "2.212 şarkının temposu biliniyor: 3 etiketten, 2.209 analizden. 4 dosya sırada."
+- **Store** (`bpm.json`, per PC, saved on a worker at most every 30 s and at exit): entries `{b, s: t|a, c, t, f
+  (stamp), i: [ids], k: song key}`; keys like the other per-track data: a local file's `local:` id, a download's
+  catalog id, a cached stream's `yt:<video>` and the catalog ids it played for, plus the song identity (folded title +
+  first artist), so the same song from another source shows its tempo. A tag beats an analysis for the same id; an
+  analysis that found no beat is kept (bpm 0) so the file isn't tried again. Lookups (`bpm::of`): id, then video, then
+  song key, remembered per id until the store changes; workers get a shared snapshot.
+- **UI**: the track table's *BPM* column (offered in every list through the column header's menu, an empty cell when
+  unknown, sortable with unknown last), *BPM aralığı* in the same menu (Sakin 60–90, Yürüyüş 100–125, Tempolu 125–145,
+  Koşu 150–175, *Özel aralık…*, a dot on the column label while one is set) and `bpm:150-175` / `bpm:>140` / `bpm:<100`
+  / `bpm:128` (±2 %) in any list's search box (`TrackTable::setFilter` takes them out of the text); "TEMPO · 128 BPM" at
+  the top of Now Playing's *Hakkında*; the tag editor's *BPM* field next to the year (writes `TBPM` / `tmpo` / `BPM`,
+  0 removes it; the store learns the new value at once).
+- **Validation**. Synthetic (`tempo_test`, 50 signals): click tracks 60-200 BPM and odd tempos 20 / 20 exact (within
+  2 %); drum loops 70-180 BPM 18 / 19 (rock at 70 comes out 140: its eighth hats); triplet swing 3 / 3; the traps give
+  the tempo or its octave by design (half-time 140 / 150 → 70 / 75, drum'n'bass 174, loud sixteenths at 92 / 120
+  exact); noise, silence and a held tone give none; a noise floor, 44.1 kHz input, a 1 % drift and a 127.3 BPM loop
+  (within 0.6) pass. Overall 47 / 50 exact, 50 / 50 within an octave. The sandbox's synthesized local songs (MP3, FLAC,
+  WAV at 76-168 BPM): 9 / 9 analysed exact, the 3 tagged ones read from their tags. Real songs played through the app
+  in a sandbox (YouTube Opus streams from the song cache, analysed by the app's worker and again by `tempo_test file`),
+  against their published tempos. A first set of 12: Get Lucky 116 → 116.0, Billie Jean 117 → 116.7, Another One Bites
+  the Dust 110 → 110.4, Eye of the Tiger 109 → 108.8, Uptown Funk 115 → 115.0, Blinding Lights 171 → 171.0, Rolling in
+  the Deep 105 → 105.0, Take On Me 169 → 168.5, Stayin' Alive 104 → 103.4, Africa 93 → 92.9, Happy 160 → 159.9 and
+  Levitating 103 → 206 (doubled); the 0.92 rule for doubling past 180 BPM was made for that song (103.0 after it, the
+  synthetic results unchanged). Then 8 songs not used before: Somebody That I Used to Know 129 → 129.0, Lose Yourself
+  171 → 171.4, Believer 125 → 125.0, Viva la Vida 138 → 138.1, Smells Like Teen Spirit 117 → 115.7, Wake Me Up 124 →
+  124.0, Shape of You 96 → 191.9 (doubled) and Never Gonna Give You Up 113 → 181.8 (wrong: its envelope has no peak near
+  113, confidence 0.36), i.e. 6 / 8 within 2 %. Shape of You led to the last rule (past 180 BPM the comb must agree
+  too; 96.0 after it, nothing else changed). So: 19 / 20 within 2 % now, two of the fixes tuned on these songs; the
+  honest holdout figure is 6 / 8 exact, 7 / 8 within an octave. `SHADETUBE_TEMPO_DEBUG=1` prints a file's candidates.
+- **Cost** (Debug): an MP3 / FLAC / WAV song decodes in 46-75 ms (70 s at 11 kHz) and estimates in 120-140 ms; a cached
+  Opus stream took 2.8-11 s to decode in Debug (the built-in decoder and resampler unoptimized, other builds running),
+  so the worst case is a quarter of one core at below-normal priority with one song per 12 s; Release was not measured.
+  `tempo_test`'s 70 s envelope: 130-360 ms, the estimate 4-8 ms.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -3247,7 +3392,7 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   (Enter/Space); give `focusShape()` / `focusRect()` when the default (rect, radius 2) is wrong. Never paint focus
   yourself: the Window draws the ring. Text fields and lists that need every key stay non-activatable. Callbacks
   that may navigate (and so destroy the widget) are called through a local copy.
-- App files that tests compile directly (`Blacklist`, `ListenStats`, `HistoryImport`, `ScrobbleImport`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
+- App files that tests compile directly (`Blacklist`, `ListenStats`, `HistoryImport`, `ScrobbleImport`, `LocalLibrary`, `RuleLists`, `BpmStore`, `Scrobbler`, `DiscordRpc`,
   `SponsorBlock`, `Smtc`, `Updater`, `Installer`, `LibrarySort`, `RemoteHttp`, `RemoteAuth`, `RemoteApi`,
   `RemoteState`, `RemoteServer`, the `Jam*` core, `HeaderCollapse`, `OfficialVideoCache`) must stay standalone: no `App`, `AppContext` or UI headers.
 
@@ -3285,13 +3430,15 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `mp3_probe` | can Media Foundation encode MP3 on this machine | offline |
 | `downloads_test` | MP3 transcode + SponsorBlock trimming on a generated WAV | offline; `--keep` |
 | `localfiles_test` | scanner, tags, covers, index, incremental rescan, `refreshEntry` = what a scan stores, folder tree (natural order, covers, nested / drive roots, 50 000 files timed), files dropped from Explorer + drop rules, MF decode + short playback | offline; `[parent-folder] [--keep]`; extra formats when `ffmpeg` is on PATH |
-| `tags_test` | tag editor core (`audio/TagWriter`) on generated files: MP3 (MF download with APIC / USLT / SYLT / TXXX, hand-built v2.4 + ID3v1, v2.2, no tag, ID3v1 only, padding, unsynchronisation, junk), FLAC (MF encoder, else ffmpeg, plus a hand-built one; padding used / rewritten, no comment block), M4A (MF AAC / ALAC, moov before / after mdat, free box absorbing a change, fragmented MF / ffmpeg files, injected freeform items); Turkish / Japanese text, covers up to ~2 MB, PNG, every other frame / block / item kept, payload SHA-256, the result decodes to the same PCM, the property system's view; corrupt, read-only, in-use, playing (mapped), tampered and changed-meanwhile files, no leftovers | offline; `--keep`; ffmpeg variants when on PATH |
+| `tags_test` | tag editor core (`audio/TagWriter`) on generated files (every field, the BPM too: ID3 TBPM, MP4 tmpo, Vorbis BPM, changed and removed): MP3 (MF download with APIC / USLT / SYLT / TXXX, hand-built v2.4 + ID3v1, v2.2, no tag, ID3v1 only, padding, unsynchronisation, junk), FLAC (MF encoder, else ffmpeg, plus a hand-built one; padding used / rewritten, no comment block), M4A (MF AAC / ALAC, moov before / after mdat, free box absorbing a change, fragmented MF / ffmpeg files, injected freeform items); Turkish / Japanese text, covers up to ~2 MB, PNG, every other frame / block / item kept, payload SHA-256, the result decodes to the same PCM, the property system's view; corrupt, read-only, in-use, playing (mapped), tampered and changed-meanwhile files, no leftovers | offline; `--keep`; ffmpeg variants when on PATH |
 | `playback_test` | blocklist store + rules, `Player::localMimeType`, a real `Player` on generated WAVs (skips, endless hooks, crossfade vs. gapless album, silent ending, 2x speed), decoding to 48 kHz | offline; `[<audio dir>]`; needs an audio device |
 | `audiodsp_test` | equalizer response / headroom / processing, presets, ReplayGain tag parsing (ID3 / FLAC / MP4), limiter (ceiling, latency, release), time stretch (length, pitch, positions, flush), output-device enumeration | offline |
 | `scrobble_test` | MD5 / Last.fm signatures, listened-time rule, DPAPI store, Discord IPC framing | offline + bogus-credential live checks; `SHADETUBE_DISCORD_APPID` shows a real presence |
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store, Spotify show → directory matching and the kept links | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads, `findFeed` and its request spacing) |
+| `rules_test` | rule-based playlists (`app/RuleLists`, 3.57) and the BPM store (`app/BpmStore`, 3.58): definitions round-trip through JSON exactly, hostile / foreign / newer files (unknown fields and operators dropped and counted, limits clamped, the rule cap), de-duplication by id and by song identity across slices and the copy that plays, merged facts, every field and operator (Turkish İ / ı, several artists, unknown values, "never played", playlists, catalogs, BPM), all / any and groups, unfinished rows ignored, sources, every sort key with unknown values last, random orders per day and per song, limits by count and minutes, incremental updates (an identical slice, one slice replaced = one merge, play / liked / downloaded / BPM facts without a merge, revisions, `depsOf`), the BPM store (ids, video, song key, tag over analysis, stamps, forgetting, the file), timings with 5 000 and 50 000 songs | offline; one section by name (`json pool rules order incremental bpm timing`) |
+| `tempo_test` | the tempo estimator (`audio/Tempo`, 3.58) on synthetic audio at known tempos: click tracks 60-200 BPM and odd tempos, drum loops (rock, four-on-the-floor, ballads, 70-180 BPM), triplet swing, half-time / drum'n'bass / loud sixteenths traps (the tempo or its octave), noise / silence / a held tone (no tempo), a noise floor, 44.1 kHz, a 1 % drift, sub-integer precision, a generated WAV through `analyzeFile` (decoder, seek, downmix), timing; prints every signal's estimate and the accuracy | offline; `file <path…>` (real files: estimate, decode and analysis time) |
 | `smartlists_test` | smart lists on synthetic histories: each list's rules and minimums, streams only, podcast / radio ids out, session-based mixes, day seeds, year lists, fresh-song blending, trim, timing with 300 000 plays | offline |
 | `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), an account switch (`detach` / `attach`: stored plays to the old file, the play in progress carried over), timings with 300 000 imported plays | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files), Spotify rules bound to their account (listable only with it, the `"acct"` round trip, old files) | offline |
@@ -3409,6 +3556,8 @@ apps*).
 | `SHADETUBE_LIBRARY_VIEW` | `<grid\|list>[:<recents\|added\|alpha\|creator>[:<filter>]]`: the Library page's view, sort and search (not saved) |
 | `SHADETUBE_LIBRARY_SCROLL` | the first Library page opens scrolled down this many DIPs |
 | `SHADETUBE_LIST_DEMO` | `<step>;<step>…` run 900 ms after the first track table of the run got rows (3.47): `select=1,3-5` (display rows), `sort=<title\|album\|added\|duration\|plays>[:desc]` (as a header click), `columns=<Settings::trackColumns>`, `next=<rows>` / `enqueue=<rows>`, `queue` (opens the queue panel), `scroll=<dips>`, `dragline=<row>` (the selection shown dragged in front of that row), `fakeplays`. E.g. `local:songs` with `SHADETUBE_PLAY_FILES` and `next=3,4;enqueue=10,11;queue` for the queue's sections |
+| `SHADETUBE_BPM_FAST` | `1`: the BPM worker (3.58) starts at once instead of a minute after startup and analyses back to back (0.5 s apart instead of 12 s): measurements, screenshots of the BPM column |
+| `SHADETUBE_TEMPO_DEBUG` | `1`: the tempo estimator prints its candidates to stderr (`tempo_test file <path>`: the comb peaks, the autocorrelation at P, P/2, 2P, 3P/2, 2P/3) |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
 | `SHADETUBE_MEM_DEMO` | `<action>@<ms>[=<arg>];…` or the path of a file of such steps (`;` or new lines, `#` comments), each run `<ms>` after startup (app/MemDemo.h): `route=<r>` (the `--route` forms), `back`, `forward`, `wheel=<n>` (n notches down, negative up), `np`, `npclose`, `next`, `tray`, `show`, `minimize`, `restore`, `mini`, `miniclose`, `trim` (App::trimMemory), `gputrim` (`Device::trimPool`), `gpuclear` (Direct2D's `ClearResources`), `d2dcache=<MB>`, `report[=<label>]` (a categorized report appended to `logs\memreport.txt`, 3.2), `frames=<label>` (only the frame times since the last report), `quit`. E.g. `route@4000=local:songs;wheel@5000=40;report@20000=songs;quit@21000` |
 | `SHADETUBE_MEMPROFILE=1` | in a `-DST_MEMPROFILE=ON` build only: tallies the live `operator new` bytes by call stack; `report` steps then list them by allocating function and stack (3.2). Absolute numbers of such a run are inflated (headers, the table, DbgHelp's symbols after the first report) |
@@ -3481,6 +3630,19 @@ The in-app updater rejects a release whose tag differs from the exe's `ProductVe
 differs from GitHub's asset digest or from the `sha256:` line in the notes.
 
 ## 7. Known limitations and open items
+
+- **Rule-based playlists** (3.57): a release year is known only for local files and saved albums' tracks (catalog
+  tracks carry none), so "year" rules over Spotify / YouTube Music likes and playlists match nothing but "unknown".
+  Spotify collections are read from the collection cache, fetched in the background while a list needs them: a new
+  list shows its Spotify songs once their listing is done (minutes for a large library), and the cache follows Spotify
+  only as often as 3.57 says. The editor's playlist picker names the sidebar's playlists (signed in, Spotify's; local
+  ones are not offered then). Verified on a synthetic logged-out library only: no logged-in Spotify sandbox was
+  available, so the Spotify collection fetching ran in no live session. A pool of ~1 KB per distinct song is held while
+  any rule list exists (7 MB for 5 000 songs, 70 MB for 50 000).
+- **BPM** (3.58): like every tempo estimator it can return half or double the tempo musicians would name (strong
+  eighths, half-time grooves); free-tempo music, speech and ambient pieces get no tempo. Only audio already on this PC
+  is analysed: a song streamed but not finished (not in the song cache) or never played has none. The analysis of a
+  cached Opus stream is slow in Debug builds (seconds); Release was not measured.
 
 - **Spotify internal API.** Pathfinder GraphQL and spclient are the web player's private endpoints and can change
   without notice. Rotated hashes heal themselves (3.5), but a changed request shape (HTTP 400 naming a variable)

@@ -512,8 +512,8 @@ void startJob() {
         src |= l.def.sources;
         deps |= depsOf(l.def);
     }
-    if (s.draft) {
-        src = kAllSources;   // the editor shows what any choice of sources would give
+    if (s.draft) {   // the editor's draft: its sources, and every fact a rule may read while it is edited
+        src |= s.draft->def.sources;
         deps |= depsOf(s.draft->def) | DepPlays | DepBpm;
     }
     rulesrc::setWanted(src);
@@ -809,8 +809,8 @@ std::wstring opLabel(Field f, Op o) {
     case Op::Between: return tr(L"arasında");
     case Op::Known: return tr(L"biliniyor");
     case Op::Unknown: return tr(L"bilinmiyor");
-    case Op::InLast: return tr(L"son günlerde");
-    case Op::NotInLast: return tr(L"son günlerde değil");
+    case Op::InLast: return tr(L"son N gün içinde");
+    case Op::NotInLast: return tr(L"son N gün içinde değil");
     case Op::Before: return tr(L"şu tarihten önce");
     case Op::After: return tr(L"şu tarihten sonra");
     case Op::Never: return tr(L"hiç");
@@ -877,7 +877,7 @@ std::wstring describe(const Definition& d) {
     else
         parts.push_back(d.any ? i18n::plural(L"{} kuraldan birine uyan şarkılar", static_cast<int64_t>(n))
                               : i18n::plural(L"{} kuralın hepsine uyan şarkılar", static_cast<int64_t>(n)));
-    parts.push_back(i18n::format(tr(L"sıra: {}"), {d.sort == SortKey::Bpm ? sortLabel(d.sort) : toLowerTr(sortLabel(d.sort))}));
+    parts.push_back(i18n::format(tr(L"sıra: {}"), {sortLabel(d.sort)}));
     if (d.limit == Limit::Songs) parts.push_back(i18n::plural(L"en fazla {} şarkı", d.limitValue));
     else if (d.limit == Limit::Minutes) parts.push_back(i18n::plural(L"en fazla {} dakika", d.limitValue));
     std::wstring s;
@@ -895,7 +895,7 @@ void showFileToast(const std::wstring& message, const std::filesystem::path& fil
 std::wstring safeFileName(std::wstring s) {
     for (auto& ch : s)
         if (wcschr(L"<>:\"/\\|?*", ch) || ch < 32) ch = L'_';
-    if (s.empty()) s = L"liste";
+    if (s.empty()) s = tr(L"Kurallı liste");
     return s.substr(0, 120);
 }
 
@@ -1550,7 +1550,6 @@ private:
         } else if (t == Type::Date && o != Op::Never) {
             if (o == Op::InLast || o == Op::NotInLast) {
                 a_ = box(rule_.a > 0 ? numberText(rule_.a) : std::wstring(), L"30");
-                unit_ = add<ui::Label>(tr(L"gün"), type::secondary, ui::Tone::Secondary);
                 a_->onChange = [this](const std::wstring& s) {
                     const auto v = parseNumber(s);
                     a_->setError(!s.empty() && (!v || *v < 1));
@@ -1780,20 +1779,17 @@ private:
             auto* sec = c->add<ui::Column>(12.f);
             sec->add<SectionHeader>(tr(L"Kurallar"));
             auto* top = sec->add<ui::Box>();
-            auto* lead = top->add<ui::Label>(tr(L"Şarkılar"), type::secondary, ui::Tone::Secondary);
-            auto* seg = top->add<Segmented>(std::vector<std::wstring>{tr(L"kuralların hepsine"), tr(L"herhangi birine")}, def_.any ? 1 : 0);
+            auto* lead = top->add<ui::Label>(tr(L"Şarkılar şunlara uysun:"), type::secondary, ui::Tone::Secondary);
+            auto* seg = top->add<Segmented>(std::vector<std::wstring>{tr(L"Tüm kurallara"), tr(L"Herhangi bir kurala")}, def_.any ? 1 : 0);
             seg->onChange = [this](int i) {
                 def_.any = i == 1;
                 schedulePreview();
             };
-            auto* tail = top->add<ui::Label>(tr(L"uysun"), type::secondary, ui::Tone::Secondary);
             top->onPreferredHeight = [](float) { return 40.f; };
-            top->onLayout = [lead, seg, tail](ui::Box& b) {
+            top->onLayout = [lead, seg](ui::Box&) {
                 const float lw = std::ceil(lead->naturalWidth()), sw = seg->naturalWidth();
                 lead->setRect({0, 0, lw, 40});
                 seg->setRect({lw + 12, 0, sw, 40});
-                tail->setRect({lw + 12 + sw + 12, 0, std::ceil(tail->naturalWidth()), 40});
-                (void)b;
             };
             rulesCol_ = sec->add<ui::Column>(10.f);
             auto* adds = sec->add<ui::Box>();
