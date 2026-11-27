@@ -30,6 +30,15 @@ string(APPEND RC_CONTENT
 file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/resources.rc CONTENT "${RC_CONTENT}")
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/resources.rc PROPERTIES OBJECT_DEPENDS "${ST_ASSET_FILES}")
 
+# Per-user install / uninstall, the uninstall key, "Windows ile başlat", the updater's exe verification and swap: shared
+# by the app and the setup (src/setup, ShadeTubeSetup.exe). Standalone (core only), see docs/DEVELOPMENT.md 4.
+add_library(st_install STATIC
+    Autostart.cpp Autostart.h
+    Installer.cpp Installer.h
+    Updater.cpp Updater.h
+)
+target_link_libraries(st_install PUBLIC st_core PRIVATE version bcrypt)
+
 add_executable(ShadeTube WIN32
     main.cpp
     AboutSettings.cpp
@@ -39,7 +48,6 @@ add_executable(ShadeTube WIN32
     AudioSettings.cpp
     AppContext.cpp AppContext.h
     CatalogJson.cpp CatalogJson.h
-    Autostart.cpp Autostart.h
     Blacklist.cpp Blacklist.h
     ArtistPage.cpp
     BrowseModel.cpp BrowseModel.h
@@ -68,7 +76,6 @@ add_executable(ShadeTube WIN32
     HomeWidgets.cpp HomeWidgets.h
     LibrarySort.cpp LibrarySort.h
     LibraryView.cpp LibraryView.h
-    Installer.cpp Installer.h
     OverlayDemo.cpp OverlayDemo.h
     ListenStats.cpp ListenStats.h
     LinkOpener.cpp LinkOpener.h
@@ -145,7 +152,6 @@ add_executable(ShadeTube WIN32
     ThemeStudio.cpp ThemeStudio.h
     ThemeStudioUi.cpp
     TrackColumns.cpp TrackColumns.h
-    Updater.cpp Updater.h
     WinShell.cpp WinShell.h
     YearReview.cpp YearReview.h
     YearReviewView.cpp YearReviewView.h
@@ -162,7 +168,7 @@ add_executable(ShadeTube WIN32
 # windowsapp: C++/WinRT SystemMediaTransportControls (Smtc). bcrypt: MD5 for Last.fm signatures, AES-GCM / ECDH for
 # "Birlikte dinle". crypt32: DPAPI. winhttp: the MQTT WebSocket of "Birlikte dinle". secur32: the Windows display name.
 # ws2_32 + iphlpapi + qrcodegen: the phone remote control (LAN server, adapter addresses, pairing QR code).
-target_link_libraries(ShadeTube PRIVATE st_ui st_video st_player st_lyrics st_musicbrainz st_spotify st_youtube st_ytmusic st_catalog st_audio st_core webview2
+target_link_libraries(ShadeTube PRIVATE st_ui st_video st_player st_lyrics st_musicbrainz st_spotify st_youtube st_ytmusic st_catalog st_audio st_install st_core webview2
     windowsapp bcrypt crypt32 winhttp secur32 ws2_32 iphlpapi qrcodegen)
 # "ShadeTube 0.3" in Ayarlar > Hakkında.
 target_compile_definitions(ShadeTube PRIVATE ST_VERSION_SHORT="${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")

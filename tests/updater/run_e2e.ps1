@@ -51,7 +51,18 @@ function Release($dir, $tag, $assets, $notes) {
 }
 
 $zipAsset = Asset $zipName "$base/files/$zipName" $zip.Length $zipSha
-Release '.' "v$version" $zipAsset "## Yenilikler`r`n- Deneme`r`n`r`nsha256: $zipSha"
+# A release lists the setup too (tools\package.ps1, 0.12.0 on), before the zip and with its own sha256 line: the
+# updater must still take the zip.
+$setupFile = Get-Item (Join-Path $root "dist\ShadeTube-$version-setup.exe") -ErrorAction SilentlyContinue
+$mainAssets = @($zipAsset)
+$notes = "## Yenilikler`r`n- Deneme`r`n`r`nsha256: $zipSha"
+if ($setupFile) {
+    Copy-Item $setupFile.FullName $files
+    $setupSha = (Get-FileHash $setupFile.FullName -Algorithm SHA256).Hash.ToLower()
+    $mainAssets = @((Asset $setupFile.Name "$base/files/$($setupFile.Name)" $setupFile.Length $setupSha), $zipAsset)
+    $notes = "## Yenilikler`r`n- Deneme`r`n`r`nsha256: $setupSha  $($setupFile.Name)`r`nsha256: $zipSha  $zipName"
+}
+Release '.' "v$version" $mainAssets $notes
 Release 'norange' "v$version" (Asset $zipName "$base/norange/files/$zipName" $zip.Length $zipSha) "sha256: $zipSha"
 Release 'exe' "v$version" (Asset 'ShadeTube.exe' "$base/files/ShadeTube.exe" $exeFile.Length $null) "sha256: $exeSha"
 Release 'badsha' "v$version" (Asset $zipName "$base/files/$zipName" $zip.Length $null) "sha256: $wrongSha"

@@ -480,6 +480,9 @@ const Asset* pickAsset(const Release& r) {
         const std::string n = lower(a.name);
         if (n == exact) return &a;
         if (n.find("shadetube") == std::string::npos || n.find("arm64") != std::string::npos) continue;
+        // The setup (ShadeTube-<ver>-setup.exe) installs, it is not the app: an installed and a portable copy both
+        // update from the portable package (the exe swapped in place).
+        if (n.find("setup") != std::string::npos || n.find("installer") != std::string::npos) continue;
         if (endsWith(n, ".zip") && (!zip || (n.find("win64") != std::string::npos && lower(zip->name).find("win64") == std::string::npos)))
             zip = &a;
         else if (endsWith(n, ".exe") && !exe)

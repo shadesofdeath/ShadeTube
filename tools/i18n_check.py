@@ -52,7 +52,7 @@ def join_literals(chunk):
 
 
 def sources():
-    for base in ('app', 'ui', 'core', 'spotify', 'youtube', 'player', 'audio', 'lyrics', 'musicbrainz', 'gfx'):
+    for base in ('app', 'ui', 'core', 'spotify', 'youtube', 'player', 'audio', 'lyrics', 'musicbrainz', 'gfx', 'setup'):
         for dirpath, _, files in os.walk(os.path.join(SRC, base)):
             for f in sorted(files):
                 if f.endswith(('.cpp', '.h')):
@@ -80,7 +80,7 @@ def scan():
             e['plural'] |= m.group(1) == 'plural'
             e['where'].append(f'{rel}:{lineno}')
             spans.append((m.start(2), m.end(2)))
-        if not (rel.startswith('src/app/') or rel.startswith('src/ui/') or rel.startswith('src/player/')):
+        if not (rel.startswith('src/app/') or rel.startswith('src/ui/') or rel.startswith('src/player/') or rel.startswith('src/setup/')):
             continue
         for i, line in enumerate(lines):
             if SKIP_LINE.search(line) or line.lstrip().startswith('//'):

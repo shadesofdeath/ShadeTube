@@ -61,7 +61,8 @@ struct Release {
     std::vector<std::string> notesSha256;   // every "sha256: <hex>" of the release notes, lowercase
 };
 Release parseRelease(std::string_view json);   // throws on malformed JSON / a missing tag_name
-// ShadeTube-<ver>-win64.zip, else any ShadeTube *.zip, else a ShadeTube *.exe. nullptr when there is none.
+// ShadeTube-<ver>-win64.zip, else any ShadeTube *.zip, else a ShadeTube *.exe; never the setup (a name with "setup" or
+// "installer": ShadeTube-<ver>-setup.exe), an arm64 build or a checksum file. nullptr when there is none.
 const Asset* pickAsset(const Release& r);
 std::vector<std::string> findSha256(std::string_view text);   // 64-hex tokens on lines that mention sha256
 std::string updateUrl();   // SHADETUBE_UPDATE_URL, else the GitHub API latest-release URL

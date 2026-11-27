@@ -37,7 +37,7 @@ bool allowed() {
     if (!testKey().empty()) return true;
     const bool sandbox = !env(L"SHADETUBE_DATA_DIR").empty();
     const bool redirected = !env(L"SHADETUBE_INSTALL_DIR").empty() || !env(L"SHADETUBE_SHORTCUT_DIR").empty() ||
-                            !env(L"SHADETUBE_UNINSTALL_KEY").empty();
+                            !env(L"SHADETUBE_DESKTOP_DIR").empty() || !env(L"SHADETUBE_UNINSTALL_KEY").empty();
     return !sandbox && !redirected;
 }
 
