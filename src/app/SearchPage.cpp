@@ -4,6 +4,7 @@
 // a section of "Tümü", its cards or rows and what its recent-search entries open.
 #include "app/BrowseModel.h"
 #include "app/BrowseWidgets.h"
+#include "app/Commands.h"
 #include "app/HomeWidgets.h"
 #include "app/LinkOpener.h"
 #include "app/Links.h"
@@ -11,6 +12,7 @@
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/PodcastsSpotify.h"
+#include "app/Recognize.h"
 #include "app/Source.h"
 #include "core/I18n.h"
 #include "core/Log.h"
@@ -819,6 +821,7 @@ private:
     void loadMore(size_t kind);
 
     ui::TextBox* box_;
+    ui::Button* recognize_ = nullptr;  // "Şarkıyı tanı" next to the box (app/Recognize)
     ChipTabs* tabs_ = nullptr;
     std::vector<int> tabKinds_;        // chip -> kind index (-1 = "Tümü")
     int tab_ = 0;                      // selected chip
@@ -910,6 +913,10 @@ SearchPage::SearchPage(std::string initial) {
     }
     box_ = add<ui::TextBox>(ui::TextBox::Look::Search, lyricsMode_ ? tr(L"Hatırladığın bir dizeyi yaz, şarkıyı bulalım")
                                                                    : tr(L"Ne dinlemek istersin?  Sanatçı, albüm, şarkı"));
+    // What plays on this PC or in the room, recognized (app/Recognize).
+    recognize_ = add<ui::Button>(ui::ButtonKind::IconOutline, std::wstring(), "recognize");
+    recognize_->setTooltip(commands::keyTip(tr(L"Şarkıyı tanı"), "recognize-song"));
+    recognize_->onClick = [] { openSongRecognition(); };
     tabs_ = add<ChipTabs>();
     tabs_->setVisible(false);
     tabs_->onSelect = [this](int i) {
@@ -956,7 +963,10 @@ float SearchPage::headerBottom() const {
 void SearchPage::layout() {
     const Rect r = rect();
     const float x = metrics::pageX, w = std::max(0.f, r.w - metrics::pageX * 2);
-    box_->setRect({x, 28, std::min(720.f, w), metrics::searchH});
+    const float bw = metrics::searchH;   // the recognize button: a circle as tall as the box, 12 to its right
+    const float boxW = std::max(0.f, std::min(720.f, w - bw - 12));
+    box_->setRect({x, 28, boxW, metrics::searchH});
+    recognize_->setRect({x + boxW + 12, 28, bw, metrics::searchH});
     if (tabs_) tabs_->setRect({x, 28 + metrics::searchH + 16, w, tabs_->preferredHeight(w)});
     const float top = headerBottom();
     scroll_->setRect({0, top, r.w, std::max(0.f, r.h - top)});

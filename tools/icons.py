@@ -914,6 +914,18 @@ def _(g):
     g.pcircle(s2 - r, y2, r)
 
 
+@icon("recognize")
+def _(g):
+    # "Şarkıyı tanı": a sound wave caught as five strokes of different heights around the middle line (an
+    # equalizer stands on a base line instead).
+    cy = g.X(12)
+    xs = g.rows(4, 20, 5) if not g.small else g.rows(5, 19, 3)
+    heights = (4, 10, 16, 8, 4) if not g.small else (8, 16, 8)
+    for x, h in zip(xs, heights):
+        k = max(0.0, g.half(cy, h / 2))
+        g.pline((x, cy - k), (x, cy + k))
+
+
 def speaker(g):
     cy = g.X(12)
     hb, hc = g.half(cy, 2.5), g.half(cy, 6.5)

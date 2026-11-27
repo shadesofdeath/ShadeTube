@@ -14,6 +14,7 @@ the following third-party components, which keep their own licenses.
 | **libogg** 1.3.6 | `external/libogg` — Xiph.Org release tarball, unchanged; Ogg framing for opusfile and libvorbis | BSD-3-Clause — `external/libogg/COPYING` (text below) |
 | **Bricolage Grotesque** (font) | `assets/fonts/BricolageGrotesque.ttf`, embedded in the exe | SIL Open Font License 1.1 — [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt) |
 | **JetBrains Mono** (font) | `assets/fonts/JetBrainsMono.ttf`, embedded in the exe | SIL Open Font License 1.1 — [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt) |
+| **Shazam signature format** (description, no code) | `src/recognize/Signature.cpp` is ShadeTube's own implementation of the audio signature format and peak finding of Shazam's recognition service, written from the format as documented by [SongRec](https://github.com/marin-m/SongRec) (Marin M., who reverse-engineered it; GPL-3.0) and [ShazamIO](https://github.com/shazamio/ShazamIO) (MIT). No source code of either project is included or translated; the constants of the format (band edges, offsets, magic numbers) are facts of the protocol. Credited here for the documentation work. | — (nothing to reproduce) |
 | **Microsoft Edge WebView2 SDK** | downloaded at build time (`cmake/WebView2.cmake`); the static loader is linked into the exe | [WebView2 SDK license](https://www.nuget.org/packages/Microsoft.Web.WebView2/) |
 
 ## Online services
@@ -30,6 +31,8 @@ all trademarks belong to their owners.
 - **SponsorBlock** — community-submitted non-music / sponsor segments (queried with k-anonymity hash prefixes).
 - **Last.fm**, **ListenBrainz**, **Discord** — only when the user connects them.
 - **GitHub** — update checks against this repository's releases.
+- **Shazam** (Apple) — song recognition ("Şarkıyı tanı"), only when the user asks: an audio fingerprint (never the
+  audio itself) is sent to the endpoint Shazam's own apps use (unofficial).
 
 ## License texts of the Xiph.Org libraries
 
