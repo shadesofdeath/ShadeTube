@@ -11,7 +11,9 @@
 //      autocorrelation at P, 2P, 3P and 4P (weights 1, 0.8, 0.6, 0.4), times a gentle log-normal prior centered on
 //      120 BPM (1.4 octaves wide), so a tie between octaves goes to the usual tactus.
 //   4. Octave check of the winner: when the events halfway between its beats are about as strong as the beats
-//      (the autocorrelation at P/2 at least 0.85 of the one at P) and twice the tempo stays in range, the beats are
+//      (the autocorrelation at P/2 at least 0.78 of the one at P; when twice the tempo would pass 180 BPM 0.92, and the
+//      comb at P/2 at least 0.92 of the one at P too: strong eighths of a mid-tempo song are not its beat) and twice
+//      the tempo stays in range, the beats are
 //      twice as fast (a 200 BPM click is not "100 BPM with a click in between"); when the envelope repeats at 2P much
 //      more strongly than at P (under 0.55 of it), the winner was a subdivision and the tempo halves.
 //   5. The period is refined to the best comb score within one frame (steps of 1/32 frame), and the confidence is the

@@ -1,4 +1,4 @@
-﻿#include "audio/Tempo.h"
+#include "audio/Tempo.h"
 
 #include "audio/Decoder.h"
 #include "audio/ProgressiveBuffer.h"
@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <numbers>
 
@@ -21,7 +23,9 @@ constexpr double kLoHz = 40, kHiHz = 5000;
 constexpr double kCombW[4] = {1.0, 0.8, 0.6, 0.4};
 constexpr double kCombSum = 2.8;
 constexpr double kPriorCenter = 120, kPriorOctaves = 1.4;
-constexpr double kUpRatio = 0.78;     // ACF(P/2) / ACF(P) from which the half period is the beat
+constexpr double kUpRatio = 0.78;     // ACF(P/2) / ACF(P) from which the half period is the beat...
+constexpr double kUpRatioFast = 0.92; // ...when that makes it faster than kFastBpm (strong eighths of a mid-tempo song
+constexpr double kFastBpm = 180;      // are not its beat: a song above 180 BPM needs events nearly as strong between)
 constexpr double kDownRatio = 0.55;   // ACF(P) / ACF(2P) under which P is a subdivision
 constexpr int kMaxHarmonics = 8;      // peaks used to refine the period
 constexpr double kMinOnsets = 0.15;   // mean envelope below this: no onsets to speak of (a held tone, a drone)
@@ -222,11 +226,23 @@ Estimate fromEnvelope(const std::vector<float>& env, double fr) {
     }
     if (bestP <= 0) return out;
     double p = peakNear(bestP, 1.0);
+    if (std::getenv("SHADETUBE_TEMPO_DEBUG")) {   // dev: the candidates (tempo_test file)
+        std::fprintf(stderr, "  best %.1f BPM  A(P) %.3f  A(P/2) %.3f  A(2P) %.3f  A(3P/2) %.3f  A(2P/3) %.3f\n", 60 * fr / p, A(p),
+                     A(peakNear(p / 2, 1)), A(peakNear(2 * p, 2)), A(peakNear(1.5 * p, 1.5)), A(peakNear(p / 1.5, 1)));
+        for (double q = lagMin; q <= lagMax; q += 0.125) {
+            const double s = comb(q) * prior(60 * fr / q);
+            const double l = comb(q - 0.125) * prior(60 * fr / (q - 0.125)), r = comb(q + 0.125) * prior(60 * fr / (q + 0.125));
+            if (s >= l && s > r && s > 0.25 * bestScore) std::fprintf(stderr, "    peak %.1f BPM score %.3f comb %.3f A %.3f\n", 60 * fr / q, s, comb(q), A(q));
+        }
+    }
     // 4. Octave check.
     bool doubled = false;
     if (60 * fr / (p / 2) <= kMaxBpm + 0.5) {
         const double ph = peakNear(p / 2, 1.0);
-        if (A(ph) >= kUpRatio * A(p)) {
+        // Past kFastBpm the comb (the harmonics' support) must agree too: a mid-tempo song's strong eighths can repeat
+        // more than its beat at one lag, rarely over four.
+        const bool fast = 60 * fr / ph > kFastBpm;
+        if (A(ph) >= (fast ? kUpRatioFast : kUpRatio) * A(p) && (!fast || comb(ph) >= kUpRatioFast * comb(p))) {
             p = ph;
             doubled = true;
         }
