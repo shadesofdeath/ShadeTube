@@ -4,6 +4,7 @@
     Icons.cpp Icons.h
     ImageCache.cpp ImageCache.h
     Text.cpp Text.h
+    TextShape.cpp TextShape.h
     Theme.cpp Theme.h
     ThemeSpec.cpp ThemeSpec.h
     Types.cpp Types.h

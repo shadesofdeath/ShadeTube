@@ -1442,8 +1442,15 @@ int App::run() {
             if (!w || !w->needsFrame()) continue;
             // Frame pacing: wait for the swap chain (vsync-aligned, 1 frame latency) then draw.
             if (HANDLE h = w->frameWaitable()) WaitForSingleObjectEx(h, 50, TRUE);
+            // Dev timing: SHADETUBE_FRAME_CYCLES=1 reports the UI thread's CPU cycles of each frame (millions) instead of
+            // its wall time: comparable between runs while other work shares the machine.
+            static const bool cycles = GetEnvironmentVariableW(L"SHADETUBE_FRAME_CYCLES", nullptr, 0) > 0;
+            ULONG64 cyc0 = 0, cyc1 = 0;
+            if (cycles) QueryThreadCycleTime(GetCurrentThread(), &cyc0);
             w->render();
-            if (w == window_.get()) memdemo::noteFrame(ui::frame::realNow() - ui::frame::begunAt());   // dev timing
+            if (cycles) QueryThreadCycleTime(GetCurrentThread(), &cyc1);
+            if (w == window_.get())
+                memdemo::noteFrame(cycles ? static_cast<double>(cyc1 - cyc0) / 1e6 : ui::frame::realNow() - ui::frame::begunAt());
             drew = true;
         }
         if (drew) continue;

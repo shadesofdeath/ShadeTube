@@ -5,6 +5,7 @@
 #include "app/Components.h"
 #include "app/Display.h"
 #include "app/InternetRadio.h"
+#include "app/LyricsRender.h"
 #include "app/LyricsService.h"
 #include "app/Shell.h"
 #include "app/Shortcuts.h"
@@ -208,7 +209,7 @@ public:
           toastText_({}, type::secondary.withWeight(500)), oldTitle_({}, type::body), oldArtist_({}, type::caption),
           lyrCur_({}, type::bodyL.withWeight(600)), lyrOld_({}, type::bodyL.withWeight(600)), lyrNext_({}, type::secondary),
           album_({}, type::secondary), status_({}, type::monoLabel),
-          volValue_({}, type::monoMeta) {
+          volValue_({}, type::monoMeta), lyrCurSmall_({}, type::secondary) {
         isDragRegion = true;
         gfx::TextOptions wrap;
         wrap.wrap = true;
@@ -745,6 +746,7 @@ private:
         lyrShown_ = -2;
         lyrSlide_.snap(1);
         lyrCur_.setText(std::wstring());
+        lyrCurSmall_.setText(std::wstring());
         lyrNext_.setText(std::wstring());
         lyrOld_.setText(std::wstring());
         if (!t || radio::isStationId(t->id) || catalog::isPodcastId(t->id)) {
@@ -799,37 +801,47 @@ private:
                     lyrOld_.setText(lyrCur_.text());
                     lyrShown_ = active;
                     lyrCur_.setText(lyricText(active));
+                    lyrCurSmall_.setText(lyrCur_.text());
                     lyrNext_.setText(lyricText(active + 1));
                     if (first || ui::motion::reduced()) {
                         lyrSlide_.snap(1);
                     } else {
                         lyrSlide_.snap(0);
-                        lyrSlide_.to(1, ui::motion::medium, ui::Ease::Standard);
+                        lyrSlide_.to(1, ui::motion::slow, ui::Ease::Standard);
                     }
                 }
             }
-            // The line being sung moves up out of the way, the next one rises into its place and brightens.
+            // The line being sung moves up out of the way and fades; the next one rises into its place, growing into
+            // the sung line's size and weight (its two styles cross-faded around the middle) and brightening; the
+            // line after it fades in below. Drawn as geometry at fractional positions (app/LyricsRender): no opacity
+            // layers, no whole-pixel steps.
             const float k = lyrSlide_.value();
-            const float step = g.lyric2.y - g.lyric1.y;
             c.pushClip({g.lyric1.x, g.lyric1.y - 6, g.lyric1.w, g.lyric2.bottom() - g.lyric1.y + 6});
-            if (k < 0.999f && !lyrOld_.empty()) {
-                c.pushOpacity(1 - k);
-                c.text(lyrOld_, g.lyric1.offset(0, -10 * k), col.fgPrimary, gfx::VAlign::Center);
-                c.popLayer();
-            }
+            const float w1 = g.lyric1.w;
+            // A line of `t` centered on height `cy`, scaled by `s` around its left middle.
+            auto at = [&](gfx::Text& t, float cy, float s) {
+                const float h = t.measure(w1).h;
+                return lyricsview::Place{{g.lyric1.x, cy - h * 0.5f}, s, {0, h * 0.5f}};
+            };
+            if (k < 0.999f && !lyrOld_.empty())
+                lyricsview::draw(c, lyrOld_, lyrOldShape_, w1, at(lyrOld_, g.lyric1.cy() - 10 * k, 1), col.fgPrimary.mulAlpha(1 - k));
             if (!lyrCur_.empty()) {
-                const bool group = k < 0.999f;
-                if (group) c.pushOpacity(0.35f + 0.65f * k);
-                c.text(lyrCur_, g.lyric1.offset(0, step * (1 - k)), Color::lerp(col.fgTertiary, col.fgPrimary, k),
-                       gfx::VAlign::Center);
-                if (group) c.popLayer();
+                const float cy = ui::lerp(g.lyric2.cy(), g.lyric1.cy(), k);
+                const Color colr = Color::lerp(col.fgTertiary, col.fgPrimary, k);
+                if (k >= 0.999f) {
+                    lyricsview::draw(c, lyrCur_, lyrCurShape_, w1, at(lyrCur_, cy, 1), colr);
+                } else {
+                    const float ratio = lyrCur_.style().size / lyrCurSmall_.style().size;
+                    const float s = ui::lerp(1.f, ratio, k);   // the visible size, relative to the small style
+                    const float x = lyricsview::smoothstep(0.3f, 0.7f, k);
+                    const float a1 = colr.a * x, a0 = a1 < 0.999f ? colr.a * (1 - x) / (1 - a1) : 0.f;
+                    if (a0 > 0.002f)
+                        lyricsview::draw(c, lyrCurSmall_, lyrCurSmallShape_, w1, at(lyrCurSmall_, cy, s), colr.withAlpha(a0), ratio);
+                    lyricsview::draw(c, lyrCur_, lyrCurShape_, w1, at(lyrCur_, cy, s / ratio), colr.withAlpha(a1));
+                }
             }
-            if (!lyrNext_.empty()) {
-                const bool group = k < 0.999f;
-                if (group) c.pushOpacity(k);
-                c.text(lyrNext_, g.lyric2, col.fgTertiary, gfx::VAlign::Center);
-                if (group) c.popLayer();
-            }
+            if (!lyrNext_.empty())
+                lyricsview::draw(c, lyrNext_, lyrNextShape_, w1, at(lyrNext_, g.lyric2.cy() + 6 * (1 - k), 1), col.fgTertiary.mulAlpha(k));
             c.popClip();
             return;
         }
@@ -923,6 +935,10 @@ private:
     std::vector<ui::Widget*> hoverOnly_;
     gfx::Text title_, artist_, time_, toastText_, oldTitle_, oldArtist_;
     gfx::Text lyrCur_, lyrOld_, lyrNext_, album_, status_, volValue_;
+    // The lyric lines as geometry (app/LyricsRender); lyrCurSmall_: the sung line in the next line's style, which it
+    // grows out of while it slides up.
+    gfx::Text lyrCurSmall_;
+    gfx::TextShape lyrCurShape_, lyrOldShape_, lyrNextShape_, lyrCurSmallShape_;
     ui::Anim appear_;
     ui::Anim morph_{1.f};    // mode switch: 0 = the old mode .. 1 = the new one
     ui::Anim reveal_;        // hover / keyboard: the controls shown on hover

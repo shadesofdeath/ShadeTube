@@ -32,6 +32,9 @@ public:
 
     ID2D1DeviceContext5* dc() const { return dc_; }
     float scale() const { return scale_; }
+    // The canvas' shared solid brush set to `c` (valid until the next call that sets a color): for drawing straight on
+    // dc() (gfx::TextShape).
+    ID2D1SolidColorBrush* solid(const Color& c) { return brush(c); }
     // Visible area in the CURRENT local coordinate space (clip + transforms applied), used to skip
     // off-screen work.
     const Rect& clip() const { return clips_.back().r; }
