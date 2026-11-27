@@ -57,6 +57,7 @@ add_subdirectory(src/gfx)
 add_subdirectory(src/video)
 add_subdirectory(src/ui)
 add_subdirectory(src/app)
+add_subdirectory(src/setup)   # ShadeTubeSetup.exe (packs the app built above)
 
 option(ST_BUILD_TESTS "Build developer test programs" ON)
 if(ST_BUILD_TESTS)

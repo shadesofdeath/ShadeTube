@@ -1,6 +1,7 @@
-// Ayarlar › HAKKINDA: version, update check (GitHub releases) and per-user install / uninstall. The work itself lives
-// in app/Updater (check / download / verify / swap) and app/Installer (copy / shortcut / uninstall key / relaunch);
-// this file owns the UI-thread state, the startup check and the rows.
+// Ayarlar › HAKKINDA: version, update check (GitHub releases) and the installed copy's uninstall. The work itself lives
+// in app/Updater (check / download / verify / swap) and app/Installer (uninstall key / relaunch); this file owns the
+// UI-thread state, the startup check and the rows. Installing is the setup's job (src/setup, ShadeTubeSetup.exe): a
+// portable copy offers no install here.
 #include "app/Installer.h"
 #include "app/SettingsWidgets.h"
 #include "app/Updater.h"
@@ -32,7 +33,6 @@ struct UpdateState {
     std::wstring error;         // Failed
     int64_t done = 0, total = -1;
     std::shared_ptr<YoutubeExplode::CancellationTokenSource> cancel;   // Downloading: "Vazgeç" / quitting cancel it
-    bool installing = false;    // "Bilgisayara kur" in progress
     bool autoCheckDone = false;
     int64_t startedAt = 0;      // steadyMs() at startup
 };
@@ -48,8 +48,8 @@ Lifetime& life() {
     return l;
 }
 
-// Rebuild of the open Ayarlar page (SettingsPage's rebuilder: posted, a no-op once that page is gone). Only for install
-// / uninstall, which change more than one row; update-phase changes use refreshUpdateRow().
+// Rebuild of the open Ayarlar page (SettingsPage's rebuilder: posted, a no-op once that page is gone). Only for the
+// uninstall, which changes more than one row; update-phase changes use refreshUpdateRow().
 std::function<void()>& pageRebuild() {
     static std::function<void()> f;
     return f;
@@ -326,44 +326,7 @@ void skipVersion() {
     refreshUpdateRow();
 }
 
-// ---- Install / uninstall -----------------------------------------------------------------------------------
-
-void offerInstalledStart(const fs::path& exe) {
-    auto* d = ui::Dialog::open(ctx().window, tr(L"ShadeTube kuruldu"),
-                               tr(L"Başlat menüsüne eklendi; Windows Ayarlar › Uygulamalar › Yüklü uygulamalar'da da görünüyor. Kurulu "
-                                  L"kopya şimdi açılsın mı? Bu pencere kapanır; ayarların, oturumun ve kitaplığın aynen kalır."));
-    if (!d) {
-        toast(tr(L"ShadeTube kuruldu"));
-        return;
-    }
-    d->addButton(tr(L"Sonra"), ButtonKind::Ghost, {});
-    d->addButton(tr(L"Kurulu kopyayı aç"), ButtonKind::Primary, [exe] {
-        installer::launchAfterExit(exe, L"--installed");
-        quitApp();
-    });
-}
-
-void startInstall() {
-    auto& s = state();
-    if (s.installing) return;
-    s.installing = true;
-    refresh();
-    async(Priority::Normal, life().ref(),
-          [source = updater::currentExe()] {
-              installer::install(source);
-              return installer::locations().exe;
-          },
-          [](Result<fs::path> r) {
-              state().installing = false;
-              refresh();
-              if (!r) {
-                  ST_LOG_WARN("install", "install failed: {}", r.errorMessage());
-                  toast(i18n::format(tr(L"Kurulum tamamlanamadı: {}"), {toWide(r.errorMessage())}), true);
-                  return;
-              }
-              offerInstalledStart(*r);
-          });
-}
+// ---- Uninstall ---------------------------------------------------------------------------------------------
 
 void runUninstall(bool removeData, bool self) {
     async(Priority::Normal, life().ref(),
@@ -487,35 +450,27 @@ void buildUpdateRow(ui::Column* c) {
                 "refresh", [] { startCheck(true); }, !busy);
 }
 
+// The installed copy (ShadeTubeSetup.exe put it there): where it is and "Uygulamayı kaldır". A portable copy without an
+// installed one shows nothing here (installing is the setup's job).
 void buildInstallRow(ui::Column* c) {
-    const auto& s = state();
     const auto installed = installer::installedExe();
-    const std::wstring installLabel = s.installing ? tr(L"Kuruluyor…") : tr(L"Bilgisayara kur");
-    if (installed && installer::runningInstalled()) {
+    if (!installed) return;
+    if (installer::runningInstalled()) {
         auto* row = c->add<AboutRow>(i18n::format(tr(L"Kurulu: {}"), {installed->parent_path().wstring()}),
                                      tr(L"Başlat menüsünden açılır; Windows Ayarlar › Uygulamalar › Yüklü uygulamalar'da da görünür. "
                                         L"Kaldırırken ayarlarını saklamayı seçebilirsin."));
         row->button(ButtonKind::Secondary, tr(L"Uygulamayı kaldır"), "trash", [] { confirmUninstall(); });
         return;
     }
-    if (installed) {
-        const std::string v = updater::fileProductVersion(*installed);
-        auto* row = c->add<AboutRow>(
-            i18n::format(tr(L"Kurulu: {}"), {installed->parent_path().wstring()}),
-            v.empty() ? tr(L"Şu an taşınabilir bir kopyayı çalıştırıyorsun; \"Bilgisayara kur\" kurulu kopyayı bununla değiştirir.")
-                      : i18n::format(tr(L"Kurulu sürüm {}. Şu an taşınabilir bir kopyayı çalıştırıyorsun; \"Bilgisayara kur\" kurulu "
-                                        L"kopyayı bununla değiştirir."),
-                                     {toWide(v)}));
-        row->button(ButtonKind::Ghost, tr(L"Uygulamayı kaldır"), "trash", [] { confirmUninstall(); });
-        row->button(ButtonKind::Secondary, installLabel, "download", [] { startInstall(); }, !s.installing);
-        return;
-    }
-    auto* row = c->add<AboutRow>(tr(L"Kurulum"),
-                                 i18n::format(tr(L"ShadeTube'u bu bilgisayara kurar: {} klasörüne kopyalar, Başlat menüsüne ekler ve Yüklü "
-                                                 L"uygulamalar'dan kaldırılabilir yapar. Yönetici izni gerekmez; ayarların ve kitaplığın "
-                                                 L"aynen kalır."),
-                                              {installer::locations().dir.wstring()}));
-    row->button(ButtonKind::Secondary, installLabel, "download", [] { startInstall(); }, !s.installing);
+    // A portable copy runs while an installed one exists: both use the same settings and library.
+    const std::string v = updater::fileProductVersion(*installed);
+    auto* row = c->add<AboutRow>(
+        i18n::format(tr(L"Kurulu: {}"), {installed->parent_path().wstring()}),
+        v.empty() ? tr(L"Şu an taşınabilir bir kopyayı çalıştırıyorsun; ikisi aynı ayarları ve kitaplığı kullanır.")
+                  : i18n::format(tr(L"Kurulu sürüm {}. Şu an taşınabilir bir kopyayı çalıştırıyorsun; ikisi aynı ayarları ve "
+                                    L"kitaplığı kullanır."),
+                                 {toWide(v)}));
+    row->button(ButtonKind::Secondary, tr(L"Uygulamayı kaldır"), "trash", [] { confirmUninstall(); });
 }
 
 } // namespace
