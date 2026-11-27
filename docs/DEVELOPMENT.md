@@ -86,7 +86,8 @@ ShadeTube/
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
 │                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52)
-│   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
+│   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets; the
+│                                synchronizer's draft, LRCLIB publishing, Genius' lyrics search (3.57)
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
 │                                cache, 3.45)
 │   gfx/         st_gfx          Device, Canvas, Text, Icons, ImageCache, Theme, Types
@@ -110,6 +111,7 @@ ShadeTube/
 │                                Radio, Blacklist,
 │                                CoverGradient + CoverBackdrop (Now Playing's backdrop, 3.40),
 │                                Credits + CreditsUi (song credits), LyricsPicker ("Yanlış sözler mi?"; both 3.46),
+│                                LyricsSync (the lyrics synchronizer) + LyricSearch ("Sözden şarkı bul"; both 3.57),
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts +
 │                                PodcastsSpotify (Spotify shows -> public feeds, 3.54), Links +
 │                                LinkOpener (pasted links), WinShell (taskbar buttons / progress, jump list),
@@ -3227,6 +3229,96 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   search, paging songs and playlists, the full discography, the disk cache) and plays a search result through
   `MatchService` to check the video is the one YouTube Music named.
 
+### 3.57 Lyrics tools: the synchronizer and "Sözden şarkı bul"
+
+Two features around lyrics: timing plain (or badly timed) lyrics by hand, and finding a song by a line of it.
+`lyrics/LyricsSync` (the draft), `lyrics/LrclibPublish` (LRCLIB's publish API) and `lyrics/LyricSearch` (Genius' lyrics
+search) are standalone (core only, `lyrictools_test`); `app/LyricsSync` and `app/LyricSearch` are their UI.
+
+**Söz senkronlayıcı** (`showLyricsSync(track)`, a `ui::Dialog` subclass, 680 DIP):
+
+- **Entry points**: the lyrics picker's "Senkronla…" (3.46; next to *Dosyadan yükle…* / *Söz yok*), a "Senkronla" chip
+  in Now Playing's lyrics toolbar while the lyrics on screen are plain (one toolbar entry), the command palette's
+  "Söz senkronlayıcı" (the playing song; a song, not radio or an episode).
+- **Three steps** (`ChipTabs`; Ctrl+Enter goes on): *Metin*, *Senkronla*, *Önizle*. The song's lyrics are fetched when
+  it opens (`lyrics::fetch`, the user's pick included): plain ones become the lines, synced ones keep their stamps so a
+  badly timed file is redone line by line, none = an empty text. *Metin* is a multi-line editor of its own (lines,
+  caret and selection across lines, the clipboard, word moves; it derives from `ui::TextBox` only so that
+  `App::handleKey` treats it as text input and runs no playback shortcuts). Blank lines are left out (stanza breaks
+  aren't tapped); a line of only "♪" is an instrumental gap, stamped like a line and saved as an empty LRC line. Pasted
+  LRC keeps its times. Editing the text after stamping keeps the stamps of the unchanged lines (longest common
+  subsequence, `SyncDraft::setText`).
+- **Senkronla**: entering it the first time seeks to 0 and plays. Space / Enter (or *Damgala*) stamps the cursor line
+  with the song position and moves on; later lines stamped at or before that time lose their stamp (they come next).
+  ⌫ goes back a line (its stamp is redone) and replays from shortly before the line above it; ↑ / ↓ move the cursor,
+  Delete clears its stamp, ⇧← / ⇧→ nudge the line stamped last by 0.1 s, ← / → seek 5 s, P pauses, Ctrl+Z undoes
+  (200 steps). Speed chips 0,5× / 0,75× / 1× (`Player::setSpeed`). The list (`StampList`) marks the cursor line in the
+  accent, the line playing now with a dot and a stamp earlier than the line above it in the warning color; a click
+  moves the cursor, a double click plays from its stamp. Stamps are song time: `lyricsClockMs + lyricsOffset` (the
+  SponsorBlock cuts taken out, the per-track offset not applied); saving resets the offset (`setLyricsChoice`).
+- **Önizle**: the result as Now Playing shows it (the playing line large, the others dimmer by distance, the same 150 ms
+  lookahead); unstamped lines get times between their neighbours (`SyncDraft::toLyrics`). ⇧← / ⇧→ (and the chips)
+  nudge the playing line; a click plays from a line.
+- **While it is open** the song repeats (`RepeatMode::One`) so the next one doesn't start; the repeat and any speed it
+  set are put back when it closes, and at exit (a persist hook) if the app quits with it open. A song change under it
+  (media keys, the remote) swaps the controls for "Şarkıyı çal"; saving still goes to the song it was opened for.
+- **Kaydet** (enabled when every line is stamped in order): `Offsets::storeText` writes `lyrics\<track id>.lrc` (UTF-8
+  with BOM, `[ti:] [ar:] [al:]`) and `setLyricsChoice(File)` makes it the song's own lyrics, exactly what "Dosyadan
+  yükle…" does: it wins over every online source, survives restarts, and the views reload. For a download or a local
+  file the .lrc also goes next to the audio file (`writeLyricsSidecar`); a sidecar already there is kept as
+  `<stem>.lrc.bak`. Esc, *Kapat* and the scrim ask before throwing away unsaved stamps.
+- **Dışa aktar…**: an `IFileSaveDialog` for `<Artist> - <Title>.lrc` (`SHADETUBE_LYRICS_EXPORT` answers it in tests).
+- **LRCLIB'e gönder…** (needs a title, an artist and a length of 1-3600 s): a second dialog says what goes public (title,
+  artist, album, length, line count) and that it can't be taken back; only *Herkese açık olarak gönder* sends it. Then,
+  on a Low worker: `POST /api/request-challenge` → `{prefix, target}` (64 hex digits, 5 minutes), the proof of work
+  (`lrclib::solve`: n with SHA-256(prefix + decimal n) ≤ target as big-endian numbers, LRCGET's algorithm; our own
+  SHA-256, one block per try, `hardware_concurrency` threads up to 8; the target LRCLIB hands out, `000000FF…`, takes
+  about 2^24 tries: 3 s in a Debug build, well under a second in Release), then `POST /api/publish` with
+  `X-Publish-Token: <prefix>:<nonce>` and `{trackName, artistName, albumName, duration, plainLyrics, syncedLyrics}`.
+  201 → a thank-you toast; `IncorrectPublishTokenError`, another 4xx (its message shown), 429 / 5xx / offline → an error
+  toast. Nothing is ever sent without that button. `SHADETUBE_LRCLIB_URL` points the flow at a mock server.
+
+**Sözden şarkı bul**:
+
+- **Source**: Genius' lyrics search, the site's own JSON endpoint (`genius.com/api/search/lyric?q=…&per_page=10`, no
+  key). Measured on 2026-11-27 with 13 fragments (English, Turkish with and without its letters, Spanish, German): the
+  right song first for all 13, with the passage it matched (`highlights[].value` + `ranges` in UTF-16 units). YouTube
+  Music's search had it in its first two rows for 12 (some only as a video, a cover or a lyric video; nothing for the
+  German one) and names no passage; Deezer's search had it first for 6; LRCLIB's `q` searches only title / artist /
+  album (0 of 13).
+- **Parsing** (`parseGeniusLyricSearch`): song hits only; Genius' translation and romanization pages ("Genius Türkçe
+  Çeviriler"…) and instrumentals dropped; matches clearly worse than the best (fewer exact words or more typos by more
+  than one: `nb_exact_words` / `nb_typos`) dropped; equally good ones ordered by page views (the original before its
+  covers); one entry per song (`foldTitle`: case, accents, Turkish i, brackets and " - …" versions out). The snippet is
+  the context line with most highlighted characters, or two neighbouring lines when the fragment ran over a line end
+  ("Akşama doğru azalırsa yağmur / Kız Kulesi ve Adalar").
+- **In the active catalog** (`lyricsearch::resolve`): each hit is looked up by "<title> <main artist>" (Spotify
+  `searchMore(Tracks)`, YouTube Music's songs search, MusicBrainz `recording:"…" AND artist:"…"`), in parallel, and the
+  first playable track that is the same song (`lyrics::sameSong`: folded titles equal or one running on by whole words,
+  an artist matching, a leading "The" ignored) stands for it. On MusicBrainz (a request a second) only the first four
+  are looked up. Two hits that are one catalog song are shown once. A hit the catalog doesn't have (or wasn't asked
+  for, or couldn't be asked) shows the source's title and cover, dimmed; choosing it runs a normal search for it.
+- **Fallback**: when Genius can't be asked (offline, a bot check instead of JSON), YouTube Music's songs search for the
+  line (its rows are the catalog's own in YouTube Music mode, looked up otherwise), with a note that no line can be
+  shown. Genius answering "nothing" is shown as nothing (no fallback: YouTube Music always answers something).
+- **Search page** (one `ResultKind`-independent tab, `kLyricsTab` in `tabKinds_`): the *Sözler* chip is offered after
+  the catalog's chips for queries that read like a line of lyrics (`looksLikeLyrics`: three words or 18 letters; never
+  for a name); when the catalog has nothing for such a query the tab is shown alone. The search runs only when the tab
+  is shown: the source's songs first (rows at once, "KATALOGDA ARANIYOR…"), then the lookups (the rows fill in);
+  answers are kept for the run (12 queries per catalog). Rows (`HitRow`): cover, title, artist · album, the line in
+  quotes with the matched words in fg.primary at 620, a note when not playable; Enter / a click plays it with the other
+  found songs after it (context "Sözden bulunanlar"), the menu key / right click opens the song's menu; arrow keys move
+  between rows like the other results. `Route{Search, "lyrics:<query>"}` opens the page on the tab (the route is
+  retargeted that way while it is shown, so Back returns to it); with an empty box it explains what to type instead of
+  the genre tiles.
+- **Command palette**: "Sözden şarkı bul" (the Search page in that mode) and, while the typed text reads like lyrics,
+  "Sözlerde ara: “…”" (not kept in the recent picks).
+- **Privacy**: only the typed line goes to Genius (with the app's User-Agent, nothing about the user); the catalog
+  lookups are the usual catalog searches.
+
+**Dev**: `SHADETUBE_OVERLAY_DEMO` step `lyricsync` opens the synchronizer for the playing song (`key=Ctrl+Enter` steps
+on, `key=Space` stamps); `--route "search:lyrics:<line>"` opens the tab; `lyrictools_test` (5.2).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -3301,6 +3393,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
+| `lyrictools_test` | lyrics tools (3.57): the synchronizer's draft (text in, blank lines / gaps / pasted LRC, stamping and the cursor, later stamps dropped, back / skip / nudge / clear / undo, text edits keeping stamps, filled-in times, readiness), LRC written and read back, `Offsets::storeText` + fetch() with the file choice, SHA-256 vectors, LRCLIB's challenge (parsing, the target comparison, the smallest nonce of a captured challenge as LRCGET finds it, threads, cancel, try limit), the publish request against a fake transport (body, headers, a token solving the challenge, every answer), Genius' lyrics search on recorded answers (`fixtures/genius_lyric_*.json`: order, translations / weak matches / duplicates out, one- and two-line snippets with highlights, hostile JSON, the request), title folding, `sameSong`, `looksLikeLyrics` | offline; `live` (four Genius searches, read-only, and a real LRCLIB challenge solved; nothing is published) |
 | `credits_test` | song credits: role folding and groups, merging, the Spotify credits query and legacy JSON, MusicBrainz recording / work / label relationships, title cleaning and the recording ranking, `app/Credits` (JSON round trip and expiry, the provider chain, memory + disk cache, the summary) | offline (fixtures); `live ["Artist" "Title" [seconds]]` (MusicBrainz search + credits, read-only; Spotify too with `SHADETUBE_SPDC`, track `SHADETUBE_CREDITS_TRACK`) |
 | `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
@@ -3445,10 +3538,12 @@ apps*).
 | `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
 | `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
-| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `lyricsync` (the lyrics synchronizer for it, 3.57; `key=Ctrl+Enter` steps on, `key=Space` stamps), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
 | `SHADETUBE_ACCOUNT_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.48): `menu[=x,y]` (the account menu at window DIPs, default under the title bar's tag), `switch[=<id>]` (the next signed-in account, or that one), `signout[=<id>]` (the active one), `add` (the login window), `log` (the active account and its data folder). E.g. `switch@8000;menu@11000` with `--screenshot 12000` |
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.36) |
+| `SHADETUBE_LYRICS_EXPORT` | `<file>`: the synchronizer's "Dışa aktar…" writes there without the save dialog (3.57; tests in a sandbox) |
+| `SHADETUBE_LRCLIB_URL` | `http://127.0.0.1:<port>`: the synchronizer's "LRCLIB'e gönder" talks to this server instead of lrclib.net (a mock: the whole publish flow without publishing anything, 3.57) |
 | `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.37) |
 | `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
 | `SHADETUBE_HEADER_SCROLL` | `<dips>`: pages with a collapsing header (album, playlist, Liked Songs, smart list, podcast show, artist; 3.38) open scrolled that far once their content is built, e.g. `150` (half collapsed) or `400` (docked) with `--route playlist:<id>` and `--screenshot` |
@@ -3507,6 +3602,14 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
 - **Lyrics picker** (3.46): LRCLIB's free-text search returns at most 20 records; the Spotify choice needs a Spotify
   track and a session. A picked record is cached in `cache\lyrics` (pruned with the cache), so it is fetched again by
   id when the cache was cleared.
+- **Lyrics tools** (3.57): the synchronizer stamps line times only (no word timing / enhanced LRC). Its saved lyrics
+  are the song's "file" pick: choosing another pick in the picker later deletes that copy (a download's / local file's
+  sidecar .lrc stays). Publishing to LRCLIB was developed against the documented API and LRCGET's solver, checked with
+  a fake transport, a local mock server driven from the app and a real challenge solved live; the final
+  `POST /api/publish` to lrclib.net was **not** exercised (no test lyrics may be published). "Sözden şarkı bul" uses
+  Genius' undocumented site endpoint (no key): a change there or a bot check makes it fall back to YouTube Music's
+  search (no matched line shown). On MusicBrainz only the first four hits are looked up in the catalog (its request
+  rate), and MusicBrainz' recording search may stand a live or compilation recording in for a song.
 - **Several Spotify accounts** (3.48): verified live with one real account only (a 0.10 profile migrated, connected, a
   switch to a second record holding the same cookie while a song played); two different real accounts were not
   available, so the second login's own cookie jar and a re-login matched by user id are covered by `accounts_test`
