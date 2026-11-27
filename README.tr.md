@@ -12,6 +12,7 @@ Reklam yok. Premium yok. Electron yok. Sıfırdan C++ ile yazılmış, birkaç M
 [![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-DDFF47?style=flat-square&labelColor=0F0D0B)](#-indir)
 [![Lisans](https://img.shields.io/badge/lisans-BSD--4--Clause-DDFF47?style=flat-square&labelColor=0F0D0B)](LICENSE)
 
+[**Web sitesi**](https://shadesofdeath.github.io/ShadeTube/?lang=tr) ·
 [**İndir**](https://github.com/shadesofdeath/ShadeTube/releases/latest) ·
 [Özellikler](#-özellikler) ·
 [Ekran görüntüleri](#-ekran-görüntüleri) ·

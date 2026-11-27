@@ -13,6 +13,7 @@ No ads. No Premium. No Electron. A few MB, written from scratch in C++.
 [![License](https://img.shields.io/badge/license-BSD--4--Clause-DDFF47?style=flat-square&labelColor=0F0D0B)](LICENSE)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-DDFF47?style=flat-square&labelColor=0F0D0B)](docs/DEVELOPMENT.md)
 
+[**Website**](https://shadesofdeath.github.io/ShadeTube/) ·
 [**Download**](https://github.com/shadesofdeath/ShadeTube/releases/latest) ·
 [Features](#-features) ·
 [Screenshots](#-screenshots) ·

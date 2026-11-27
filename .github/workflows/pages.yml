@@ -3,7 +3,7 @@ name: Website
 on:
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "CHANGELOG.md", "tools/site_changelog.py", ".github/workflows/pages.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,6 +20,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Changelog page data from CHANGELOG.md
+        run: python3 tools/site_changelog.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

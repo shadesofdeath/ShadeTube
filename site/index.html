@@ -25,9 +25,10 @@
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#tour" data-i18n="nav.tour">Tour</a>
-      <a href="#together" data-i18n="nav.together">Together</a>
+      <a href="#gallery" data-i18n="nav.gallery">Gallery</a>
       <a href="#features" data-i18n="nav.features">Features</a>
-      <a href="#install" data-i18n="nav.install">Install</a>
+      <a href="#faq" data-i18n="nav.faq">FAQ</a>
+      <a href="changelog.html" data-i18n="nav.changelog">Changelog</a>
     </nav>
     <div class="nav-right">
       <div class="lang" id="lang">
@@ -42,6 +43,7 @@
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.160 19.490c.5.090.680-.220.680-.480v-1.700c-2.780.600-3.370-1.340-3.370-1.340-.450-1.160-1.110-1.470-1.110-1.470-.910-.620.070-.610.070-.610 1 .070 1.530 1.030 1.530 1.030.890 1.530 2.340 1.090 2.910.830.090-.650.350-1.090.630-1.340-2.220-.250-4.550-1.110-4.550-4.940 0-1.090.390-1.980 1.030-2.680-.100-.250-.450-1.270.100-2.650 0 0 .840-.270 2.750 1.020a9.560 9.560 0 0 1 5 0c1.910-1.290 2.750-1.020 2.750-1.020.550 1.380.200 2.400.100 2.650.640.700 1.030 1.590 1.030 2.680 0 3.840-2.340 4.680-4.570 4.930.360.310.680.920.680 1.850v2.750c0 .270.180.580.690.480A10 10 0 0 0 12 2Z"/></svg>
       </a>
       <a class="btn btn-primary btn-sm js-download" href="https://github.com/shadesofdeath/ShadeTube/releases/latest" data-i18n="nav.download">Download</a>
+      <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
     </div>
   </div>
 </header>
@@ -60,7 +62,7 @@
       </a>
       <a class="btn btn-ghost btn-lg" href="https://github.com/shadesofdeath/ShadeTube" rel="noopener" data-i18n="hero.cta2">View on GitHub</a>
     </div>
-    <p class="meta reveal"><span class="js-version">v0.11.0</span> · Windows 10 / 11 x64 · <span data-i18n="hero.meta">~15 MB · free · open source</span></p>
+    <p class="meta reveal"><a class="whatsnew" href="changelog.html"><span class="js-version">v0.11.0</span> · <span data-i18n="hero.new">what's new</span> →</a><br>Windows 10 / 11 x64 · <span data-i18n="hero.meta">~15 MB · free · open source</span></p>
 
     <figure class="shot hero-shot reveal">
       <img src="img/artist.webp" width="1800" height="950" alt="ShadeTube artist page" fetchpriority="high">
@@ -137,6 +139,111 @@
   </div>
 </section>
 
+<section class="gallery" id="gallery">
+  <div class="wrap">
+    <p class="tag reveal" data-i18n="g.tag">Gallery</p>
+    <div class="g-head reveal">
+      <h2 class="big" data-i18n="g.title">Look around.</h2>
+      <div class="g-arrows">
+        <button class="g-arrow" id="gPrev" aria-label="Previous"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m14.500 6-6 6 6 6"/></svg></button>
+        <button class="g-arrow" id="gNext" aria-label="Next"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m9.500 6 6 6-6 6"/></svg></button>
+      </div>
+    </div>
+    <p class="g-sub reveal" data-i18n="g.sub">Sixteen screens of the app at full size. Scroll sideways, or click one to enlarge it.</p>
+    <div class="chips reveal" id="gChips">
+      <button class="chip" data-go="0" data-i18n="g1.t">Home</button>
+      <button class="chip" data-go="1" data-i18n="g2.t">Artist</button>
+      <button class="chip" data-go="2" data-i18n="g3.t">Album</button>
+      <button class="chip" data-go="3" data-i18n="g4.t">Playlist</button>
+      <button class="chip" data-go="4" data-i18n="g5.t">Library</button>
+      <button class="chip" data-go="5" data-i18n="g6.t">Liked Songs</button>
+      <button class="chip" data-go="6" data-i18n="g7.t">Now Playing</button>
+      <button class="chip" data-go="7" data-i18n="g8.t">Full-screen lyrics</button>
+      <button class="chip" data-go="8" data-i18n="g9.t">Internet radio</button>
+      <button class="chip" data-go="9" data-i18n="g10.t">Podcasts</button>
+      <button class="chip" data-go="10" data-i18n="g11.t">Statistics</button>
+      <button class="chip" data-go="11" data-i18n="g12.t">Year in review</button>
+      <button class="chip" data-go="12" data-i18n="g13.t">Local files</button>
+      <button class="chip" data-go="13" data-i18n="g14.t">Command palette</button>
+      <button class="chip" data-go="14" data-i18n="g15.t">Theme studio</button>
+      <button class="chip" data-go="15" data-i18n="g16.t">Mini player</button>
+    </div>
+  </div>
+  <div class="g-track reveal" id="gTrack" tabindex="0">
+    <figure class="g-slide" data-i="0">
+      <button class="g-img" data-zoom="0"><img loading="lazy" src="img/home.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g1.t">Home</b><span data-i18n="g1.d">Pick up where you left off, with your playlists and what you played recently.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="1">
+      <button class="g-img" data-zoom="1"><img loading="lazy" src="img/artist.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g2.t">Artist</b><span data-i18n="g2.d">Popular songs, the complete discography, similar artists and the artist's story.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="2">
+      <button class="g-img" data-zoom="2"><img loading="lazy" src="img/album.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g3.t">Album</b><span data-i18n="g3.d">Every album with its track list: play, shuffle, save or download it.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="3">
+      <button class="g-img" data-zoom="3"><img loading="lazy" src="img/playlist.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g4.t">Playlist</b><span data-i18n="g4.d">Play, shuffle, Enhance and search inside any playlist.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="4">
+      <button class="g-img" data-zoom="4"><img loading="lazy" src="img/libgrid.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g5.t">Library</b><span data-i18n="g5.d">Playlists, albums, artists and history, as a grid or a list, with lists made for you on top.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="5">
+      <button class="g-img" data-zoom="5"><img loading="lazy" src="img/liked.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g6.t">Liked Songs</b><span data-i18n="g6.d">Everything you liked in one list, sortable and searchable.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="6">
+      <button class="g-img" data-zoom="6"><img loading="lazy" src="img/queue.webp" width="1680" height="1050" alt=""></button>
+      <figcaption><b data-i18n="g7.t">Now Playing</b><span data-i18n="g7.d">A big cover on a backdrop made from its colours, with lyrics, the queue and About beside it.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="7">
+      <button class="g-img" data-zoom="7"><img loading="lazy" src="img/karaoke.webp" width="1680" height="1050" alt=""></button>
+      <figcaption><b data-i18n="g8.t">Full-screen lyrics</b><span data-i18n="g8.d">The karaoke view: each word fills in as it is sung.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="8">
+      <button class="g-img" data-zoom="8"><img loading="lazy" src="img/radio.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g9.t">Internet radio</b><span data-i18n="g9.d">Thousands of live stations by genre, country or name.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="9">
+      <button class="g-img" data-zoom="9"><img loading="lazy" src="img/podcasts.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g10.t">Podcasts</b><span data-i18n="g10.d">Subscriptions, new episodes and downloads in one place.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="10">
+      <button class="g-img" data-zoom="10"><img loading="lazy" src="img/stats2.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g11.t">Statistics</b><span data-i18n="g11.d">Your listening time and your top songs, albums and artists.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="11">
+      <button class="g-img" data-zoom="11"><img loading="lazy" src="img/year.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g12.t">Year in review</b><span data-i18n="g12.d">Your year in minutes, months and favourites, ready to share as a story.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="12">
+      <button class="g-img" data-zoom="12"><img loading="lazy" src="img/local.webp" width="1800" height="950" alt=""></button>
+      <figcaption><b data-i18n="g13.t">Local files</b><span data-i18n="g13.d">Your own folders, by song, album, artist or folder.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="13">
+      <button class="g-img" data-zoom="13"><img loading="lazy" src="img/palette.webp" width="1680" height="1050" alt=""></button>
+      <figcaption><b data-i18n="g14.t">Command palette</b><span data-i18n="g14.d">Ctrl+K reaches every page, playlist and command.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="14">
+      <button class="g-img" data-zoom="14"><img loading="lazy" src="img/themes.webp" width="1680" height="1050" alt=""></button>
+      <figcaption><b data-i18n="g15.t">Theme studio</b><span data-i18n="g15.d">Built-in themes, or your own colours, corners and fonts.</span></figcaption>
+    </figure>
+    <figure class="g-slide" data-i="15">
+      <button class="g-img" data-zoom="15"><img loading="lazy" src="img/mini.webp" width="910" height="294" alt=""></button>
+      <figcaption><b data-i18n="g16.t">Mini player</b><span data-i18n="g16.d">A small always-on-top window; this is the wide one, with lyrics.</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true">
+  <button class="lb-close" id="lbClose" aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="m6 6 12 12M18 6 6 18"/></svg></button>
+  <button class="lb-nav lb-prev" id="lbPrev" aria-label="Previous"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m14.500 6-6 6 6 6"/></svg></button>
+  <figure><img id="lbImg" alt=""><figcaption><b id="lbT"></b><span id="lbD"></span><i id="lbN"></i></figcaption></figure>
+  <button class="lb-nav lb-next" id="lbNext" aria-label="Next"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m9.500 6 6 6-6 6"/></svg></button>
+</div>
+
 <section class="together" id="together">
   <div class="wrap">
     <p class="tag reveal" data-i18n="tg.tag">Together</p>
@@ -207,6 +314,23 @@
   </div>
 </section>
 
+<section class="faq" id="faq">
+  <div class="wrap faq-in">
+    <div class="reveal">
+      <p class="tag" data-i18n="q.tag">Questions</p>
+      <h2 data-i18n="q.title">Good to know.</h2>
+    </div>
+    <div class="faq-list reveal">
+      <details open><summary data-i18n="q1.q">Do I need Spotify Premium?</summary><p data-i18n="q1.a">No. A free Spotify account is enough, and you do not need an account at all: without one you browse the YouTube Music catalog.</p></details>
+      <details><summary data-i18n="q2.q">Where does the music come from?</summary><p data-i18n="q2.a">The audio plays from YouTube. Spotify, YouTube Music or MusicBrainz only provide the catalog: your library, the song lists and the covers. Each song is matched to its YouTube recording automatically, and you can pick another one if the match is wrong.</p></details>
+      <details><summary data-i18n="q3.q">Does ShadeTube collect anything about me?</summary><p data-i18n="q3.a">No. There is no telemetry and no server of ours. Your listening history, statistics and settings stay in a folder on your computer, and your Spotify session is stored encrypted.</p></details>
+      <details><summary data-i18n="q4.q">Which Windows versions are supported?</summary><p data-i18n="q4.a">Windows 10 (version 1809 or newer) and Windows 11, 64-bit. There is no macOS or Linux version.</p></details>
+      <details><summary data-i18n="q5.q">How do I update?</summary><p data-i18n="q5.a">ShadeTube checks for new versions itself and installs them from inside the app with one click. With Scoop you can update from the command line too.</p></details>
+      <details><summary data-i18n="q6.q">Can I listen offline?</summary><p data-i18n="q6.a">Yes. Downloaded songs, podcast episodes and your local files play without a connection, and songs you played recently start from the cache.</p></details>
+    </div>
+  </div>
+</section>
+
 <section class="install" id="install">
   <div class="wrap install-in">
     <p class="tag reveal" data-i18n="i.tag">Install</p>
@@ -254,7 +378,7 @@
     <nav class="foot-links" aria-label="Footer">
       <a href="https://github.com/shadesofdeath/ShadeTube" rel="noopener">GitHub</a>
       <a href="https://github.com/shadesofdeath/ShadeTube/releases" rel="noopener" data-i18n="ft.releases">Releases</a>
-      <a href="https://github.com/shadesofdeath/ShadeTube/blob/main/CHANGELOG.md" rel="noopener" data-i18n="ft.changelog">Changelog</a>
+      <a href="changelog.html" data-i18n="nav.changelog">Changelog</a>
       <a href="https://github.com/shadesofdeath/ShadeTube/issues" rel="noopener" data-i18n="ft.issues">Report a problem</a>
     </nav>
     <p class="fine" data-i18n="ft.fine">ShadeTube is an independent project and is not affiliated with Spotify, YouTube or Google. Inspired by Spotube.</p>
