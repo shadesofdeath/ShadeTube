@@ -25,7 +25,12 @@ private:
     ui::Button* skip_;
     gfx::Text brand_, tag_, title1_, title2_, subtitle_, stepsHead_, without_;
     gfx::Text steps_[3];
-    float withoutY_ = 0;   // the "Spotify olmadan keşfet" caption over the open catalogs' buttons
+    // Geometry from layout(), for paint(): it follows the window (a 960 DIP minimum, 150 % zoom, long languages). The
+    // hero takes the largest display size whose lines fit its column; the brand lockup gives way on short windows (the
+    // title bar names the app there).
+    bool lockup_ = true;
+    float heroSize_ = 64;
+    gfx::Rect hero1_{}, hero2_{}, sub_{}, stepsHeadR_{}, stepR_[3]{}, withoutR_{};
     Lifetime life_;
 };
 

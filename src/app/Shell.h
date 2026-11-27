@@ -226,7 +226,7 @@ private:
     void saveAsPlaylist();               // "Kuyruğu kaydet": current + upcoming, in play order
     std::wstring sectionLabel(bool queued) const;
     gfx::Text title_, meta_, nowLabel_;
-    ui::Button *save_, *clear_;
+    ui::Button *save_, *clear_, *close_;   // close_: the side panel only (the friend / jam panels' header)
     MessagePanel* empty_;                // the empty queue (compact empty state)
     queuelist::Sections sections_;
     int secPos_ = -2, secSize_ = -1;     // the player's slot / order size sections_ were built for
@@ -320,7 +320,15 @@ private:
     bool nowPlaying_ = false, queueOpen_ = false, friendsOpen_ = false, connectMode_ = false;
     bool jamOpen_ = false;
     bool npActive_ = false;   // Now Playing holds its resources (activate() ran, deactivate() not yet)
-    ui::Anim npAnim_, queueAnim_;
+    ui::Anim npAnim_;
+    // The side panels (queue, friend activity, "Birlikte dinle") open and close with the overlay family's motion: the
+    // page takes its new width at once, the panel fades in sliding 16 DIP from the right (motion::medium, decelerate)
+    // and a closed one fades out drifting 8 DIP right over the page (140 ms, accelerate); none with Hareketi azalt or
+    // Windows' animation effects off (ui::overlay::duration).
+    ui::Widget* sideShown_ = nullptr;     // the panel on screen (layout)
+    ui::Widget* sideLeaving_ = nullptr;   // the panel fading out (hidden, painted by paint())
+    ui::Anim sideIn_{1.f}, sideOut_;
+    void paintSidePanel(Canvas& c, ui::Widget* panel, float t, bool leaving);
     Lifetime life_;
 };
 

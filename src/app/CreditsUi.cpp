@@ -54,9 +54,9 @@ public:
         }
     }
     void onMouseEnter() override {
-        if (link_) hover_.to(1, ui::motion::fast);
+        if (link_) hover_.to(1, ui::motion::microMs(ui::motion::fast));
     }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
     LPCWSTR cursor() const override { return link_ ? IDC_HAND : IDC_ARROW; }
     void paint(Canvas& c) override {
         const Rect r = rect();

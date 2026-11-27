@@ -56,8 +56,8 @@ public:
         focus();
         start();
     }
-    void onMouseEnter() override { hover_.to(1, ui::motion::fast); }
-    void onMouseLeave() override { hover_.to(0, ui::motion::fast); }
+    void onMouseEnter() override { hover_.to(1, ui::motion::microMs(ui::motion::fast)); }
+    void onMouseLeave() override { hover_.to(0, ui::motion::microMs(ui::motion::fast)); }
     LPCWSTR cursor() const override { return IDC_HAND; }
     void onFocusChanged(bool focused) override {
         if (!focused) stop();

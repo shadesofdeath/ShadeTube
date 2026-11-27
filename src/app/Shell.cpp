@@ -48,8 +48,8 @@ TitleBar::TitleBar() {
     forward_ = add<Button>(ButtonKind::Icon, L"", "chevron-right");
     back_->setIconSize(16);
     forward_->setIconSize(16);
-    back_->setTooltip(tr(L"Geri"));
-    forward_->setTooltip(tr(L"İleri"));
+    back_->setTooltip(commands::keyTip(tr(L"Geri"), "go-back"));
+    forward_->setTooltip(commands::keyTip(tr(L"İleri"), "go-forward"));
     back_->onClick = [] { ctx().router->back(); };
     forward_->onClick = [] { ctx().router->forward(); };
     collapse_ = add<Button>(ButtonKind::Ghost, tr(L"Küçült"), "chevron-up");
@@ -57,7 +57,7 @@ TitleBar::TitleBar() {
     collapse_->onClick = [] { ctx().toggleNowPlaying(false); };
     friends_ = add<Button>(ButtonKind::Icon, L"", "users");
     friends_->setIconSize(16);
-    friends_->setTooltip(tr(L"Arkadaş etkinliği"));
+    friends_->setTooltip(commands::keyTip(tr(L"Arkadaş etkinliği"), "friend-activity"));
     friends_->onClick = [] { commands::run("friend-activity"); };
     friends_->setVisible(false);
     // "SPOTIFY · <NAME>": a click opens the account menu (switch / add / sign out).
@@ -117,7 +117,10 @@ void TitleBar::paint(Canvas& c) {
     } else {
         std::wstring label = tr(L"ŞİMDİ ÇALIYOR");
         if (auto* p = ctx().player; p && !p->context().name.empty()) label += L" · " + toUpperTr(p->context().name);
-        c.text(label, type::monoLabel, {r.x + 108, r.y, 500, r.h}, col.fgTertiary, gfx::TextAlign::Leading, gfx::VAlign::Center);
+        // After "Küçült" (its width follows the language: "Einklappen", "Свернуть"), up to the caption buttons.
+        const float lx = std::max(108.f, collapse_->rect().right() + 16);
+        c.text(label, type::monoLabel, {r.x + lx, r.y, std::max(0.f, std::min(500.f, r.w - 8 - 120 - 16 - lx)), r.h},
+               col.fgTertiary, gfx::TextAlign::Leading, gfx::VAlign::Center);
     }
     if (!ctx().window || !ctx().window->isActive()) c.fillRect(r, col.bgBase.withAlpha(0.0f));
     paintChildren(c);
@@ -173,7 +176,7 @@ public:
     void setActive(bool on) {
         if (active_ == on) return;
         active_ = on;
-        activeA_.to(on ? 1.f : 0.f, ui::motion::normal);
+        activeA_.to(on ? 1.f : 0.f, ui::motion::microMs(ui::motion::normal));
         invalidate();
     }
     void setDropHot(bool on) {
@@ -454,11 +457,11 @@ public:
         if (hovered() && rect().contains(e.pos)) sb_.setMoreOpen(!sb_.moreOpen());
     }
     void onMouseEnter() override {
-        hover_.to(1, ui::motion::fast);
+        hover_.to(1, ui::motion::microMs(ui::motion::fast));
         invalidate();
     }
     void onMouseLeave() override {
-        hover_.to(0, ui::motion::fast);
+        hover_.to(0, ui::motion::microMs(ui::motion::fast));
         invalidate();
     }
     LPCWSTR cursor() const override { return IDC_HAND; }
@@ -648,8 +651,13 @@ void Sidebar::refresh() {
             auto* b = addItem(toWide(p.name), p.totalTracks, {RouteKind::Playlist, p.id});
             b->setArt(p.images, false);
             const std::string id = p.id;
+            const std::wstring name = toWide(p.name);
             const sync::Target offline{sync::Kind::Playlist, id, p.name, p.images};
-            b->onContext = [id, offline](const ui::MouseEvent& e) {
+            b->onContext = [id, name, offline](const ui::MouseEvent& e) {
+                // The Spotify playlists' menu: a destructive "Sil" through the shared confirmation (it also leaves the
+                // playlist's page when that is open).
+                ui::MenuItem del{tr(L"Sil"), "trash", L"", [id, name] { confirmDeletePlaylist(id, name); }};
+                del.destructive = true;
                 ui::Menu::open(ctx().window, e.windowPos,
                                {{tr(L"Aç"), "arrow-up-right", L"", [id] { ctx().router->navigate({RouteKind::Playlist, id}); }},
                                 {tr(L"Çal"), "play", L"", [id] { ctx().router->navigate({RouteKind::Playlist, id + "#play"}); }},
@@ -660,11 +668,7 @@ void Sidebar::refresh() {
                                      if (const auto* pl = ctx().library.playlist(id))
                                          editPlaylistDetails(id, toWide(pl->name), toWide(pl->description), pl->images);
                                  }},
-                                {tr(L"Sil"), "trash", L"", [id] {
-                                     ui::Dialog::confirm(ctx().window, tr(L"Çalma listesi silinsin mi?"),
-                                                         tr(L"Bu işlem geri alınamaz."), tr(L"Sil"),
-                                                         [id] { ctx().library.deletePlaylist(id); }, true);
-                                 }}});
+                                std::move(del)});
             };
         }
     }
@@ -1033,15 +1037,17 @@ PlayerBar::PlayerBar()
         showSleepTimerMenu({br.x, br.y - 6});   // Menu flips upward/leftward to stay on screen
     };
     for (auto* b : {shuffle_, prev_, next_, repeat_}) b->setIconSize(18);
-    shuffle_->setTooltip(tr(L"Karıştır"));
-    prev_->setTooltip(tr(L"Önceki"));
-    next_->setTooltip(tr(L"Sonraki"));
-    repeat_->setTooltip(tr(L"Tekrarla"));
+    // Tooltips name the key of the action where there is one (commands::keyTip), as the menus do.
+    shuffle_->setTooltip(commands::keyTip(tr(L"Karıştır"), "shuffle"));
+    prev_->setTooltip(commands::keyTip(tr(L"Önceki"), "previous"));
+    next_->setTooltip(commands::keyTip(tr(L"Sonraki"), "next"));
+    repeat_->setTooltip(commands::keyTip(tr(L"Tekrarla"), "repeat"));
     lyrics_->setTooltip(tr(L"Şarkı sözleri"));
-    queue_->setTooltip(tr(L"Sıradaki"));
-    mini_->setTooltip(tr(L"Mini oynatıcı"));
-    expand_->setTooltip(tr(L"Tam ekran"));
-    heart_->setTooltip(tr(L"Beğen"));
+    queue_->setTooltip(commands::keyTip(tr(L"Sıradaki"), "queue"));
+    mini_->setTooltip(commands::keyTip(tr(L"Mini oynatıcı"), "mini-player"));
+    expand_->setTooltip(commands::keyTip(tr(L"Tam ekran"), "now-playing"));
+    heart_->setTooltip(commands::keyTip(tr(L"Beğen"), "like"));
+    play_->setTooltip(commands::keyTip(tr(L"Oynat"), "play-pause"));
     heart_->setHeart("heart", "heart-filled");   // the like feedback (ui::HeartPop) when it changes
 
     shuffle_->onClick = [] { smartshuffle::cycleMode(); };   // off -> shuffle -> smart shuffle
@@ -1108,7 +1114,8 @@ void PlayerBar::sync() {
     const auto shuffleMode = smartshuffle::mode();
     shuffle_->setActive(shuffleMode != smartshuffle::Mode::Off);
     shuffle_->setIcon(shuffleMode == smartshuffle::Mode::Smart ? "shuffle-smart" : "shuffle");
-    shuffle_->setTooltip(smartshuffle::modeLabel(shuffleMode));
+    shuffle_->setTooltip(commands::keyTip(smartshuffle::modeLabel(shuffleMode), "shuffle"));
+    play_->setTooltip(commands::keyTip(p && p->isPlaying() && !previewHeld_ ? tr(L"Duraklat") : tr(L"Oynat"), "play-pause"));
     const auto rep = p ? p->repeat() : RepeatMode::Off;
     repeat_->setActive(rep != RepeatMode::Off);
     repeat_->setIcon(rep == RepeatMode::One ? "repeat-one" : "repeat");
@@ -1120,10 +1127,9 @@ void PlayerBar::sync() {
     if (const std::string id = t ? t->id : std::string(); !id.empty() && id == likedId_ && liked != likedWas_) heart_->pulse();
     likedId_ = t ? t->id : std::string();
     likedWas_ = liked;
-    heart_->setTooltip(!live_ ? std::wstring(tr(L"Beğen")) : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
+    heart_->setTooltip(!live_ ? commands::keyTip(tr(L"Beğen"), "like") : liked ? std::wstring(tr(L"Favorilerden kaldır")) : std::wstring(tr(L"Favorilere ekle")));
     // Live: no seeking (the wave runs end to end without a playhead).
     seek_->setEnabled(!live_);
-    queue_->setActive(false);
     {
         const float sp = p ? p->speed() : 1.f;
         const bool episode = t && catalog::isPodcastId(t->id);
@@ -1138,8 +1144,8 @@ void PlayerBar::sync() {
     video_->setEnabled(videomode::enabled());   // a file / stand-in source has no video to follow
     video_->setActive(videomode::on());
     video_->setTooltip(!videomode::enabled() ? std::wstring(tr(L"Bu şarkı için video yok"))
-                       : videomode::on()     ? std::wstring(tr(L"Video modunu kapat"))
-                                             : std::wstring(tr(L"Video modu")));
+                       : videomode::on()     ? commands::keyTip(tr(L"Video modunu kapat"), "video-mode")
+                                             : commands::keyTip(tr(L"Video modu"), "video-mode"));
     for (auto* b : {prev_, next_}) b->setEnabled(t != nullptr);
     // Listen together: a guest's transport follows the host (requests when the host allows it, else off), shuffle and
     // repeat are the host's.
@@ -1326,6 +1332,8 @@ void PlayerBar::paint(Canvas& c) {
         play_->setPlaying(p->isPlaying() && !previewHeld_);
         seek_->setFlowing(p->status() == player::Status::Playing && !previewHeld_);
     }
+    // The queue button is lit while its panel is open, as the title bar's friend activity button is for its panel.
+    if (auto* shell = dynamic_cast<Shell*>(parent())) queue_->setActive(shell->queueOpen() && !nowPlaying_);
     c.fillSurface(r);   // bg.base (Mica: its translucent tint)
     c.hline(r.x, r.right(), r.y, col.hairSubtle);   // the bar's top edge
     c.pushTransform(D2D1::Matrix3x2F::Translation(r.x, r.y));
@@ -1416,6 +1424,11 @@ QueuePanel::QueuePanel()
         if (auto* p = ctx().player) p->clearQueue();
     };
     clear_->setVisible(false);
+    // The side panels share one header: title, their actions, then "Kapat" at the right end (the friend activity and
+    // "Birlikte dinle" panels have it too). Not in Now Playing's tab.
+    close_ = add<Button>(ButtonKind::Icon, L"", "close");
+    close_->setTooltip(tr(L"Kapat"));
+    close_->onClick = [] { commands::run("queue"); };
     empty_ = add<MessagePanel>("queue", tr(L"Sıra boş"), tr(L"Bir şarkı çal ya da şarkıları buraya sürükle."));
     empty_->setCompact(true);
     empty_->hitTestVisible = false;
@@ -1475,9 +1488,20 @@ void QueuePanel::sync() {
 
 void QueuePanel::layout() {
     const float w = rect().w;
-    const float y = embedded_ ? kNowLabelY + oy() - 8 : 22;
-    clear_->setRect({w - kPadX - 32 + 6, y, 32, 32});
-    save_->setRect({w - kPadX - 32 + 6 - (clear_->visible() ? 36 : 0), y, 32, 32});
+    close_->setVisible(!embedded_);
+    if (embedded_) {   // on the "ŞİMDİ ÇALIYOR" row, ending with the row
+        const float y = kNowLabelY + oy() - 8;
+        clear_->setRect({w - kPadX - 32 + 6, y, 32, 32});
+        save_->setRect({w - kPadX - 32 + 6 - (clear_->visible() ? 36 : 0), y, 32, 32});
+    } else {           // the side panels' header geometry (FriendPanel, JamPanel): 32 DIP buttons 4 apart, y 22
+        float x = w - kPadX - 32;
+        close_->setRect({x, 22, 32, 32});
+        for (Button* b : {clear_, save_}) {
+            if (!b->visible()) continue;
+            x -= 36;
+            b->setRect({x, 22, 32, 32});
+        }
+    }
     const float top = embedded_ ? 0.f : kNowLabelY + oy() - 16;
     empty_->setRect({0, top, w, empty_->preferredHeight(w)});
 }
@@ -1548,8 +1572,10 @@ void QueuePanel::showRowMenu(int i, gfx::Point windowPos) {
     auto* p = ctx().player;
     if (!p || i < 0 || i >= static_cast<int>(p->order().size())) return;
     const auto track = p->items()[p->order()[i]];
-    std::vector<ui::MenuItem> items{{tr(L"Şimdi çal"), "play", L"", [i] { ctx().player->jumpTo(i); }},
-                                    {tr(L"Sıradan kaldır"), "minus", L"", [i] { ctx().player->removeAt(i); }}};
+    // The row cursor's own keys as the hints (Enter plays the row, Delete takes it out), as menus show shortcuts.
+    auto keyName = [](std::string_view k) { const auto c = shortcuts::parse(k); return c ? shortcuts::display(*c) : std::wstring(); };
+    std::vector<ui::MenuItem> items{{tr(L"Şimdi çal"), "play", keyName("Enter"), [i] { ctx().player->jumpTo(i); }},
+                                    {tr(L"Sıradan kaldır"), "minus", keyName("Delete"), [i] { ctx().player->removeAt(i); }}};
     if (track.recommended) {   // smart shuffle / "Geliştir": into the list it was recommended for, or stop them
         items.push_back(ui::MenuItem::sep());
         if (smartshuffle::canAdd({}, track))
@@ -1950,11 +1976,11 @@ public:
         c.fillRect({r.cx() - 2, r.y, 2, r.h}, accent().base.mulAlpha(a));
     }
     void onMouseEnter() override {
-        hover_.to(1, ui::motion::fast);
+        hover_.to(1, ui::motion::microMs(ui::motion::fast));
         invalidate();
     }
     void onMouseLeave() override {
-        hover_.to(0, ui::motion::normal);
+        hover_.to(0, ui::motion::microMs(ui::motion::normal));
         invalidate();
     }
     bool onMouseDown(const ui::MouseEvent& e) override {
@@ -2100,9 +2126,8 @@ void Shell::setNowPlaying(bool on) {
 void Shell::setQueueOpen(bool on) {
     queueOpen_ = on;
     if (on) friendsOpen_ = jamOpen_ = false;
-    queueAnim_.to(on ? 1.f : 0.f, ui::motion::medium, ui::Ease::Decelerate);
-    queue_->setVisible(true);
     requestLayout();
+    invalidate();
 }
 
 void Shell::setFriendsOpen(bool on) {
@@ -2117,6 +2142,19 @@ void Shell::setJamOpen(bool on) {
     if (on) queueOpen_ = friendsOpen_ = false;
     requestLayout();
     invalidate();
+}
+
+void Shell::paintSidePanel(Canvas& c, ui::Widget* panel, float t, bool leaving) {
+    const float a = std::clamp(t, 0.f, 1.f);
+    if (a <= 0.001f) return;
+    // In: from 16 DIP right of its place; out: drifting 8 DIP right. The value is already eased (Anim).
+    const float dx = leaving ? (1 - a) * 8 : (1 - a) * 16;
+    c.pushOpacity(a);
+    c.pushTransform(D2D1::Matrix3x2F::Translation(dx, 0));
+    if (leaving) c.fillSurface(panel->rect());   // the page took its place: the panel covers it while it fades
+    panel->paint(c);
+    c.popTransform();
+    c.popLayer();
 }
 
 void Shell::layout() {
@@ -2158,6 +2196,23 @@ void Shell::layout() {
     friends_->setVisible(friends);
     jam_->setRect({r.w - metrics::queueW, top, metrics::queueW, bottom - top});
     jam_->setVisible(jam);
+    // Open / close motion of the side panels (see Shell.h). Not when Now Playing takes the window (its cross-fade covers
+    // them) or comes back from it.
+    if (ui::Widget* shown = jam ? static_cast<ui::Widget*>(jam_) : friends ? static_cast<ui::Widget*>(friends_) : queue ? static_cast<ui::Widget*>(queue_) : nullptr;
+        shown != sideShown_) {
+        const bool np = nowPlaying_ || npAnim_.running();
+        if (shown) {
+            sideLeaving_ = nullptr;   // a panel replacing another one covers it
+            sideIn_.snap(np ? 1.f : 0.f);
+            sideIn_.to(1, ui::overlay::duration(ui::motion::medium), ui::Ease::Decelerate);
+        } else if (sideShown_ && !np && ui::overlay::duration(140) > 0) {
+            sideLeaving_ = sideShown_;
+            sideOut_.snap(1);
+            sideOut_.to(0, ui::overlay::duration(140), ui::Ease::Accelerate);
+        }
+        sideShown_ = shown;
+        invalidate();
+    }
     nowPlayingView_->setTopInset(top);   // its backdrop runs behind the title bar (painted over it, see paint())
     nowPlayingView_->setRect({0, 0, r.w, r.h});
     nowPlayingView_->setVisible(nowPlaying_ || npAnim_.running());
@@ -2183,9 +2238,17 @@ void Shell::paint(Canvas& c) {
     }
     // Now Playing spans the window: the title bar goes over it (after it), not under it.
     const bool npShown = nowPlayingView_->visible() && t > 0.001f;
+    if (sideLeaving_ && (!sideOut_.running() || sideLeaving_->visible())) sideLeaving_ = nullptr;
     for (auto& child : children()) {
-        if (!child->visible()) continue;
+        if (!child->visible()) {
+            if (child.get() == sideLeaving_) paintSidePanel(c, sideLeaving_, sideOut_, true);   // closed, fading out
+            continue;
+        }
         if (child.get() == titleBar_ && npShown) continue;
+        if (child.get() == sideShown_ && sideIn_.running() && t <= 0.999f) {
+            paintSidePanel(c, sideShown_, sideIn_, false);
+            continue;
+        }
         if (child.get() == nowPlayingView_) {
             if (t <= 0.001f) continue;
             // Group opacity only while it fades: a layer is a window-sized intermediate texture every frame.

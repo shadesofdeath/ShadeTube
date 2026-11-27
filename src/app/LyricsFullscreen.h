@@ -12,13 +12,16 @@
 #include "lyrics/Lyrics.h"
 #include "ui/Anim.h"
 #include "ui/Controls.h"
+#include "ui/Window.h"
 
 #include <string>
 #include <vector>
 
 namespace st::app {
 
-class LyricsFullscreen : public ui::Widget {
+// It opens and closes with the overlay family's motion (fade in 240 ms, fade out 140 ms; none with Hareketi azalt or
+// Windows' animation effects off).
+class LyricsFullscreen : public ui::Widget, public ui::OverlayLayer {
 public:
     static void toggle();          // opens over the main window, or closes it
     static bool isOpen();
@@ -36,6 +39,7 @@ public:
     void onMouseLeave() override;
     bool onWheel(float dy, float, const ui::MouseEvent& e) override;
     LPCWSTR cursor() const override { return hoverLine_ >= 0 ? IDC_HAND : IDC_ARROW; }
+    bool exiting() const override { return closing_ && exit_.running(); }
 
 private:
     enum class State { None, Loading, Synced, Plain, Instrumental, Missing, Live };
@@ -70,7 +74,8 @@ private:
     int active_ = -1;
     int hoverLine_ = -1;
     ui::SmoothScroll scroll_;            // follows the active line; the wheel takes over for 3 s (manualUntil_)
-    ui::Anim open_, controls_;
+    ui::Anim open_, controls_, exit_;
+    bool closing_ = false;
     double manualUntil_ = 0;
     double lastMove_ = 0;
     Rect lyricsArea_{};

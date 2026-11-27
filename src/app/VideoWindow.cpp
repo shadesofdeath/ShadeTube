@@ -9,6 +9,7 @@
 #include "core/Settings.h"
 #include "core/Utf.h"
 #include "gfx/Theme.h"
+#include "ui/Micro.h"
 #include "ui/Window.h"
 
 #include <dwmapi.h>
@@ -93,11 +94,11 @@ public:
         }
     }
     void onMouseEnter() override {
-        hover_.to(1, ui::motion::fast);
+        hover_.to(1, ui::motion::microMs(ui::motion::fast));
         invalidate();
     }
     void onMouseLeave() override {
-        hover_.to(0, ui::motion::fast);
+        hover_.to(0, ui::motion::microMs(ui::motion::fast));
         invalidate();
     }
     LPCWSTR cursor() const override { return IDC_HAND; }

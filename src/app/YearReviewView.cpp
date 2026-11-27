@@ -609,7 +609,9 @@ std::pair<std::vector<catalog::Track>, player::PlayContext> topSongs(const Data&
 class StoryView;
 StoryView* g_story = nullptr;
 
-class StoryView : public ui::Widget {
+// Opens and closes with the overlay family's motion (fade in 240 ms, out 140 ms; none with Hareketi azalt or Windows'
+// animation effects off).
+class StoryView : public ui::Widget, public ui::OverlayLayer {
 public:
     explicit StoryView(int year) {
         g_story = this;
@@ -619,7 +621,7 @@ public:
         period_->setTooltip(tr(L"Dönemi seç"));
         period_->onClick = [this] { periodMenu(); };
         close_ = add<ui::Button>(ui::ButtonKind::Icon, L"", "close");
-        close_->setTooltip(tr(L"Kapat (Esc)"));
+        close_->setTooltip(tr(L"Kapat") + std::wstring(L"\tEsc"));   // the key as the tooltips show keys
         close_->onClick = [this] { close(); };
         prev_ = add<ui::Button>(ui::ButtonKind::IconOutline, L"", "chevron-left");
         prev_->setTooltip(tr(L"Önceki kart"));
@@ -640,7 +642,7 @@ public:
         saveList_ = add<ui::Button>(ui::ButtonKind::Ghost, tr(L"Liste olarak kaydet"), "plus");
         saveList_->setTooltip(tr(L"En çok dinlediklerini çalma listesi olarak kaydet"));
         saveList_->onClick = [this] { playTop(true); };
-        open_.to(1, ui::motion::medium, ui::Ease::Decelerate);
+        open_.to(1, ui::overlay::duration(ui::motion::medium), ui::Ease::Decelerate);
         load(year);
     }
     ~StoryView() override {
@@ -648,10 +650,15 @@ public:
     }
 
     void close() {
+        if (closing_) return;
+        closing_ = true;
         if (g_story == this) g_story = nullptr;
         life_.renew();
+        exit_.snap(1);
+        exit_.to(0, ui::overlay::duration(140), ui::Ease::Accelerate);   // the dialogs' close
         if (auto* w = window()) w->removeOverlay(this);
     }
+    bool exiting() const override { return closing_ && exit_.running(); }
     void load(int year) {
         life_.renew();
         data_ = makeData(year);
@@ -715,7 +722,8 @@ public:
         if (elapsed_ >= cardSeconds(card) && cur_ + 1 < cards()) go(cur_ + 1);
         const Card shown = data_->cards[static_cast<size_t>(cur_)];
 
-        const float t = open_;
+        const float t = open_ * (closing_ ? std::clamp(exit_.value(), 0.f, 1.f) : 1.f);
+        if (t <= 0.001f) return;
         if (t < 0.999f) c.pushOpacity(t);
         // The window behind: the theme's ground washed with the card's colors.
         const auto& col = colors();
@@ -917,7 +925,8 @@ private:
     double elapsed_ = 0, animT_ = 0, lastTick_ = 0;
     bool paused_ = false, artPosted_ = false;
     int genreRebuilds_ = 0;
-    ui::Anim transition_{1.f}, open_;
+    ui::Anim transition_{1.f}, open_, exit_;
+    bool closing_ = false;
     Rect card_{};
     CardContext cardCtx_;
     Lifetime life_;
