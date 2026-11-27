@@ -315,11 +315,12 @@ public:
         onEvent(e);
     }
 
-    // Dev: the result card's buttons (SHADETUBE_RECOGNIZE_DEMO act=play|like|radio).
+    // Dev: the result card's buttons (SHADETUBE_RECOGNIZE_DEMO act=play|like|radio|add).
     void demoAct(const std::string& what) {
         if (what == "play") playSong();
         else if (what == "like") toggleLike();
         else if (what == "radio") startSongRadio();
+        else if (what == "add") addToList();
     }
 
     void paintStage(Canvas& c, const Rect& r);
@@ -777,7 +778,7 @@ void openDialog() {
 
 // Dev: SHADETUBE_RECOGNIZE_DEMO = "<action>@<ms>[=<arg>];..." after startup: open[=system|mic], state=<listening |
 // identifying | result[:<cover url>] | notfound | silent | failed:<access|busy|device|network|rate|service>>,
-// history=<n> (sample entries), act=<play|like|radio> (the result card's buttons), close.
+// history=<n> (sample entries), act=<play|like|radio|add> (the result card's buttons), close.
 void startDemo() {
     wchar_t buf[1024] = {};
     if (!GetEnvironmentVariableW(L"SHADETUBE_RECOGNIZE_DEMO", buf, 1024)) return;

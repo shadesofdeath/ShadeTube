@@ -2,6 +2,17 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.12.0 — unreleased
+
+- **Şarkıyı tanı (recognize a song)**: what's that song in a video, a game, a stream or on the radio in the room?
+  Click the new button next to the search field (or use the command palette, or give it a key, even a global one):
+  ShadeTube listens for a few seconds to what your PC is playing, or to the microphone, and names the song with its
+  cover, album and year. Play it, like it, add it to a playlist or start its radio right from the card; "Yanlış mı?"
+  listens again. ShadeTube never listens to its own playback, a live wave shows that it is hearing something, and it
+  says so plainly when nothing is playing, the microphone is off or another app holds the speakers. Your recent finds
+  stay in a short list you can clear. No account needed; the audio never leaves your PC, only a fingerprint of it is
+  sent for the lookup.
+
 ## 0.11.0 — 2026-11-27
 
 - **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or

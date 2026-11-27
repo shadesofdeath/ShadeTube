@@ -86,6 +86,8 @@ ShadeTube/
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
 │                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52)
+│   recognize/   st_recognize    song recognition (3.57): Signature (Shazam-format peaks), Shazam (request / answer),
+│                                Capture (WASAPI process / endpoint loopback, microphone -> 16 kHz), Session
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
 │                                cache, 3.45)
@@ -119,12 +121,13 @@ ShadeTube/
 │                                Accounts (several Spotify accounts, 3.48), SongNotification + SongNotifier (3.49),
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.50),
+│                                Recognition + RecognizeUi (Şarkıyı tanı, 3.57),
 │                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements
 └─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiocache,
                                  audiodsp, blend, browse, codecs, collections, credits, downloads, headers, history,
                                  icons, jam, library, links, lists, liveaudio, localfiles, lyrics, memory, micro,
                                  miniplayer, musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups,
-                                 preview, radio, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
+                                 preview, radio, recognize, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
                                  smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
                                  winshell, ytmusic, ytstreams
 ```
@@ -137,7 +140,7 @@ The icons are the exception: `tools/icons.py` draws them and writes both `assets
 
 **Module dependencies** (never reverse them): `core ← catalog ← musicbrainz, spotify, youtube, ytmusic`;
 `core ← audio, lyrics, gfx`; `gfx ← ui`; `audio + gfx ← video` (it reuses the audio module's ProgressiveBuffer and
-MfByteStream); `audio + youtube + catalog ← player`; everything `← app`. A new module
+MfByteStream); `audio ← recognize` (its Resampler); `audio + youtube + catalog ← player`; everything `← app`. A new module
 gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this guide.
 
 ## 3. Architecture
@@ -681,7 +684,8 @@ while there is no account), `scrobble.dat` and `remote.dat` (DPAPI), `library.js
 `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json` (timing offsets and lyrics picks; `lyrics\`
 holds picked .lrc / .txt copies, 3.46), `jam.json` (listen together: the device id, a guest's saved playback
 settings), `jam-own-session.json` (a guest's own queue), `jam-host.dat` / `jam-guest.dat` (a session to resume,
-DPAPI, 3.51), `blends.dat` (DPAPI, 3.50), `spotify-hashes.json`, `update-leftovers.txt`, `playlist-covers\` (local
+DPAPI, 3.51), `blends.dat` (DPAPI, 3.50), `recognized.json` (recognized songs and the listening source, 3.57),
+`spotify-hashes.json`, `update-leftovers.txt`, `playlist-covers\` (local
 playlists' own pictures), `themes\` (custom color themes, 3.35 Theme studio), `shell\` (the notification icon, the
 song notification's cover `now-playing-{0,1}.png`, 3.49), `cache\` (images, `matches.json`, lyrics, credits, `mb`,
 `ytmusic`, `local-covers`, `dropped-covers`, `podcasts`, `stats-artwork.json`, `officialvideos.json`, `audio` = the
@@ -3227,6 +3231,87 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   search, paging songs and playlists, the full discography, the disk cache) and plays a search result through
   `MatchService` to check the video is the one YouTube Music named.
 
+### 3.57 Song recognition ("Şarkıyı tanı")
+
+ShadeTube listens for a few seconds to what this PC plays (a video in the browser, a game, a stream) or to the
+microphone (music in the room), identifies the song and offers to play it, like it, add it to a playlist or start its
+radio. Module `src/recognize` (`st_recognize`: core + audio's `Resampler`), app side `app/Recognition` (standalone)
+and `app/RecognizeUi` (`Recognize.h`).
+
+- **Backend**: Shazam's recognition service, the endpoint its own apps use
+  (`POST https://amp.shazam.com/discovery/v5/en-US/US/iphone/-/tag/<uuid>/<uuid>?sync=true&...`, JSON body
+  `{"signature": {"uri": "data:audio/vnd.shazam.sig;base64,...", "samplems": n}, "timestamp", "timezone",
+  "geolocation": {}, "context": {}}`, the iPhone app's `X-Shazam-Platform` / `X-Shazam-AppVersion` headers). No
+  account, key or server of ours. Picked because it is the only service that needs no key and is robust to noise and
+  partial excerpts: AcoustID / Chromaprint needs an application key, a whole-track fingerprint and an exact recording
+  (useless on a microphone excerpt); AudD and ACRCloud need a key / paid account. It is a **private** API: Apple's
+  terms don't allow third-party use, it may change or start refusing us without notice (section 7), and it rate-limits
+  per address (HTTP 429 for about a minute after 4 requests within ~1.5 s, and during development also after a few
+  dozen requests within half an hour even when they were 20 s apart).
+- **Signature** (`recognize/Signature`, pure): our own implementation of the format documented by SongRec (reverse
+  engineering) and ShazamIO; no code taken from either (THIRD_PARTY_NOTICES.md). 16 kHz mono in 128-sample hops; per
+  hop a Hann-windowed 2048-point FFT, the power spectrum spread over 3 bins and carried back 1 / 3 / 6 hops; a bin of
+  the spectrum 46 hops back is a peak when it stands above its neighbours in that spread history (fixed bin and hop
+  offsets) and above 1/64; magnitude `ln(p) * 1477.3 + 6144`, frequency refined by a parabola to 1/64 bin; four bands
+  (250-520, 520-1450, 1450-3500, 3500-5500 Hz). Binary layout: a 48-byte header (magics, CRC-32, sizes, the sample
+  rate id, sample count + 0.24 s), then per band its peaks as (hop delta, magnitude, frequency) with an escape for
+  gaps of 255 hops. `Signature::decode` reads it back (tests). Cost: ~1 FFT per 8 ms of audio, ~2 MB of spectra while
+  a session runs.
+- **Request / answer** (`recognize/Shazam`): `identify()` on the shared transport; `parseAnswer()` reads `matches`
+  (offset, time / frequency skew of the first) and `track`: title, subtitle (artist), images (cover), isrc, genre, the
+  SONG section's Album / Label / Released rows (asked in en-US so the row titles are English), the Apple Music link.
+  Only the signature goes out: no audio, no location, a fixed time zone, fresh random ids per request.
+- **Capture** (`recognize/Capture`, own thread `st-capture`, COM MTA): *Bilgisayarın sesi* first opens a
+  process-loopback client (`ActivateAudioInterfaceAsync(VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK)`,
+  `PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE` on our own pid, Windows 10 2004+ / 11): everything played on
+  the PC except ShadeTube itself, asked for 16 kHz mono float (the audio engine converts), so the app never recognizes
+  its own playback. Without it, the default render endpoint's loopback (ShadeTube's sound included: the listening view
+  then warns while ShadeTube plays). *Mikrofon*: the default capture endpoint (eConsole). Shared mode, a 1 s buffer
+  drained every 20 ms; any format is mixed to mono and resampled to 16 kHz (`audio::Resampler`). A new default device
+  or a lost one reopens on the current default without stopping (an `IMMNotificationClient` flag, like WasapiOutput);
+  none for 4 s = NoDevice. A microphone denied by Windows' privacy settings is AccessDenied (the state offers
+  `ms-settings:privacy-microphone`). Silence: an output held in exclusive mode by another app never reaches the mix,
+  so a silent system sound is checked with a shared-mode client on the default endpoint
+  (`Capture::outputHeldExclusively`: AUDCLNT_E_DEVICE_IN_USE) and reported as DeviceBusy. Nothing is stored: samples
+  live in memory until the session takes them.
+- **Session** (`recognize/Session`, own thread `st-recognize`): feeds a `SignatureGenerator` and asks the service at
+  4, 7 and 11 s of audio (each signature covers everything heard so far, at most 12 s: 15 s or more answers nothing);
+  a request runs on a short-lived thread of its own, so `stop()` returns within ~50 ms and the capture stops at once
+  whatever the network does. The first answer with a song ends it, unless it came from a short signature with a skew
+  above 5e-4: a few seconds can also match a copy or a track sampling the song (seen live: Billie Jean's groove matched
+  an unrelated release at 4 s once), so the next, longer signature confirms (its answer wins; with none the first one
+  stands, after the last checkpoint). No song at the last checkpoint = NotFound; the loudest block of the first 3 s
+  under -54 dBFS = Silent (no request at all). Failures: NoDevice, DeviceBusy, AccessDenied, Capture, Network,
+  RateLimited (429), Service. Events go to the UI thread through `Dispatcher::post` guarded by the dialog's Lifetime.
+- **Catalog** (`app/Recognition`, standalone): the song becomes a track of the active catalog: Spotify
+  (`Api::search`), YouTube Music (`source::quickSearch`, one request) or MusicBrainz (`isrc:` field search first, then
+  the text search); the first hit whose folded title (`mb::detail::searchableTitle`, accents / case / punctuation
+  dropped) is the song's and whose artists include one of the credited ones ("A & B", "A feat. B", "A, B" split; the
+  whole credit also counts) wins, a "Song (Live)" style prefix match only when nothing fits exactly. None: the song
+  by name (`import:<hash>`, as imports name such songs) with the recognized cover, which the player matches on
+  YouTube like any imported song.
+- **UI** (`app/RecognizeUi`): a dialog of the overlay family (560 DIP; a fixed-height stage so states never resize
+  it): the source chips (the choice is remembered; the microphone is opened only once the user picked it), the stage
+  (listening: a 56-bar wave of the capture's block peaks in the accent, newest on the right, ~25 fps through
+  `invalidateAfter`, a still level shape with Hareketi azalt; the status, a 12 s progress line; the result card: cover,
+  title, artist, album · year · genre, *Çal* (closes the dialog), the heart (`Library::canLike`), *Listeye ekle* (the
+  playlist menu), *Radyo* (`radioAvailable()` and a seed: Spotify or YouTube Music songs; disabled with a reason
+  otherwise), "Yanlış mı? Tekrar dene", a note when it is the song ShadeTube plays; the not-found / silent / failure
+  states as compact `MessagePanel`s), the privacy line ("Ses bu bilgisayardan çıkmaz; ... yalnızca sesin parmak izi
+  gönderilir."), and *Son tanınanlar*: `recognized.json` (newest first, 20 at most, a song recognized again moves up,
+  the resolved track kept; *Temizle* clears it). A history row shows its card again. Capture starts when the dialog
+  opens and stops with a result, a state, a source switch or the dialog (and at exit, `persistHooks`).
+- **Entry points**: the outlined button next to the Search page's field, the command palette (from the
+  `recognize-song` action) and the `recognize-song` shortcut: unbound by default, may also get a global key
+  (`kGlobal`); a global press brings the window up first. Icon `recognize` (tools/icons.py: five strokes around the
+  middle line).
+- **Tests**: `recognize_test` (5.2): offline the synthetic signal (seven tone pings with a single loudest moment each:
+  exactly seven peaks, right band, within 4 Hz and 20 ms; the same at -6 dB 2048 magnitude units lower; any feeding
+  pattern gives the same peaks; silence none), the binary format against `fixtures/synthetic.uri`, recorded answers
+  (`answer_match.json`, `answer_nomatch.json`), the session with test audio and a fake service, the catalog matching
+  and the history store; live modes against the service and the devices. Dev: `SHADETUBE_RECOGNIZE_DEMO` and
+  `SHADETUBE_RECOGNIZE_LOOPBACK` (5.4).
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -3331,6 +3416,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `lists_test` | list geometry (3.47): the track table's columns at every width 300-1600 DIP in both densities (fixed right end, order, no overlap, the title minimum, columns only ever dropping in the documented order, the queue action last), `Settings::trackColumns` parsing, selection runs, the queue's sections (runs, header rows, positions, hit tests on rows and headers, drop slots, 5 000 slots), the skeleton band | offline |
 | `memory_test` | memory housekeeping (3.2) on the real graphics device: `ImageCache` buckets (a 300 px request decodes at 384, never above the picture's own size), expiry (kept when painted in the last frames, on the current or the previous page scope or within the idle time; dropped otherwise, bytes given back, loaded again when painted), `Icons::drawColored` above 96 px painting from the document with no bitmap per size, `Device::trimPool` (released bitmaps come back only through it; numbers printed), `MemoryStats::detailedReport`, `ListenStats::readFile` leaving no capacity slack | offline (own temp folder and profile) |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.32): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
+| `recognize_test` | song recognition (3.57): base64 / CRC-32, the signature of a synthetic signal with known peaks (bands, frequencies, times, levels, feeding patterns, silence), the binary format (header fields, the pass escape, padding, damaged bytes, the `synthetic.uri` fixture), recorded service answers and odd shapes, the request body, the session on test audio with a fake service (silence, the 4 / 7 / 11 s schedule, a match, an unsure answer confirmed / standing alone, 429, no network, `stop()` with a request out), catalog matching (folding, artist credits, prefixes), the `recognized.json` store | offline (own temp folder); `live <file> [start] [s]`, `yt "Artist - Title" [start] [s] [--wav out]`, `songs [--short] [--snr dB] "…"…` (requests 20 s apart, `RECOGNIZE_GAP`), `noise`, `dump <file\|query\|noise> <out.json>`, `capture <system\|mic> [s]` (a real session), `level <system\|mic> [s]` (the capture alone, nothing sent) |
 | `icons_test` | the icon set (3.43) through `gfx::Icons`: every file in every grid (viewBox = grid, path / rect / circle only, black only, the grid's stroke width, parsed by `ID2D1SvgDocument`, no `-thin` files), the grid order and legacy names, `-thin` aliases drawing the same masks, whole-pixel strokes at each grid's own size, the ink of a stroke from 9 to 36 px (≥ 1 px, then px / 16), `heart-filled` covering `heart`, the `downloaded` check cut out | offline; `--sheet <dir>` (contact sheets: all icons at 12-24 DIP × 80-175 % in dark / light / nord / pastel / sepia, each grid magnified, off / on pairs) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -3448,6 +3534,8 @@ apps*).
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
 | `SHADETUBE_ACCOUNT_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.48): `menu[=x,y]` (the account menu at window DIPs, default under the title bar's tag), `switch[=<id>]` (the next signed-in account, or that one), `signout[=<id>]` (the active one), `add` (the login window), `log` (the active account and its data folder). E.g. `switch@8000;menu@11000` with `--screenshot 12000` |
+| `SHADETUBE_RECOGNIZE_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.57): `open[=system\|mic]` (the dialog, listening for real), `state=<listening\|identifying\|result[:<cover url>]\|notfound\|silent\|failed:<access\|busy\|device\|network\|rate\|service>>` (a state without listening; `result` resolves a sample song against the catalog), `history=<n>` (sample entries, not saved until a real one is), `act=<play\|like\|radio\|add>` (the result card's buttons), `close`. E.g. with `SHADETUBE_PLAY_FILES` and `open@3500` for ShadeTube's own playback |
+| `SHADETUBE_RECOGNIZE_LOOPBACK` | `endpoint`: *Bilgisayarın sesi* uses the default output's loopback (ShadeTube's own sound included) instead of the process loopback, as on a Windows without it |
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.36) |
 | `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.37) |
 | `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
@@ -3533,6 +3621,23 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   aktar" makes a local copy). No search suggestions (the other catalogs have none either). A Search page answer costs
   five parallel requests (the palette's one); a page 1-2 requests of 0.3-1.5 s (answers are 0.2-1 MB of JSON; a mood
   category up to 3 MB) unless the disk cache has it.
+- **Song recognition** (3.57) depends on Shazam's private recognition endpoint: Apple's terms don't permit
+  third-party clients, and the endpoint, its headers or the signature format may change or start refusing ShadeTube
+  without notice (then every attempt ends as "Tanıma hizmeti yanıt vermedi"); there is no second backend. It
+  rate-limits (429 for about a minute after 4 requests within ~1.5 s, and after a few dozen within half an hour; a
+  session sends at most 3, 3-4 s apart). Accuracy, measured live with our signature (YouTube audio decoded by the
+  app's own decoder, `recognize_test songs`): 11 s excerpts of 10 recordings (rock, pop, hip-hop, dance, jazz, two
+  Turkish pop songs, a live piano performance) named the right song every time but once, also with 4 s and 7 s
+  excerpts, and with white noise mixed in at 5 dB (3 / 3) and 0 dB SNR (2 / 2); white noise, a hum and silence come
+  back as no match. The service's answer is not deterministic: the same Levitating excerpt was named once as an
+  unrelated re-upload of the song in Shazam's catalog (no album, no ISRC) and once correctly; 4 s of Billie Jean's
+  groove, captured from the loopback, once named another release (the confirmation rule of 3.57 now listens on in such
+  cases). A live performance comes back as another recording of the same piece (with its tempo skew); remixes and
+  covers may come back as the studio recording or not at all. The microphone was
+  checked for opening and levels only (no song played into a real microphone in the room); device switching during a
+  session was not exercised live (the code reopens on the new default). Process loopback needs Windows 10 2004+; older
+  systems fall back to the output's loopback with ShadeTube's own sound in it (tested with
+  `SHADETUBE_RECOGNIZE_LOOPBACK=endpoint`).
 - **YouTube** matching can pick the wrong video (*Wrong match?* fixes it per track), and stream access depends on
   YoutubeExplode keeping up with YouTube changes.
 - **Public Piped / Invidious instances are volatile**: the built-in list goes stale, and many instances serve search
