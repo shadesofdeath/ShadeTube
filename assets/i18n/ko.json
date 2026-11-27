@@ -2312,5 +2312,14 @@
   "Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm bağlantıları desteklenir.": "이 링크는 가져올 수 없습니다. YouTube, Deezer, Apple Music, TIDAL의 플레이리스트 또는 앨범 링크를 지원합니다.",
   "{} bağlantısı": "{} 링크",
   "Bağlantıyı aç": "링크 열기",
-  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "이 {} 링크는 열 수 없습니다. 플레이리스트, 앨범, 곡 링크를 지원합니다."
+  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "이 {} 링크는 열 수 없습니다. 플레이리스트, 앨범, 곡 링크를 지원합니다.",
+  "Görselleştirici": "비주얼라이저",
+  "Spektrum": "스펙트럼",
+  "Halka": "링",
+  "Dalga": "파형",
+  "Aurora": "오로라",
+  "Görselleştirici için önce bir şey çal": "비주얼라이저를 열려면 먼저 무언가를 재생하세요",
+  "Söz satırını göster": "가사 줄 표시",
+  "Söz satırını gizle": "가사 줄 숨기기",
+  "Duraklatıldı": "일시 정지됨"
 }

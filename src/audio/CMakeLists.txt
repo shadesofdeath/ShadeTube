@@ -14,7 +14,9 @@ add_library(st_audio STATIC
     XiphTags.cpp XiphTags.h                     # Ogg Opus / Vorbis file info for the local library (tags, cover)
     Track.cpp Track.h                           # buffer + decode thread + PCM ring
     WasapiOutput.cpp WasapiOutput.h             # WASAPI event-driven render client (shared / exclusive)
-    Spectrum.cpp Spectrum.h                     # Hann + radix-2 FFT -> log bands
+    Spectrum.cpp Spectrum.h                     # Hann + radix-2 FFT -> log bands; the waveform tap (seqlock)
+    Fft.cpp Fft.h                               # the 2048-point FFT + Hann window (spectrum, visualizer)
+    VisualAnalysis.cpp VisualAnalysis.h         # the visualizer's bands, peaks, energies, beats, waveform (pure)
     Equalizer.cpp Equalizer.h                   # 10-band peaking biquads + presets (also drawn by Ayarlar > SES)
     ReplayGain.cpp ReplayGain.h                 # ReplayGain track gain from ID3 / FLAC / MP4 tags (local files)
     Limiter.cpp Limiter.h                       # look-ahead output limiter (-0.3 dBFS ceiling)

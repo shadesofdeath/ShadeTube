@@ -92,6 +92,10 @@ public:
     int64_t durationMs() const;
     float bufferedFraction() const;
     bool spectrum(float* bands, int count) const { return engine_->spectrum(bands, count); }
+    // The engine's waveform tap (the visualizer, app/Visualizer): the latest mono samples of what plays.
+    bool waveform(float* samples, int count, audio::AudioEngine::WaveInfo* info = nullptr) const {
+        return engine_->waveform(samples, count, info);
+    }
     // The heard position with its time stamp and rate (video mode follows it). Its tag is the current item's while
     // clockTag() == clock().tag; otherwise the current item is not audible yet (loading, a crossfade not yet heard).
     audio::AudioEngine::Clock clock() const { return engine_->clock(); }

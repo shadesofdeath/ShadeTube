@@ -197,6 +197,7 @@ void initVideoMode();          // app/VideoMode.cpp      (Video modu: the song's
 void initSongNotifications();  // app/SongNotifier.cpp   (a Windows notification when a song starts out of sight)
 void initBlends();             // app/Blends.cpp         (Blend: shared playlists from friends' taste)
 void initSongRecognition();    // app/RecognizeUi.cpp    (Şarkıyı tanı: what this PC / the room plays, recognized)
+void initVisualizer();         // app/Visualizer.cpp     (the full-screen visualizer: its command, track changes)
 inline void initFeatures() {
     initListenStats();
     initPlaybackFeatures();
@@ -219,6 +220,7 @@ inline void initFeatures() {
     initSongNotifications();
     initBlends();
     initSongRecognition();
+    initVisualizer();
 }
 
 // Radio (app/Radio.cpp). Spotify's radio for a seed (spotify:track: / artist: / album: / playlist: URI) replaces the

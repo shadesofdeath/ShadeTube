@@ -84,7 +84,8 @@ ShadeTube/
 │   youtube/     st_youtube      MatchService (track -> video -> stream, caches), AltSource (Piped / Invidious),
 │                                VideoStreams + OfficialVideo (video mode's streams and official video search, 3.41 / 3.42)
 │   ytmusic/     st_ytmusic      YouTube Music catalog: Parse (tolerant InnerTube parsers), YtMusic (endpoints, cache)
-│   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum,
+│   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum, Fft,
+│                                VisualAnalysis (the visualizer's bands / beats / waveform, 3.57),
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
 │                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52)
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets; the
@@ -124,6 +125,7 @@ ShadeTube/
 │                                VideoMode + VideoView + VideoWindow (3.41), OfficialVideo + OfficialVideoCache (3.42),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState),
 │                                Accounts (several Spotify accounts, 3.48), SongNotification + SongNotifier (3.49),
+│                                Visualizer (the full-screen visualizer, 3.57),
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.50),
 │                                Recognition + RecognizeUi (Şarkıyı tanı, 3.57),
@@ -142,7 +144,7 @@ ShadeTube/
                                  preview, radio, recognize, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
                                  preview, radio, remote, review, scrobble, scroll, services, shortcuts, smartlists, smartshuffle,
                                  smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
-                                 winshell, ytmusic, ytstreams
+                                 visualizer, winshell, ytmusic, ytstreams
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -257,7 +259,10 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
 - `gfx::Device`: D3D11 device → DXGI flip-model swap chain (`FLIP_DISCARD`, waitable) → `ID2D1DeviceContext`.
   Device loss (`D2DERR_RECREATE_TARGET`) recreates all device resources.
 - Invalidation-driven frames: vsync while animating, otherwise the loop sleeps in `MsgWaitForMultipleObjects`
-  (0 % CPU when idle); hidden windows never render. Everything is in DIPs (Per-Monitor V2 DPI aware); the main
+  (0 % CPU when idle); hidden windows never render. `frame::requestNextEvery(n)` asks for every n-th refresh instead
+  (the frame is presented with sync interval n; the visualizer on fast displays, 3.57); a plain `requestNext()` wins.
+  An open overlay whose `OverlayLayer::coversWindow()` is true (a full-window view, faded in) is painted alone: the
+  tree and the overlays below it are skipped. Everything is in DIPs (Per-Monitor V2 DPI aware); the main
   window's DIP scale is the monitor's DPI times the user's interface scale ([3.25](#325-interface-scale-and-list-density)).
 - Window placement (`ui::Window` constructor): the first start centers the default 1440 × 900 DIPs on the primary
   work area, or 92 % of it when that does not fit (1920 × 1080 at 150 % has only 1280 × 688 DIPs); a saved rect (`-1, -1`
@@ -1229,8 +1234,8 @@ time of the event.
 `app/Shell.cpp` (`PlayerBar`, 88 DIP), the controls in `ui/Controls`, the shared pieces in `app/Components`.
 
 - **Layout**: track info on the left (art 56, title, artist, heart after the title), on the right the session pill /
-  jam, sleep timer, video (songs only, 3.41), lyrics, queue, volume knob, mini player and full screen (vertically
-  centered). The center column
+  jam, sleep timer, video (songs only, 3.41), the visualizer (3.57; only while the center column keeps 380 DIP with it),
+  lyrics, queue, volume knob, mini player and full screen (vertically centered). The center column
   holds the transport row (shuffle · prev · play 40 · next · repeat, center y 33) over the seek row (center y 69:
   elapsed · wave · total, mono 11, elapsed `fg.secondary`, total `fg.tertiary`). The column is 40 % of the bar
   (380..640 DIP) but narrows to keep ~140 DIP of title and the right group free (about 316 DIP at the 960 DIP minimum
@@ -1944,7 +1949,7 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   (cycling smart shuffle), previous, play, next, repeat; like (a station: favorite; `setHeart` / `pulse`: the
   micro-interactions' heart pop, as in the bar); sleep timer, speed (episodes, or
   any speed but 1x), listen together (the session pill when it fits, else the icon; a guest's transport is disabled as
-  in the bar), volume, mini player. State comes from `onTrackChanged()` (App calls it on every player change while the
+  in the bar), the visualizer (3.57, after video mode), volume, mini player. State comes from `onTrackChanged()` (App calls it on every player change while the
   view is visible) and from library / listen-together subscriptions; labels are set only when they change.
 - **Tabs** (`NowPlayingTabs`, `ButtonKind::Tab` labels: Left / Right move between them): *Şarkı sözleri* (a station:
   *Canlı yayın*, the titles it announced; none for a podcast episode), *Sıradaki* (`QueuePanel::setEmbedded`: no title
@@ -3573,6 +3578,101 @@ and `app/RecognizeUi` (`Recognize.h`).
   MusicBrainz catalog (`live-set mb`, on a day MusicBrainz answered 503 to ~260 requests): 96 / 100 (77 by ISRC) in
   64 s, 456 / 500 (327 by ISRC) in 6.5 min, 50 / 50 (49 by ISRC) in 6 s, 166 / 424 (29 by ISRC; classical) in 7 min,
   126 / 132 (107 by ISRC) in 68 s: the time goes into the one-a-second name searches and the 503 back-offs.
+### 3.57 Visualizer
+
+"Görselleştirici": a full-window view that draws what plays. `app/Visualizer` (the view, `initVisualizer`),
+`audio/VisualAnalysis` (the analysis, standalone: `visualizer_test`), the tap in `audio/Spectrum` + `AudioEngine::waveform`,
+`ui::Window::setFullscreen` and `OverlayLayer::coversWindow` (3.3).
+
+- **Opening**: the `visualizer` action (default key **V**, *Ayarlar › Klavye*; so also the command palette), the button
+  after video mode in Now Playing's utility row, the player bar's button (between video mode and the lyrics; shown only
+  while the bar's center column keeps its 380 DIP with it, i.e. on wide windows) and a click on the spectrum strip the
+  bar shows during Now Playing's cross-fade. Nothing playing: a toast. It is a modal overlay like the full-screen lyrics
+  (one of the two at a time: opening either closes the other; `initVisualizer` wraps `ctx().toggleLyricsFullscreen`).
+  Esc, the close button or the key again close it; leaving it also leaves full screen.
+- **Modes** (`Settings.visualizerMode`: `bars` | `ring` | `wave` | `aurora`, default `ring`; chips in the top strip, keys
+  1-4, M / Shift+M), cross-fading in 240 ms by alpha (no layer):
+  - *Spektrum*: 24-96 pills (one per ~15 DIP) standing 3 DIP above a `hairline.subtle` baseline at 80 % of the area, in
+    the accent at 45-100 % by level; a faint reflection (5-12 %) under the line; the peaks as 2 DIP `fg.primary` dashes
+    that hold 350 ms and then fall with gravity.
+  - *Halka*: the cover in a circle (23 % of the area's shorter side, `hairline.default` outline, a placeholder disc
+    meanwhile, fading in when it arrives) with the spectrum mirrored around it (bass at the top, the deepest bands below
+    ~50 Hz left out, each line a 1-2-1 mix of its neighbours), a radial accent glow that swells with the bass, the cover
+    breathing 2 % with the beat and a 1.5 DIP ring leaving it on every beat (0.9 s).
+  - *Dalga*: the oscilloscope view across the area, tapered to the middle line at both ends like the seek wave (3.29),
+    2 DIP accent, and the last four shapes (one kept every 45 ms) trailing at 26 / 16 / 9 / 5 %.
+  - *Aurora*: three curtains in the cover's colours (the accent, then the most saturated palette colours of another hue,
+    `CoverBackdrop::palette()`; lightness 0.64 on dark themes, 0.6 and less opaque on light ones, where deeper tones turn
+    muddy), each with a sharp lower edge and a long fade upwards, undulating and streaked by slow rays, lit by bass /
+    mids / treble; computed on the CPU at one texel per 12 DIP (a 1462 × 822 DIP window: 123 × 70 texels) about 30
+    times a second while sound plays (`exp` from a table), uploaded and stretched; kept off the top strip and the
+    corner. 64 motes drift up (positions from the drift clock alone), brighter with the treble.
+  The backdrop under every mode is Now Playing's (3.40), so text contrast and the grain are the same.
+- **The rest of the view**: the song in the bottom-left corner (title, artist, a 2 DIP progress line with the time;
+  a station: the CANLI badge; paused: "DURAKLATILDI"), the sung lyric line above it centered (`Settings.visualizerLyrics`,
+  L or the lyrics button; synced lyrics of songs only, fetched read-only through `lyricsQueryFor` / `lyrics::fetch`, the
+  lyrics views' 150 ms look-ahead, a 320 ms rise and cross-fade between lines). The top strip (label, chips, lyric
+  line, full screen, close) is a caption area like the full-screen lyrics' and fades after 2.5 s without the mouse; the
+  pointer hides with it.
+- **Full screen** (F, F11, double click, the button): `Window::setFullscreen` as browsers do it: a maximized window is
+  restored first, `WS_CAPTION | WS_THICKFRAME` go, the window covers its monitor (`DWMWCP_DONOTROUND`), the NC hit test
+  answers `HTCLIENT` (no resize borders, caption drag or snap layouts); leaving restores style, rect and maximized
+  state. `App::saveMainPlacement` leaves it first, so the saved placement is never the monitor.
+- **The tap** (`audio/Spectrum`): the engine already pushed the mono mix of every device block (after the crossfade and
+  the equalizer, before the volume; shared and exclusive output, any source: songs, files, stations, episodes) for the
+  spectrum strip. Its history is now 4096 samples in a seqlock (an odd sequence while a push writes; atomics with relaxed
+  order, fences around), so the engine thread never waits and never allocates; `snapshot()` copies and retries up to 8
+  times when a push landed meanwhile (a push takes microseconds every 10-20 ms) and reports how many samples were
+  pushed in all. `AudioEngine::waveform(samples, count, &info)` (rate, position; false when not playing) and the old
+  `spectrum()` read it; the 2048-point FFT moved to `audio/Fft` for both.
+- **Analysis** (`viz::Analyzer`, one `update()` per painted frame; 0.035 ms in Release when new audio arrived, else
+  only the smoothing): a Hann-windowed 2048-point power spectrum of the newest samples, normalised so a full-scale sine is 0 dB;
+  96 bands from 35 Hz to 16 kHz spaced on log(f + 100 Hz) (less room for the bass than pure log); a band takes its
+  loudest bin, or, while narrower than a bin (below ~370 Hz at 48 kHz), the magnitude interpolated at its centre, so the
+  bass rises as one smooth shape instead of steps of equal bars; +2.5 dB / octave around 1 kHz (-8..+9 dB); a ceiling
+  that follows the loudest band (up in 0.12 s, down in 5 s, -32..+6 dB) over a 50 dB range with a 1.5 gamma; attack
+  35 ms / release 240 ms on the display clock; peaks held 0.35 s then falling at 2.4 /s². Bass (40-140 Hz), mid
+  (250 Hz-2 kHz) and treble (2.5-10 kHz) in their own adaptive 30 dB ranges. Paused: the goals go to zero and the
+  release runs faster, at rest after ~0.9 s (`resting()`).
+- **Beats** (`viz::BeatDetector`): on a fixed grid of the audio, every 512 samples at 48 kHz (10.7 ms), each step from
+  the 2048 samples that ended there (the 4096-sample history covers frames up to ~40 ms apart), so 60 and 240 Hz
+  displays and 10 / 20 ms device blocks give the same beats. Onset function: the mean over the 40-250 Hz bins of how
+  much each rose (dB, floored at -75) against the spectrum 35 ms earlier (interpolated), averaged with the previous
+  step; threshold: mean + 2.5 mean deviations of the last ~1.5 s + 2 dB; one beat per 260 ms at most, re-armed when the
+  rise has passed, none while the bass is below -58 dB. The pulse is 0.35..1 by how far over the threshold, decaying
+  in 0.18 s. Latency after the kick: 33-60 ms in the tests (the window's taper); the picture is ahead of the sound by
+  the device buffer (≤ 40 ms shared), so the two roughly cancel.
+- **Oscilloscope**: a 1/2000 s box low pass, a trigger on the first rising zero crossing (hysteresis 4 % of the
+  envelope) so a periodic sound stands still, 24 ms decimated to 320 points, auto-gained (fast up, 1.5 s down, never
+  below 0.03 so the hiss of a quiet passage stays small).
+- **Frames and cost**: while sound plays the view asks for every display refresh up to ~125 a second
+  (`frame::requestNext`); on faster displays every second or third one (`frame::requestNextEvery(n)`: the frame is
+  presented with sync interval n, `WindowTarget::end(n)`, so the pacing is even; any plain `requestNext()` in the same
+  frame wins). 240 Hz: 120 frames a second; 60 / 120 / 144 / 165 Hz: all of them. The audio changes every 10 ms (the
+  device period), so frames beyond that would only interpolate the smoothing at full GPU cost. A timer can't pace this:
+  the loop's `MsgWaitForMultipleObjects` wakes on the system tick, which gave an uneven 75-95 frames a second.
+  Nothing else is painted meanwhile: `coversWindow()` is true once it has faded in, so `Window::paintLayers` starts at
+  it (the page, the player bar, Now Playing and their timers stay quiet). Paused: it settles in about a second, then
+  asks for no frames at all (a play / pause or track change repaints through `playerChangedHooks`). Reduce motion or Windows' animation effects
+  off: slow smoothing (250 / 900 ms) at 10 frames a second, no beat ring or breathing, still curtains and motes; the
+  backdrop doesn't drift. Hidden and minimized windows never render (3.3). The curtain bitmap has a device hook; the
+  analysis, lyrics and layouts go with the view.
+- **Measured** (Release; the Intel UHD of an i7-14650HX driving a 2560 × 1440 240 Hz panel at 175 %; the synthetic
+  song; one 10 s sample each after the view settled, so ±a few points; CPU in % of one core, GPU = the process's 3D
+  engine): a 1920 × 1080 px window (1097 × 617 DIP) — Spektrum 8 % / 27 %, Halka 16 % / 34 %, Dalga 18 % / 21 %,
+  Aurora 4 % / 30 %, at 105-130 frames/s, painting 0.16-0.5 ms; full screen 2560 × 1440 — 8 % / 31 %, 12 % / 36 %,
+  13 % / 38 %, 6 % / 37 %, at 123-134 frames/s; paused (after settling) 0.5 % / 1 %; reduce motion 1.2-1.5 % / 3-5 %
+  at 10 frames/s. Every frame at 240 Hz (before the pacing above) cost 19-23 % / 32-53 % in the window. Now Playing
+  on the same machine, for comparison: 4-18 % / 24-33 % at 54-83 frames/s (synced lyrics). The analysis is 0.035 ms
+  (`visualizer_test` timing); the rest is Direct2D: the backdrop and its grain are two full-window passes, Aurora
+  adds its stretched curtains, Halka its glow and ~180 lines, Dalga five stroked polylines (the trail ones at half the
+  points).
+
+Dev: `SHADETUBE_VIZ_MODE` (the mode for this run, not saved), `SHADETUBE_VIZ_LOG=1` (every 5 s: mode, size, frames/s,
+paint time, analyses/s, backdrop renders/s; `visualizer` lines), `SHADETUBE_VIZ_SHOTS=<folder>;<ms>;<count>;<gap ms>`
+(consecutive frames as PNGs, to judge motion). Open it with `SHADETUBE_KEYS_DEMO=3000:action:visualizer`; music to react
+to: `visualizer_test wav <file>` writes 90 s of synthetic drums + bass + chords + arpeggio (drop it with a `cover.png`
+into a folder and play that with `SHADETUBE_PLAY_FILES`).
 
 ## 4. Coding conventions
 
@@ -3683,6 +3783,7 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `memory_test` | memory housekeeping (3.2) on the real graphics device: `ImageCache` buckets (a 300 px request decodes at 384, never above the picture's own size), expiry (kept when painted in the last frames, on the current or the previous page scope or within the idle time; dropped otherwise, bytes given back, loaded again when painted), `Icons::drawColored` above 96 px painting from the document with no bitmap per size, `Device::trimPool` (released bitmaps come back only through it; numbers printed), `MemoryStats::detailedReport`, `ListenStats::readFile` leaving no capacity slack | offline (own temp folder and profile) |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.32): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
 | `recognize_test` | song recognition (3.57): base64 / CRC-32, the signature of a synthetic signal with known peaks (bands, frequencies, times, levels, feeding patterns, silence), the binary format (header fields, the pass escape, padding, damaged bytes, the `synthetic.uri` fixture), recorded service answers and odd shapes, the request body, the session on test audio with a fake service (silence, the 4 / 7 / 11 s schedule, a match, an unsure answer confirmed / standing alone, 429, no network, `stop()` with a request out), catalog matching (folding, artist credits, prefixes), the `recognized.json` store | offline (own temp folder); `live <file> [start] [s]`, `yt "Artist - Title" [start] [s] [--wav out]`, `songs [--short] [--snr dB] "…"…` (requests 20 s apart, `RECOGNIZE_GAP`), `noise`, `dump <file\|query\|noise> <out.json>`, `capture <system\|mic> [s]` (a real session), `level <system\|mic> [s]` (the capture alone, nothing sent) |
+| `visualizer_test` | the visualizer's analysis (`audio/VisualAnalysis`, 3.57): band edges (contiguous, increasing, the interpolated ones only at the low end, at 44.1 / 48 / 96 kHz), a sine at each band's centre in that band or its neighbour, levels in dB, `sampleAt`, a 60 Hz → 12 kHz sweep moving the loudest band only up, beats on synthetic music (drums, bass, chords, arpeggio) at 90 / 120 / 140 BPM read at 60 / 144 / 240 frames/s, with 10 and 20 ms engine blocks and at 44.1 kHz (every kick once, 0-90 ms late, nothing else, the same beats at every rate), no beats in an intro without drums, a held chord, a sine or silence (white noise: at most one stray beat in 7 s), the beat pulse's decay, settling when paused (peaks hold, then fall; at rest within 1.5 s), the oscilloscope's trigger (a tone stands still) and gain, timing | offline; `wav <file> [s]` writes the synthetic song (48 kHz stereo) for the app |
 | `icons_test` | the icon set (3.43) through `gfx::Icons`: every file in every grid (viewBox = grid, path / rect / circle only, black only, the grid's stroke width, parsed by `ID2D1SvgDocument`, no `-thin` files), the grid order and legacy names, `-thin` aliases drawing the same masks, whole-pixel strokes at each grid's own size, the ink of a stroke from 9 to 36 px (≥ 1 px, then px / 16), `heart-filled` covering `heart`, the `downloaded` check cut out | offline; `--sheet <dir>` (contact sheets: all icons at 12-24 DIP × 80-175 % in dark / light / nord / pastel / sepia, each grid magnified, off / on pairs) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -3783,6 +3884,9 @@ change), `--installed` / `--updated` (notice after an install or update; the set
 | `SHADETUBE_SETTINGS_SEARCH` | text typed into the Settings search box when the first Settings page opens (screenshots) |
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
+| `SHADETUBE_VIZ_MODE` | `bars`, `ring`, `wave` or `aurora`: the visualizer's mode for this run (not saved; 3.57) |
+| `SHADETUBE_VIZ_LOG=1` | while the visualizer is open, logs every 5 s its mode, size, frames/s, paint time, analyses/s and backdrop renders/s (`visualizer` lines) |
+| `SHADETUBE_VIZ_SHOTS` | `<folder>;<ms>;<count>;<gap ms>`: once the visualizer has been open `<ms>`, writes `count` frames `gap` ms apart as `viz-N.png` (motion checks) |
 | `SHADETUBE_NP_TAB` | `lyrics`, `queue` or `about`: the tab Now Playing opens on (screenshots; 3.40) |
 | `SHADETUBE_NP_LOG=1` | while Now Playing is open, logs every 5 s its frames/s and the backdrop field's size, renders/s and cost (`nowplaying` lines) |
 | `SHADETUBE_PREVIEW_DEMO` | `<action>@<ms>[=<x>,<y>];…` after startup, at window DIPs: `hold` (left press, kept down), `up`, `move` (with the button down), `click`, `rclick` (the context menu), `key` (the `preview` action), `esc`. E.g. with `--route local:songs`, `SHADETUBE_PLAY_FILES` and `--screenshot`: `hold@3500=900,450;up@7000` (3.30) |
@@ -4084,3 +4188,9 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   same before and after, ±0.3 MB, by the `ST_MEMPROFILE` tally); the listening history costs ~550 bytes a song (its
   index keys are wide strings) and the local library ~1.7 KB a file with long paths (each file keeps its folder's cover
   path); a minimized window keeps its swap chain until the idle release (the taskbar thumbnail).
+- **Visualizer** (3.57): the picture runs ahead of the sound by the device buffer (up to ~40 ms shared, about the same
+  exclusive); the analysis window's own lag (a kick shows 33-60 ms after it enters) roughly cancels it, nothing
+  compensates it exactly. The beat detector was tuned on synthetic music (`visualizer_test`) and adapts its threshold;
+  songs without a kick or bass attacks (ballads, ambient, most classical) give few beats, steady noise an occasional
+  stray one. Measured on one machine only (the Intel UHD of an i7-14650HX driving a 2560 × 1440 240 Hz panel): no 4K
+  display was available. The cover does not fly in from Now Playing when the view opens (it fades in with the view).

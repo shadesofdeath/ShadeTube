@@ -1246,6 +1246,7 @@ void App::restart() {
 }
 
 void App::saveMainPlacement() {
+    window_->setFullscreen(false);   // the visualizer's full screen: the placement to keep is the one before it
     auto& st = Settings::get();
     WINDOWPLACEMENT wp{sizeof wp};
     if (!GetWindowPlacement(window_->hwnd(), &wp)) return;   // works while hidden too (tray / mini player)

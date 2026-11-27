@@ -2539,5 +2539,14 @@
   "Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm bağlantıları desteklenir.": "Este enlace no se puede importar. Se admiten enlaces de playlists o álbumes de YouTube, Deezer, Apple Music y TIDAL.",
   "{} bağlantısı": "Enlace de {}",
   "Bağlantıyı aç": "Abrir enlace",
-  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Este enlace de {} no se puede abrir. Se admiten enlaces de playlists, álbumes y canciones."
+  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Este enlace de {} no se puede abrir. Se admiten enlaces de playlists, álbumes y canciones.",
+  "Görselleştirici": "Visualizador",
+  "Spektrum": "Espectro",
+  "Halka": "Anillo",
+  "Dalga": "Onda",
+  "Aurora": "Aurora",
+  "Görselleştirici için önce bir şey çal": "Reproduce algo primero para abrir el visualizador",
+  "Söz satırını göster": "Mostrar la línea de la letra",
+  "Söz satırını gizle": "Ocultar la línea de la letra",
+  "Duraklatıldı": "En pausa"
 }

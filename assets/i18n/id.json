@@ -2312,5 +2312,14 @@
   "Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm bağlantıları desteklenir.": "Tautan ini tidak bisa diimpor. Tautan playlist atau album YouTube, Deezer, Apple Music, dan TIDAL didukung.",
   "{} bağlantısı": "Tautan {}",
   "Bağlantıyı aç": "Buka tautan",
-  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Tautan {} ini tidak bisa dibuka. Tautan playlist, album, dan lagu didukung."
+  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Tautan {} ini tidak bisa dibuka. Tautan playlist, album, dan lagu didukung.",
+  "Görselleştirici": "Visualisasi",
+  "Spektrum": "Spektrum",
+  "Halka": "Cincin",
+  "Dalga": "Gelombang",
+  "Aurora": "Aurora",
+  "Görselleştirici için önce bir şey çal": "Putar sesuatu dulu untuk membuka visualisasi",
+  "Söz satırını göster": "Tampilkan baris lirik",
+  "Söz satırını gizle": "Sembunyikan baris lirik",
+  "Duraklatıldı": "Dijeda"
 }

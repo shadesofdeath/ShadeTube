@@ -42,11 +42,15 @@ class Acrylic;
 // - exiting(): asked when removeOverlay() takes it out. While it returns true the overlay is still painted (above the
 //   open overlays, so a capture never contains it) but gets no input, focus or modality and no window(); then it is
 //   deleted. Its close animation.
+// - coversWindow(): the open overlay paints every pixel of the window opaque now (a full-window view, faded in all the
+//   way): the tree and the overlays below it are not painted at all (nothing of them would show), so whatever they
+//   animate costs nothing meanwhile.
 class OverlayLayer {
 public:
     virtual ~OverlayLayer() = default;
     virtual void prepareBackdrop(Canvas&, Window&) {}
     virtual bool exiting() const { return false; }
+    virtual bool coversWindow() const { return false; }
 };
 
 class Window {
@@ -91,6 +95,8 @@ public:
     // painting began: a steady cadence that doesn't depend on the refresh rate (25 ms = every second 60 Hz frame,
     // every fourth at 120 Hz, ~30 fps). For continuous low-rate motion: the seek wave, the playing bars.
     void invalidateAfterShown(double ms);
+    // The display's refresh period in ms as DWM reported it for the last frame (0 = unknown).
+    double refreshPeriod() const { return period_; }
     // Content changes below the overlays, for their acrylic backdrops (ui/Acrylic): the generation advances whenever
     // a widget of the tree asks for a repaint (recorded at its window rect, plus a margin for shadows) or a layout,
     // or the window is resized, zoomed or re-themed (the whole window). lastChangeIn() = the generation of the latest
@@ -126,6 +132,11 @@ public:
     Rect clientRect() const { return {0, 0, widthDip_, heightDip_}; }
     bool isMaximized() const;
     bool isMinimized() const;
+    // Borderless full screen on the window's monitor (the visualizer, app/Visualizer): no caption or frame, the whole
+    // monitor, no resize borders or caption drag, square corners. A maximized window is restored first and maximized
+    // again when it leaves; the saved placement (GetWindowPlacement) is only right again after it left.
+    void setFullscreen(bool on);
+    bool isFullscreen() const { return fullscreen_; }
     bool isActive() const { return active_; }
     void minimize();
     void toggleMaximize();
@@ -267,8 +278,13 @@ private:
     bool backdropWanted_ = false;   // setBackdrop()
     bool backdropOn_ = false;       // wanted, available and live: DWM Mica + translucent base surface
     bool dwmOffPending_ = false;    // DWM backdrop goes off once the next (opaque) frame is up
+    bool fullscreen_ = false;       // setFullscreen(): what to go back to
+    bool savedMaximized_ = false;
+    LONG savedStyle_ = 0;
+    RECT savedRect_{};
     double wakeAt_ = 1e300;
     double lastFrameAt_ = 0;   // frame time of the last render (frameTime())
+    double period_ = 0;        // the refresh period frameTime() saw
 
     Widget* hover_ = nullptr;
     Widget* capture_ = nullptr;

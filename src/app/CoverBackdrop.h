@@ -33,6 +33,9 @@ public:
     // (3:1 against its worst point): the views' mono labels.
     const cover::Band& band() const { return band_; }
     Color labelColor() const { return label_; }
+    // The colours of the cover on screen (or the accent's tones), as found: nullptr before the first palette (the
+    // visualizer's curtains, app/Visualizer).
+    const cover::Palette* palette() const { return hasPalette_ ? &toRaw_ : nullptr; }
 
     // Reduce motion off and Windows' animation effects (SPI_GETCLIENTAREAANIMATION) on: ui::motion::micro().
     static bool animationsAllowed();

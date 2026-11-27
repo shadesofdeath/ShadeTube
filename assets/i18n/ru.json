@@ -2749,5 +2749,14 @@
   "Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm bağlantıları desteklenir.": "Эту ссылку нельзя импортировать. Поддерживаются ссылки на плейлисты и альбомы YouTube, Deezer, Apple Music и TIDAL.",
   "{} bağlantısı": "Ссылка {}",
   "Bağlantıyı aç": "Открыть ссылку",
-  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Эту ссылку {} нельзя открыть. Поддерживаются ссылки на плейлисты, альбомы и песни."
+  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Эту ссылку {} нельзя открыть. Поддерживаются ссылки на плейлисты, альбомы и песни.",
+  "Görselleştirici": "Визуализатор",
+  "Spektrum": "Спектр",
+  "Halka": "Кольцо",
+  "Dalga": "Волна",
+  "Aurora": "Сияние",
+  "Görselleştirici için önce bir şey çal": "Сначала включите что-нибудь, чтобы открыть визуализатор",
+  "Söz satırını göster": "Показывать строку текста",
+  "Söz satırını gizle": "Скрыть строку текста",
+  "Duraklatıldı": "Пауза"
 }

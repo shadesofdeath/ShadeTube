@@ -153,6 +153,10 @@ struct Settings {
     // Track lists' optional columns the user picked in a column header's menu (app/TrackColumns): "album", "added",
     // "plays", comma separated; "" = the default (all three, where a list has them; plays only with play counts).
     std::string trackColumns;
+    // The full-screen visualizer (app/Visualizer): its mode ("bars" | "ring" | "wave" | "aurora") and whether the sung
+    // lyric line shows.
+    std::string visualizerMode = "ring";
+    bool visualizerLyrics = true;
 
     static Settings& get();
     void load();
