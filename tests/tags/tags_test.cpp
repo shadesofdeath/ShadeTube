@@ -664,12 +664,13 @@ tags::Edit fullEdit() {
     e.disc = 1;
     e.year = 1985;
     e.genre = "Anadolu Rock";
+    e.bpm = 128;
     return e;
 }
 
 bool fullEditApplied(const tags::Tags& t) {
     return t.title == kTitleTr && t.artist == kArtistsOut && t.album == kAlbumJa && t.albumArtist == kAlbumArtistTr &&
-           t.track == 3 && t.disc == 1 && t.year == 1985 && t.genre == "Anadolu Rock";
+           t.track == 3 && t.disc == 1 && t.year == 1985 && t.genre == "Anadolu Rock" && t.bpm == 128;
 }
 
 tags::Edit coverEdit(const Bytes& data, const char* mime) {
@@ -742,7 +743,17 @@ void testMp3(const fs::path& wav, const Images& img) {
     const auto frames1 = id3Frames(f1);
     for (const char* id : {"USLT", "SYLT", "TXXX", "COMM", "TSSE", "APIC"})
         CHECK(bodies(frames0, id) == bodies(frames1, id) && !bodies(frames1, id).empty());
-    CHECK(frames1.count("TIT2") == 1 && frames1.count("TYER") == 1 && frames1.count("TPE2") == 1);
+    CHECK(frames1.count("TIT2") == 1 && frames1.count("TYER") == 1 && frames1.count("TPE2") == 1 && frames1.count("TBPM") == 1);
+    {   // the tempo alone: changed, then removed (TBPM goes, the rest stays)
+        tags::Edit b;
+        b.bpm = 96;
+        CHECK(tags::write(mp3, b).status == tags::Status::Ok && tags::read(mp3).tags.bpm == 96 && tags::read(mp3).tags.title == kTitleTr);
+        b.bpm = 0;
+        CHECK(tags::write(mp3, b).status == tags::Status::Ok && tags::read(mp3).tags.bpm == 0 && id3Frames(readAll(mp3)).count("TBPM") == 0);
+        b.bpm = 128;
+        w = tags::write(mp3, b);   // (w: the file as it is now, for the checks below)
+        CHECK(w.status == tags::Status::Ok && tags::payloadHash(mp3) == pay0);
+    }
     const auto gain = st::audio::replaygain::readTrackGainDb(mp3);
     CHECK(gain && std::fabs(*gain + 4.5f) < 0.01f);
     CHECK(static_cast<uint64_t>(w.size) == fs::file_size(mp3));

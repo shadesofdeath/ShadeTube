@@ -48,6 +48,7 @@ struct Picture {
 struct Tags {
     std::string title, artist, album, albumArtist, genre;   // UTF-8; several artists are joined with "; "
     int track = 0, trackTotal = 0, disc = 0, discTotal = 0, year = 0;   // 0 = none
+    int bpm = 0;                                             // tempo (ID3 TBPM, MP4 tmpo, Vorbis BPM), 0 = none
     std::optional<Picture> cover;                            // the front cover (else the first picture)
     bool operator==(const Tags&) const = default;
 };
@@ -63,7 +64,7 @@ ReadResult read(const std::filesystem::path& file);
 // What to change; unset = leave as it is. Strings are trimmed; an empty string removes the field. Numbers: 0 removes.
 struct Edit {
     std::optional<std::string> title, artist, album, albumArtist, genre;
-    std::optional<int> track, disc, year;
+    std::optional<int> track, disc, year, bpm;
     enum class Cover { Keep, Set, Remove };
     Cover cover = Cover::Keep;
     Picture picture;   // for Cover::Set (front cover)
