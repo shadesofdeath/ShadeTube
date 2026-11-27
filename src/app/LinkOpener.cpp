@@ -4,6 +4,7 @@
 #include "app/Blends.h"
 #include "app/PlaylistTransfer.h"
 #include "app/Router.h"
+#include "app/ServiceImport.h"
 #include "app/Source.h"
 #include "app/Together.h"
 #include "core/I18n.h"
@@ -194,6 +195,7 @@ void openYouTubeVideo(const std::string& videoId) {
 } // namespace
 
 std::wstring linkLabel(const Link& link) {
+    const std::wstring service = svc::serviceName(link.service);   // Deezer / Apple Music / TIDAL
     switch (link.kind) {
     case Kind::None: return {};
     case Kind::SpotifyTrack: return tr(L"Spotify şarkısı");
@@ -212,6 +214,10 @@ std::wstring linkLabel(const Link& link) {
     case Kind::MbRecording: return tr(L"MusicBrainz kaydı");
     case Kind::JamInvite: return tr(L"Birlikte dinleme daveti");
     case Kind::BlendInvite: return tr(L"Blend daveti");
+    case Kind::ServicePlaylist: return i18n::format(tr(L"{} çalma listesi"), {service});
+    case Kind::ServiceAlbum: return i18n::format(tr(L"{} albümü"), {service});
+    case Kind::ServiceTrack: return i18n::format(tr(L"{} şarkısı"), {service});
+    case Kind::ServiceShortLink: return i18n::format(tr(L"{} bağlantısı"), {service});
     case Kind::Unsupported: break;
     }
     return tr(L"Desteklenmeyen bağlantı");
@@ -220,7 +226,11 @@ std::wstring linkLabel(const Link& link) {
 std::wstring linkAction(const Link& link) {
     switch (link.kind) {
     case Kind::SpotifyTrack:
+    case Kind::ServiceTrack:
     case Kind::MbRecording: return tr(L"Şarkıyı çal");
+    case Kind::ServicePlaylist: return tr(L"Yerel listeye aktar");
+    case Kind::ServiceAlbum: return tr(L"Albümü aç");
+    case Kind::ServiceShortLink: return tr(L"Bağlantıyı aç");
     case Kind::YouTubeVideo: return tr(L"Videoyu şarkı olarak çal");
     case Kind::YouTubePlaylist: return source::ytmMode() ? tr(L"Çalma listesini aç") : tr(L"Yerel listeye aktar");
     case Kind::SpotifyAlbum:
@@ -272,6 +282,12 @@ bool openLink(const Link& link) {
         toast(tr(L"Bu ShadeTube bağlantısı açılamıyor"), true);
         return true;
     }
+    if (link.kind == Kind::Unsupported && !svc::serviceName(link.service).empty()) {   // Deezer / Apple Music / TIDAL
+        toast(i18n::format(tr(L"Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir."),
+                           {svc::serviceName(link.service)}),
+              true);
+        return true;
+    }
     if (link.kind == Kind::Unsupported) {
         toast(tr(L"Bu bağlantı açılamıyor. Şarkı, albüm, çalma listesi, sanatçı, podcast ve profil bağlantıları desteklenir."), true);
         return true;
@@ -318,6 +334,10 @@ bool openLink(const Link& link) {
         if (router) router->navigate({RouteKind::Artist, link.id});
         break;
     case Kind::MbRecording: openMbRecording(link.id); break;
+    case Kind::ServicePlaylist:
+    case Kind::ServiceAlbum:
+    case Kind::ServiceTrack:
+    case Kind::ServiceShortLink: transfer::openServiceLink(link); break;
     case Kind::JamInvite:
     case Kind::BlendInvite:
     case Kind::None:

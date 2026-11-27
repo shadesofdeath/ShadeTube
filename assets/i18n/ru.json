@@ -1333,7 +1333,6 @@
   "Çalma listesi olarak kaydet": "Сохранить как плейлист",
   "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "Эти треки не скачиваются при синхронизации «{}». Возвращённый трек скачается при следующей синхронизации.",
   "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "Вставьте ссылку на плейлист YouTube или YouTube Music. Его видео станут локальным плейлистом, который играет именно эти записи.",
-  "Bu bir YouTube oynatma listesi bağlantısı değil": "Это не ссылка на плейлист YouTube",
   "CSV tablosu (Excel)": "Таблица CSV (Excel)",
   "Dosyadan içe aktar…": "Импорт из файла…",
   "Dosyayı göster": "Показать файл",
@@ -2690,5 +2689,65 @@
   "Tanıma hizmeti yanıt vermedi": "Служба распознавания не ответила",
   "Biraz sonra tekrar dene.": "Попробуй чуть позже.",
   "Ses dinlenemedi": "Не удалось слушать",
-  "Ses aygıtı açılamadı. Tekrar dene ya da diğer kaynağı seç.": "Не удалось открыть аудиоустройство. Попробуй снова или выбери другой источник."
+  "Ses aygıtı açılamadı. Tekrar dene ya da diğer kaynağı seç.": "Не удалось открыть аудиоустройство. Попробуй снова или выбери другой источник.",
+  "{} şarkı okundu": {
+    "one": "прочитана {} песня",
+    "few": "прочитаны {} песни",
+    "many": "прочитано {} песен",
+    "other": "прочитано {} песни"
+  },
+  "{}: {} eşleşti": "{}: найдено {}",
+  "{} tanesi ISRC ile birebir": {
+    "one": "{} точно по ISRC",
+    "few": "{} точно по ISRC",
+    "many": "{} точно по ISRC",
+    "other": "{} точно по ISRC"
+  },
+  "{} bulunamadı": {
+    "one": "не найдено: {}",
+    "few": "не найдено: {}",
+    "many": "не найдено: {}",
+    "other": "не найдено: {}"
+  },
+  "{} bu listenin yalnızca ilk {} şarkısını verdi; liste daha uzun olabilir.": "{} отдал только первые {} песен этого списка; он может быть длиннее.",
+  "{} öğe atlandı: video ya da serviste artık olmayan şarkı.": {
+    "one": "Пропущен {} элемент: видео или песня, которой больше нет в сервисе.",
+    "few": "Пропущено {} элемента: видео или песни, которых больше нет в сервисе.",
+    "many": "Пропущено {} элементов: видео или песни, которых больше нет в сервисе.",
+    "other": "Пропущено {} элемента: видео или песни, которых больше нет в сервисе."
+  },
+  "Eşleştirme bağlantı sorunları yüzünden yarıda kaldı; kalan şarkılar adlarıyla eklenir.": "Сопоставление прервалось из-за проблем с подключением; остальные песни добавляются по названию.",
+  "Bulunamayanları da ekle": "Добавить и ненайденные",
+  "Adlarıyla eklenirler; çalınırken YouTube'da adlarıyla aranırlar.": "Они добавляются по названию и при воспроизведении ищутся на YouTube по названию.",
+  "{} albümü": "Альбом {}",
+  "{} şarkısı": "Песня {}",
+  "Bu çalma listesi açılamadı: gizli, silinmiş ya da bu ülkede kapalı olabilir.": "Не удалось открыть плейлист: он может быть закрытым, удалённым или недоступным в этой стране.",
+  "Bu albüm ya da şarkı bulunamadı: kaldırılmış ya da bu ülkede kapalı olabilir.": "Альбом или песня не найдены: возможно, они удалены или недоступны в этой стране.",
+  "Bu liste gizli: sahibi herkese açık yapmadıkça okunamıyor.": "Этот список закрыт: его нельзя прочитать, пока владелец не сделает его общедоступным.",
+  "Bu liste bu ülkede açılamıyor.": "Этот список недоступен в этой стране.",
+  "{} şu anda hesapsız okumaya izin vermiyor. Biraz sonra yeniden dene.": "{} сейчас не даёт читать без аккаунта. Попробуйте чуть позже.",
+  "{} yanıt vermiyor. Bağlantını kontrol et.": "{} не отвечает. Проверьте подключение.",
+  "{} yanıtı okunamadı.": "Не удалось прочитать ответ {}.",
+  "{} okunuyor…": "Чтение {}…",
+  "Şarkılar, adları ve ISRC kodlarıyla okunuyor.": "Песни читаются с названиями и кодами ISRC.",
+  "{} kataloğunda eşleştiriliyor…": "Сопоставление с каталогом {}…",
+  "{} şarkı eşleşti": {
+    "one": "найдена {} песня",
+    "few": "найдены {} песни",
+    "many": "найдено {} песен",
+    "other": "найдено {} песни"
+  },
+  "Çalma listesi içe aktarılıyor": "Импорт плейлиста",
+  "Bu Deezer bağlantısının süresi dolmuş ya da bir liste, albüm veya şarkıya gitmiyor.": "Срок действия этой ссылки Deezer истёк, или она не ведёт к плейлисту, альбому или песне.",
+  "Deezer'dan içe aktar": "Импорт из Deezer",
+  "Deezer'dan içe aktar…": "Импорт из Deezer…",
+  "Apple Music'ten içe aktar": "Импорт из Apple Music",
+  "Apple Music'ten içe aktar…": "Импорт из Apple Music…",
+  "TIDAL'dan içe aktar": "Импорт из TIDAL",
+  "TIDAL'dan içe aktar…": "Импорт из TIDAL…",
+  "Bir {} çalma listesinin ya da albümünün bağlantısını yapıştır. Şarkılar {} kataloğunda eşleştirilir ve bir yerel listeye dönüşür; liste herkese açık olmalı.": "Вставьте ссылку на плейлист или альбом {}. Песни сопоставляются с каталогом {} и превращаются в локальный плейлист; список должен быть общедоступным.",
+  "Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm bağlantıları desteklenir.": "Эту ссылку нельзя импортировать. Поддерживаются ссылки на плейлисты и альбомы YouTube, Deezer, Apple Music и TIDAL.",
+  "{} bağlantısı": "Ссылка {}",
+  "Bağlantıyı aç": "Открыть ссылку",
+  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Эту ссылку {} нельзя открыть. Поддерживаются ссылки на плейлисты, альбомы и песни."
 }

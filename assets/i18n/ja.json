@@ -1101,7 +1101,6 @@
   "Çalma listesi olarak kaydet": "プレイリストとして保存",
   "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "「{}」を同期するとき、これらの曲はダウンロードされません。戻した曲は次の同期でダウンロードされます。",
   "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "YouTube または YouTube Music の再生リストのリンクを貼り付けてください。動画はそのままの音源を再生するローカルの再生リストになります。",
-  "Bu bir YouTube oynatma listesi bağlantısı değil": "YouTube の再生リストのリンクではありません",
   "CSV tablosu (Excel)": "CSV 表 (Excel)",
   "Dosyadan içe aktar…": "ファイルから読み込む…",
   "Dosyayı göster": "ファイルを表示",
@@ -2268,5 +2267,50 @@
   "Tanıma hizmeti yanıt vermedi": "認識サービスから応答がありません",
   "Biraz sonra tekrar dene.": "しばらくしてからもう一度試してください。",
   "Ses dinlenemedi": "聴き取れませんでした",
-  "Ses aygıtı açılamadı. Tekrar dene ya da diğer kaynağı seç.": "オーディオデバイスを開けませんでした。もう一度試すか、もう一方のソースを選んでください。"
+  "Ses aygıtı açılamadı. Tekrar dene ya da diğer kaynağı seç.": "オーディオデバイスを開けませんでした。もう一度試すか、もう一方のソースを選んでください。",
+  "{} şarkı okundu": {
+    "other": "{} 曲を読み込みました"
+  },
+  "{}: {} eşleşti": "{}: {} 曲が一致",
+  "{} tanesi ISRC ile birebir": {
+    "other": "うち {} 曲は ISRC で完全一致"
+  },
+  "{} bulunamadı": {
+    "other": "{} 曲は見つかりません"
+  },
+  "{} bu listenin yalnızca ilk {} şarkısını verdi; liste daha uzun olabilir.": "{} はこのリストの最初の {} 曲しか返しませんでした。実際はもっと長い可能性があります。",
+  "{} öğe atlandı: video ya da serviste artık olmayan şarkı.": {
+    "other": "{} 件をスキップしました（動画、またはサービスにもう無い曲）。"
+  },
+  "Eşleştirme bağlantı sorunları yüzünden yarıda kaldı; kalan şarkılar adlarıyla eklenir.": "接続の問題で照合が途中で止まりました。残りの曲は名前で追加されます。",
+  "Bulunamayanları da ekle": "見つからなかった曲も追加",
+  "Adlarıyla eklenirler; çalınırken YouTube'da adlarıyla aranırlar.": "名前で追加され、再生時に YouTube で名前から検索されます。",
+  "{} albümü": "{} のアルバム",
+  "{} şarkısı": "{} の曲",
+  "Bu çalma listesi açılamadı: gizli, silinmiş ya da bu ülkede kapalı olabilir.": "このプレイリストを開けませんでした。非公開か削除済み、またはこの国では利用できない可能性があります。",
+  "Bu albüm ya da şarkı bulunamadı: kaldırılmış ya da bu ülkede kapalı olabilir.": "このアルバムまたは曲は見つかりませんでした。削除されたか、この国では利用できない可能性があります。",
+  "Bu liste gizli: sahibi herkese açık yapmadıkça okunamıyor.": "このリストは非公開です。所有者が公開しない限り読み込めません。",
+  "Bu liste bu ülkede açılamıyor.": "このリストはこの国では利用できません。",
+  "{} şu anda hesapsız okumaya izin vermiyor. Biraz sonra yeniden dene.": "{} は現在アカウントなしでの読み込みを許可していません。しばらくしてからもう一度お試しください。",
+  "{} yanıt vermiyor. Bağlantını kontrol et.": "{} が応答しません。接続を確認してください。",
+  "{} yanıtı okunamadı.": "{} の応答を読み取れませんでした。",
+  "{} okunuyor…": "{} を読み込み中…",
+  "Şarkılar, adları ve ISRC kodlarıyla okunuyor.": "曲名と ISRC コードを読み込んでいます。",
+  "{} kataloğunda eşleştiriliyor…": "{} のカタログと照合中…",
+  "{} şarkı eşleşti": {
+    "other": "{} 曲が一致"
+  },
+  "Çalma listesi içe aktarılıyor": "プレイリストをインポート中",
+  "Bu Deezer bağlantısının süresi dolmuş ya da bir liste, albüm veya şarkıya gitmiyor.": "この Deezer リンクは期限切れか、プレイリスト・アルバム・曲を指していません。",
+  "Deezer'dan içe aktar": "Deezer からインポート",
+  "Deezer'dan içe aktar…": "Deezer からインポート…",
+  "Apple Music'ten içe aktar": "Apple Music からインポート",
+  "Apple Music'ten içe aktar…": "Apple Music からインポート…",
+  "TIDAL'dan içe aktar": "TIDAL からインポート",
+  "TIDAL'dan içe aktar…": "TIDAL からインポート…",
+  "Bir {} çalma listesinin ya da albümünün bağlantısını yapıştır. Şarkılar {} kataloğunda eşleştirilir ve bir yerel listeye dönüşür; liste herkese açık olmalı.": "{} のプレイリストまたはアルバムのリンクを貼り付けてください。曲は {} のカタログと照合され、ローカルのプレイリストになります（公開リストのみ）。",
+  "Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm bağlantıları desteklenir.": "このリンクはインポートできません。YouTube・Deezer・Apple Music・TIDAL のプレイリストまたはアルバムのリンクに対応しています。",
+  "{} bağlantısı": "{} のリンク",
+  "Bağlantıyı aç": "リンクを開く",
+  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "この {} リンクは開けません。プレイリスト・アルバム・曲のリンクに対応しています。"
 }

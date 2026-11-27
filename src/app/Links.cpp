@@ -143,6 +143,71 @@ Link parseMusicBrainz(const std::vector<std::string_view>& seg) {
     return unsupported(Service::MusicBrainz);
 }
 
+// ---- Deezer / Apple Music / TIDAL (imported through app/ServiceImport) ----------------------------------------------
+
+bool digits(std::string_view s) {
+    return !s.empty() && s.size() <= 20 && std::all_of(s.begin(), s.end(), [](char c) { return c >= '0' && c <= '9'; });
+}
+
+Kind serviceKind(std::string_view type) {   // "playlist(s)", "album(s)", "track(s)" / "song"
+    const std::string t = toLower(type);
+    if (t == "playlist" || t == "playlists") return Kind::ServicePlaylist;
+    if (t == "album" || t == "albums") return Kind::ServiceAlbum;
+    if (t == "track" || t == "tracks" || t == "song") return Kind::ServiceTrack;
+    return Kind::None;
+}
+
+// deezer.com/[<lang>/]<type>/<digits>
+Link parseDeezer(std::vector<std::string_view> seg) {
+    if (!seg.empty() && (seg[0].size() == 2 || (seg[0].size() == 5 && seg[0][2] == '-')) && serviceKind(seg[0]) == Kind::None)
+        seg.erase(seg.begin());
+    if (seg.size() >= 2 && digits(seg[1]))
+        if (const Kind k = serviceKind(seg[0]); k != Kind::None && toLower(seg[0]) != "song")
+            return make(k, Service::Deezer, std::string(seg[1]));
+    return unsupported(Service::Deezer);   // artists, podcasts, profiles...
+}
+
+// music.apple.com/<storefront>/<type>/[<slug>/]<id>[?i=<song>]
+Link parseApple(std::vector<std::string_view> seg, std::string_view query) {
+    std::string store = "us";
+    if (!seg.empty() && seg[0].size() == 2 && isAlnum(seg[0][0]) && isAlnum(seg[0][1])) {
+        store = toLower(seg[0]);
+        seg.erase(seg.begin());
+    }
+    if (seg.size() < 2) return unsupported(Service::AppleMusic);
+    const Kind k = serviceKind(seg[0]);
+    const std::string_view id = seg.back();
+    const bool idOk = k == Kind::ServicePlaylist
+                          ? id.size() > 3 && id.size() <= 64 && id.substr(0, 3) == "pl." &&
+                                std::all_of(id.begin(), id.end(), [](char c) { return isAlnum(c) || c == '.' || c == '-' || c == '_'; })
+                          : digits(id);
+    if (k == Kind::None || !idOk || toLower(seg[0]) == "track") return unsupported(Service::AppleMusic);
+    if (k == Kind::ServiceAlbum)
+        if (const auto song = queryValue(query, "i"); digits(song)) return make(Kind::ServiceTrack, Service::AppleMusic, store + "/" + std::string(song));
+    return make(k, Service::AppleMusic, store + "/" + std::string(id));
+}
+
+bool isUuid(std::string_view s) {
+    if (s.size() != 36) return false;
+    for (size_t i = 0; i < s.size(); ++i) {
+        const bool dash = i == 8 || i == 13 || i == 18 || i == 23;
+        if (dash ? s[i] != '-' : !isHex(s[i])) return false;
+    }
+    return true;
+}
+
+// tidal.com/[browse/]<type>/<id>[/track/<id>], embed.tidal.com/<type>s/<id>
+Link parseTidal(std::vector<std::string_view> seg) {
+    if (!seg.empty() && toLower(seg[0]) == "browse") seg.erase(seg.begin());
+    if (seg.size() >= 4 && toLower(seg[0]) == "album" && toLower(seg[2]) == "track" && digits(seg[3]))
+        return make(Kind::ServiceTrack, Service::Tidal, std::string(seg[3]));
+    if (seg.size() < 2 || toLower(seg[0]) == "song") return unsupported(Service::Tidal);
+    const Kind k = serviceKind(seg[0]);
+    if (k == Kind::ServicePlaylist && isUuid(seg[1])) return make(k, Service::Tidal, toLower(seg[1]));
+    if ((k == Kind::ServiceAlbum || k == Kind::ServiceTrack) && digits(seg[1])) return make(k, Service::Tidal, std::string(seg[1]));
+    return unsupported(Service::Tidal);   // artists, mixes, videos...
+}
+
 } // namespace
 
 std::string Link::spotifyUri() const {
@@ -240,6 +305,14 @@ Link parse(std::string_view text) {
         host == "youtube-nocookie.com")
         return parseYouTube(seg, query, host == "music.youtube.com");
     if (host == "musicbrainz.org" || host == "beta.musicbrainz.org") return parseMusicBrainz(seg);
+    if (host == "deezer.com") return parseDeezer(seg);
+    if (host == "link.deezer.com" || host == "deezer.page.link" || host == "dzr.page.link") {
+        const bool ok = !seg.empty() && seg.back().size() <= 64 && idChars(seg.back()) && (host != "link.deezer.com" || seg.size() == 2);
+        return ok ? make(Kind::ServiceShortLink, Service::Deezer, "https://" + host + std::string(path)) : unsupported(Service::Deezer);
+    }
+    if (host == "music.apple.com" || host == "geo.music.apple.com" || host == "embed.music.apple.com" || host == "itunes.apple.com")
+        return parseApple(seg, query);
+    if (host == "tidal.com" || host == "listen.tidal.com" || host == "embed.tidal.com") return parseTidal(seg);
     return {};
 }
 

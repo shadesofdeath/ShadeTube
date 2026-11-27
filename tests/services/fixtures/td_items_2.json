@@ -1,0 +1,335 @@
+{
+ "data": [
+  {
+   "id": "337868",
+   "type": "tracks",
+   "meta": {
+    "itemId": "23f72a06-ba5b-4425-b8cf-228167f811d8",
+    "addedAt": "2021-05-05T11:35:28.588479Z"
+   }
+  },
+  {
+   "id": "337869",
+   "type": "tracks",
+   "meta": {
+    "itemId": "7465dcf4-523b-422e-a167-c8f091d7bc2b",
+    "addedAt": "2021-05-05T11:35:28.588479Z"
+   }
+  },
+  {
+   "id": "198198",
+   "type": "tracks",
+   "meta": {
+    "itemId": "c78bee26-104b-453e-83a3-a12da7ec3139",
+    "addedAt": "2021-05-07T18:09:49.419006Z"
+   }
+  }
+ ],
+ "links": {
+  "self": "/playlists/4fd2cace-5255-409b-8748-b3661380bc7a/relationships/items?include=items.albums%2Citems.artists&countryCode=US&page%5Bcursor%5D=eyJ2ZXJzaW9uIjoxLCJwbGF5bGlzdElkIjoiNGZkMmNhY2UtNTI1NS00MDliLTg3NDgtYjM2NjEzODBiYzdhIiwic29ydCI6IklURU1fSU5ERVgiLCJzb3J0RGlyZWN0aW9uIjoiQVNDIiwicm93SWQiOjQ4NTkzNjI4NzAsImluZGV4U29ydFZhbHVlIjoyMDAwMDAwLCJhZGRlZEF0IjoiMjAyMS0wNS0wNVQxMTozNToyOC41ODg0NzkifQ"
+ },
+ "included": [
+  {
+   "id": "198197",
+   "type": "albums",
+   "attributes": {
+    "title": "Blade Runner (Music From The Original Soundtrack)",
+    "barcodeId": "745099657468",
+    "numberOfVolumes": 1,
+    "numberOfItems": 12,
+    "duration": "PT57M40S",
+    "explicit": false,
+    "ai": false,
+    "releaseDate": "1994-06-21",
+    "copyright": {
+     "text": "© 1994 Warner Music UK Ltd"
+    },
+    "popularity": 0.7066403057292339,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/198197",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "ALBUM",
+    "albumType": "ALBUM",
+    "createdAt": "2007-05-09T16:06:35Z"
+   }
+  },
+  {
+   "id": "337859",
+   "type": "albums",
+   "attributes": {
+    "title": "I Feel for You",
+    "barcodeId": "603497188666",
+    "numberOfVolumes": 1,
+    "numberOfItems": 10,
+    "duration": "PT46M58S",
+    "explicit": false,
+    "ai": false,
+    "releaseDate": "1984-10-29",
+    "copyright": {
+     "text": "© 1984 Warner Records Inc."
+    },
+    "popularity": 0.768920288812844,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/337859",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "ALBUM",
+    "albumType": "ALBUM",
+    "createdAt": "2007-05-18T14:24:54Z"
+   }
+  },
+  {
+   "id": "14023",
+   "type": "artists",
+   "attributes": {
+    "name": "Chaka Khan",
+    "popularity": 0.815556325362374,
+    "numberOfFollowers": 100031,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/14023",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "contributionsEnabled": false,
+    "ownerType": "LABEL",
+    "ownerAgeRestricted": false
+   }
+  },
+  {
+   "id": "5115",
+   "type": "artists",
+   "attributes": {
+    "name": "Vangelis",
+    "popularity": 0.7619854211807251,
+    "numberOfFollowers": 70096,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/5115",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "contributionsEnabled": false,
+    "ownerType": "LABEL",
+    "ownerAgeRestricted": false
+   }
+  },
+  {
+   "id": "198198",
+   "type": "tracks",
+   "attributes": {
+    "title": "Main Titles",
+    "version": null,
+    "isrc": "GBAHS0104432",
+    "duration": "PT3M42S",
+    "copyright": {
+     "text": "℗ 1994 Warner Music UK Ltd"
+    },
+    "explicit": false,
+    "ai": false,
+    "key": "A",
+    "keyScale": "MINOR",
+    "bpm": 121.0,
+    "popularity": 0.6200235223818976,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/198198",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2007-05-09T16:06:35Z"
+   },
+   "relationships": {
+    "albums": {
+     "data": [
+      {
+       "id": "198197",
+       "type": "albums"
+      }
+     ],
+     "links": {
+      "self": "/tracks/198198/relationships/albums?countryCode=US"
+     }
+    },
+    "artists": {
+     "data": [
+      {
+       "id": "5115",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/198198/relationships/artists?countryCode=US"
+     }
+    }
+   }
+  },
+  {
+   "id": "337868",
+   "type": "tracks",
+   "attributes": {
+    "title": "Caught in the Act",
+    "version": null,
+    "isrc": "USWB10100526",
+    "duration": "PT3M47S",
+    "copyright": {
+     "text": "℗ 1984 Warner Records Inc."
+    },
+    "explicit": false,
+    "ai": false,
+    "key": "Bb",
+    "keyScale": "MAJOR",
+    "bpm": 94.0,
+    "popularity": 0.45609006516059664,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/337868",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2007-05-18T14:24:54Z"
+   },
+   "relationships": {
+    "albums": {
+     "data": [
+      {
+       "id": "337859",
+       "type": "albums"
+      }
+     ],
+     "links": {
+      "self": "/tracks/337868/relationships/albums?countryCode=US"
+     }
+    },
+    "artists": {
+     "data": [
+      {
+       "id": "14023",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/337868/relationships/artists?countryCode=US"
+     }
+    }
+   }
+  },
+  {
+   "id": "337869",
+   "type": "tracks",
+   "attributes": {
+    "title": "Chinatown",
+    "version": null,
+    "isrc": "USWB10100527",
+    "duration": "PT4M36S",
+    "copyright": {
+     "text": "℗ 1984 Warner Records Inc."
+    },
+    "explicit": false,
+    "ai": false,
+    "key": "Eb",
+    "keyScale": "MAJOR",
+    "bpm": 118.0,
+    "popularity": 0.4495543155603312,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/337869",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2007-05-18T14:24:54Z"
+   },
+   "relationships": {
+    "albums": {
+     "data": [
+      {
+       "id": "337859",
+       "type": "albums"
+      }
+     ],
+     "links": {
+      "self": "/tracks/337869/relationships/albums?countryCode=US"
+     }
+    },
+    "artists": {
+     "data": [
+      {
+       "id": "14023",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/337869/relationships/artists?countryCode=US"
+     }
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,210 @@
+{
+ "data": [
+  {
+   "id": "165842025",
+   "type": "tracks",
+   "meta": {
+    "volumeNumber": 1,
+    "trackNumber": 1
+   }
+  },
+  {
+   "id": "165842026",
+   "type": "tracks",
+   "meta": {
+    "volumeNumber": 1,
+    "trackNumber": 2
+   }
+  },
+  {
+   "id": "165842027",
+   "type": "tracks",
+   "meta": {
+    "volumeNumber": 1,
+    "trackNumber": 3
+   }
+  }
+ ],
+ "links": {
+  "self": "/albums/165842024/relationships/items?include=items.artists&countryCode=US"
+ },
+ "included": [
+  {
+   "id": "8847",
+   "type": "artists",
+   "attributes": {
+    "name": "Daft Punk",
+    "popularity": 0.9363624453544617,
+    "numberOfFollowers": 1586444,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/8847",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "contributionsEnabled": false,
+    "ownerType": "LABEL",
+    "ownerAgeRestricted": false
+   }
+  },
+  {
+   "id": "165842025",
+   "type": "tracks",
+   "attributes": {
+    "title": "Overture",
+    "version": null,
+    "isrc": "USWD11054876",
+    "duration": "PT2M28S",
+    "copyright": {
+     "text": "℗ 2010 Walt Disney Records"
+    },
+    "explicit": false,
+    "ai": false,
+    "key": "CSharp",
+    "keyScale": "MINOR",
+    "bpm": 126.0,
+    "popularity": 0.5904302570728099,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/165842025",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2020-12-11T22:02:35Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "8847",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/165842025/relationships/artists?countryCode=US"
+     }
+    }
+   }
+  },
+  {
+   "id": "165842026",
+   "type": "tracks",
+   "attributes": {
+    "title": "The Grid",
+    "version": null,
+    "isrc": "USWD11054877",
+    "duration": "PT1M37S",
+    "copyright": {
+     "text": "℗ 2010 Walt Disney Records"
+    },
+    "explicit": false,
+    "ai": false,
+    "key": "Ab",
+    "keyScale": "MAJOR",
+    "bpm": 102.0,
+    "popularity": 0.6213757750069977,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/165842026",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2020-12-11T22:02:35Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "8847",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/165842026/relationships/artists?countryCode=US"
+     }
+    }
+   }
+  },
+  {
+   "id": "165842027",
+   "type": "tracks",
+   "attributes": {
+    "title": "The Son of Flynn",
+    "version": null,
+    "isrc": "USWD11054878",
+    "duration": "PT1M35S",
+    "copyright": {
+     "text": "℗ 2010 Walt Disney Records"
+    },
+    "explicit": false,
+    "ai": false,
+    "key": "UNKNOWN",
+    "keyScale": "UNKNOWN",
+    "bpm": 141.0,
+    "popularity": 0.6159659502560162,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "HIRES_LOSSLESS",
+     "LOSSLESS"
+    ],
+    "toneTags": [],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/165842027",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2020-12-11T22:02:35Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "8847",
+       "type": "artists"
+      }
+     ],
+     "links": {
+      "self": "/tracks/165842027/relationships/artists?countryCode=US"
+     }
+    }
+   }
+  }
+ ]
+}

@@ -2,20 +2,25 @@
 #include "app/PlaylistTransfer.h"
 
 #include "app/AppContext.h"
+#include "app/CatalogMatch.h"
 #include "app/Downloads.h"
 #include "app/DownloadSync.h"
 #include "app/DroppedFiles.h"
 #include "app/InternetRadio.h"
 #include "app/Links.h"
 #include "app/LocalLibrary.h"
+#include "app/PlaylistEditing.h"
 #include "app/PlaylistIO.h"
 #include "app/Router.h"
+#include "app/ServiceImport.h"
 #include "app/SettingsWidgets.h"
 #include "app/Source.h"
 #include "catalog/TrackKind.h"
+#include "core/Http.h"
 #include "core/I18n.h"
 #include "core/Log.h"
 #include "core/Utf.h"
+#include "gfx/Theme.h"
 #include "musicbrainz/MusicBrainz.h"
 #include "player/Player.h"
 #include "spotify/Session.h"
@@ -31,9 +36,11 @@
 #include <wrl/client.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <fstream>
+#include <optional>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
@@ -187,11 +194,24 @@ void saveRows(std::string name, std::vector<Track> tracks) {
 
 // ---- Import ---------------------------------------------------------------------------------------------------------
 
+// A Deezer / Apple Music / TIDAL list matched to the active catalog (importService): what the preview reports.
+struct ServiceInfo {
+    links::Service service = links::Service::None;
+    std::wstring label;                 // "Deezer çalma listesi"
+    std::wstring catalog;               // the catalog the songs were looked up in
+    std::vector<char> found;            // parallel to Prepared::tracks: the catalog has the song
+    int foundCount = 0, byIsrc = 0, skipped = 0, expected = 0;
+    bool partial = false, interrupted = false;
+    std::string description;            // the list's own, plain text
+    std::vector<uint8_t> coverJpeg;     // its cover as the local playlist's (square, small), empty = none
+};
+
 struct Prepared {
     std::string name;
     std::vector<Track> tracks;
     std::vector<pio::Problem> unresolved;
     std::vector<local::Entry> localEntries;   // read local files, remembered so they keep playing
+    std::optional<ServiceInfo> service;
 };
 
 std::string lowerPath(const std::wstring& p) {
@@ -340,28 +360,68 @@ void showPreview(std::shared_ptr<Prepared> prep, std::wstring source) {
     auto* nameBox = body->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Çalma listesi adı"));
     nameBox->setText(toWide(prep->name.empty() ? toUtf8(tr(L"İçe aktarılan liste")) : prep->name));
     int spotifyCount = 0, localCount = 0, ytCount = 0;
-    for (const auto& t : tracks) {
+    for (size_t i = 0; i < tracks.size(); ++i) {
+        const auto& t = tracks[i];
+        if (prep->service && !prep->service->found[i]) continue;   // songs known by name only: counted below
         if (t.id.rfind("spotify:track:", 0) == 0) ++spotifyCount;
         else if (t.id.rfind("local:", 0) == 0) ++localCount;
         else if (t.id.rfind("yt:", 0) == 0) ++ytCount;
     }
-    std::wstring summary = i18n::plural(L"{} şarkı bulundu", static_cast<long long>(tracks.size()));
-    if (localCount > 0) summary += L" · " + i18n::plural(L"{} yerel dosya", localCount);
-    if (ytCount > 0) summary += L" · " + i18n::plural(L"{} YouTube videosu", ytCount);
-    if (!prep->unresolved.empty())
-        summary += L" · " + i18n::plural(L"{} satır okunamadı", static_cast<long long>(prep->unresolved.size()));
-    auto* sum = body->add<ui::Label>(summary, gfx::type::secondary, ui::Tone::Secondary);
-    sum->setWrap(true);
     constexpr size_t kShown = 6;
-    for (size_t i = 0; i < prep->unresolved.size() && i < kShown; ++i) {
-        const auto& u = prep->unresolved[i];
-        auto* l = body->add<ui::Label>(i18n::format(tr(L"Satır {}: {}"), {std::to_wstring(u.line), toWide(u.text)}),
-                                       gfx::type::caption, ui::Tone::Tertiary);
-        l->setWrap(true, 2);
+    ui::Toggle* keepMissing = nullptr;
+    if (const auto& svcInfo = prep->service) {
+        // "<n> songs · YouTube Music: <m> matched (<k> exactly by ISRC) · <x> not found", then the songs not found.
+        const int missing = static_cast<int>(tracks.size()) - svcInfo->foundCount;
+        std::wstring summary = i18n::plural(L"{} şarkı okundu", static_cast<long long>(tracks.size())) + L" · " +
+                               i18n::format(tr(L"{}: {} eşleşti"), {svcInfo->catalog, std::to_wstring(svcInfo->foundCount)});
+        if (svcInfo->byIsrc > 0) summary += L" (" + i18n::plural(L"{} tanesi ISRC ile birebir", svcInfo->byIsrc) + L")";
+        if (missing > 0) summary += L" · " + i18n::plural(L"{} bulunamadı", missing);
+        auto* sum = body->add<ui::Label>(summary, gfx::type::secondary, ui::Tone::Secondary);
+        sum->setWrap(true);
+        std::vector<std::wstring> notes;
+        if (svcInfo->partial)
+            notes.push_back(i18n::format(tr(L"{} bu listenin yalnızca ilk {} şarkısını verdi; liste daha uzun olabilir."),
+                                         {svc::serviceName(svcInfo->service), std::to_wstring(tracks.size())}));
+        if (svcInfo->skipped > 0)
+            notes.push_back(i18n::plural(L"{} öğe atlandı: video ya da serviste artık olmayan şarkı.", svcInfo->skipped));
+        if (svcInfo->interrupted)
+            notes.push_back(tr(L"Eşleştirme bağlantı sorunları yüzünden yarıda kaldı; kalan şarkılar adlarıyla eklenir."));
+        for (const auto& n : notes) body->add<ui::Label>(n, gfx::type::caption, ui::Tone::Tertiary)->setWrap(true, 3);
+        size_t shown = 0;
+        for (size_t i = 0; i < tracks.size() && shown < kShown; ++i) {
+            if (svcInfo->found[i]) continue;
+            ++shown;
+            const auto& t = tracks[i];
+            const std::string line = t.artistLine().empty() ? t.name : t.artistLine() + " \xE2\x80\x94 " + t.name;
+            body->add<ui::Label>(std::to_wstring(i + 1) + L". " + toWide(line), gfx::type::caption, ui::Tone::Tertiary)->setWrap(true, 2);
+        }
+        if (missing > static_cast<int>(kShown))
+            body->add<ui::Label>(i18n::plural(L"ve {} şarkı daha", missing - static_cast<long long>(kShown)), gfx::type::caption,
+                                 ui::Tone::Tertiary);
+        if (missing > 0) {
+            auto* row = body->add<SettingRow>(tr(L"Bulunamayanları da ekle"),
+                                              tr(L"Adlarıyla eklenirler; çalınırken YouTube'da adlarıyla aranırlar."));
+            keepMissing = row->control<ui::Toggle>(40.f);
+            keepMissing->setOn(true, false);
+        }
+    } else {
+        std::wstring summary = i18n::plural(L"{} şarkı bulundu", static_cast<long long>(tracks.size()));
+        if (localCount > 0) summary += L" · " + i18n::plural(L"{} yerel dosya", localCount);
+        if (ytCount > 0) summary += L" · " + i18n::plural(L"{} YouTube videosu", ytCount);
+        if (!prep->unresolved.empty())
+            summary += L" · " + i18n::plural(L"{} satır okunamadı", static_cast<long long>(prep->unresolved.size()));
+        auto* sum = body->add<ui::Label>(summary, gfx::type::secondary, ui::Tone::Secondary);
+        sum->setWrap(true);
+        for (size_t i = 0; i < prep->unresolved.size() && i < kShown; ++i) {
+            const auto& u = prep->unresolved[i];
+            auto* l = body->add<ui::Label>(i18n::format(tr(L"Satır {}: {}"), {std::to_wstring(u.line), toWide(u.text)}),
+                                           gfx::type::caption, ui::Tone::Tertiary);
+            l->setWrap(true, 2);
+        }
+        if (prep->unresolved.size() > kShown)
+            body->add<ui::Label>(i18n::plural(L"ve {} satır daha", static_cast<long long>(prep->unresolved.size() - kShown)),
+                                 gfx::type::caption, ui::Tone::Tertiary);
     }
-    if (prep->unresolved.size() > kShown)
-        body->add<ui::Label>(i18n::plural(L"ve {} satır daha", static_cast<long long>(prep->unresolved.size() - kShown)),
-                             gfx::type::caption, ui::Tone::Tertiary);
     ui::Toggle* spotify = nullptr;
     if (source::loggedIn() && spotifyCount > 0) {
         auto* row = body->add<SettingRow>(tr(L"Spotify'da da oluştur"),
@@ -370,15 +430,25 @@ void showPreview(std::shared_ptr<Prepared> prep, std::wstring source) {
         spotify = row->control<ui::Toggle>(40.f);
     }
     d->addButton(tr(L"Vazgeç"), ui::ButtonKind::Ghost, {});
-    d->addButton(tr(L"İçe aktar"), ui::ButtonKind::Primary, [prep, nameBox, spotify] {
+    d->addButton(tr(L"İçe aktar"), ui::ButtonKind::Primary, [prep, nameBox, spotify, keepMissing] {
         std::wstring name = nameBox->text();
         if (name.empty()) name = tr(L"İçe aktarılan liste");
         if (!prep->localEntries.empty()) dropped::Store::get().remember(prep->localEntries);   // they keep playing
+        std::vector<Track> songs = prep->tracks;
+        if (prep->service && keepMissing && !keepMissing->on()) {
+            songs.clear();
+            for (size_t i = 0; i < prep->tracks.size(); ++i)
+                if (prep->service->found[i]) songs.push_back(prep->tracks[i]);
+        }
         auto& lib = ctx().library;
         const std::string id = lib.createPlaylist(name);
-        const int added = lib.addToPlaylist(id, prep->tracks);
+        const int added = lib.addToPlaylist(id, songs);
+        if (prep->service) {
+            if (!prep->service->description.empty()) lib.setPlaylistDescription(id, toWide(prep->service->description));
+            if (!prep->service->coverJpeg.empty()) lib.setPlaylistCover(id, &prep->service->coverJpeg);
+        }
         ST_LOG_INFO("transfer", "imported {} song(s) into {}", added, id);
-        if (spotify && spotify->on()) createOnSpotify(toUtf8(name), prep->tracks);
+        if (spotify && spotify->on()) createOnSpotify(toUtf8(name), songs);
         toast(i18n::plural(L"{} şarkı içe aktarıldı", added));
         const std::string open = id;
         Dispatcher::post([open] { ctx().router->navigate({RouteKind::Playlist, open}); });
@@ -431,6 +501,287 @@ void pickImportFile() {
     const std::wstring file = path;
     CoTaskMemFree(path);
     importFile(file);
+}
+
+// ---- Deezer / Apple Music / TIDAL -------------------------------------------------------------------------------------
+
+catmatch::Catalog activeCatalog() {
+    switch (source::active()) {
+    case source::Catalog::Spotify: return catmatch::Catalog::Spotify;
+    case source::Catalog::YouTubeMusic: return catmatch::Catalog::YouTubeMusic;
+    case source::Catalog::MusicBrainz: break;
+    }
+    return catmatch::Catalog::MusicBrainz;
+}
+
+std::wstring kindLabel(links::Service s, svc::Kind k) {
+    const std::wstring name = svc::serviceName(s);
+    switch (k) {
+    case svc::Kind::Playlist: return i18n::format(tr(L"{} çalma listesi"), {name});
+    case svc::Kind::Album: return i18n::format(tr(L"{} albümü"), {name});
+    case svc::Kind::Track: return i18n::format(tr(L"{} şarkısı"), {name});
+    }
+    return name;
+}
+
+// Why a list could not be read, for a toast.
+std::wstring errorText(const std::exception_ptr& error, links::Service s, svc::Kind k) {
+    const std::wstring name = svc::serviceName(s);
+    try {
+        std::rethrow_exception(error);
+    } catch (const svc::Error& e) {
+        switch (e.code) {
+        case svc::Error::NotFound:
+            return k == svc::Kind::Playlist ? tr(L"Bu çalma listesi açılamadı: gizli, silinmiş ya da bu ülkede kapalı olabilir.")
+                                            : tr(L"Bu albüm ya da şarkı bulunamadı: kaldırılmış ya da bu ülkede kapalı olabilir.");
+        case svc::Error::Private: return tr(L"Bu liste gizli: sahibi herkese açık yapmadıkça okunamıyor.");
+        case svc::Error::Unavailable: return tr(L"Bu liste bu ülkede açılamıyor.");
+        case svc::Error::Blocked:
+            return i18n::format(tr(L"{} şu anda hesapsız okumaya izin vermiyor. Biraz sonra yeniden dene."), {name});
+        case svc::Error::Network: return i18n::format(tr(L"{} yanıt vermiyor. Bağlantını kontrol et."), {name});
+        case svc::Error::Format: break;
+        }
+    } catch (...) {
+    }
+    return i18n::format(tr(L"{} yanıtı okunamadı."), {name});
+}
+
+// A running service import, shared by the worker and the progress dialog.
+struct ImportJob {
+    YoutubeExplode::CancellationTokenSource cts;
+    links::Service service = links::Service::None;
+    svc::Kind kind = svc::Kind::Playlist;
+    std::wstring catalog;
+    std::atomic<int> phase{0};   // 0 reading the service, 1 matching in the catalog
+    std::atomic<int> read{0}, expected{0}, total{0};
+    std::atomic<bool> finished{false};
+    catmatch::Counters counters;
+    ui::Dialog* dialog = nullptr;   // UI thread; null once it closed
+    bool cancelled = false;         // UI thread: "Vazgeç" / Escape
+};
+
+// The progress dialog's content: the step, songs done / all and a 2 px progress line (Stats' import banner's look);
+// it repaints itself ~7 times a second until the job is done.
+class ImportProgressView : public ui::Widget {
+public:
+    explicit ImportProgressView(std::shared_ptr<ImportJob> job)
+        : job_(std::move(job)), text_({}, gfx::type::body), count_({}, gfx::type::monoMeta), detail_({}, gfx::type::caption) {
+        hitTestVisible = false;
+    }
+    // Gone with its dialog: after a close (the job is done or was cancelled then) or when the app quits with the import
+    // still running, which must not keep the process alive until the matching ends.
+    ~ImportProgressView() override {
+        job_->dialog = nullptr;
+        if (!job_->finished) {
+            job_->cancelled = true;
+            job_->cts.cancel();
+        }
+    }
+    float preferredHeight(float) override { return 58; }
+    void paint(gfx::Canvas& c) override {
+        const gfx::Rect r = rect();
+        const auto& col = gfx::colors();
+        const auto& j = *job_;
+        std::wstring title, count, detail;
+        float f = 0;
+        if (j.phase == 0) {
+            title = i18n::format(tr(L"{} okunuyor…"), {svc::serviceName(j.service)});
+            const int n = j.read, e = j.expected;
+            count = e > 0 ? std::to_wstring(n) + L" / " + std::to_wstring(e) : n > 0 ? std::to_wstring(n) : std::wstring{};
+            f = e > 0 ? std::min(1.f, static_cast<float>(n) / static_cast<float>(e)) : 0.f;
+            detail = tr(L"Şarkılar, adları ve ISRC kodlarıyla okunuyor.");
+        } else {
+            title = i18n::format(tr(L"{} kataloğunda eşleştiriliyor…"), {j.catalog});
+            const int done = j.counters.done, total = std::max(1, j.total.load());
+            count = std::to_wstring(std::min(done, total)) + L" / " + std::to_wstring(total);
+            f = std::min(1.f, static_cast<float>(done) / static_cast<float>(total));
+            detail = i18n::plural(L"{} şarkı eşleşti", j.counters.found.load());
+            if (j.counters.byIsrc > 0) detail += L" · " + i18n::plural(L"{} tanesi ISRC ile birebir", j.counters.byIsrc.load());
+        }
+        text_.setText(title);
+        count_.setText(count);
+        detail_.setText(detail);
+        const float cw = std::ceil(count_.measure().w);
+        c.text(text_, {r.x, r.y, std::max(0.f, r.w - cw - 16), 22}, col.fgPrimary, gfx::VAlign::Center);
+        c.text(count_, {r.right() - cw, r.y, cw, 22}, col.fgTertiary, gfx::VAlign::Center);
+        c.text(detail_, {r.x, r.y + 24, r.w, 18}, col.fgSecondary, gfx::VAlign::Center);
+        const gfx::Rect track{r.x, r.bottom() - 4, r.w, 2};
+        c.fillRect(track, col.hairSubtle);
+        c.fillRect({track.x, track.y, std::round(track.w * f), track.h}, gfx::accent().base);
+        if (!j.finished)
+            if (auto* w = window()) w->invalidateAfter(150);
+    }
+
+private:
+    std::shared_ptr<ImportJob> job_;
+    gfx::Text text_, count_, detail_;
+};
+
+// Reads the list (unless `preRead` has it), matches its songs in the active catalog behind a progress dialog with
+// "Vazgeç", fetches its cover, then shows the preview.
+void importService(const svc::Ref& ref, std::shared_ptr<svc::List> preRead) {
+    auto job = std::make_shared<ImportJob>();
+    job->service = ref.service;
+    job->kind = ref.kind;
+    const catmatch::Catalog catalog = activeCatalog();
+    job->catalog = catmatch::catalogName(catalog);
+    spotify::Api* api = catalog == catmatch::Catalog::Spotify ? source::activeApi() : nullptr;
+    if (preRead) job->read = job->expected = static_cast<int>(preRead->songs.size());
+    const std::wstring label = kindLabel(ref.service, ref.kind);
+    auto* d = ui::Dialog::open(ctx().window, tr(L"Çalma listesi içe aktarılıyor"), label, 520);
+    if (!d) return;
+    job->dialog = d;
+    d->body()->add<ImportProgressView>(job);
+    d->addButton(tr(L"Vazgeç"), ui::ButtonKind::Ghost, {});
+    d->onClosed = [job] {
+        job->dialog = nullptr;
+        if (!job->finished) {
+            job->cancelled = true;
+            job->cts.cancel();
+            ST_LOG_INFO("transfer", "service import cancelled");
+        }
+    };
+    async(
+        Priority::High, g_life.ref(),
+        [job, ref, preRead, catalog, api, label] {
+            const CT ct = job->cts.token();
+            svc::List list = preRead ? *preRead
+                                     : svc::read(ref, svc::liveFetch(), [job](int r, int e) {
+                                           job->read = r;
+                                           job->expected = e;
+                                       }, ct);
+            job->total = static_cast<int>(list.songs.size());
+            job->phase = 1;
+            bool interrupted = false;
+            auto results = catmatch::matchAll(list.songs, catalog, api, job->counters, ct, &interrupted);
+            auto prep = std::make_shared<Prepared>();
+            prep->name = list.title;
+            ServiceInfo info;
+            info.service = ref.service;
+            info.label = label;
+            info.catalog = catmatch::catalogName(catalog);
+            info.foundCount = job->counters.found;
+            info.byIsrc = job->counters.byIsrc;
+            info.skipped = list.skipped;
+            info.expected = list.expected;
+            info.partial = list.partial;
+            info.interrupted = interrupted;
+            info.description = list.description;
+            for (auto& r : results) {
+                info.found.push_back(r.found ? 1 : 0);
+                prep->tracks.push_back(std::move(r.track));
+            }
+            // The list's cover as the local playlist's (best effort; an album's cover is its songs' anyway).
+            if (!list.coverUrl.empty() && ref.kind == svc::Kind::Playlist) {
+                try {
+                    const auto resp = http::get(list.coverUrl, {}, ct);
+                    if (resp.isSuccessStatusCode() && !resp.body.empty())
+                        info.coverJpeg = pledit::squareJpeg(reinterpret_cast<const uint8_t*>(resp.body.data()), resp.body.size()).jpeg;
+                } catch (const std::exception& e) {
+                    if (ct.isCancellationRequested()) throw;
+                    ST_LOG_WARN("transfer", "cover of {} not fetched: {}", list.title, e.what());
+                }
+            }
+            prep->service = std::move(info);
+            return prep;
+        },
+        [job, label](Result<std::shared_ptr<Prepared>> r) {
+            job->finished = true;
+            if (job->dialog) job->dialog->close();
+            if (job->cancelled) return;
+            if (!r) {
+                ST_LOG_WARN("transfer", "service import failed: {}", r.errorMessage());
+                toast(errorText(r.error(), job->service, job->kind), true);
+                return;
+            }
+            showPreview(*r, label);
+        });
+}
+
+// A song link: its match in the active catalog plays (else the song by name: MatchService finds its video).
+void playServiceTrack(const svc::Ref& ref) {
+    const catmatch::Catalog catalog = activeCatalog();
+    spotify::Api* api = catalog == catmatch::Catalog::Spotify ? source::activeApi() : nullptr;
+    toast(tr(L"Bağlantı açılıyor…"));
+    async(
+        Priority::High, g_life.ref(),
+        [ref, catalog, api] {
+            const svc::List l = svc::read(ref, svc::liveFetch());
+            catmatch::Counters c;
+            auto results = catmatch::matchAll(l.songs, catalog, api, c, {});
+            if (results.empty()) throw svc::Error(svc::Error::NotFound, "no song");
+            return results.front();
+        },
+        [ref](Result<catmatch::Result> r) {
+            if (!r) {
+                ST_LOG_WARN("transfer", "service song not opened: {}", r.errorMessage());
+                toast(errorText(r.error(), ref.service, ref.kind), true);
+                return;
+            }
+            ST_LOG_INFO("transfer", "service song -> {} ({})", r->track.id, r->found ? "catalog" : "by name");
+            if (auto* p = ctx().player) p->playContext({r->track}, 0, {"link", kindLabel(ref.service, ref.kind)});
+        });
+}
+
+// An album link: the active catalog's album opens when it has it; otherwise its songs are imported like a playlist.
+// `importAlways`: the import dialog asked for it (no album page).
+void openServiceAlbum(const svc::Ref& ref, bool importAlways) {
+    if (importAlways) return importService(ref, nullptr);
+    const catmatch::Catalog catalog = activeCatalog();
+    spotify::Api* api = catalog == catmatch::Catalog::Spotify ? source::activeApi() : nullptr;
+    toast(tr(L"Bağlantı açılıyor…"));
+    struct Out {
+        std::shared_ptr<svc::List> album;
+        std::string catalogId;
+    };
+    async(
+        Priority::High, g_life.ref(),
+        [ref, catalog, api] {
+            Out o;
+            o.album = std::make_shared<svc::List>(svc::read(ref, svc::liveFetch()));
+            try {
+                o.catalogId = catmatch::findAlbum(*o.album, catalog, api, {});
+            } catch (const std::exception& e) {
+                ST_LOG_WARN("transfer", "album lookup failed: {}", e.what());
+            }
+            return o;
+        },
+        [ref](Result<Out> r) {
+            if (!r) {
+                ST_LOG_WARN("transfer", "service album not opened: {}", r.errorMessage());
+                toast(errorText(r.error(), ref.service, ref.kind), true);
+                return;
+            }
+            ST_LOG_INFO("transfer", "service album '{}' -> {}", r->album->title, r->catalogId.empty() ? "(import)" : r->catalogId);
+            if (!r->catalogId.empty() && ctx().router) ctx().router->navigate({RouteKind::Album, r->catalogId});
+            else importService(ref, r->album);
+        });
+}
+
+void openServiceRef(const svc::Ref& ref, bool fromImportDialog) {
+    switch (ref.kind) {
+    case svc::Kind::Playlist: return importService(ref, nullptr);
+    case svc::Kind::Album: return openServiceAlbum(ref, fromImportDialog);
+    case svc::Kind::Track: return playServiceTrack(ref);
+    }
+}
+
+void openServiceLinkImpl(const links::Link& link, bool fromImportDialog) {
+    if (link.kind == links::Kind::ServiceShortLink) {
+        toast(tr(L"Bağlantı açılıyor…"));
+        const std::string url = link.id;
+        async(Priority::High, g_life.ref(), [url] { return svc::resolveShortLink(url, svc::liveFetch()); },
+              [fromImportDialog](Result<std::optional<svc::Ref>> r) {
+                  if (!r || !*r) {
+                      ST_LOG_WARN("transfer", "short link not resolved: {}", r ? "no list" : r.errorMessage());
+                      toast(tr(L"Bu Deezer bağlantısının süresi dolmuş ya da bir liste, albüm veya şarkıya gitmiyor."), true);
+                      return;
+                  }
+                  openServiceRef(**r, fromImportDialog);
+              });
+        return;
+    }
+    if (const auto ref = svc::ref(link)) openServiceRef(*ref, fromImportDialog);
 }
 
 } // namespace
@@ -505,21 +856,54 @@ void importFile(const std::wstring& path) {
 
 bool isPlaylistFile(const std::wstring& path) { return pio::formatFromPath(fs::path(path)).has_value(); }
 
-void importFromLink() {
-    Dispatcher::post([] {
-        auto* d = ui::Dialog::open(ctx().window, tr(L"YouTube listesinden içe aktar"),
-                                   tr(L"Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. "
-                                      L"Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür."),
-                                   520);
+void importFromLink(links::Service service) {
+    Dispatcher::post([service] {
+        // Every dialog takes any of the links; the service only picks the wording and the example.
+        std::wstring title, text, example;
+        const std::wstring catalog = catmatch::catalogName(activeCatalog());
+        switch (service) {
+        case links::Service::Deezer:
+            title = tr(L"Deezer'dan içe aktar");
+            example = L"https://www.deezer.com/playlist/…";
+            break;
+        case links::Service::AppleMusic:
+            title = tr(L"Apple Music'ten içe aktar");
+            example = L"https://music.apple.com/…/playlist/…";
+            break;
+        case links::Service::Tidal:
+            title = tr(L"TIDAL'dan içe aktar");
+            example = L"https://tidal.com/playlist/…";
+            break;
+        default: break;
+        }
+        if (title.empty()) {
+            title = tr(L"YouTube listesinden içe aktar");
+            text = tr(L"Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. "
+                      L"Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.");
+            example = L"https://www.youtube.com/playlist?list=…";
+        } else {
+            text = i18n::format(tr(L"Bir {} çalma listesinin ya da albümünün bağlantısını yapıştır. Şarkılar {} kataloğunda "
+                                   L"eşleştirilir ve bir yerel listeye dönüşür; liste herkese açık olmalı."),
+                                {svc::serviceName(service), catalog});
+        }
+        auto* d = ui::Dialog::open(ctx().window, title, text, 520);
         if (!d) return;
-        auto* box = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, L"https://www.youtube.com/playlist?list=…");
+        auto* box = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, example);
         auto submit = [box] {
             const auto link = links::parse(box->text());
-            if (link.kind != links::Kind::YouTubePlaylist) {
-                toast(tr(L"Bu bir YouTube oynatma listesi bağlantısı değil"), true);
+            switch (link.kind) {
+            case links::Kind::YouTubePlaylist: return importYouTubePlaylist(link.id);
+            case links::Kind::ServicePlaylist:
+            case links::Kind::ServiceAlbum:
+            case links::Kind::ServiceTrack:
+            case links::Kind::ServiceShortLink:   // after this dialog closed (the progress dialog takes its place)
+                Dispatcher::post([link] { openServiceLinkImpl(link, true); });
                 return;
+            default: break;
             }
-            importYouTubePlaylist(link.id);
+            toast(tr(L"Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm "
+                     L"bağlantıları desteklenir."),
+                  true);
         };
         box->onSubmit = [d, submit](const std::wstring&) {
             submit();
@@ -570,10 +954,16 @@ void importYtmPlaylist(const std::string& id) {
         tr(L"YouTube Music çalma listesi"));
 }
 
-void showImportMenu(gfx::Point windowPos) {
-    ui::Menu::open(ctx().window, windowPos,
-                   {{tr(L"Dosyadan içe aktar…"), "folder", L"", [] { importFromFile(); }},
-                    {tr(L"YouTube listesinden içe aktar…"), "youtube-source", L"", [] { importFromLink(); }}});
+void openServiceLink(const links::Link& link) { openServiceLinkImpl(link, false); }
+
+std::vector<ui::MenuItem> importMenuItems() {
+    return {{tr(L"Dosyadan içe aktar…"), "folder", L"", [] { importFromFile(); }},
+            {tr(L"YouTube listesinden içe aktar…"), "youtube-source", L"", [] { importFromLink(links::Service::YouTube); }},
+            {tr(L"Deezer'dan içe aktar…"), "link", L"", [] { importFromLink(links::Service::Deezer); }},
+            {tr(L"Apple Music'ten içe aktar…"), "link", L"", [] { importFromLink(links::Service::AppleMusic); }},
+            {tr(L"TIDAL'dan içe aktar…"), "link", L"", [] { importFromLink(links::Service::Tidal); }}};
 }
+
+void showImportMenu(gfx::Point windowPos) { ui::Menu::open(ctx().window, windowPos, importMenuItems()); }
 
 } // namespace st::app::transfer

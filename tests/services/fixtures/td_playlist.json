@@ -1,0 +1,116 @@
+{
+ "data": {
+  "id": "4fd2cace-5255-409b-8748-b3661380bc7a",
+  "type": "playlists",
+  "attributes": {
+   "name": "Test Trax  — Masters Only",
+   "description": "Tidal Masters Only Test Tracks",
+   "bounded": true,
+   "duration": "PT11H53M38S",
+   "numberOfItems": 132,
+   "numberOfTrackItems": 132,
+   "numberOfVideoItems": 0,
+   "externalLinks": [
+    {
+     "href": "https://listen.tidal.com/playlist/4fd2cace-5255-409b-8748-b3661380bc7a",
+     "meta": {
+      "type": "TIDAL_SHARING"
+     }
+    },
+    {
+     "href": "https://tidal.com/playlist/4fd2cace-5255-409b-8748-b3661380bc7a?play=true",
+     "meta": {
+      "type": "TIDAL_AUTOPLAY_ANDROID"
+     }
+    },
+    {
+     "href": "https://tidal.com/playlist/4fd2cace-5255-409b-8748-b3661380bc7a?play=true",
+     "meta": {
+      "type": "TIDAL_AUTOPLAY_IOS"
+     }
+    },
+    {
+     "href": "https://listen.tidal.com/playlist/4fd2cace-5255-409b-8748-b3661380bc7a?play=true",
+     "meta": {
+      "type": "TIDAL_AUTOPLAY_WEB"
+     }
+    }
+   ],
+   "createdAt": "2021-04-24T12:38:19.688897Z",
+   "lastModifiedAt": "2021-12-23T14:55:43.401250Z",
+   "accessType": "UNLISTED",
+   "playlistType": "USER",
+   "numberOfFollowers": 196
+  },
+  "relationships": {
+   "owners": {
+    "data": [],
+    "links": {
+     "self": "/playlists/4fd2cace-5255-409b-8748-b3661380bc7a/relationships/owners?countryCode=US"
+    }
+   },
+   "coverArt": {
+    "data": [
+     {
+      "id": "2b7Vtuqr0ICLRcN4B43Pv0Uu8PpSlcaMNs6y3rEwi0qbdVfbgcpbQ3A6T",
+      "type": "artworks"
+     }
+    ],
+    "links": {
+     "self": "/playlists/4fd2cace-5255-409b-8748-b3661380bc7a/relationships/coverArt?countryCode=US"
+    }
+   }
+  }
+ },
+ "links": {
+  "self": "/playlists/4fd2cace-5255-409b-8748-b3661380bc7a?include=coverArt%2Cowners&countryCode=US"
+ },
+ "included": [
+  {
+   "id": "2b7Vtuqr0ICLRcN4B43Pv0Uu8PpSlcaMNs6y3rEwi0qbdVfbgcpbQ3A6T",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/76f59b92/ef77/4e83/a231/8bbf8baddef1/160x160.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/76f59b92/ef77/4e83/a231/8bbf8baddef1/320x320.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/76f59b92/ef77/4e83/a231/8bbf8baddef1/480x480.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 480,
+       "height": 480
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/76f59b92/ef77/4e83/a231/8bbf8baddef1/1080x1080.jpg",
+      "type": "image/jpeg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#437C89",
+     "blurHash": "UCD9Yb00XS^*LgrDxtNG00_4ozIA00?vs:IU",
+     "status": "OK"
+    }
+   }
+  }
+ ]
+}

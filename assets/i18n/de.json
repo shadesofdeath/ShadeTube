@@ -1237,7 +1237,6 @@
   "Çalma listesi olarak kaydet": "Als Playlist speichern",
   "\"{}\" senkronize edilirken bu şarkılar indirilmez. Geri aldığın şarkı bir sonraki senkronda iner.": "Diese Songs werden beim Synchronisieren von „{}“ nicht heruntergeladen. Ein zurückgeholter Song wird beim nächsten Sync geladen.",
   "Bir YouTube ya da YouTube Music oynatma listesinin bağlantısını yapıştır. Videolar, tam o kayıtlardan çalan bir yerel listeye dönüşür.": "Füge den Link einer YouTube- oder YouTube-Music-Playlist ein. Ihre Videos werden zu einer lokalen Playlist, die genau diese Aufnahmen abspielt.",
-  "Bu bir YouTube oynatma listesi bağlantısı değil": "Das ist kein Link zu einer YouTube-Playlist",
   "CSV tablosu (Excel)": "CSV-Tabelle (Excel)",
   "Dosyadan içe aktar…": "Aus Datei importieren…",
   "Dosyayı göster": "Datei anzeigen",
@@ -2490,5 +2489,55 @@
   "Tanıma hizmeti yanıt vermedi": "Der Erkennungsdienst hat nicht geantwortet",
   "Biraz sonra tekrar dene.": "Versuche es gleich noch einmal.",
   "Ses dinlenemedi": "Zuhören nicht möglich",
-  "Ses aygıtı açılamadı. Tekrar dene ya da diğer kaynağı seç.": "Das Audiogerät ließ sich nicht öffnen. Versuche es erneut oder wähle die andere Quelle."
+  "Ses aygıtı açılamadı. Tekrar dene ya da diğer kaynağı seç.": "Das Audiogerät ließ sich nicht öffnen. Versuche es erneut oder wähle die andere Quelle.",
+  "{} şarkı okundu": {
+    "one": "{} Song gelesen",
+    "other": "{} Songs gelesen"
+  },
+  "{}: {} eşleşti": "{}: {} zugeordnet",
+  "{} tanesi ISRC ile birebir": {
+    "one": "{} exakt über ISRC",
+    "other": "{} exakt über ISRC"
+  },
+  "{} bulunamadı": {
+    "one": "{} nicht gefunden",
+    "other": "{} nicht gefunden"
+  },
+  "{} bu listenin yalnızca ilk {} şarkısını verdi; liste daha uzun olabilir.": "{} hat nur die ersten {} Songs dieser Liste geliefert; sie kann länger sein.",
+  "{} öğe atlandı: video ya da serviste artık olmayan şarkı.": {
+    "one": "{} Eintrag übersprungen: ein Video oder ein Song, den der Dienst nicht mehr hat.",
+    "other": "{} Einträge übersprungen: Videos oder Songs, die der Dienst nicht mehr hat."
+  },
+  "Eşleştirme bağlantı sorunları yüzünden yarıda kaldı; kalan şarkılar adlarıyla eklenir.": "Die Zuordnung brach wegen Verbindungsproblemen ab; die übrigen Songs werden mit ihrem Namen hinzugefügt.",
+  "Bulunamayanları da ekle": "Nicht gefundene auch hinzufügen",
+  "Adlarıyla eklenirler; çalınırken YouTube'da adlarıyla aranırlar.": "Sie werden mit ihrem Namen hinzugefügt und beim Abspielen auf YouTube nach Namen gesucht.",
+  "{} albümü": "{}-Album",
+  "{} şarkısı": "{}-Song",
+  "Bu çalma listesi açılamadı: gizli, silinmiş ya da bu ülkede kapalı olabilir.": "Diese Playlist ließ sich nicht öffnen: Sie ist vielleicht privat, gelöscht oder in diesem Land nicht verfügbar.",
+  "Bu albüm ya da şarkı bulunamadı: kaldırılmış ya da bu ülkede kapalı olabilir.": "Dieses Album oder dieser Song wurde nicht gefunden: Vielleicht wurde er entfernt oder ist in diesem Land nicht verfügbar.",
+  "Bu liste gizli: sahibi herkese açık yapmadıkça okunamıyor.": "Diese Liste ist privat: Sie lässt sich erst lesen, wenn ihr Besitzer sie öffentlich macht.",
+  "Bu liste bu ülkede açılamıyor.": "Diese Liste ist in diesem Land nicht verfügbar.",
+  "{} şu anda hesapsız okumaya izin vermiyor. Biraz sonra yeniden dene.": "{} erlaubt das Lesen ohne Konto gerade nicht. Versuche es später erneut.",
+  "{} yanıt vermiyor. Bağlantını kontrol et.": "{} antwortet nicht. Prüfe deine Verbindung.",
+  "{} yanıtı okunamadı.": "Die Antwort von {} konnte nicht gelesen werden.",
+  "{} okunuyor…": "{} wird gelesen…",
+  "Şarkılar, adları ve ISRC kodlarıyla okunuyor.": "Die Songs werden mit Namen und ISRC-Codes gelesen.",
+  "{} kataloğunda eşleştiriliyor…": "Zuordnung im {}-Katalog…",
+  "{} şarkı eşleşti": {
+    "one": "{} Song zugeordnet",
+    "other": "{} Songs zugeordnet"
+  },
+  "Çalma listesi içe aktarılıyor": "Playlist wird importiert",
+  "Bu Deezer bağlantısının süresi dolmuş ya da bir liste, albüm veya şarkıya gitmiyor.": "Dieser Deezer-Link ist abgelaufen oder führt zu keiner Playlist, keinem Album und keinem Song.",
+  "Deezer'dan içe aktar": "Aus Deezer importieren",
+  "Deezer'dan içe aktar…": "Aus Deezer importieren…",
+  "Apple Music'ten içe aktar": "Aus Apple Music importieren",
+  "Apple Music'ten içe aktar…": "Aus Apple Music importieren…",
+  "TIDAL'dan içe aktar": "Aus TIDAL importieren",
+  "TIDAL'dan içe aktar…": "Aus TIDAL importieren…",
+  "Bir {} çalma listesinin ya da albümünün bağlantısını yapıştır. Şarkılar {} kataloğunda eşleştirilir ve bir yerel listeye dönüşür; liste herkese açık olmalı.": "Füge den Link einer {}-Playlist oder eines Albums ein. Die Songs werden im {}-Katalog zugeordnet und werden zu einer lokalen Playlist; die Liste muss öffentlich sein.",
+  "Bu bağlantı içe aktarılamıyor. YouTube, Deezer, Apple Music ve TIDAL çalma listesi ya da albüm bağlantıları desteklenir.": "Dieser Link lässt sich nicht importieren. Unterstützt werden Playlist- und Album-Links von YouTube, Deezer, Apple Music und TIDAL.",
+  "{} bağlantısı": "{}-Link",
+  "Bağlantıyı aç": "Link öffnen",
+  "Bu {} bağlantısı açılamıyor. Çalma listesi, albüm ve şarkı bağlantıları desteklenir.": "Dieser {}-Link lässt sich nicht öffnen. Unterstützt werden Links zu Playlists, Alben und Songs."
 }

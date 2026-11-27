@@ -13,6 +13,13 @@
 // library's tag reader and remembered like dropped files (so they keep playing); songs named only by an id get their
 // title from Spotify / YouTube / MusicBrainz (at most kMaxLookups); YouTube videos keep exactly that video as their
 // source. Logged in, "Spotify'da da oluştur" also creates a Spotify playlist with the songs that have Spotify ids.
+//
+// Deezer / Apple Music / TIDAL (app/ServiceImport reads, app/CatalogMatch matches): a playlist is read and its songs
+// matched in the active catalog behind a progress dialog ("Vazgeç" stops it), then the same preview reports what was
+// matched and lists the songs that were not ("Bulunamayanları da ekle" keeps them by name); the local playlist gets the
+// list's description and cover. An album link opens the catalog's album when it has one (else it is imported the same
+// way), a song link plays its match.
+#include "app/Links.h"
 #include "catalog/Models.h"
 #include "ui/Popups.h"
 
@@ -35,12 +42,18 @@ void exportTracks(const std::string& name, std::vector<catalog::Track> tracks);
 void importFromFile();                                  // file picker (posted: safe from a click handler)
 void importFile(const std::wstring& path);              // that playlist file (e.g. dropped from Explorer)
 bool isPlaylistFile(const std::wstring& path);          // .m3u .m3u8 .csv .tsv .xspf .json
-void importFromLink();                                  // asks for a YouTube / YouTube Music playlist link
+// Asks for a playlist link: a YouTube / YouTube Music one, or Deezer / Apple Music / TIDAL (`service` picks the dialog's
+// wording; every one takes any of these links).
+void importFromLink(links::Service service = links::Service::YouTube);
 void importYouTubePlaylist(const std::string& playlistId);
 // A YouTube Music playlist ("ytm:playlist:<id>") as a local playlist: its rows as YouTube Music names them (artists,
 // albums), each pinned to its video.
 void importYtmPlaylist(const std::string& id);
-// "Dosyadan içe aktar…" / "YouTube listesinden içe aktar…" at `windowPos`.
+// A pasted Deezer / Apple Music / TIDAL link (links::Kind::Service*; a short link is resolved first): see above.
+void openServiceLink(const links::Link& link);
+// "Dosyadan içe aktar…", "YouTube listesinden içe aktar…", "Deezer'dan içe aktar…", "Apple Music'ten içe aktar…",
+// "TIDAL'dan içe aktar…" (the Library header's and the sidebar's "+" menus) and that menu at `windowPos`.
+std::vector<ui::MenuItem> importMenuItems();
 void showImportMenu(gfx::Point windowPos);
 
 } // namespace st::app::transfer

@@ -546,13 +546,13 @@ Sidebar::Sidebar() {
     newPlaylist_->setTooltip(tr(L"Yeni çalma listesi"));
     newPlaylist_->onClick = [this] {
         const Rect br = newPlaylist_->toWindow(newPlaylist_->rect());
-        ui::Menu::open(ctx().window, {br.x, br.bottom() + 6},
-                       {// Logged in this creates the playlist on Spotify (then opens it); logged out, a local playlist.
-                        {tr(L"Yeni çalma listesi"), "plus", L"",
-                         [] { promptNewPlaylist([](const std::string& id) { ctx().router->navigate({RouteKind::Playlist, id}); }); }},
-                        ui::MenuItem::sep(),
-                        {tr(L"Dosyadan içe aktar…"), "folder", L"", [] { transfer::importFromFile(); }},
-                        {tr(L"YouTube listesinden içe aktar…"), "youtube-source", L"", [] { transfer::importFromLink(); }}});
+        // Logged in this creates the playlist on Spotify (then opens it); logged out, a local playlist.
+        std::vector<ui::MenuItem> items = {
+            {tr(L"Yeni çalma listesi"), "plus", L"",
+             [] { promptNewPlaylist([](const std::string& id) { ctx().router->navigate({RouteKind::Playlist, id}); }); }},
+            ui::MenuItem::sep()};
+        for (auto& m : transfer::importMenuItems()) items.push_back(std::move(m));   // file, YouTube, Deezer, Apple Music, TIDAL
+        ui::Menu::open(ctx().window, {br.x, br.bottom() + 6}, std::move(items));
     };
     list_ = add<ui::ScrollView>();
     listCol_ = list_->setContent<ui::Column>(0.f);

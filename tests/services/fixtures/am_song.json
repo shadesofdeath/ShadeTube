@@ -1,0 +1,80 @@
+{
+ "data": [
+  {
+   "id": "1889992115",
+   "type": "songs",
+   "href": "/v1/catalog/us/songs/1889992115?l=en-US",
+   "attributes": {
+    "albumArtistName": "Olivia Rodrigo",
+    "albumName": "you seem pretty sad for a girl so in love",
+    "artistName": "Olivia Rodrigo",
+    "artwork": {
+     "bgColor": "7c939f",
+     "hasP3": false,
+     "height": 4000,
+     "textColor1": "070605",
+     "textColor2": "141413",
+     "textColor3": "1e2224",
+     "textColor4": "282d2f",
+     "url": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1d/1b/f9/1d1bf9b1-44c6-9a6c-6ffb-c158488c06ce/26UMGIM39303.rgb.jpg/{w}x{h}bb.jpg",
+     "width": 4000
+    },
+    "audioLocale": "en-US",
+    "audioTraits": [
+     "atmos",
+     "lossless",
+     "lossy-stereo",
+     "spatial"
+    ],
+    "composerName": "Olivia Rodrigo & Daniel Nigro",
+    "discNumber": 1,
+    "durationInMillis": 209680,
+    "genreNames": [
+     "Pop",
+     "Music"
+    ],
+    "hasLyrics": true,
+    "hasTimeSyncedLyrics": true,
+    "isAppleDigitalMaster": true,
+    "isMasteredForItunes": true,
+    "isVocalAttenuationAllowed": true,
+    "isrc": "USUG12601723",
+    "name": "stupid song",
+    "playParams": {
+     "id": "1889992115",
+     "kind": "song"
+    },
+    "previews": [
+     {
+      "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/ab/d6/78/abd678a1-bf4e-7ee9-d0b2-ba8afee10914/mzaf_3726531799916235303.plus.aac.ep.m4a"
+     }
+    ],
+    "releaseDate": "2026-06-12",
+    "trackNumber": 2,
+    "url": "https://music.apple.com/us/album/stupid-song/1889992111?i=1889992115"
+   },
+   "relationships": {
+    "albums": {
+     "href": "/v1/catalog/us/songs/1889992115/albums?l=en-US",
+     "data": [
+      {
+       "id": "1889992111",
+       "type": "albums",
+       "href": "/v1/catalog/us/albums/1889992111?l=en-US"
+      }
+     ]
+    },
+    "artists": {
+     "href": "/v1/catalog/us/songs/1889992115/artists?l=en-US",
+     "data": [
+      {
+       "id": "979458609",
+       "type": "artists",
+       "href": "/v1/catalog/us/artists/979458609?l=en-US"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}
