@@ -38,9 +38,19 @@ kalır.
   (son çalınanlar, son eklenenler, alfabetik, oluşturan) ve hızlı arama.
 - 👥 **Birlikte dinle** — bir oturum başlat, davet bağlantısını paylaş: arkadaşların aynı şarkıyı aynı anda dinler;
   Spotify hesabı da bizim bir sunucumuz da gerekmez (uçtan uca şifreli). Misafirler şarkı ekler, çalmayı kimin
-  yöneteceğine oturum sahibi karar verir.
+  yöneteceğine oturum sahibi karar verir. Podcast bölümleri ve radyo istasyonları da paylaşılır; oturum yeniden
+  başlatmada sürer.
 - 📱 **Telefondan kumanda** — QR kodu tara, aynı Wi-Fi'daki telefonunun tarayıcısından ShadeTube'u yönet: çalma, ses,
   sıra, arama, kitaplığın. Hiçbir şey yüklemen gerekmez.
+- 🎵 **YouTube Music kataloğu** — Spotify hesabın yok mu? YouTube Music'i gez: arama, albümler, tam diskografisiyle
+  sanatçılar, çalma listeleri, mood'lar ve ana sayfa akışı; her şarkı tam o kayda sabitlenir.
+- 🔎 **Her şeyi ara** — şarkı, albüm, sanatçı, çalma listesi, podcast ve profil; "en iyi sonuç" kartı ve yazarken
+  güncellenen sonuçlarla.
+- 👤 **Birden fazla Spotify hesabı** — hesap ekle, başlık çubuğundan yeniden giriş yapmadan geç; her hesabın kendi
+  kitaplığı, istatistikleri ve akıllı listeleri olur.
+- 🤝 **Blend** — senin ve bir arkadaşının zevkinden ortak liste ve uyum yüzdesi; sunucu da Spotify hesabı da gerekmez,
+  gönderilmeden önce neyin paylaşıldığını görürsün.
+- 📝 **Krediler** — her şarkının icracıları, yazarları, prodüktörleri ve plak şirketi; Şimdi Çalıyor'da ve şarkı menüsünde.
 - 🖱️ **Sürükle bırak** — şarkıları bir listeye, Beğenilen Şarkılar'a ya da sıraya sürükle; Explorer'dan müzik
   dosyası ve klasör bırak, hemen çalsın.
 - 🔄 **Liste içe / dışa aktarma** — her listeyi, Beğenilen Şarkılar'ı, bir albümü ya da sırayı M3U8, CSV (Excel),
@@ -56,24 +66,30 @@ kalır.
   an çalan şarkı.
 - 🎚️ **Ses** — hazır ayarlı 10 bantlı ekolayzer, akıllı şarkı geçişi (albümler kesintisiz kalır, sessiz bitişler
   atlanır), her şarkıyı aynı seviyede çalan ses dengeleme, tonu bozmadan çalma hızı ve çıkış aygıtı seçimi.
+  YouTube'un en iyi sesini (Opus) ShadeTube kendisi çözer; isteğe bağlı WASAPI özel modu her şarkıyı kendi örnekleme
+  hızında çalar.
 - ⛔ **Kara liste** — engellediğin şarkı ve sanatçılar kendiliğinden hiç çalmaz.
 - ⬇️ **Gerçek MP3 indirme** — etiketli ve kapaklı 320 kbps MP3 (ya da orijinal m4a), Sanatçı/Albüm klasörlerine;
-  videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar; Beğenilen Şarkılar,
+  videodaki müzik dışı bölümler SponsorBlock ile kesilir. İndirilenler çevrimdışı çalar; dinlediğin şarkılar boyutu sınırlı bir
+  önbellekte tutulur ve anında (çevrimdışıyken de) başlar; Beğenilen Şarkılar,
   çalma listeleri ve albümler kendiliğinden indirilip güncel tutulabilir; senkrondan çıkardığın şarkılar geri gelmez.
 - 📁 **Yerel dosyalar** — kendi klasörlerin: MP3, FLAC, M4A/ALAC, AAC, WAV ve WMA, etiket ve kapaklarıyla; klasör
   klasör gez, etiketlerini ve kapaklarını düzenle (MP3, FLAC, M4A), tek şarkıda ya da topluca.
 - 🎙️ **Podcastler** — Apple Podcasts dizininde ara ya da herhangi bir RSS beslemesini ekle; abone ol, yeni bölümleri
-  gör, kaldığın yerden devam et, bölüm notlarını oku ve bölümleri çevrimdışı dinlemek için indir.
+  gör, kaldığın yerden devam et, bölüm notlarını oku ve bölümleri çevrimdışı dinlemek için indir. Spotify'da takip ettiğin
+  programlar açık beslemeleri üzerinden içe aktarılabilir.
 - 🎬 **Video modu** — şarkının klibini Şimdi Çalıyor'da ya da her zaman üstte duran kendi penceresinde izle; görüntü
-  ShadeTube'un kendi sesine uyar (ekolayzer, geçiş ve hız çalışmaya devam eder).
+  ShadeTube'un kendi sesine uyar (ekolayzer, geçiş ve hız çalışmaya devam eder). Yalnızca ses olarak yüklenmiş
+  şarkılarda resmi klip bulunur ve sese hizalanır.
 - 👆 **Şarkı önizleme** — bir şarkıya, albüme, listeye ya da sanatçıya basılı tut, 20 saniyesini dinle; bırakınca
   çalan şarkı kaldığı yerden devam eder.
 - 🎤 **Senkron şarkı sözleri** — LRCLIB'den, Spotify'a bağlıyken Spotify'dan ya da kendi `.lrc` dosyalarından; bir
   satıra tıkla, oraya atla, zamanlama kaymışsa düzelt ya da sözleri söylendikçe dolduran tam ekran karaoke
   görünümünü aç. İndirilenlerin etiketine sözler yazılır, yanlarına `.lrc` kaydedilir. Birkaç satırı
-  kapaklı bir görsel kart olarak paylaş.
+  kapaklı bir görsel kart olarak paylaş. Sözler yanlışsa başka bir sonuç seç, dosyadan yükle ya da o şarkı için kapat.
 - 📊 **İstatistikler** — gerçek dinleme süren; son 7 gün, 30 gün ya da tüm zamanların en çok dinlenenleri,
-  yıl özeti, dinleme saatlerin (ısı haritası) ve Spotify'ın veri indirmesinden içe aktarılan geçmişin.
+  yıl özeti, dinleme saatlerin (ısı haritası) ve Spotify'ın veri indirmesinden, Last.fm'den
+  ya da ListenBrainz'den içe aktarılan geçmişin.
 - ✨ **Senin için listeler** — birlikte dinlediğin sanatçılardan günün karışımları (araya yeni şarkılar katılır), bu
   ayın favorileri, yeni keşiflerin, unutulan beğeniler, tüm zamanların ve her yılın en iyileri: kendi dinlediklerinden
   bilgisayarında oluşan, her gün yenilenen listeler.
@@ -114,7 +130,7 @@ kalır.
 2. **`ShadeTube.exe`**'yi çalıştır. Exe henüz imzalı olmadığı için Windows SmartScreen "bilinmeyen yayımcı"
    uyarısı verebilir: **Ek bilgi → Yine de çalıştır**.
 3. **Spotify ile bağlan**'a tıklayıp hesabınla giriş yap (e-posta, Google ya da Apple) ya da
-   **Spotify olmadan keşfet** ile açık MusicBrainz kataloğunu gez.
+   **Spotify olmadan keşfet** ile YouTube Music'i ya da açık MusicBrainz kataloğunu gez.
 
 **Ya da bir paket yöneticisiyle:**
 
@@ -154,7 +170,9 @@ ShadeTube'un sunucusu yoktur ve hiçbir veri toplamaz. Doğrudan şunlarla konu�
 olmayan sözler), YouTube (ses), LRCLIB (sözler), SponsorBlock (bölümler; video açık edilmeden, hash önekiyle
 sorulur), MusicBrainz / Cover Art Archive / ListenBrainz (açık katalog) ve GitHub (güncelleme denetimi). Podcastler,
 Apple'ın podcast dizinini (arama ve listeler) ve her programın kendi besleme ve ses sunucusunu yalnızca sen açınca
-kullanır; internet radyosu radio-browser.info'yu ve istasyonların kendisini kullanır. Last.fm, ListenBrainz scrobble,
+kullanır; internet radyosu radio-browser.info'yu ve istasyonların kendisini kullanır. YouTube Music (katalog olarak) ve
+Wikipedia (Spotify'sız sanatçı biyografileri) yalnızca o modlarda kullanılır; birlikte dinleme ve Blend uçtan uca
+şifreli olarak açık MQTT sunucularını kullanır. Last.fm, ListenBrainz scrobble,
 Discord ve Piped / Invidious / SoundCloud yalnızca sen açarsan kullanılır.
 
 ## 🛠 Kaynaktan derleme

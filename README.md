@@ -39,9 +39,18 @@ starts instantly and stays light.
   (recents, recently added, alphabetical, creator) and a quick filter.
 - 👥 **Listen together** — start a session and share the invite link: friends hear the same song at the same moment,
   without Spotify accounts and without a server of ours (end-to-end encrypted). Guests add songs; the host decides who
-  controls playback.
+  controls playback. Podcast episodes and radio stations are shared too, and a session survives a restart.
 - 📱 **Phone remote** — scan a QR code and control ShadeTube from your phone's browser on the same Wi-Fi: playback,
   volume, queue, search, your library. Nothing to install.
+- 🎵 **YouTube Music catalog** — no Spotify account? Browse YouTube Music instead: search, albums, artists with their
+  whole discography, playlists, moods and a home feed, with every song pinned to its exact recording.
+- 🔎 **Search everything** — songs, albums, artists, playlists, podcasts and profiles, with a top result card and
+  results that update as you type.
+- 👤 **Several Spotify accounts** — add more accounts and switch from the title bar without logging in again; each
+  keeps its own library, stats and smart lists.
+- 🤝 **Blend** — a shared playlist from your and a friend's taste, with a taste-match score; no server and no Spotify
+  account needed, and you see exactly what is shared before it is sent.
+- 📝 **Credits** — performers, writers, producers and the label of any song, in Now Playing and the song menu.
 - 🖱️ **Drag and drop** — drag songs onto a playlist, Liked Songs or into the queue; drop music files and folders
   from Explorer to play them.
 - 🔄 **Import & export playlists** — save any playlist, Liked Songs, an album or the queue as M3U8, CSV (Excel),
@@ -57,25 +66,29 @@ starts instantly and stays light.
   favorites and the song that's on air.
 - 🎚️ **Sound** — a 10-band equalizer with presets, smart crossfade between songs (albums stay gapless, silent endings
   are skipped), volume normalization so every song plays at the same level, playback speed without a pitch change and
-  a choice of output device.
+  a choice of output device. YouTube's best audio (Opus) is decoded by ShadeTube itself, and an optional WASAPI
+  exclusive mode plays each song at its own sample rate.
 - ⛔ **Blocklist** — block songs or artists and they are never picked automatically.
 - ⬇️ **Real MP3 downloads** — 320 kbps MP3 (or the original m4a) with tags and cover art, sorted into
-  Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline, and
+  Artist/Album folders; non-music parts of the video are cut out with SponsorBlock. Downloads play offline, songs you played are kept in a size-limited cache so they start at once (also offline), and
   Liked Songs, playlists and albums can be kept offline and in sync automatically, minus the songs you exclude.
 - 📁 **Local files** — add your own folders: MP3, FLAC, M4A/ALAC, AAC, WAV and WMA with tags and covers; browse them
   folder by folder and edit their tags and covers (MP3, FLAC, M4A), one song or many at once.
 - 🎙️ **Podcasts** — search Apple's podcast directory or add any RSS feed; subscribe, get new episodes, continue
-  where you left off, read the show notes and download episodes for offline listening.
+  where you left off, read the show notes and download episodes for offline listening. The shows you follow on
+  Spotify can be imported through their public feeds.
 - 🎬 **Video mode** — watch the song's music video in Now Playing or in its own always-on-top window, in sync with
-  ShadeTube's own audio (equalizer, crossfade and speed keep working).
+  ShadeTube's own audio (equalizer, crossfade and speed keep working). Songs that play from an audio-only upload get the
+  official music video, aligned to the audio.
 - 👆 **Song preview** — press and hold any song, album, playlist or artist to hear 20 seconds of it; what was playing
   continues exactly where it was when you let go.
 - 🎤 **Synced lyrics** from LRCLIB, Spotify (when connected) or your own `.lrc` files — click a line to jump there,
   nudge the timing if it's off, or open the full-screen karaoke view that fills each line as it's sung. Downloads
-  get the lyrics in their tags and a `.lrc` next to them. Share a few lines as an image card with the cover.
+  get the lyrics in their tags and a `.lrc` next to them. Share a few lines as an image card with the cover. Wrong lyrics?
+  Pick another result, load a file or turn them off for that song.
 - 📊 **Listening stats** — real listening time, top songs, artists and albums for 7 days, 30 days or all time,
-  a Wrapped-style year in review story with shareable cards, a heatmap of your listening hours, and your Spotify history imported from Spotify's data
-  download.
+  a Wrapped-style year in review story with shareable cards, a heatmap of your listening hours, and your history imported from Spotify's data
+  download, Last.fm or ListenBrainz.
 - ✨ **Made for you** — daily mixes of the artists you play together (with new songs mixed in), this month's
   favorites, new discoveries, forgotten likes, all-time and yearly bests: playlists built on your PC from your own
   listening, refreshed every day.
@@ -116,7 +129,7 @@ starts instantly and stays light.
 2. Run **`ShadeTube.exe`**. The exe is not code-signed yet, so Windows SmartScreen may warn about an unknown
    publisher: click **More info → Run anyway**.
 3. Click **Connect Spotify** and sign in with your account (email, Google or Apple), or choose
-   **Explore without Spotify** to browse the open MusicBrainz catalog.
+   **Explore without Spotify** to browse YouTube Music or the open MusicBrainz catalog.
 
 **Or with a package manager:**
 
@@ -157,7 +170,9 @@ ShadeTube has no servers and collects nothing. It talks directly to Spotify (you
 lacks), YouTube (audio), LRCLIB (lyrics), SponsorBlock (segments, queried by hash prefix so the video is not
 revealed), MusicBrainz / Cover Art Archive / ListenBrainz (open catalog) and GitHub (update checks). Podcasts use
 Apple's podcast directory (search and charts) and each show's own feed and audio host, only when you open them;
-internet radio uses radio-browser.info and the stations themselves. Last.fm, ListenBrainz scrobbling, Discord and
+internet radio uses radio-browser.info and the stations themselves. YouTube Music (as a catalog) and Wikipedia
+(artist biographies without Spotify) are contacted only in those modes; listen together and Blend use public MQTT
+servers with end-to-end encryption. Last.fm, ListenBrainz scrobbling, Discord and
 Piped / Invidious / SoundCloud are used only if you turn them on.
 
 ## 🛠 Build from source
@@ -183,7 +198,7 @@ the artists.
 
 [Spotube](https://github.com/KRTirtho/spotube) for the idea ·
 [YoutubeExplode](https://github.com/Tyrrrz/YoutubeExplode) whose design the C++ stream library follows ·
-[LRCLIB](https://lrclib.net) · [SponsorBlock](https://sponsor.ajay.app) ·
+[LRCLIB](https://lrclib.net) · [Xiph.Org](https://xiph.org) (Opus, Vorbis, Ogg) · [SponsorBlock](https://sponsor.ajay.app) ·
 [MusicBrainz](https://musicbrainz.org) & [ListenBrainz](https://listenbrainz.org) ·
 [nlohmann/json](https://github.com/nlohmann/json) ·
 [Bricolage Grotesque](https://github.com/ateliertriay/bricolage) & [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) fonts.

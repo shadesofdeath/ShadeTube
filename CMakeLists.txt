@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(ShadeTube VERSION 0.10.0 LANGUAGES CXX C)   # C: the vendored Xiph decoders
+project(ShadeTube VERSION 0.11.0 LANGUAGES CXX C)   # C: the vendored Xiph decoders
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
