@@ -2,6 +2,18 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.12.0 — unreleased
+
+- **Two editions: portable and setup**: every release now comes as the portable zip, as before, and as
+  `ShadeTube-<version>-setup.exe`, a setup with its own window drawn in ShadeTube's style (dark or light like the app,
+  the same fonts, buttons and switches, the record spinning while it works). It installs for your user only, without
+  admin rights, into `%LOCALAPPDATA%\Programs\ShadeTube` or a folder you pick, with a Start menu shortcut, an optional
+  desktop shortcut, "Start with Windows" and "Open ShadeTube when done". Run it again to update, repair or uninstall
+  (with "Keep my settings and library"); a ShadeTube that is open is closed first, saving everything. It checks the
+  copy of ShadeTube it carries before installing anything, and package managers can run it silently (`/S`, `/D=`).
+  Settings › About no longer offers "Install on this PC"; an installed copy keeps its "Uninstall" there and in
+  Windows' Installed apps, and both editions keep updating themselves.
+
 ## 0.11.0 — 2026-11-27
 
 - **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or

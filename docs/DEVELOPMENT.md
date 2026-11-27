@@ -43,7 +43,8 @@ configure time) re-run `cmake -S . -B build\Debug` or delete the build folder. T
 
 The result is a **single self-contained exe**: static CRT, static WebView2 loader, and every file under `assets/`
 embedded as an `RCDATA` resource named by its relative path (generated `resources.rc`; names starting with `_` are
-skipped). At run time the Spotify login needs the Evergreen **WebView2 Runtime** (included in Windows 11).
+skipped). At run time the Spotify login needs the Evergreen **WebView2 Runtime** (included in Windows 11). Next to it
+the build makes `bin\ShadeTubeSetup.exe`, the setup that carries that exe (3.57).
 
 **First run** shows the connect screen: *Connect Spotify* opens a WebView2 login window; under *Explore without
 Spotify*, *YouTube Music* or *MusicBrainz* browses that open catalog (3.56). User data lives in `%LOCALAPPDATA%\ShadeTube` ([3.14](#314-user-data)); during
@@ -69,7 +70,7 @@ ShadeTube/
 ├─ external/qrcodegen/           Nayuki's QR Code generator (C++, MIT, vendored unchanged; the remote's pairing code)
 ├─ external/libopus/ opusfile/ libvorbis/ libogg/   Xiph decoders (BSD-3-Clause, decoder parts vendored unchanged; 3.52)
 ├─ tools/
-│   package.ps1                  Release build -> dist\ShadeTube-<ver>-win64.zip + .sha256
+│   package.ps1                  Release build -> dist\ShadeTube-<ver>-win64.zip + ShadeTube-<ver>-setup.exe (+ .sha256)
 │   update_manifests.py          winget + Scoop manifests for the packaged release (see 6)
 │   i18n_check.py                translation checker (see 3.13)
 │   icons.py                     the icon set: draws assets/icons/<grid>/*.svg (and the design package's copy), 3.43
@@ -120,13 +121,17 @@ ShadeTube/
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.50),
 │                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements
+│                st_install      Installer + Updater + Autostart (defined in app/CMakeLists.txt, sources in app/): the
+│                                app and the setup link it
+│   setup/       ShadeTubeSetup.exe  the setup (3.57): st_setup_core (Payload, SetupArgs, SetupEngine), setup_pack (the
+│                                build-host packer), SetupUi + main
 └─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiocache,
                                  audiodsp, blend, browse, codecs, collections, credits, downloads, headers, history,
                                  icons, jam, library, links, lists, liveaudio, localfiles, lyrics, memory, micro,
                                  miniplayer, musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups,
-                                 preview, radio, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
-                                 smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
-                                 winshell, ytmusic, ytstreams
+                                 preview, radio, remote, review, scrobble, scroll, setup, shortcuts, smartlists,
+                                 smartshuffle, smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater,
+                                 video, winshell, ytmusic, ytstreams
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -137,7 +142,8 @@ The icons are the exception: `tools/icons.py` draws them and writes both `assets
 
 **Module dependencies** (never reverse them): `core ← catalog ← musicbrainz, spotify, youtube, ytmusic`;
 `core ← audio, lyrics, gfx`; `gfx ← ui`; `audio + gfx ← video` (it reuses the audio module's ProgressiveBuffer and
-MfByteStream); `audio + youtube + catalog ← player`; everything `← app`. A new module
+MfByteStream); `audio + youtube + catalog ← player`; everything `← app`; `ui + st_install ← setup` (the setup links
+nothing else of the app). A new module
 gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this guide.
 
 ## 3. Architecture
@@ -626,13 +632,17 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
 
 ### 3.11 Installer and updater
 
-- **Installer** (`app/Installer`): *Settings › About › Install on this PC* copies the running exe to
-  `%LOCALAPPDATA%\Programs\ShadeTube`, adds a Start menu shortcut and `HKCU\…\Uninstall\ShadeTube` (no admin rights).
+- **Installer** (`app/Installer`, in `st_install` with the updater and `app/Autostart`): the per-user install the setup
+  (3.57) runs: the exe in `%LOCALAPPDATA%\Programs\ShadeTube` (or another folder), a Start menu shortcut, optionally
+  one on the desktop, and `HKCU\…\Uninstall\ShadeTube` (no admin rights). The app no longer installs itself: *Settings ›
+  About* shows the installed copy (and *Uygulamayı kaldır*) only when there is one, a portable copy offers nothing.
   Windows' *Installed apps* runs `ShadeTube.exe --uninstall` (the quiet uninstall string adds `--quiet`); files still
-  in use are deleted by a detached helper once the process has exited.
+  in use are deleted by a detached helper once the process has exited. The installed copy refreshes its
+  `DisplayVersion` / `EstimatedSize` at every start (after an in-app update).
 - **Updater** (`app/Updater`, UI in `AboutSettings.cpp`): at most once a day, ~20 s after startup, it queries
   `api.github.com/repos/shadesofdeath/ShadeTube/releases/latest`. *Download and install* downloads the asset
-  (`ShadeTube-<ver>-win64.zip`, else any ShadeTube zip or exe) in ranged chunks, checks its SHA-256 against GitHub's
+  (`ShadeTube-<ver>-win64.zip`, else any ShadeTube zip or exe, never the setup: a name with `setup` / `installer`; an
+  installed and a portable copy both update from the zip) in ranged chunks, checks its SHA-256 against GitHub's
   asset digest and any `sha256: <hex>` line in the release notes, extracts `ShadeTube.exe` with a built-in ZIP reader,
   verifies it (PE x64 GUI, `ProductName` "ShadeTube", `ProductVersion` == the release tag's version) and swaps it
   in (the old exe is parked as `ShadeTube.old.exe`, rolled back on failure). Leftovers are recorded in
@@ -3227,6 +3237,93 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
   search, paging songs and playlists, the full discography, the disk cache) and plays a search result through
   `MatchService` to check the video is the one YouTube Music named.
 
+### 3.57 Setup (ShadeTubeSetup.exe)
+
+Releases ship two editions: the portable zip (as before) and `ShadeTube-<ver>-setup.exe`, a small native setup with
+its own window, built on the app's `gfx` / `ui` libraries (no installer framework). The app itself no longer offers
+"Bilgisayara kur" (3.11).
+
+- **Targets** (`src/setup/CMakeLists.txt`): `st_setup_core` (Payload, SetupArgs, SetupEngine; links `st_install`, the
+  installer / updater / autostart code the app uses too), `setup_pack` (a build-host tool) and `ShadeTubeSetup`
+  (`bin\ShadeTubeSetup.exe`: SetupUi + main, linking `st_ui`). The setup's VERSIONINFO says `ShadeTube Setup`, never
+  `ShadeTube`, so the updater's `verifyExe` can never take it for the app; its manifest is `asInvoker` + PerMonitorV2.
+- **Payload** (`setup/Payload`): `ShadeTube.exe` of the same build plus `LICENSE.txt`, `THIRD_PARTY_NOTICES.md` and
+  `OFL.txt`, packed by `setup_pack payload` into the RCDATA resource `payload`. Format: magic `STSETUP1`, the app
+  version, a file table (name, size, SHA-256), the files' bytes concatenated and cut into 4 MB blocks, each compressed
+  on its own with the Windows Compression API (cabinet.dll: LZMS for release builds, XPRESS_HUFF in Debug, which packs
+  43 MB in 1.5 s), and a SHA-256 seal over everything before it. `read()` checks the seal and the structure (plain file
+  names only, block count and sizes consistent) before anything is trusted; `unpack()` decompresses block by block
+  (progress per block, one block of memory), checks every file's SHA-256 and size and deletes what it wrote on any
+  failure. The packer refuses an exe whose ProductVersion is not the build's version, and the setup runs
+  `updater::verifyExe` (PE x64 GUI, ProductName `ShadeTube`, ProductVersion == the payload's version) on the unpacked exe
+  before it touches the install folder.
+- **Translations**: `setup_pack i18n` scans the setup's sources plus what it links that calls `tr()` (`ui`, `gfx`,
+  `core`, Installer, Updater, Autostart) with the rule of `tools/i18n_check.py` and embeds only those keys of each
+  `assets/i18n/<code>.json` (~140 keys, ~15 KB a language instead of ~180 KB). The language follows Windows' display
+  language among the app's (`i18n::init("")`); `--lang` overrides it.
+- **What it does** (`setup/SetupEngine`, no UI: the silent mode and `setup_test` call it directly): `detect()` reads the
+  uninstall key (installed folder, version of its exe, missing exe), whether the Start menu / desktop shortcuts start
+  that exe, "Windows ile başlat" (the app's `startWithWindows` in settings.json and its Run value) and the running
+  ShadeTubes (`installer::runningInstances()`, windows of the app's class). `actionFor()`: nothing installed =
+  Install, older = Update, the same or the exe missing = Repair, newer = Downgrade. `run()` for an install: read +
+  seal (8 %), every running ShadeTube asked to quit with WM_QUIT, the way the uninstaller does it (App::run saves
+  settings, library and queue on the way out; 30 s each, then the single-instance mutex is awaited; a copy that stays
+  is not fatal: `install()` renames its exe away like the updater's swap and the new one starts next time), unpack
+  into `%TEMP%\ShadeTubeSetup-<pid>-<tick>` (15-75 %), `verifyExe`, `installer::install()` (exe through a temp copy and
+  one rename, the licenses, the uninstall key, the shortcuts asked for; one of ours no longer wanted is removed, a
+  user's own shortcut never), the old folder's own files when the install moved, then "Windows ile başlat":
+  `installer::setStartWithWindows()` patches settings.json's `startWithWindows` in place (every other value, also a
+  newer version's, stays) and writes / removes the Run value, because the app re-syncs the Run value from that setting
+  at every start. Uninstall: the copies running from the install folder quit (one that doesn't is an error), with the
+  data also the others (one that stays keeps the data), then `installer::uninstall()`. The registration is the one the
+  app knows: `UninstallString` stays `"<dir>\ShadeTube.exe" --uninstall`, so Windows' *Installed apps* and the app's
+  own *Uygulamayı kaldır* keep working, and the in-app updater keeps updating the installed exe in place.
+- **The window** (`setup/SetupUi`): an 800 × 620 DIP `ui::Window` (custom chrome, not resizable, class
+  `ShadeTube.Setup` so running-instance lookups never see it, rounded corners asked for on Windows 11; on a work area
+  too small, e.g. 1366 × 768 at 125 %, it is zoomed out to fit). Left: a sunken panel with the accent's glow and the
+  record: the logo mark (recolored to the theme's accent) inside two hairline rings and a dial of 72 ticks that light
+  up clockwise with the progress; the mark spins like a record while files are written and slows to a stop, then a
+  check (or error) badge appears. Right, one page at a time (pages slide / fade in 240 ms, out in 120 ms): *welcome*
+  (mono label, a two-line hero set at the largest size that fits, the subtitle, the folder field with *Değiştir…*,
+  an `IFileOpenDialog` folder picker; a picked folder gets `\ShadeTube` appended and is checked for writing without
+  admin rights, one note line under it: the size needed / free / no admin rights, or ShadeTube is open, or the folder
+  can't be used; options as rows with the app's toggles: Start menu, desktop, start with Windows, open when done; Kur),
+  *maintenance* (update / repair / downgrade text and button, the installed folder read only, *Kaldır…*),
+  *uninstall* (*Ayarlarımı ve kitaplığımı sakla*, on by default; the focus starts on *Vazgeç*), *progress* (the
+  percentage in the language's order (`%{}`), the player bar's flowing wave line as the bar, the steps ticking off with
+  checks, the taskbar button's progress), *done* (*ShadeTube'u aç* / *Kapat*; with "open when done" the app starts
+  with `--installed` / `--updated`, which toast in the app, and the window closes 1.8 s later), *error* (the reason,
+  *Tekrar dene*). The work runs on a worker thread; progress reaches the UI through the `Dispatcher` and the shown
+  value eases towards it; the progress page stays at least 1.2 s (0.4 s without motion) so it can be read. A page
+  that needs more room in a language (a three-line subtitle) gets a smaller hero and tighter rows until it fits. Theme:
+  the app's own mode from the profile's settings.json (dark when there is none, like the app; "Sistem" follows
+  Windows, live); "Hareketi azalt" and Windows' animation effects off stop the spin, the wave and the transitions.
+  Keyboard: Enter = the page's main action, Esc = back / close (the window ignores closing while it works), Tab /
+  Shift+Tab with the app's focus ring; the empty areas drag the window. One setup at a time (`Local\ShadeTube.Setup`,
+  per sandbox): a second one brings the first to the front, or exits 1618 with `/S`. An elevated setup ("Run as
+  administrator") starts the app through Explorer (`IShellDispatch2::ShellExecute`) so it runs with normal rights.
+- **Command line** (`setup/SetupArgs`; `/?` shows it): `/S` silent (no window, the result in the exit code), `/D=<folder>`
+  (NSIS style: last, may contain spaces, quotes optional; used as given), `/DESKTOP`, `/NOSTARTMENU`, `/AUTOSTART`,
+  `/LAUNCH`, `/UNINSTALL` (with `/S` silent; `/REMOVEDATA` also deletes the user data). A silent update keeps the
+  shortcuts as they are (a desktop shortcut only goes away when asked), "Windows ile başlat" is left alone unless
+  `/AUTOSTART`. Exit codes: 0 done, 1 failed, 87 bad command line, 1602 the window was closed before anything was
+  done, 1618 another setup is running.
+- **Sandbox** (tests, screenshots): `SHADETUBE_SETUP_SANDBOX=<folder>` (`installer::applySandbox()`, called first by
+  the setup and by `setup_test`) sets the installer's locations (`SHADETUBE_INSTALL_DIR`, `_SHORTCUT_DIR`,
+  `_DESKTOP_DIR` inside the folder, `_UNINSTALL_KEY` and `SHADETUBE_RUN_KEY` under `HKCU\Software\ShadeTubeSandbox\<id>`,
+  `<id>` a hash of the folder), the profile (`SHADETUBE_DATA_DIR`) and the instance class / mutex, each unless set
+  already; child processes (an app the setup starts, the uninstall helper) inherit them. Nothing of the user's is
+  touched then: no Start menu, desktop, *Installed apps* or Run entry, no app identity, and the user's running
+  ShadeTube is never asked to quit. Remove `HKCU\Software\ShadeTubeSandbox` afterwards (`setup_test` does).
+- **Dev flags**: `--screenshot <folder>` renders every page with made-up states (`welcome`, `welcome-running`,
+  `folder-error`, `update`, `repair`, `downgrade`, `uninstall`, `progress`, `progress-update`, `progress-uninstall`,
+  `done`, `done-launch`, `done-update`, `uninstalled`, `error`) to `<page>.png` without showing a window or installing
+  anything; `--page <name>` only that one; `--theme dark|light`, `--scale <f>` (e.g. 1.5, whatever the monitor),
+  `--lang <code>`. E.g. `set SHADETUBE_SETUP_SANDBOX=%TEMP%\st-sb` then
+  `ShadeTubeSetup.exe --screenshot %TEMP%\st-shots --theme light --scale 1.5`.
+- **Size and speed**: 8.2 MB (Release), an install in about a quarter of a second; numbers and what was not run
+  live in 7.
+
 ## 4. Coding conventions
 
 - C++20, MSVC `/W4 /permissive- /utf-8`. Namespace `st::<module>`. Files `PascalCase.h/.cpp`.
@@ -3250,6 +3347,7 @@ atomic: `Settings` is UI-thread only) and reopens the current page on a switch f
 - App files that tests compile directly (`Blacklist`, `ListenStats`, `HistoryImport`, `ScrobbleImport`, `LocalLibrary`, `Scrobbler`, `DiscordRpc`,
   `SponsorBlock`, `Smtc`, `Updater`, `Installer`, `LibrarySort`, `RemoteHttp`, `RemoteAuth`, `RemoteApi`,
   `RemoteState`, `RemoteServer`, the `Jam*` core, `HeaderCollapse`, `OfficialVideoCache`) must stay standalone: no `App`, `AppContext` or UI headers.
+  `Installer`, `Updater` and `Autostart` are also the `st_install` library the setup links (3.57).
 
 ## 5. Testing
 
@@ -3302,7 +3400,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
 | `credits_test` | song credits: role folding and groups, merging, the Spotify credits query and legacy JSON, MusicBrainz recording / work / label relationships, title cleaning and the recording ranking, `app/Credits` (JSON round trip and expiry, the provider chain, memory + disk cache, the summary) | offline (fixtures); `live ["Artist" "Title" [seconds]]` (MusicBrainz search + credits, read-only; Spotify too with `SHADETUBE_SPDC`, track `SHADETUBE_CREDITS_TRACK`) |
-| `updater_test` | versions, release JSON, ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
+| `updater_test` | versions, release JSON, asset choice (the zip, never the setup, in any order), ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
+| `setup_test` | the setup (3.57): payload pack / read / unpack with every algorithm (blocks, a file across blocks, an empty file, progress), damage (a flipped byte, the seal, truncation, garbage), forged but sealed headers (format, names, block count, a file's SHA-256: nothing left behind), cancel, the payload of this build's `ShadeTubeSetup.exe` (its exe byte for byte the build's, passing `verifyExe`); the command line; `actionFor` / `folderFor` / `writable`; in a `SHADETUBE_SETUP_SANDBOX`: a fresh install (files, uninstall key, both shortcuts, Run value + settings.json, a newer version's settings kept), a repair changing the options, an update while this build's app runs from the install folder (it quits gracefully first), a moved install, uninstall keeping / removing the data, `ShadeTube.exe --uninstall --quiet` on a setup install, `ShadeTubeSetup.exe /S` (`/D=` with spaces, `/DESKTOP`, `/UNINSTALL`, 87, 1618) | offline; `payload` / `args` / `engine` / `silent` runs one part; starts the build's app (`--preview`) in the sandbox |
 | `links_test` | pasted Spotify / YouTube / MusicBrainz links (YouTube playlists too), `shadetube://jam/` invites, video title -> song, Spotify base62 <-> gid, track metadata parser | offline; `live [spotify:track:…]` (read-only `Api::track` with the profile's saved `sp_dc`) |
 | `jam_test` | listen together core: MQTT remaining length + every packet used (byte for byte) + stream decoder + malformed input, broker URLs, SHA-256 / base64url / AES-256-GCM (known answer, tampering, other topic / key), ECDH, envelopes + replay windows + will sequence numbers, invite links, state / request JSON (hostile input), the new-invite hand-off, clock estimator, reconciliation decisions (load / jump / replace / seek / play / pause / holds / fine corrections / lead learning), level 2 (episodes / stations on the wire, what a 0.10.0 parser keeps of them, hostile data, feature level / speed / away, the envelope still at version 1, episodes at the host's speed, stations followed live), the host's saved room (round trip, resume window) + DPAPI, blend invite links, the URL protocol in a test key | offline (own temp profile + test registry key); `live [wss://broker…]` (two clients per broker: retained sealed state to a late subscriber, a request back, clock pings, the last will, a goodbye flushed at stop, clearing the state) |
 | `blend_test` | Blend (`app/Blend`): song / artist keys, taste profiles (streams only, podcast / radio out, recency, the six-month window and its fallback, caps, weights, features), profile JSON (hostile input), the mix (shared first, then one per member in turn, whose taste, cap, three members, newest profile per member, the same mix in any order), the taste match, the store record, timing with 300 000 plays | offline; `live [wss://broker…]` (two members never online together exchange retained sealed profiles through a real broker and build the same mix; leaving); `retain put <file> [broker]` / `retain get <file>` (how long a broker keeps a retained record) |
@@ -3377,8 +3476,9 @@ log) opens the page.
 | `--palette [query]` | open the command palette at startup, optionally with `query` typed in |
 
 Used by the app itself: `--autostart` (the *Start with Windows* Run value), `--restart-after <pid>` (language
-change), `--installed` / `--updated` (notice after an install or update), `--uninstall [--quiet]` (Windows' *Installed
-apps*).
+change), `--installed` / `--updated` (notice after an install or update; the setup starts the app with them),
+`--uninstall [--quiet]` (Windows' *Installed apps*). The setup's own switches and dev flags (`--screenshot`, `--page`,
+`--theme`, `--scale`, `--lang`) are in 3.57.
 
 ### 5.4 Environment variables
 
@@ -3391,7 +3491,8 @@ apps*).
 | `SHADETUBE_OFFLINE=1` | the shared transport (`http::client()`, `getLimited()`: YouTube, SponsorBlock, covers, Spotify, lyrics, MusicBrainz) goes through a proxy name that never resolves, so every request fails as on a PC without a connection (the song cache's offline plays, 3.45). The engine's stream downloads and the private WinHTTP sessions (backup servers, radio, podcasts, listen together) are not affected |
 | `SHADETUBE_UPDATE_URL` | replaces the GitHub latest-release URL (mock server) |
 | `SHADETUBE_VERSION_OVERRIDE` | pretend the running exe has this version (update tests) |
-| `SHADETUBE_INSTALL_DIR`, `SHADETUBE_SHORTCUT_DIR`, `SHADETUBE_UNINSTALL_KEY` | installer locations (key always under HKCU) |
+| `SHADETUBE_INSTALL_DIR`, `SHADETUBE_SHORTCUT_DIR`, `SHADETUBE_DESKTOP_DIR`, `SHADETUBE_UNINSTALL_KEY` | installer locations (key always under HKCU) |
+| `SHADETUBE_SETUP_SANDBOX` | `<folder>`: the setup (and anything it starts) installs into that folder and `HKCU\Software\ShadeTubeSandbox\<id>` only: sets the installer locations above, `SHADETUBE_RUN_KEY`, `SHADETUBE_DATA_DIR` and the instance class / mutex (3.57) |
 | `SHADETUBE_INSTANCE_CLASS`, `SHADETUBE_INSTANCE_MUTEX` | how the uninstaller recognizes a running ShadeTube |
 | `SHADETUBE_SPDC` | `sp_dc` cookie for the live `spotify_test` modes (never printed) |
 | `SHADETUBE_DISCORD_APPID` | Discord application id for `scrobble_test`'s live presence |
@@ -3460,13 +3561,17 @@ apps*).
 1. Bump `project(ShadeTube VERSION x.y.z)` in `CMakeLists.txt`. It drives the VERSIONINFO resource, *Settings ›
    About*, the package name and the updater's version check. Add the version to `CHANGELOG.md`.
 2. Build and run the offline tests (and `tools/i18n_check.py --all --strict`).
-3. Package: `powershell -ExecutionPolicy Bypass -File tools\package.ps1` (`-SkipBuild` reuses
-   `build\Release\bin\ShadeTube.exe`). It writes `dist\ShadeTube-x.y.z-win64.zip` (the exe, a short `BENIOKU.txt`,
-   `LICENSE.txt`, `THIRD_PARTY_NOTICES.md` and the fonts' `OFL.txt`),
-   `dist\ShadeTube-x.y.z-win64.zip.sha256`, and prints a `sha256: <hex>` line. Keep `package.ps1` UTF-8 with BOM.
-4. Optionally run `tests\updater\run_e2e.ps1` against the new package.
+3. Package: `powershell -ExecutionPolicy Bypass -File tools\package.ps1` (`-SkipBuild` reuses the build in
+   `build\Release`, `-BuildDir` names another Release folder). It builds `ShadeTubeSetup` (which builds and packs the
+   app) and writes `dist\ShadeTube-x.y.z-win64.zip` (the exe, a short `BENIOKU.txt`, `LICENSE.txt`,
+   `THIRD_PARTY_NOTICES.md` and the fonts' `OFL.txt`), `dist\ShadeTube-x.y.z-setup.exe` (3.57; refused when its
+   VERSIONINFO isn't `ShadeTube Setup` x.y.z or it is older than the exe), a `.sha256` next to each, and prints a
+   `sha256: <hex>  <file>` line per file. Keep `package.ps1` UTF-8 with BOM.
+4. Optionally run `tests\updater\run_e2e.ps1` against the new package, and `setup_test` (it installs the setup's own
+   payload into a sandbox).
 5. Create a GitHub release tagged **`vX.Y.Z`** (not a draft or pre-release: the updater reads `releases/latest`),
-   upload the zip (and the `.sha256`), and paste the `sha256: <hex>` line into the release notes.
+   upload the zip, the setup and both `.sha256`, and paste both `sha256:` lines into the release notes (the updater
+   takes the zip and accepts it when its hash is among them).
 6. Package managers: `python tools\update_manifests.py` (after packaging; `--zip <file>` hashes another copy) writes
    the winget manifest to `packaging/winget/shadesofdeath.ShadeTube/<version>/` (older version folders are removed)
    and `bucket/shadetube.json` for Scoop, both pointing at the release asset of step 5, and validates them. Commit
@@ -3476,6 +3581,14 @@ apps*).
    `wingetcreate submit packaging\winget\shadesofdeath.ShadeTube\<version>` (the first submission is reviewed by
    the winget team; `winget validate --manifest <folder>` checks it locally). Portable installs (winget, Scoop) can
    still use the in-app updater, but the package manager then keeps showing the old version until its own update.
+   Both manifests still install the portable zip. Moving winget to the setup would take an installer manifest with
+   `InstallerType: exe`, `Scope: user`, `InstallerSwitches` `Silent` / `SilentWithProgress: /S` and
+   `InstallLocation: /D=<INSTALLPATH>`, `ProductCode: ShadeTube` (the uninstall key's name, so winget matches the
+   *Installed apps* entry for upgrades and `winget uninstall`, which then runs the `QuietUninstallString`),
+   `AppsAndFeaturesEntries` (DisplayName / Publisher `ShadeTube`, DisplayVersion), `ExpectedReturnCodes` for 1618
+   (`installInProgress`) and 1602 (`cancelledByUser`), `UpgradeBehavior: install`, and `update_manifests.py` hashing
+   the setup instead of the zip; the in-app updater keeps working either way (it updates the installed exe in place,
+   and the next start refreshes the entry's version).
 
 The in-app updater rejects a release whose tag differs from the exe's `ProductVersion`, and a download whose SHA-256
 differs from GitHub's asset digest or from the `sha256:` line in the notes.
@@ -3540,7 +3653,19 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   default and should stay a fallback. SoundCloud's `client_id` scraping can break whenever its web client changes;
   many label releases are only 30 s previews there.
 - **Unsigned exe**: SmartScreen warns on first run. The updater relies on SHA-256 and VERSIONINFO checks, not on a
-  code signature.
+  code signature. The same goes for the setup (it is the file people download first, so it meets SmartScreen first).
+- **Setup** (3.57; measured with the 0.11.0 code, Release, on this development PC): `ShadeTubeSetup.exe` is 8.2 MB
+  (the 15.3 MB app as a 6.0 MB LZMS payload, the rest is the setup's own code, fonts and icons; the portable zip is
+  6.5 MB); packing takes ~4 s at build time, unpacking 151 ms, a whole install 0.25 s and `/S` from start to exit
+  0.3 s. Every install, update, repair, uninstall and silent run was tested in a `SHADETUBE_SETUP_SANDBOX` only: the
+  real Start menu, desktop, *Installed apps* entry and Run value were never written by the setup on the development
+  PC, so how Explorer, Windows' *Installed apps* page and Windows 10 show them was not seen live (the values are the
+  same ones the app's own "Bilgisayara kur" wrote before). Not exercised: the elevated path (Explorer starting the app
+  unelevated), a work area so small that the window is zoomed out, the folder picker with a real click, a second
+  monitor with another DPI while the setup runs (handled by `ui::Window` like the app). The installed exe is replaced
+  while a ShadeTube that refuses to quit keeps running (renamed away, as the updater does): that path is covered by
+  `updater_test`, not by a setup run. The setup is one language at a time from Windows' display language; a user's
+  ShadeTube language setting is not consulted.
 - **Ogg / WebM**: Opus and Vorbis decode built in (3.52); Ogg FLAC / Speex and other codecs in WebM / Matroska still
   need a Media Foundation handler. Local `.webm` / `.weba` / `.mka` files are not scanned or accepted as drops (the
   engine plays them; their Matroska tags aren't read). Chained Ogg Vorbis links at another rate are resampled; a Matroska file without cues seeks by
