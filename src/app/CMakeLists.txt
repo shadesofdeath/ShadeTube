@@ -81,6 +81,7 @@ add_executable(ShadeTube WIN32
     LyricsService.cpp LyricsService.h
     LyricsShare.cpp LyricsShare.h
     LyricsSync.cpp LyricsSync.h
+    LyricSearch.cpp LyricSearch.h
     MemDemo.cpp MemDemo.h MemProfile.h
     MiniLayout.cpp MiniLayout.h
     MiniPlayer.cpp MiniPlayer.h

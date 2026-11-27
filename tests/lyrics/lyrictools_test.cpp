@@ -588,7 +588,36 @@ static void testFold() {
     CHECK(foldTitle("De Música Ligera") == "de musica ligera");
     CHECK(foldTitle("99 Luftballons") == "99 luftballons");
     CHECK(foldTitle("Кино — Группа крови", false) == foldTitle("кино группа крови", false));
-    CHECK(foldTitle("") .empty());
+    CHECK(foldTitle("").empty());
+    CHECK(foldTitle("♪ Intro ♪", false) == "intro");
+
+    // The same song across sources (a Genius hit against catalog tracks).
+    using lyrics::sameSong;
+    CHECK(sameSong("Sımarık", {"Tarkan"}, "Şımarık", "Tarkan"));                         // YouTube Music drops the Ş
+    CHECK(sameSong("Bohemian Rhapsody - Remastered 2011", {"Queen"}, "Bohemian Rhapsody", "Queen"));
+    CHECK(sameSong("Something Just Like This", {"The Chainsmokers", "Coldplay"}, "Something Just Like This", "The Chainsmokers"));
+    CHECK(sameSong("Something Just Like This", {"Chainsmokers"}, "Something Just Like This", "The Chainsmokers"));
+    CHECK(sameSong("What's Up?", {"4 Non Blondes"}, "What’s Up?", "4 Non Blondes"));
+    CHECK(sameSong("Despacito (feat. Daddy Yankee)", {"Luis Fonsi", "Daddy Yankee"}, "Despacito", "Luis Fonsi"));
+    CHECK(sameSong("Despacito Remix", {"Luis Fonsi"}, "Despacito", "Luis Fonsi"));            // runs on by a word
+    CHECK(sameSong("İstanbul'da Sonbahar", {"Teoman"}, "İstanbul’da Sonbahar", "Teoman"));
+    CHECK(sameSong("Gidiyorum", {"Sezen Aksu"}, "Gidiyorum", ""));                             // no artist: any
+    CHECK(!sameSong("Gidiyorum", {"Koray Avcı"}, "Gidiyorum", "Sezen Aksu"));                  // a namesake
+    CHECK(!sameSong("Bohemian Rhapsody", {"Queen"}, "Bohemian Like You", "Queen"));
+    CHECK(!sameSong("Despacitos", {"Luis Fonsi"}, "Despacito", "Luis Fonsi"));                 // not a whole word
+    CHECK(!sameSong("", {"Queen"}, "Bohemian Rhapsody", "Queen"));
+    CHECK(!sameSong("Olsun", {}, "Olsun", "Sertab Erener"));
+
+    // What reads like a line of lyrics (the "Sözler" tab is offered) rather than a name.
+    using lyrics::looksLikeLyrics;
+    CHECK(looksLikeLyrics(L"is this the real life"));
+    CHECK(looksLikeLyrics(L"ocağına düştüm yavru"));
+    CHECK(looksLikeLyrics(L"don't stop me now"));
+    CHECK(looksLikeLyrics(L"Supercalifragilisticexpialidocious"));   // one long word: 18+ letters
+    CHECK(!looksLikeLyrics(L"Tarkan"));
+    CHECK(!looksLikeLyrics(L"Sezen Aksu"));
+    CHECK(!looksLikeLyrics(L"  ’  ’ ♪ "));
+    CHECK(!looksLikeLyrics(L"don't stop"));                           // the apostrophe keeps one word
 }
 
 // ---- live ----------------------------------------------------------------------------------------------------------

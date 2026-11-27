@@ -3,8 +3,8 @@
 // site's own JSON endpoint, genius.com/api/search/lyric: no key) - it matches fragments in any language, tolerates
 // missing accents and typos, and names the matching passage, so a result can show the line it was found by. Measured
 // on 2026-11-27 with 13 fragments in English, Turkish, Spanish and German: the right song first for all 13 (YouTube
-// Music's search, the fallback in app/LyricSearch, had it among the first two for 11, without a passage; LRCLIB's
-// search does not look into lyrics at all).
+// Music's search, the fallback in app/LyricSearch, had it among its first two rows for 12, sometimes only as a video,
+// and names no passage; LRCLIB's search does not look into lyrics at all).
 //
 // The app resolves each match to a track of the active catalog (app/LyricSearch). Blocking: call from a worker
 // thread. Standalone (core only): tests compile it directly (lyrictools_test, recorded answers).
@@ -15,6 +15,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -59,5 +60,14 @@ std::optional<std::vector<LyricMatch>> searchGenius(const std::string& text, con
 // punctuation dropped, "&" = "and", whitespace collapsed; `dropBrackets` also leaves out "(...)" / "[...]" parts and a
 // " - ..." tail (versions, remasters, features). UTF-8 in and out.
 std::string foldTitle(const std::string& s, bool dropBrackets = true);
+
+// A catalog track (its title and artist names) is the song a source named: the titles folded alike (one may run on by
+// whole words: "Despacito" / "Despacito Remix") and one of the track's artists the source's main artist (or a whole-word
+// start of it either way; a leading "The" ignored). An empty `artist` matches any.
+bool sameSong(const std::string& trackTitle, const std::vector<std::string>& trackArtists, const std::string& title,
+              const std::string& artist);
+
+// A search query that reads like a line of lyrics rather than a name: at least three words, or 18 letters.
+bool looksLikeLyrics(std::wstring_view query);
 
 } // namespace st::lyrics

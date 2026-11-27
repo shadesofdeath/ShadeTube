@@ -7,6 +7,7 @@
 #include "app/HomeWidgets.h"
 #include "app/LinkOpener.h"
 #include "app/Links.h"
+#include "app/LyricSearch.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
 #include "app/PodcastsSpotify.h"
@@ -213,6 +214,10 @@ struct MoreBatch {
 };
 
 bool roundKind(const std::string& id) { return id == "artist" || id == "profile"; }
+
+// The "Sözler" tab (app/LyricSearch): not a kind of the catalog's answer but a search of its own, run when the tab is
+// shown. Its chip is in tabKinds_ as this value ("Tümü" is -1).
+constexpr int kLyricsTab = -2;
 
 RecentItem trackRecent(const Track& t) {
     return {"track", t.id, toWide(t.name), toWide(t.artistLine()), t.album.images, t};
@@ -745,6 +750,9 @@ void cacheSearch(const std::wstring& q, const SearchResults& r) {
 class SearchPage : public ScrollPage {
 public:
     explicit SearchPage(std::string initial);
+    ~SearchPage() override {
+        if (lyricsCts_) lyricsCts_->cancel();   // its catalog lookups stop where they are
+    }
 
     void onShown() override { box_->focus(); }
     bool focusSearch() override {
@@ -774,6 +782,9 @@ private:
     void runMoodSearch(const std::wstring& title, const std::string& params);
     void setTabs(std::vector<int> kinds, int selected);
     void selectTab(int chip);
+    // "Sözler": offered for queries that read like a line of lyrics (or when the page was opened for it).
+    bool lyricsOffered() const { return lyricsMode_ || lyricsearch::looksLikeLyrics(query_); }
+    void buildLyrics(ui::Column* c);
 
     // ---- searching
     void scheduleSearch(const std::wstring& q);
@@ -834,6 +845,14 @@ private:
     ui::Button* moreButton_ = nullptr;
     bool moreLoading_ = false;
     Lifetime moreLife_;
+    // "Sözler" (app/LyricSearch).
+    bool lyricsMode_ = false;          // opened as "Sözden şarkı bul" (route "lyrics:<query>"): its tab first
+    bool preferLyrics_ = false;        // the next results open on the "Sözler" tab
+    bool lyricsShown_ = false;         // the results shown are the "Sözler" tab
+    std::wstring lyricsFor_;           // the query whose lyrics search is in flight
+    std::wstring lyricsFailed_;        // the query whose lyrics search failed (shown with "Tekrar dene")
+    std::shared_ptr<YoutubeExplode::CancellationTokenSource> lyricsCts_;
+    Lifetime lyricsLife_;
 };
 
 const std::vector<ResultKind>& resultKinds() {
@@ -884,7 +903,13 @@ const ResultKind* kindById(const std::string& id) {
 }
 
 SearchPage::SearchPage(std::string initial) {
-    box_ = add<ui::TextBox>(ui::TextBox::Look::Search, tr(L"Ne dinlemek istersin?  Sanatçı, albüm, şarkı"));
+    // "Sözden şarkı bul" (the command palette): the same page, opening on the "Sözler" tab.
+    if (initial.rfind(lyricsearch::kRoutePrefix, 0) == 0) {
+        initial.erase(0, std::string_view(lyricsearch::kRoutePrefix).size());
+        lyricsMode_ = preferLyrics_ = true;
+    }
+    box_ = add<ui::TextBox>(ui::TextBox::Look::Search, lyricsMode_ ? tr(L"Hatırladığın bir dizeyi yaz, şarkıyı bulalım")
+                                                                   : tr(L"Ne dinlemek istersin?  Sanatçı, albüm, şarkı"));
     tabs_ = add<ChipTabs>();
     tabs_->setVisible(false);
     tabs_->onSelect = [this](int i) {
@@ -1001,7 +1026,10 @@ void SearchPage::setTabs(std::vector<int> kinds, int selected) {
     }
     if (kinds != tabKinds_) {
         std::vector<std::wstring> labels;
-        for (int k : kinds) labels.push_back(k < 0 ? std::wstring(tr(L"Tümü")) : resultKinds()[static_cast<size_t>(k)].title);
+        for (int k : kinds)
+            labels.push_back(k == kLyricsTab ? std::wstring(tr(L"Sözler"))
+                             : k < 0         ? std::wstring(tr(L"Tümü"))
+                                             : resultKinds()[static_cast<size_t>(k)].title);
         tabs_->setLabels(std::move(labels), selected);
         tabKinds_ = std::move(kinds);
     } else {
@@ -1028,6 +1056,16 @@ void SearchPage::showBrowse(int focusIndex) {
     layer_ = nullptr;
     auto* c = resetContent(0.f);
     c->setPadding(metrics::pageX, 20, 48);
+    lyricsShown_ = false;
+    if (lyricsMode_) {   // "Sözden şarkı bul" before anything is typed: what to type
+        c->add<MessagePanel>("lyrics", tr(L"Sözden şarkı bul"),
+                             tr(L"Bir şarkıdan aklında kalan bir dizeyi yaz; hangi şarkı olduğunu bulup çalalım. Birkaç kelime "
+                                L"yeter, harf hatası ya da eksik aksan sorun değil."));
+        scroll_->contentChanged();
+        if (focusIndex >= 0)
+            if (auto* w = window()) w->focusByKeyboard(box_);
+        return;
+    }
     std::vector<RecentCard*> cards;
     std::vector<RecentItem> recent;
     for (const auto& it : recents().items())   // the kinds this build can open
@@ -1314,11 +1352,20 @@ void SearchPage::showResults(int tab, bool scrollTop) {
     std::vector<int> visible{-1};
     for (size_t k = 0; k < kinds.size(); ++k)
         if (kinds[k].count(results_) > 0) visible.push_back(static_cast<int>(k));
+    const bool catalogHits = visible.size() > 1;
+    // A line of lyrics the catalog found nothing for: the "Sözler" tab alone (no chips).
+    if (lyricsOffered()) {
+        if (catalogHits) visible.push_back(kLyricsTab);
+        else visible = {kLyricsTab};
+    }
     // The tab shown so far, if this query has it too.
     const int keepKind = tab > 0 && tab < static_cast<int>(tabKinds_.size()) ? tabKinds_[static_cast<size_t>(tab)] : -1;
     int chip = 0;
     for (size_t i = 0; i < visible.size(); ++i)
         if (visible[i] == keepKind) chip = static_cast<int>(i);
+    // "Sözler" first when the page was opened for it.
+    if (visible.back() == kLyricsTab && preferLyrics_) chip = static_cast<int>(visible.size()) - 1;
+    preferLyrics_ = false;
     hasResults_ = true;
     setTabs(visible.size() > 1 ? visible : std::vector<int>{}, chip);
     tab_ = chip;
@@ -1338,7 +1385,10 @@ void SearchPage::showResults(int tab, bool scrollTop) {
         layer_->snapOpacity(was);
         layer_->fadeTo(1.f, ui::motion::microMs(ui::motion::fast));
     }
-    if (visible.size() <= 1) showEmpty(layer_);
+    const bool lyricsShown = visible[static_cast<size_t>(chip)] == kLyricsTab;
+    lyricsShown_ = lyricsShown;
+    if (lyricsShown) buildLyrics(layer_);
+    else if (visible.size() <= 1) showEmpty(layer_);
     else if (chip == 0) buildAll(layer_);
     else buildKind(layer_, static_cast<size_t>(visible[static_cast<size_t>(chip)]));
     if (scrollTop) scroll_->scrollTo(0, false);
@@ -1346,7 +1396,71 @@ void SearchPage::showResults(int tab, bool scrollTop) {
     // Back returns to these results (only while this page is the one shown: a late answer to a page being left
     // must not rename the next page's history entry).
     if (auto* router = ctx().router; router && router->currentPage && router->currentPage() == this)
-        router->retarget({RouteKind::Search, toUtf8(query_)});
+        router->retarget({RouteKind::Search, (lyricsShown ? std::string(lyricsearch::kRoutePrefix) : std::string()) + toUtf8(query_)});
+}
+
+// "Sözler": the lyrics search of this query (cached for the run), placeholders while it runs; the tab is rebuilt when
+// it lands (if it is still the one shown).
+void SearchPage::buildLyrics(ui::Column* c) {
+    auto navFn = [this](ui::Widget* w) { nav(w); };
+    auto searchCatalog = [this](const std::wstring& text) {
+        Dispatcher::post([this, text, ref = life_.ref()] {   // the clicked row goes in the rebuild
+            if (ref.expired()) return;
+            lyricsMode_ = false;
+            tab_ = 0;
+            box_->setText(text);
+            runSearch(text);
+        });
+    };
+    auto retry = [this] {
+        Dispatcher::post([this, ref = life_.ref()] {
+            if (ref.expired()) return;
+            lyricsFailed_.clear();
+            showResults(tab_, false);
+        });
+    };
+    // Two steps: the source's songs (shown at once), then their catalog lookups (the rows fill in).
+    const std::wstring q = query_;
+    auto start = [this, q](bool lookups, lyricsearch::Answer partial) {
+        if (lyricsCts_) lyricsCts_->cancel();
+        lyricsCts_ = std::make_shared<YoutubeExplode::CancellationTokenSource>();
+        lyricsLife_.renew();
+        lyricsFor_ = q;
+        auto done = [this, q](Result<lyricsearch::Answer> r) {
+            lyricsFor_.clear();
+            if (!r || r->failed) {
+                ST_LOG_WARN("search", "lyrics search failed: {}", r ? std::string("no source") : r.errorMessage());
+                lyricsFailed_ = q;
+            } else {
+                lyricsearch::remember(q, *r);
+            }
+            // Still this query on the "Sözler" tab: show the answer (and start the lookups).
+            if (q == query_ && hasResults_ && lyricsShown_) showResults(tab_, false);
+        };
+        if (!lookups)
+            async(Priority::High, lyricsLife_.ref(), [query = toUtf8(q), token = lyricsCts_->token()] { return lyricsearch::search(query, token); },
+                  std::move(done));
+        else
+            async(Priority::High, lyricsLife_.ref(),
+                  [api = source::activeApi(), a = std::move(partial), token = lyricsCts_->token()]() mutable {
+                      lyricsearch::resolve(api, a, token);
+                      return a;
+                  },
+                  std::move(done));
+    };
+    if (const auto* a = lyricsearch::cached(query_)) {
+        lyricsearch::addResults(c, query_, *a, navFn, searchCatalog, retry);
+        if (a->pending() && lyricsFor_ != query_) start(true, *a);
+        return;
+    }
+    if (lyricsFailed_ == query_) {
+        lyricsearch::Answer failed;
+        failed.failed = true;
+        lyricsearch::addResults(c, query_, failed, navFn, searchCatalog, retry);
+        return;
+    }
+    lyricsearch::addLoading(c);
+    if (lyricsFor_ != query_) start(false, {});
 }
 
 void SearchPage::showEmpty(ui::Column* c) {

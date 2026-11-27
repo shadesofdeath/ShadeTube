@@ -40,6 +40,13 @@ std::wstring trimW(std::wstring_view s) {
     return std::wstring(s.substr(b, e - b));
 }
 
+// A letter or digit of any script (Cyrillic, CJK...), not punctuation (general / CJK / full-width).
+bool isLetter(wchar_t c) {
+    if ((c >= 0x2000 && c <= 0x206F) || (c >= 0x3000 && c <= 0x303F) || (c >= 0xFF00 && c <= 0xFF0F) || c == 0x266A || c == 0x266B)
+        return false;
+    return std::iswalnum(c) || c > 0x2FF;
+}
+
 // Genius' own translation / romanization pages ("Genius Türkçe Çeviriler", "Genius English Translations",
 // "Genius Romanizations"...) are not songs to play.
 bool translationArtist(const std::string& name) { return name.rfind("Genius ", 0) == 0 || name == "Genius"; }
@@ -76,18 +83,47 @@ std::string foldTitle(const std::string& s, bool dropBrackets) {
     };
     for (wchar_t c : folded) {
         if (c == L'\'' || c == 0x2019 || c == 0x2018 || c == 0x02BC) continue;   // apostrophes: "don't" = "dont"
-        const bool punctuation = (c >= 0x2000 && c <= 0x206F) || (c >= 0x3000 && c <= 0x303F) || (c >= 0xFF00 && c <= 0xFF0F);
         if (c == L'&') {
             space = true;
             put(L"and");
             space = true;
-        } else if (!punctuation && (std::iswalnum(c) || c > 0x2FF)) {   // letters of every script (Cyrillic, CJK...)
+        } else if (isLetter(c)) {
             put(std::wstring_view(&c, 1));
         } else {
             space = true;
         }
     }
     return toUtf8(out);
+}
+
+bool sameSong(const std::string& trackTitle, const std::vector<std::string>& trackArtists, const std::string& title,
+              const std::string& artist) {
+    const std::string a = foldTitle(trackTitle), b = foldTitle(title);
+    if (a.empty() || b.empty()) return false;
+    auto startsWord = [](const std::string& longer, const std::string& prefix) {
+        return longer.size() > prefix.size() && longer.compare(0, prefix.size(), prefix) == 0 && longer[prefix.size()] == ' ';
+    };
+    if (a != b && !startsWord(a, b) && !startsWord(b, a)) return false;
+    auto noThe = [](std::string s) { return s.rfind("the ", 0) == 0 ? s.substr(4) : s; };
+    const std::string want = noThe(foldTitle(artist, false));
+    if (want.empty()) return true;
+    for (const auto& name : trackArtists) {
+        const std::string have = noThe(foldTitle(name, false));
+        if (!have.empty() && (have == want || startsWord(have, want) || startsWord(want, have))) return true;
+    }
+    return false;
+}
+
+bool looksLikeLyrics(std::wstring_view query) {
+    int words = 0, letters = 0;
+    bool inWord = false;
+    for (wchar_t ch : query) {
+        const bool letter = isLetter(ch);
+        if (letter) ++letters;
+        if (letter && !inWord) ++words;
+        inWord = letter || ((ch == L'\'' || ch == 0x2019) && inWord);
+    }
+    return words >= 3 || letters >= 18;
 }
 
 std::pair<std::wstring, std::vector<std::pair<uint32_t, uint32_t>>>
