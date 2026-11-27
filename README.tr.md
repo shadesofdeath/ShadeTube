@@ -109,8 +109,16 @@ kalır.
 - 🛟 **Yedek ses kaynağı** — YouTube çalışmazsa Piped / Invidious sunucuları, sonra SoundCloud (varsayılan olarak kapalı).
 - 🌍 **11 dil** — Türkçe, English, Deutsch, Español, Français, Português (BR), Русский, Українська,
   Bahasa Indonesia, 日本語, 한국어.
-- ⚡ **Hafif ve kendini güncelleyen** — kurmadan çalışan yaklaşık 15 MB'lık tek bir exe; istersen tek tıkla kurulur
-  (yönetici izni gerekmez), yeni sürümler uygulama içinden güncellenir.
+- 🎧 **Şarkıyı tanı** — ShadeTube bilgisayarında (bir video, bir oyun) ya da odada çalan şarkıyı birkaç saniye dinler
+  ve hangi şarkı olduğunu söyler; bilgisayarından yalnızca bir parmak izi çıkar.
+- ✍️ **Söz araçları** — düz sözleri şarkıya eşlik ederek kendin zamanla (istersen LRCLIB'e gönder), Japonca, Korece ve
+  Kiril sözleri Latin harfleriyle oku, hatırladığın bir dizeden şarkıyı bul.
+- 🧩 **Kurallı listeler** — "beğenilmiş, 10'dan az dinlenmiş, 150–175 BPM": kurallarından kendiliğinden dolan ve güncel
+  kalan listeler.
+- 🥁 **BPM** — şarkılarının temposu sütun olarak; sıralama ve filtre için. Etiketten okunur ya da bilgisayarında ölçülür.
+- 🌈 **Görselleştirici** — kapağın renklerinde tam ekran görünüm: spektrum, halka, dalga ya da aurora (V tuşu).
+- ⚡ **Hafif ve kendini güncelleyen** — yaklaşık 15 MB'lık bir exe; kurmadan çalışan taşınabilir zip'i ya da kullanıcına
+  kuran kurulumu seç (yönetici izni gerekmez). Yeni sürümler uygulama içinden güncellenir.
 - 🔒 **Gizlilik** — telemetri yok, bizim bir sunucumuz yok. Spotify oturumun Windows DPAPI ile şifreli saklanır.
 
 ## 📸 Ekran görüntüleri
@@ -126,9 +134,10 @@ kalır.
 
 ## ⬇ İndir
 
-1. [Son sürümden](https://github.com/shadesofdeath/ShadeTube/releases/latest) **`ShadeTube-<sürüm>-win64.zip`**
-   dosyasını indir ve bir klasöre çıkar.
-2. **`ShadeTube.exe`**'yi çalıştır. Exe henüz imzalı olmadığı için Windows SmartScreen "bilinmeyen yayımcı"
+1. [Son sürümden](https://github.com/shadesofdeath/ShadeTube/releases/latest) **`ShadeTube-<sürüm>-setup.exe`**
+   (kullanıcına kurar: Başlat menüsü, isteğe bağlı masaüstü kısayolu, Windows'un yüklü uygulamalarında görünür; yönetici
+   izni gerekmez) ya da **`ShadeTube-<sürüm>-win64.zip`** (taşınabilir: bir klasöre çıkar) dosyasını indir.
+2. Kurulumu ya da zip'teki **`ShadeTube.exe`**'yi çalıştır. Exe henüz imzalı olmadığı için Windows SmartScreen "bilinmeyen yayımcı"
    uyarısı verebilir: **Ek bilgi → Yine de çalıştır**.
 3. **Spotify ile bağlan**'a tıklayıp hesabınla giriş yap (e-posta, Google ya da Apple) ya da
    **Spotify olmadan keşfet** ile YouTube Music'i ya da açık MusicBrainz kataloğunu gez.
@@ -141,9 +150,8 @@ scoop install shadetube/shadetube
 winget install shadesofdeath.ShadeTube   # paket winget'e kabul edildikten sonra
 ```
 
-İsteğe bağlı: **Ayarlar → Hakkında → Bilgisayara kur**, ShadeTube'u Başlat menüsüne ve Windows'un yüklü
-uygulamalarına ekler (kullanıcı bazında, yönetici izni gerekmez). Güncellemeler günde bir kez denetlenir ve tek
-tıkla kurulur.
+Güncellemeler iki sürümde de günde bir kez denetlenir ve tek tıkla kurulur. Kurulum sessiz de çalışır
+(`ShadeTube-<sürüm>-setup.exe /S`).
 
 **Gereksinimler:** Windows 10 (1809 ve sonrası) ya da Windows 11, 64 bit. Spotify girişi için Microsoft Edge
 WebView2 Runtime gerekir; Windows 11'de hazır gelir ([Windows 10 için indir](https://developer.microsoft.com/microsoft-edge/webview2/)).

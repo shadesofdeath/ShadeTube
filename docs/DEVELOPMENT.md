@@ -85,21 +85,18 @@ ShadeTube/
 │                                VideoStreams + OfficialVideo (video mode's streams and official video search, 3.41 / 3.42)
 │   ytmusic/     st_ytmusic      YouTube Music catalog: Parse (tolerant InnerTube parsers), YtMusic (endpoints, cache)
 │   audio/       st_audio        AudioEngine, WasapiOutput, Decoder, ProgressiveBuffer, MfByteStream, Spectrum, Fft,
-│                                VisualAnalysis (the visualizer's bands / beats / waveform, 3.57),
+│                                VisualAnalysis (the visualizer's bands / beats / waveform, 3.61),
 │                                Track, Downloader (MP3 transcode + trimming), TagWriter (tag editor core),
-│                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52)
-│   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets; the
-│                                synchronizer's draft, LRCLIB publishing, Genius' lyrics search (3.57)
-│   recognize/   st_recognize    song recognition (3.57): Signature (Shazam-format peaks), Shazam (request / answer),
-│                                Capture (WASAPI process / endpoint loopback, microphone -> 16 kHz), Session
 │                                XiphDecoder + XiphCodecs + Matroska + Resampler + XiphTags (built-in Opus / Vorbis, 3.52),
-│                                Tempo (BPM estimate of audio, 3.58)
-│   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets
+│                                Tempo (BPM estimate of audio, 3.65)
 │   lyrics/      st_lyrics       LRCLIB client, LRC / Spotify / ID3 lyrics parsers, local lyrics, offsets, translation,
-│                                romanization (Romanize, 3.58)
+│                                romanization (Romanize, 3.63); the synchronizer's draft, LRCLIB publishing, Genius'
+│                                lyrics search (3.58)
+│   recognize/   st_recognize    song recognition (3.59): Signature (Shazam-format peaks), Shazam (request / answer),
+│                                Capture (WASAPI process / endpoint loopback, microphone -> 16 kHz), Session
 │   player/      st_player       Player: queue, shuffle, repeat, prefetch, recovery, session restore; AudioCache (song
 │                                cache, 3.45)
-│   gfx/         st_gfx          Device, Canvas, Text, TextShape (display text as geometry, 3.57), Icons, ImageCache, Theme,
+│   gfx/         st_gfx          Device, Canvas, Text, TextShape (display text as geometry, 3.62), Icons, ImageCache, Theme,
 │                                Types
 │   video/       st_video        video mode's picture: VideoDecoder (MF + DXVA), SyncScheduler, VideoPlayer, Fmp4Index;
 │                                Soundtrack + AudioAlign (the official video's alignment, 3.42)
@@ -121,41 +118,33 @@ ShadeTube/
 │                                Radio, Blacklist,
 │                                CoverGradient + CoverBackdrop (Now Playing's backdrop, 3.40),
 │                                Credits + CreditsUi (song credits), LyricsPicker ("Yanlış sözler mi?"; both 3.46),
-│                                LyricsSync (the lyrics synchronizer) + LyricSearch ("Sözden şarkı bul"; both 3.57),
-│                                LyricsRender (the lyrics views' drawing and motion, 3.57), LyricsRomanization (3.58),
+│                                LyricsSync (the lyrics synchronizer) + LyricSearch ("Sözden şarkı bul"; both 3.58),
+│                                LyricsRender (the lyrics views' drawing and motion, 3.62), LyricsRomanization (3.63),
 │                                SponsorBlock, Scrobbler, DiscordRpc, Smtc, Tray, Installer, Updater, Podcasts +
 │                                PodcastsSpotify (Spotify shows -> public feeds, 3.54), Links +
 │                                LinkOpener (pasted links), ServiceImport + CatalogMatch (Deezer / Apple Music / TIDAL
-│                                lists matched to the catalog, 3.57), WinShell (taskbar buttons / progress, jump list),
+│                                lists matched to the catalog, 3.60), WinShell (taskbar buttons / progress, jump list),
 │                                Preview + PreviewSession (song preview, 3.30),
 │                                VideoMode + VideoView + VideoWindow (3.41), OfficialVideo + OfficialVideoCache (3.42),
 │                                RemoteControl (phone remote; RemoteServer, RemoteApi, RemoteAuth, RemoteHttp, RemoteState),
 │                                Accounts (several Spotify accounts, 3.48), SongNotification + SongNotifier (3.49),
-│                                Visualizer (the full-screen visualizer, 3.57),
+│                                Visualizer (the full-screen visualizer, 3.61),
 │                                Together + TogetherPanel (listen together) on the standalone Jam* core (JamMqtt,
 │                                JamCrypto, JamInvite, JamProtocol, JamSync), Blend + Blends + BlendPage (Blend, 3.50),
-│                                Recognition + RecognizeUi (Şarkıyı tanı, 3.57),
+│                                Recognition + RecognizeUi (Şarkıyı tanı, 3.59),
+│                                RuleLists + RuleListsPage + RuleSources (Kurallı listeler, 3.64), Bpm + BpmStore (tempo, 3.65),
 │                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements
 │                st_install      Installer + Updater + Autostart (defined in app/CMakeLists.txt, sources in app/): the
 │                                app and the setup link it
 │   setup/       ShadeTubeSetup.exe  the setup (3.57): st_setup_core (Payload, SetupArgs, SetupEngine), setup_pack (the
 │                                build-host packer), SetupUi + main
-│                                MemDemo (SHADETUBE_MEM_DEMO) + MemProfile (ST_MEMPROFILE builds): memory measurements,
-│                                RuleLists + RuleListsPage + RuleSources (Kurallı listeler, 3.57), Bpm + BpmStore (tempo, 3.58)
 └─ tests/                        console test programs (not shipped, see 5.2): accounts, altsource, audio, audiocache,
                                  audiodsp, blend, browse, codecs, collections, credits, downloads, headers, history,
                                  icons, jam, library, links, lists, liveaudio, localfiles, lyrics, lyricsview, memory, micro,
                                  miniplayer, musicbrainz, newreleases, nowplaying, pagetx, playback, podcasts, popups,
-                                 preview, radio, remote, review, scrobble, scroll, setup, shortcuts, smartlists,
-                                 smartshuffle, smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater,
-                                 video, winshell, ytmusic, ytstreams
-                                 preview, radio, recognize, remote, review, scrobble, scroll, shortcuts, smartlists, smartshuffle,
-                                 preview, radio, remote, review, scrobble, scroll, services, shortcuts, smartlists, smartshuffle,
-                                 smtc, songnotify, sponsorblock, spotify, stats, sync, tags, theme, updater, video,
-                                 visualizer, winshell, ytmusic, ytstreams
-                                 preview, radio, remote, review, rules, scrobble, scroll, shortcuts, smartlists, smartshuffle,
-                                 smtc, songnotify, sponsorblock, spotify, stats, sync, tags, tempo, theme, updater, video,
-                                 winshell, ytmusic, ytstreams
+                                 preview, radio, recognize, remote, review, rules, scrobble, scroll, services, setup,
+                                 shortcuts, smartlists, smartshuffle, smtc, songnotify, sponsorblock, spotify, stats, sync,
+                                 tags, tempo, theme, updater, video, visualizer, winshell, ytmusic, ytstreams
 ```
 
 The original design package (`ShadeTube-Design/`: specs, tokens, screens) is **not part of the repository**.
@@ -166,9 +155,8 @@ The icons are the exception: `tools/icons.py` draws them and writes both `assets
 
 **Module dependencies** (never reverse them): `core ← catalog ← musicbrainz, spotify, youtube, ytmusic`;
 `core ← audio, lyrics, gfx`; `gfx ← ui`; `audio + gfx ← video` (it reuses the audio module's ProgressiveBuffer and
-MfByteStream); `audio + youtube + catalog ← player`; everything `← app`; `ui + st_install ← setup` (the setup links
-nothing else of the app). A new module
-MfByteStream); `audio ← recognize` (its Resampler); `audio + youtube + catalog ← player`; everything `← app`. A new module
+MfByteStream); `audio ← recognize` (its Resampler); `audio + youtube + catalog ← player`; everything `← app`;
+`ui + st_install ← setup` (the setup links nothing else of the app). A new module
 gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this guide.
 
 ## 3. Architecture
@@ -271,7 +259,7 @@ gets `src/<module>/CMakeLists.txt`, links only what it uses and is added to this
   Device loss (`D2DERR_RECREATE_TARGET`) recreates all device resources.
 - Invalidation-driven frames: vsync while animating, otherwise the loop sleeps in `MsgWaitForMultipleObjects`
   (0 % CPU when idle); hidden windows never render. `frame::requestNextEvery(n)` asks for every n-th refresh instead
-  (the frame is presented with sync interval n; the visualizer on fast displays, 3.57); a plain `requestNext()` wins.
+  (the frame is presented with sync interval n; the visualizer on fast displays, 3.61); a plain `requestNext()` wins.
   An open overlay whose `OverlayLayer::coversWindow()` is true (a full-window view, faded in) is painted alone: the
   tree and the overlays below it are skipped. Everything is in DIPs (Per-Monitor V2 DPI aware); the main
   window's DIP scale is the monitor's DPI times the user's interface scale ([3.25](#325-interface-scale-and-list-density)).
@@ -609,7 +597,7 @@ songs named in the title) qualify. A SoundCloud stand-in plays for this time onl
   from that song and shows the album; a YouTube video becomes a `yt:<videoId>` track titled from the video
   (`links::videoSong`: "Artist - Title (Official Video)" -> artist / title) whose video is pinned in `MatchService`,
   so it never re-matches. Deezer, Apple Music and TIDAL playlists, albums and songs (and Deezer's short links) are
-  imported / opened / played through their match in the catalog (3.57). A `shadetube://jam/` invite joins a
+  imported / opened / played through their match in the catalog (3.60). A `shadetube://jam/` invite joins a
   listen-together session (3.24; never logged). Spotify
   shows open in Podcastler and Spotify users their profile page (3.54 Search kinds). Spotify links need a session
   (logged out: the connect screen); links of those services to anything else (episodes, YouTube channels,
@@ -716,13 +704,13 @@ Everything lives under `%LOCALAPPDATA%\ShadeTube` (or `SHADETUBE_DATA_DIR`): `se
 `accounts\<id>\` (one folder per Spotify account, 3.48: `spotify.dat` (DPAPI), its login's `webview2\`, and its
 `listening.json`, `listening-imported.json`, `listening-lastfm.json`, `listening-listenbrainz.json` (3.55),
 `blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`, `rule-lists.json` and
-`rule-sources.json` + `rule-sources\` (3.57), which sit in the root itself while there is no account), `bpm.json`
-(the songs' tempo, per PC, 3.58), `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`,
+`rule-sources.json` + `rule-sources\` (3.64), which sit in the root itself while there is no account), `bpm.json`
+(the songs' tempo, per PC, 3.65), `scrobble.dat` and `remote.dat` (DPAPI), `library.json`, `session.json`,
 `downloads.json`, `sync.json`, `local-library.json`, `dropped-files.json`, `podcasts.json`, `radio.json`,
 `recent-searches.json`, `palette-recent.json`, `lyrics-offsets.json` (timing offsets and lyrics picks; `lyrics\`
 holds picked .lrc / .txt copies, 3.46), `jam.json` (listen together: the device id, a guest's saved playback
 settings), `jam-own-session.json` (a guest's own queue), `jam-host.dat` / `jam-guest.dat` (a session to resume,
-DPAPI, 3.51), `blends.dat` (DPAPI, 3.50), `recognized.json` (recognized songs and the listening source, 3.57),
+DPAPI, 3.51), `blends.dat` (DPAPI, 3.50), `recognized.json` (recognized songs and the listening source, 3.59),
 `spotify-hashes.json`, `update-leftovers.txt`, `playlist-covers\` (local
 playlists' own pictures), `themes\` (custom color themes, 3.35 Theme studio), `shell\` (the notification icon, the
 song notification's cover `now-playing-{0,1}.png`, 3.49), `cache\` (images, `matches.json`, lyrics, credits, `mb`,
@@ -775,7 +763,7 @@ episodes to its `Podcasts` folder).
   `ctx().lyricsOffsetBy`, the −/+ buttons of Now Playing and the full-screen view, − / + keys there).
 - **Full-screen lyrics** (`app/LyricsFullscreen`, `ctx().toggleLyricsFullscreen`): a modal overlay over the whole
   window (its top strip is a caption area: the window still moves) on Now Playing's drifting cover backdrop (3.40). The active line fills with the accent as it is
-  sung, behind a soft edge (3.57): per word with word times, else across the line until the next one (capped by the line's length). Controls fade
+  sung, behind a soft edge (3.62): per word with word times, else across the line until the next one (capped by the line's length). Controls fade
   after 2.5 s without mouse movement; everything it holds goes with it when it closes. Not offered for live radio.
 
 ### 3.17 Podcasts
@@ -916,7 +904,7 @@ history (`ListenStats`: this PC's plays and the imported Spotify history, stream
   `yt:<video>` with that video pinned as its source, a local file read through the local library's tag reader and
   remembered like a dropped file, else `import:<hash>` matched by name like the history import); songs named only by
   an id get their title from Spotify / YouTube / MusicBrainz (at most 300 lookups); Deezer, Apple Music and TIDAL lists are
-  read and their songs matched in the active catalog first (3.57). A preview names the playlist and
+  read and their songs matched in the active catalog first (3.60). A preview names the playlist and
   counts the songs, local files, videos and the rows that name no song (the first 6 with their line numbers); "İçe
   aktar" creates a **local** playlist and opens it. Logged in, "Spotify'da da oluştur" also creates a Spotify playlist
   with the songs that have Spotify ids (100 per request). Reading and resolving run on a worker (`collections_test`
@@ -1246,7 +1234,7 @@ time of the event.
 `app/Shell.cpp` (`PlayerBar`, 88 DIP), the controls in `ui/Controls`, the shared pieces in `app/Components`.
 
 - **Layout**: track info on the left (art 56, title, artist, heart after the title), on the right the session pill /
-  jam, sleep timer, video (songs only, 3.41), the visualizer (3.57; only while the center column keeps 380 DIP with it),
+  jam, sleep timer, video (songs only, 3.41), the visualizer (3.61; only while the center column keeps 380 DIP with it),
   lyrics, queue, volume knob, mini player and full screen (vertically centered). The center column
   holds the transport row (shuffle · prev · play 40 · next · repeat, center y 33) over the seek row (center y 69:
   elapsed · wave · total, mono 11, elapsed `fg.secondary`, total `fg.tertiary`). The column is 40 % of the bar
@@ -1874,7 +1862,7 @@ the tray's jump list task, `Ctrl+Shift+M` or a mode key; it hides the main windo
   segments and the per-track offset) with Now Playing's 150 ms lookahead. The line being sung (B 15/600,
   `fg.primary`) over the next one (13, `fg.tertiary`); at a line change the sung line moves up and fades while the next
   rises into its place, grows into the sung line's style and brightens, and the one after it fades in (`motion::slow`,
-  instant with reduce motion; drawn as geometry, 3.57). Without synced lyrics the album
+  instant with reduce motion; drawn as geometry, 3.62). Without synced lyrics the album
   name and a mono note take their place (SENKRON SÖZ YOK, BU ŞARKININ SÖZÜ YOK, SADECE MÜZİK, SÖZLER KAPALI); a
   podcast episode shows its show there, a station nothing (its song is the title).
 - **Hover**. The surface is the drag region (`HTCAPTION`), so the pointer over it arrives as `WM_NCMOUSEMOVE`:
@@ -1962,7 +1950,7 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   (cycling smart shuffle), previous, play, next, repeat; like (a station: favorite; `setHeart` / `pulse`: the
   micro-interactions' heart pop, as in the bar); sleep timer, speed (episodes, or
   any speed but 1x), listen together (the session pill when it fits, else the icon; a guest's transport is disabled as
-  in the bar), the visualizer (3.57, after video mode), volume, mini player. State comes from `onTrackChanged()` (App calls it on every player change while the
+  in the bar), the visualizer (3.61, after video mode), volume, mini player. State comes from `onTrackChanged()` (App calls it on every player change while the
   view is visible) and from library / listen-together subscriptions; labels are set only when they change.
 - **Tabs** (`NowPlayingTabs`, `ButtonKind::Tab` labels: Left / Right move between them): *Şarkı sözleri* (a station:
   *Canlı yayın*, the titles it announced; none for a podcast episode), *Sıradaki* (`QueuePanel::setEmbedded`: no title
@@ -1972,14 +1960,14 @@ lyrics), the queue panel of `app/Shell.cpp` embedded in a tab. Tested by `nowpla
   open (`toggleQueueTab`).
 - **Toolbar**: the open tab's buttons right-aligned on the tab row (on the row below when the tabs leave no room), built
   from one list in `buildToolbar()`: `{widget, tab (or every tab), shown predicate, gap after}`. Lyrics:
-  Romanizasyon (3.58), Çeviri, timing −, the offset (reset), +, full-screen lyrics, "Sözleri paylaş"
+  Romanizasyon (3.63), Çeviri, timing −, the offset (reset), +, full-screen lyrics, "Sözleri paylaş"
   (`openLyricsShare`, 3.37). **A
   feature adds its button with one entry there.**
 - **Lyrics**: providers, translation, offset, click-to-seek and the 3 s wheel override as in 3.16; "Yanlış sözler mi?"
   after the header label and "Sözleri ara" under "no lyrics" open the lyrics picker (3.46). A placeholder only
   after 350 ms of loading (a cached / local file answers before it would flash); arriving lyrics fade in (420 ms),
   already scrolled to the active line; lines fade out towards the area's edges by their own alpha (no layer). A new
-  sung line grows from the small style into the big one while the previous one shrinks back (3.57).
+  sung line grows from the small style into the big one while the previous one shrinks back (3.62).
 - **Hakkında**: a song shows the track's own album and artist at once; with catalog ids (Spotify URIs, MBIDs)
   `source::album` and `source::artistPage` run on a worker (Normal priority, once per track, only while the tab is
   open) and add the album's kind · year, track count · label and the artist's kind · country · start year · genre,
@@ -2530,7 +2518,7 @@ Dev: `SHADETUBE_OVERLAY_DEMO` steps `credits` and `lyricspicker` open the two di
   actions are always reserved, the actions fade in and slide 6 DIP into them (`HoverFade`, 120 ms; instant without
   micro-interactions), the heart stays while liked. As the table narrows the optional columns give way to the title
   (240 DIP minimum, 200 compact) in this order: plays, BPM, year, added, album, then the queue action; narrowing never
-  brings one back. BPM (3.58) is offered in every list but on only when the user picks it. Which optional columns a list shows is the user's (`Settings::trackColumns`, `"album,added,plays"`; the
+  brings one back. BPM (3.65) is offered in every list but on only when the user picks it. Which optional columns a list shows is the user's (`Settings::trackColumns`, `"album,added,plays"`; the
   column header's context menu toggles them, *Varsayılan sütunlar* resets) intersected with what the list has
   (`Options::showAlbum / showAdded`; *Dinlenme* only when a row has a play count, `Track::listenCount`). There is no
   year or "added by" data in `catalog::Track` yet, so the Year column is laid out but never offered.
@@ -2708,7 +2696,7 @@ Several Spotify accounts on one PC, switched without logging in again (`spotify/
   siblings): `listening.json` + `listening-imported.json` + `listening-lastfm.json` + `listening-listenbrainz.json`
   (stats, the year in review, the Library's play recency; the imported histories with their import cursors, 3.55 Last.fm
   and ListenBrainz history import), `blacklist.json`, `new-releases.json`, `smart-lists.json`, `library-recents.json`,
-  `rule-lists.json` and `rule-sources.json` (3.57; the cached track lists sit in the account folder's `rule-sources\`).
+  `rule-lists.json` and `rule-sources.json` (3.64; the cached track lists sit in the account folder's `rule-sources\`).
   In memory, the Session keeps the
   library snapshot (playlists, folders, saved albums, followed artists, liked ids) per account and parks the one it
   leaves for an instant switch back (a reload follows); Home and the friend activity reload. Per PC (the root):
@@ -3361,7 +3349,7 @@ its own window, built on the app's `gfx` / `ui` libraries (no installer framewor
   `ShadeTubeSetup.exe --screenshot %TEMP%\st-shots --theme light --scale 1.5`.
 - **Size and speed**: 8.2 MB (Release), an install in about a quarter of a second; numbers and what was not run
   live in 7.
-### 3.57 Lyrics tools: the synchronizer and "Sözden şarkı bul"
+### 3.58 Lyrics tools: the synchronizer and "Sözden şarkı bul"
 
 Two features around lyrics: timing plain (or badly timed) lyrics by hand, and finding a song by a line of it.
 `lyrics/LyricsSync` (the draft), `lyrics/LrclibPublish` (LRCLIB's publish API) and `lyrics/LyricSearch` (Genius' lyrics
@@ -3450,7 +3438,7 @@ search) are standalone (core only, `lyrictools_test`); `app/LyricsSync` and `app
 
 **Dev**: `SHADETUBE_OVERLAY_DEMO` step `lyricsync` opens the synchronizer for the playing song (`key=Ctrl+Enter` steps
 on, `key=Space` stamps); `--route "search:lyrics:<line>"` opens the tab; `lyrictools_test` (5.2).
-### 3.57 Song recognition ("Şarkıyı tanı")
+### 3.59 Song recognition ("Şarkıyı tanı")
 
 ShadeTube listens for a few seconds to what this PC plays (a video in the browser, a game, a stream) or to the
 microphone (music in the room), identifies the song and offers to play it, like it, add it to a playlist or start its
@@ -3530,7 +3518,7 @@ and `app/RecognizeUi` (`Recognize.h`).
   (`answer_match.json`, `answer_nomatch.json`), the session with test audio and a fake service, the catalog matching
   and the history store; live modes against the service and the devices. Dev: `SHADETUBE_RECOGNIZE_DEMO` and
   `SHADETUBE_RECOGNIZE_LOOPBACK` (5.4).
-### 3.57 Import from Deezer, Apple Music and TIDAL
+### 3.60 Import from Deezer, Apple Music and TIDAL
 
 `app/ServiceImport` reads a list of another service without an account (standalone: core + catalog + JSON);
 `app/CatalogMatch` finds its songs in the active catalog (standalone: core, catalog, spotify, ytmusic, musicbrainz,
@@ -3595,7 +3583,7 @@ and `app/RecognizeUi` (`Recognize.h`).
   MusicBrainz catalog (`live-set mb`, on a day MusicBrainz answered 503 to ~260 requests): 96 / 100 (77 by ISRC) in
   64 s, 456 / 500 (327 by ISRC) in 6.5 min, 50 / 50 (49 by ISRC) in 6 s, 166 / 424 (29 by ISRC; classical) in 7 min,
   126 / 132 (107 by ISRC) in 68 s: the time goes into the one-a-second name searches and the 503 back-offs.
-### 3.57 Visualizer
+### 3.61 Visualizer
 
 "Görselleştirici": a full-window view that draws what plays. `app/Visualizer` (the view, `initVisualizer`),
 `audio/VisualAnalysis` (the analysis, standalone: `visualizer_test`), the tap in `audio/Spectrum` + `AudioEngine::waveform`,
@@ -3690,7 +3678,7 @@ paint time, analyses/s, backdrop renders/s; `visualizer` lines), `SHADETUBE_VIZ_
 (consecutive frames as PNGs, to judge motion). Open it with `SHADETUBE_KEYS_DEMO=3000:action:visualizer`; music to react
 to: `visualizer_test wav <file>` writes 90 s of synthetic drums + bass + chords + arpeggio (drop it with a `cover.png`
 into a folder and play that with `SHADETUBE_PLAY_FILES`).
-### 3.57 Lyrics rendering
+### 3.62 Lyrics rendering
 
 `gfx/TextShape` (display text as geometry) and `app/LyricsRender` (`lyricsview::`: drawing, the karaoke fill, the
 lines under a line, the motion model) are shared by Now Playing's lyrics tab, the full-screen view and the wide mini
@@ -3748,7 +3736,7 @@ player. Tested by `lyricsview_test`.
   (`SHADETUBE_NP_LOG` prints the count and the rows built).
 - **Not shared**: the lyrics share card (3.37) paints its own text into an export bitmap (static, no motion).
 
-### 3.58 Lyrics romanization
+### 3.63 Lyrics romanization
 
 `lyrics/Romanize` (standalone: rules, Windows' Japanese analyzer, the cache; `romanize_test`) and
 `app/LyricsRomanization` (a view's state, like `LyricsTranslation`).
@@ -3791,7 +3779,7 @@ player. Tested by `lyricsview_test`.
   choices (a phrase dictionary of several MB); Windows has no offline Chinese phonetic analyzer to ask.
 - **Cache**: `cache/lyrics-romanized/<key>.json` = `{v, fp, n, script, lang, readings, lines}`, the fingerprint of the
   lines as for translations; a rule change bumps `v`. Everything runs off the UI thread (`async`, Normal priority).
-### 3.57 Rule-based playlists (Kurallı listeler)
+### 3.64 Rule-based playlists (Kurallı listeler)
 
 Playlists the user builds from rules ("released after 2020, played fewer than 50 times, artist is not X, liked, longer
 than 3 minutes, sorted by last played, at most 100 songs"). `app/RuleLists` is the pure part (definitions and their
@@ -3809,7 +3797,7 @@ the list page, the editor, menus, import / export), `app/RuleSources` the cached
   liked, playlist, album, history (a local file / download plays from disk). Facts of a merged song: year = any known,
   added = the earliest `addedAt` of its library copies, liked date from the liked copy, liked = a liked copy or the
   account's liked ids, downloaded / local file / explicit = any copy, playlists = every playlist slice it is in, plays /
-  skips / first / last played from the history, BPM from 3.58.
+  skips / first / last played from the history, BPM from 3.65.
 - **Fields and operators**: title / artist / album (contains, does not contain, is, is not, starts with; artist: any of
   its artists), release year and BPM (>, <, between, =, ≠, known, unknown), length in seconds (`m:ss` in the editor),
   plays and skips (a play = a stream by `ListenStats`' rule; a skip = a stored play that wasn't one: this PC's under
@@ -3871,9 +3859,9 @@ the list page, the editor, menus, import / export), `app/RuleSources` the cached
   (everything prepared, four lists) 265-435 ms on the worker, later jobs after one input changed (a BPM landed, a play)
   8-31 ms; nothing on the UI thread beyond the fingerprints and the history aggregation.
 
-### 3.58 Tempo (BPM)
+### 3.65 Tempo (BPM)
 
-The tempo of songs, for the track tables (a column, sorting, a range filter), Now Playing and the rule lists (3.57).
+The tempo of songs, for the track tables (a column, sorting, a range filter), Now Playing and the rule lists (3.64).
 `audio/Tempo` (the estimator and the file analysis; `tempo_test`), `app/BpmStore` (the store; `rules_test`), `app/Bpm`
 (the worker, lookups, settings rows, the tag editor's hand-over).
 
@@ -3997,8 +3985,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `smtc_test` | SMTC against the real Windows media session service | default; `--no-verify`; `--hotkey-probe` |
 | `sponsorblock_test` | hash prefix, parsing, skip state machine, live lookups | default (network); `--offline` |
 | `podcasts_test` | XML reader, RSS / directory parsing, dates, durations, episode model, download names, `podcasts.json` store, Spotify show → directory matching and the kept links | offline; `live` (Apple search / charts / lookup, a real feed, redirects, partial + resumed and full downloads, `findFeed` and its request spacing) |
-| `rules_test` | rule-based playlists (`app/RuleLists`, 3.57) and the BPM store (`app/BpmStore`, 3.58): definitions round-trip through JSON exactly, hostile / foreign / newer files (unknown fields and operators dropped and counted, limits clamped, the rule cap), de-duplication by id and by song identity across slices and the copy that plays, merged facts, every field and operator (Turkish İ / ı, several artists, unknown values, "never played", playlists, catalogs, BPM), all / any and groups, unfinished rows ignored, sources, every sort key with unknown values last, random orders per day and per song, limits by count and minutes, incremental updates (an identical slice, one slice replaced = one merge, play / liked / downloaded / BPM facts without a merge, revisions, `depsOf`), the BPM store (ids, video, song key, tag over analysis, stamps, forgetting, the file), timings with 5 000 and 50 000 songs | offline; one section by name (`json pool rules order incremental bpm timing`) |
-| `tempo_test` | the tempo estimator (`audio/Tempo`, 3.58) on synthetic audio at known tempos: click tracks 60-200 BPM and odd tempos, drum loops (rock, four-on-the-floor, ballads, 70-180 BPM), triplet swing, half-time / drum'n'bass / loud sixteenths traps (the tempo or its octave), noise / silence / a held tone (no tempo), a noise floor, 44.1 kHz, a 1 % drift, sub-integer precision, a generated WAV through `analyzeFile` (decoder, seek, downmix), timing; prints every signal's estimate and the accuracy | offline; `file <path…>` (real files: estimate, decode and analysis time) |
+| `rules_test` | rule-based playlists (`app/RuleLists`, 3.64) and the BPM store (`app/BpmStore`, 3.65): definitions round-trip through JSON exactly, hostile / foreign / newer files (unknown fields and operators dropped and counted, limits clamped, the rule cap), de-duplication by id and by song identity across slices and the copy that plays, merged facts, every field and operator (Turkish İ / ı, several artists, unknown values, "never played", playlists, catalogs, BPM), all / any and groups, unfinished rows ignored, sources, every sort key with unknown values last, random orders per day and per song, limits by count and minutes, incremental updates (an identical slice, one slice replaced = one merge, play / liked / downloaded / BPM facts without a merge, revisions, `depsOf`), the BPM store (ids, video, song key, tag over analysis, stamps, forgetting, the file), timings with 5 000 and 50 000 songs | offline; one section by name (`json pool rules order incremental bpm timing`) |
+| `tempo_test` | the tempo estimator (`audio/Tempo`, 3.65) on synthetic audio at known tempos: click tracks 60-200 BPM and odd tempos, drum loops (rock, four-on-the-floor, ballads, 70-180 BPM), triplet swing, half-time / drum'n'bass / loud sixteenths traps (the tempo or its octave), noise / silence / a held tone (no tempo), a noise floor, 44.1 kHz, a 1 % drift, sub-integer precision, a generated WAV through `analyzeFile` (decoder, seek, downmix), timing; prints every signal's estimate and the accuracy | offline; `file <path…>` (real files: estimate, decode and analysis time) |
 | `smartlists_test` | smart lists on synthetic histories: each list's rules and minimums, streams only, podcast / radio ids out, session-based mixes, day seeds, year lists, fresh-song blending, trim, timing with 300 000 plays | offline |
 | `stats_test` | stream rule, recording, aggregation, persistence, local time (Windows' dynamic zones, DST), heatmap, year summary, Spotify history import (both formats, the ZIP, dedupe, the imported file), an account switch (`detach` / `attach`: stored plays to the old file, the play in progress carried over), timings with 300 000 imported plays | offline |
 | `sync_test` | download sync: `sync.json` store, downloadable filter, plan (retries, blocked, storage cap), drops, progress, scheduling / backoff, excluded songs (store, filter, include again, old files), Spotify rules bound to their account (listable only with it, the `"acct"` round trip, old files) | offline |
@@ -4007,11 +3995,11 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `history_test` | Last.fm / ListenBrainz import (`app/ScrobbleImport`, 3.55): dates, Retry-After, Last.fm track objects and pages (now playing, images, MBIDs, a single-object page, errors), ListenBrainz listens (mapped artists, artist_names, durations, covers), every export format (lastfm-to-csv, Ghan CSV / JSON, lastfmstats CSV / JSON, the ListenBrainz ZIP / JSONL / old JSON; other files and the other service's left out), fake Last.fm / ListenBrainz servers (oldest-first paging, 429 + Retry-After, error 8, 503, X-RateLimit, the resume overlap, cancel, unknown user / private / bad key / no key / no network), one history from this PC + Spotify + Last.fm + ListenBrainz counted once (pauses, repeats, credit splitting, MBID matching, estimated minutes, removal per source, incremental runs, persistence), resume after a cancel, an account switch (each account's imported files and cursors, a running import stopped into the account left and resumed when back, the superseded result not touching the new account, a pending removal written by `detach`, the pre-filled account), 100 000-scrobble files and `runJob` (time, peak memory) | offline; sections by name (`timing dates records files lastfm lb merge resume accounts`); `live lb <user> [<max>]`, `live lastfm <user> [<max>]` (key in `SHADETUBE_LASTFM_KEY`): a real import into a temp store, then again (only the new) |
 | `playlist_edit_test` | playlist editing (`app/PlaylistEditing`): multi-selection moves (order, new positions, the anchor row Spotify gets; randomized), undo runs of a removal, cover pictures (centered square JPEG ≤ 256 KB: noise, small, tight budget, files, garbage), local playlists' `library.json` entry and cover files | offline |
 | `collections_test` | playlist files: M3U8 / CSV / XSPF / JSON round trips, CSV dialects (Exportify, TuneMyMusic, Soundiiz, headerless), formula guard, M3U paths / URIs / links, encodings, durations, 10 000-song timings per format | offline |
-| `services_test` | Deezer / Apple Music / TIDAL (3.57): every link form (playlists, albums, songs, short links, storefronts, browse / listen / embed hosts) and the Unsupported ones; parsers on recorded answers (`tests/services/fixtures`, cut down by `record_fixtures.py`; the token-carrying bundles are stand-ins with fake values): Deezer header / pages / track / errors, Apple's page data, bundle token, amp-api resources and pages, TIDAL's JSON:API header / item pages / track list / bundle client; `svc::read` on a replaying transport (Deezer paging, Apple through amp-api with its headers, a refused token falling back to the page, TIDAL's token and cursor pages, a refused client replaced by the bundle's, 404s, short links, transport retries); `catmatch` scoring (versions, featuring, live / remix, wrong artist, lengths, Turkish letters, other scripts, albums) | offline; `live <link…> [ytm\|mb\|spotify\|none] [--quiet]` (reads and matches real lists, timings and match rate; `spotify` uses an anonymous web-player token, search only); `live-set [ytm\|mb]` (two public lists per service) |
+| `services_test` | Deezer / Apple Music / TIDAL (3.60): every link form (playlists, albums, songs, short links, storefronts, browse / listen / embed hosts) and the Unsupported ones; parsers on recorded answers (`tests/services/fixtures`, cut down by `record_fixtures.py`; the token-carrying bundles are stand-ins with fake values): Deezer header / pages / track / errors, Apple's page data, bundle token, amp-api resources and pages, TIDAL's JSON:API header / item pages / track list / bundle client; `svc::read` on a replaying transport (Deezer paging, Apple through amp-api with its headers, a refused token falling back to the page, TIDAL's token and cursor pages, a refused client replaced by the bundle's, 404s, short links, transport retries); `catmatch` scoring (versions, featuring, live / remix, wrong artist, lengths, Turkish letters, other scripts, albums) | offline; `live <link…> [ytm\|mb\|spotify\|none] [--quiet]` (reads and matches real lists, timings and match rate; `spotify` uses an anonymous web-player token, search only); `live-set [ytm\|mb]` (two public lists per service) |
 | `lyrics_test` | LRC / Spotify / ID3 lyrics parsers, sidecar + tag lookup, download lyrics frames, the provider chain and its cache, song timeline, offsets, the lyrics picker (LRCLIB search JSON, ranking, previews, picked files, stored choices, fetch() with each pick) | offline; `live [spotify track id…]` (read-only Spotify lyrics requests with the saved `sp_dc`); `search ["text" [seconds]]` (LRCLIB's search as the picker sends it, the first record fetched back by id) |
-| `lyrictools_test` | lyrics tools (3.57): the synchronizer's draft (text in, blank lines / gaps / pasted LRC, stamping and the cursor, later stamps dropped, back / skip / nudge / clear / undo, text edits keeping stamps, filled-in times, readiness), LRC written and read back, `Offsets::storeText` + fetch() with the file choice, SHA-256 vectors, LRCLIB's challenge (parsing, the target comparison, the smallest nonce of a captured challenge as LRCGET finds it, threads, cancel, try limit), the publish request against a fake transport (body, headers, a token solving the challenge, every answer), Genius' lyrics search on recorded answers (`fixtures/genius_lyric_*.json`: order, translations / weak matches / duplicates out, one- and two-line snippets with highlights, hostile JSON, the request), title folding, `sameSong`, `looksLikeLyrics` | offline; `live` (four Genius searches, read-only, and a real LRCLIB challenge solved; nothing is published) |
-| `romanize_test` | lyrics romanization (3.58): Korean Revised Romanization through every pronunciation rule implemented, kana → Hepburn (yōon, sokuon, n', long vowels, extended katakana, punctuation), Japanese through a fixture reader (spaced phrases, particles) and without one (kanji kept), Windows' analyzer on this PC (reported, not asserted), Russian / Ukrainian tables and case, script detection, lines left empty, the cache (read back, stale lyrics, Japanese without readings not kept) | offline (own temp profile) |
-| `lyricsview_test` | the lyrics views' drawing (3.57): `dimAlpha`, `smoothstep`, `LineMotion` (first line at once, changes ease from where they are, settling, reduce motion), `gfx::TextShape` on the real device (a row per visual line, an ellipsis line, emoji refused, `builtFor`, the idle release drops them, built again), its pixels against DirectWrite's outlines and bitmap glyphs at 100 / 125 / 175 % (ink, centroid, partial levels), the karaoke fill's soft edge | offline; needs a D3D11 device |
+| `lyrictools_test` | lyrics tools (3.58): the synchronizer's draft (text in, blank lines / gaps / pasted LRC, stamping and the cursor, later stamps dropped, back / skip / nudge / clear / undo, text edits keeping stamps, filled-in times, readiness), LRC written and read back, `Offsets::storeText` + fetch() with the file choice, SHA-256 vectors, LRCLIB's challenge (parsing, the target comparison, the smallest nonce of a captured challenge as LRCGET finds it, threads, cancel, try limit), the publish request against a fake transport (body, headers, a token solving the challenge, every answer), Genius' lyrics search on recorded answers (`fixtures/genius_lyric_*.json`: order, translations / weak matches / duplicates out, one- and two-line snippets with highlights, hostile JSON, the request), title folding, `sameSong`, `looksLikeLyrics` | offline; `live` (four Genius searches, read-only, and a real LRCLIB challenge solved; nothing is published) |
+| `romanize_test` | lyrics romanization (3.63): Korean Revised Romanization through every pronunciation rule implemented, kana → Hepburn (yōon, sokuon, n', long vowels, extended katakana, punctuation), Japanese through a fixture reader (spaced phrases, particles) and without one (kanji kept), Windows' analyzer on this PC (reported, not asserted), Russian / Ukrainian tables and case, script detection, lines left empty, the cache (read back, stale lyrics, Japanese without readings not kept) | offline (own temp profile) |
+| `lyricsview_test` | the lyrics views' drawing (3.62): `dimAlpha`, `smoothstep`, `LineMotion` (first line at once, changes ease from where they are, settling, reduce motion), `gfx::TextShape` on the real device (a row per visual line, an ellipsis line, emoji refused, `builtFor`, the idle release drops them, built again), its pixels against DirectWrite's outlines and bitmap glyphs at 100 / 125 / 175 % (ink, centroid, partial levels), the karaoke fill's soft edge | offline; needs a D3D11 device |
 | `credits_test` | song credits: role folding and groups, merging, the Spotify credits query and legacy JSON, MusicBrainz recording / work / label relationships, title cleaning and the recording ranking, `app/Credits` (JSON round trip and expiry, the provider chain, memory + disk cache, the summary) | offline (fixtures); `live ["Artist" "Title" [seconds]]` (MusicBrainz search + credits, read-only; Spotify too with `SHADETUBE_SPDC`, track `SHADETUBE_CREDITS_TRACK`) |
 | `updater_test` | versions, release JSON, asset choice (the zip, never the setup, in any order), ZIP reader, exe swap, installer + uninstall | default offline; `--e2e <base>` |
 | `setup_test` | the setup (3.57): payload pack / read / unpack with every algorithm (blocks, a file across blocks, an empty file, progress), damage (a flipped byte, the seal, truncation, garbage), forged but sealed headers (format, names, block count, a file's SHA-256: nothing left behind), cancel, the payload of this build's `ShadeTubeSetup.exe` (its exe byte for byte the build's, passing `verifyExe`); the command line; `actionFor` / `folderFor` / `writable`; in a `SHADETUBE_SETUP_SANDBOX`: a fresh install (files, uninstall key, both shortcuts, Run value + settings.json, a newer version's settings kept), a repair changing the options, an update while this build's app runs from the install folder (it quits gracefully first), a moved install, uninstall keeping / removing the data, `ShadeTube.exe --uninstall --quiet` on a setup install, `ShadeTubeSetup.exe /S` (`/D=` with spaces, `/DESKTOP`, `/UNINSTALL`, 87, 1618) | offline; `payload` / `args` / `engine` / `silent` runs one part; starts the build's app (`--preview`) in the sandbox |
@@ -4043,8 +4031,8 @@ Console programs under `build\<Config>\tests\<module>\`; they print each check a
 | `lists_test` | list geometry (3.47): the track table's columns at every width 300-1600 DIP in both densities (fixed right end, order, no overlap, the title minimum, columns only ever dropping in the documented order, the queue action last), `Settings::trackColumns` parsing, selection runs, the queue's sections (runs, header rows, positions, hit tests on rows and headers, drop slots, 5 000 slots), the skeleton band | offline |
 | `memory_test` | memory housekeeping (3.2) on the real graphics device: `ImageCache` buckets (a 300 px request decodes at 384, never above the picture's own size), expiry (kept when painted in the last frames, on the current or the previous page scope or within the idle time; dropped otherwise, bytes given back, loaded again when painted), `Icons::drawColored` above 96 px painting from the document with no bitmap per size, `Device::trimPool` (released bitmaps come back only through it; numbers printed), `MemoryStats::detailedReport`, `ListenStats::readFile` leaving no capacity slack | offline (own temp folder and profile) |
 | `micro_test` | micro-interactions (`ui/Micro`, 3.32): the gate (reduce motion, Windows' animation effects), `HoverFade` (fade in ~120 ms, the row left fades out from where it was, going back resumes, instant without micro, no frames once settled), the equalizer clock (1:1 while playing, slows to a stop within 240 ms and stays frozen without asking for frames, resumes, 100 ms gap cap, one advance per frame), bar levels (range, never flat, moving; a still pose without micro), `HeartPop` (pop ≤ 116 %, fill grows, burst, settled after 220 ms; unlike dip), the card lift | offline (busy-waits ~2 s for the real-time fades) |
-| `recognize_test` | song recognition (3.57): base64 / CRC-32, the signature of a synthetic signal with known peaks (bands, frequencies, times, levels, feeding patterns, silence), the binary format (header fields, the pass escape, padding, damaged bytes, the `synthetic.uri` fixture), recorded service answers and odd shapes, the request body, the session on test audio with a fake service (silence, the 4 / 7 / 11 s schedule, a match, an unsure answer confirmed / standing alone, 429, no network, `stop()` with a request out), catalog matching (folding, artist credits, prefixes), the `recognized.json` store | offline (own temp folder); `live <file> [start] [s]`, `yt "Artist - Title" [start] [s] [--wav out]`, `songs [--short] [--snr dB] "…"…` (requests 20 s apart, `RECOGNIZE_GAP`), `noise`, `dump <file\|query\|noise> <out.json>`, `capture <system\|mic> [s]` (a real session), `level <system\|mic> [s]` (the capture alone, nothing sent) |
-| `visualizer_test` | the visualizer's analysis (`audio/VisualAnalysis`, 3.57): band edges (contiguous, increasing, the interpolated ones only at the low end, at 44.1 / 48 / 96 kHz), a sine at each band's centre in that band or its neighbour, levels in dB, `sampleAt`, a 60 Hz → 12 kHz sweep moving the loudest band only up, beats on synthetic music (drums, bass, chords, arpeggio) at 90 / 120 / 140 BPM read at 60 / 144 / 240 frames/s, with 10 and 20 ms engine blocks and at 44.1 kHz (every kick once, 0-90 ms late, nothing else, the same beats at every rate), no beats in an intro without drums, a held chord, a sine or silence (white noise: at most one stray beat in 7 s), the beat pulse's decay, settling when paused (peaks hold, then fall; at rest within 1.5 s), the oscilloscope's trigger (a tone stands still) and gain, timing | offline; `wav <file> [s]` writes the synthetic song (48 kHz stereo) for the app |
+| `recognize_test` | song recognition (3.59): base64 / CRC-32, the signature of a synthetic signal with known peaks (bands, frequencies, times, levels, feeding patterns, silence), the binary format (header fields, the pass escape, padding, damaged bytes, the `synthetic.uri` fixture), recorded service answers and odd shapes, the request body, the session on test audio with a fake service (silence, the 4 / 7 / 11 s schedule, a match, an unsure answer confirmed / standing alone, 429, no network, `stop()` with a request out), catalog matching (folding, artist credits, prefixes), the `recognized.json` store | offline (own temp folder); `live <file> [start] [s]`, `yt "Artist - Title" [start] [s] [--wav out]`, `songs [--short] [--snr dB] "…"…` (requests 20 s apart, `RECOGNIZE_GAP`), `noise`, `dump <file\|query\|noise> <out.json>`, `capture <system\|mic> [s]` (a real session), `level <system\|mic> [s]` (the capture alone, nothing sent) |
+| `visualizer_test` | the visualizer's analysis (`audio/VisualAnalysis`, 3.61): band edges (contiguous, increasing, the interpolated ones only at the low end, at 44.1 / 48 / 96 kHz), a sine at each band's centre in that band or its neighbour, levels in dB, `sampleAt`, a 60 Hz → 12 kHz sweep moving the loudest band only up, beats on synthetic music (drums, bass, chords, arpeggio) at 90 / 120 / 140 BPM read at 60 / 144 / 240 frames/s, with 10 and 20 ms engine blocks and at 44.1 kHz (every kick once, 0-90 ms late, nothing else, the same beats at every rate), no beats in an intro without drums, a held chord, a sine or silence (white noise: at most one stray beat in 7 s), the beat pulse's decay, settling when paused (peaks hold, then fall; at rest within 1.5 s), the oscilloscope's trigger (a tone stands still) and gain, timing | offline; `wav <file> [s]` writes the synthetic song (48 kHz stereo) for the app |
 | `icons_test` | the icon set (3.43) through `gfx::Icons`: every file in every grid (viewBox = grid, path / rect / circle only, black only, the grid's stroke width, parsed by `ID2D1SvgDocument`, no `-thin` files), the grid order and legacy names, `-thin` aliases drawing the same masks, whole-pixel strokes at each grid's own size, the ink of a stroke from 9 to 36 px (≥ 1 px, then px / 16), `heart-filled` covering `heart`, the `downloaded` check cut out | offline; `--sheet <dir>` (contact sheets: all icons at 12-24 DIP × 80-175 % in dark / light / nord / pastel / sepia, each grid magnified, off / on pairs) |
 
 The update path end to end: `powershell -ExecutionPolicy Bypass -File tests\updater\run_e2e.ps1 -BuildDir build\Debug`
@@ -4125,7 +4113,7 @@ change), `--installed` / `--updated` (notice after an install or update; the set
 | `SHADETUBE_LIBRARY_VIEW` | `<grid\|list>[:<recents\|added\|alpha\|creator>[:<filter>]]`: the Library page's view, sort and search (not saved) |
 | `SHADETUBE_LIBRARY_SCROLL` | the first Library page opens scrolled down this many DIPs |
 | `SHADETUBE_LIST_DEMO` | `<step>;<step>…` run 900 ms after the first track table of the run got rows (3.47): `select=1,3-5` (display rows), `sort=<title\|album\|added\|duration\|plays>[:desc]` (as a header click), `columns=<Settings::trackColumns>`, `next=<rows>` / `enqueue=<rows>`, `queue` (opens the queue panel), `scroll=<dips>`, `dragline=<row>` (the selection shown dragged in front of that row), `fakeplays`. E.g. `local:songs` with `SHADETUBE_PLAY_FILES` and `next=3,4;enqueue=10,11;queue` for the queue's sections |
-| `SHADETUBE_BPM_FAST` | `1`: the BPM worker (3.58) starts at once instead of a minute after startup and analyses back to back (0.5 s apart instead of 12 s): measurements, screenshots of the BPM column |
+| `SHADETUBE_BPM_FAST` | `1`: the BPM worker (3.65) starts at once instead of a minute after startup and analyses back to back (0.5 s apart instead of 12 s): measurements, screenshots of the BPM column |
 | `SHADETUBE_TEMPO_DEBUG` | `1`: the tempo estimator prints its candidates to stderr (`tempo_test file <path>`: the comb peaks, the autocorrelation at P, P/2, 2P, 3P/2, 2P/3) |
 | `SHADETUBE_MEMLOG=1` | logs where the memory is every 2 s (`mem` lines; see 3.2) |
 | `SHADETUBE_MEM_DEMO` | `<action>@<ms>[=<arg>];…` or the path of a file of such steps (`;` or new lines, `#` comments), each run `<ms>` after startup (app/MemDemo.h): `route=<r>` (the `--route` forms), `back`, `forward`, `wheel=<n>` (n notches down, negative up), `np`, `npclose`, `next`, `tray`, `show`, `minimize`, `restore`, `mini`, `miniclose`, `trim` (App::trimMemory), `gputrim` (`Device::trimPool`), `gpuclear` (Direct2D's `ClearResources`), `d2dcache=<MB>`, `report[=<label>]` (a categorized report appended to `logs\memreport.txt`, 3.2), `frames=<label>` (only the frame times since the last report), `quit`. E.g. `route@4000=local:songs;wheel@5000=40;report@20000=songs;quit@21000` |
@@ -4147,13 +4135,13 @@ change), `--installed` / `--updated` (notice after an install or update; the set
 | `SHADETUBE_SETTINGS_SEARCH` | text typed into the Settings search box when the first Settings page opens (screenshots) |
 | `SHADETUBE_SETTINGS_SCROLL` | the first Settings page scrolls down this many DIPs once laid out (after a deep link's jump) |
 | `SHADETUBE_SIDEBAR_W` | `<DIPs>` (200-420) or `rail`: the sidebar's width / icon rail for this run (screenshots); nothing is saved |
-| `SHADETUBE_VIZ_MODE` | `bars`, `ring`, `wave` or `aurora`: the visualizer's mode for this run (not saved; 3.57) |
+| `SHADETUBE_VIZ_MODE` | `bars`, `ring`, `wave` or `aurora`: the visualizer's mode for this run (not saved; 3.61) |
 | `SHADETUBE_VIZ_LOG=1` | while the visualizer is open, logs every 5 s its mode, size, frames/s, paint time, analyses/s and backdrop renders/s (`visualizer` lines) |
 | `SHADETUBE_VIZ_SHOTS` | `<folder>;<ms>;<count>;<gap ms>`: once the visualizer has been open `<ms>`, writes `count` frames `gap` ms apart as `viz-N.png` (motion checks) |
 | `SHADETUBE_NP_TAB` | `lyrics`, `queue` or `about`: the tab Now Playing opens on (screenshots; 3.40) |
-| `SHADETUBE_NP_LOG=1` | while Now Playing is open, logs every 5 s its frames/s and the backdrop field's size, renders/s and cost, and the live text shapes / rows built (3.57) (`nowplaying` lines) |
-| `SHADETUBE_LYRICS_SHAPES=0` | the lyrics views draw their lines as DirectWrite text instead of geometry (3.57): A/B of look and cost |
-| `SHADETUBE_FRAME_CYCLES=1` | `SHADETUBE_MEM_DEMO`'s frame numbers are the UI thread's CPU cycles of each main-window frame (millions) instead of its wall time: comparable between runs while other work shares the machine (3.57) |
+| `SHADETUBE_NP_LOG=1` | while Now Playing is open, logs every 5 s its frames/s and the backdrop field's size, renders/s and cost, and the live text shapes / rows built (3.62) (`nowplaying` lines) |
+| `SHADETUBE_LYRICS_SHAPES=0` | the lyrics views draw their lines as DirectWrite text instead of geometry (3.62): A/B of look and cost |
+| `SHADETUBE_FRAME_CYCLES=1` | `SHADETUBE_MEM_DEMO`'s frame numbers are the UI thread's CPU cycles of each main-window frame (millions) instead of its wall time: comparable between runs while other work shares the machine (3.62) |
 | `SHADETUBE_PREVIEW_DEMO` | `<action>@<ms>[=<x>,<y>];…` after startup, at window DIPs: `hold` (left press, kept down), `up`, `move` (with the button down), `click`, `rclick` (the context menu), `key` (the `preview` action), `esc`. E.g. with `--route local:songs`, `SHADETUBE_PLAY_FILES` and `--screenshot`: `hold@3500=900,450;up@7000` (3.30) |
 | `SHADETUBE_NAV_DEMO` | `<step>;<step>…`, each `<action>@<ms>[=<arg>]` run `<ms>` after the shell opened: `click=<x>,<y>` (a real left click posted at window DIPs), `back`, `forward`. With `--screenshot`, e.g. `click@2500=559,378` and a capture at 3300 ms for a cover in flight (3.31) |
 | `SHADETUBE_MOTION_SCALE` | `<factor>` (1-50): page transitions and the cover's flight run that many times slower (screenshots of their middle) |
@@ -4168,15 +4156,15 @@ change), `--installed` / `--updated` (notice after an install or update; the set
 | `SHADETUBE_THEME_DEMO` | `<ms>:<step>,<step>…`: live theme changes the way the Ayarlar rows make them, the first after `<ms>`, then every 700 ms: a theme id, `mode:dark\|light\|system`, `corners:sharp\|default\|round`, `font:<family>` (`font:` = bundled), `accent:dynamic\|theme\|#RRGGBB` |
 | `SHADETUBE_THEME_DIALOG` | `accent`, `font`, `editor:<id>` or `new:<id>`: opens that dialog when the Görünüm rows are first built (with `--route settings:appearance`; screenshots) |
 | `SHADETUBE_THEME_IMPORT` | `<file>`: imports that theme file when the Görünüm rows are first built (the toast says why a file is refused) |
-| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `lyricsync` (the lyrics synchronizer for it, 3.57; `key=Ctrl+Enter` steps on, `key=Space` stamps), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
-| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport[=deezer\|apple\|tidal]` (that service's link dialog, 3.57), `importmenu=x,y` (the "İçe aktar" menu), `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `lyricsync` (the lyrics synchronizer for it, 3.58; `key=Ctrl+Enter` steps on, `key=Space` stamps), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
+| `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…; `Tab*6` that many times; with modifiers, `Alt+Down`, `Shift+Tab`, `Shift+F10`, it is sent with them set in the thread's key state), `focus=queue` (the keyboard focus and its ring on the queue panel's row cursor, for the keys after it), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `credits` (the "Krediler" dialog of the playing song, else a sample one), `lyricspicker` ("Yanlış sözler mi?" for it), `matchpicker` ("Yanlış eşleşme mi?"), `newplaylist`, `rename`, `details` (only for a playlist that exists), `blendcreate` (the consent dialog; needs listening history), `blendjoin`, `jamjoin`, `ytimport[=deezer\|apple\|tidal]` (that service's link dialog, 3.60), `importmenu=x,y` (the "İçe aktar" menu), `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000`; `newplaylist@3000;key@3400=Tab*2` for the focus ring in a dialog |
 | `SHADETUBE_OVERLAY_DEMO` | `<action>@<ms>[=<arg>];…` run `<ms>` after startup (3.36): `menu=x,y` (the track menu of the playing song, else a sample one with two artists, at window DIPs), `sleep=x,y` (the sleep timer menu), `key=<combo>` (posts a plain key to the window: `Down`, `Right`, `Escape`, `S`…), `hover=x,y`, `dialog` (a delete confirmation), `toast=<text>` (`!` = error), `toastaction=<text>`, `palette[=<query>]`, `stats` (logs the acrylic captures so far and the bytes held). E.g. `menu@1500=520,180;key@1900=Down;key@2000=Right` with `--screenshot 3000` |
 | `SHADETUBE_ACCOUNT_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.48): `menu[=x,y]` (the account menu at window DIPs, default under the title bar's tag), `switch[=<id>]` (the next signed-in account, or that one), `signout[=<id>]` (the active one), `add` (the login window), `log` (the active account and its data folder). E.g. `switch@8000;menu@11000` with `--screenshot 12000` |
-| `SHADETUBE_RECOGNIZE_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.57): `open[=system\|mic]` (the dialog, listening for real), `state=<listening\|identifying\|result[:<cover url>]\|notfound\|silent\|failed:<access\|busy\|device\|network\|rate\|service>>` (a state without listening; `result` resolves a sample song against the catalog), `history=<n>` (sample entries, not saved until a real one is), `act=<play\|like\|radio\|add>` (the result card's buttons), `close`. E.g. with `SHADETUBE_PLAY_FILES` and `open@3500` for ShadeTube's own playback |
+| `SHADETUBE_RECOGNIZE_DEMO` | `<action>@<ms>[=<arg>];…` after startup (3.59): `open[=system\|mic]` (the dialog, listening for real), `state=<listening\|identifying\|result[:<cover url>]\|notfound\|silent\|failed:<access\|busy\|device\|network\|rate\|service>>` (a state without listening; `result` resolves a sample song against the catalog), `history=<n>` (sample entries, not saved until a real one is), `act=<play\|like\|radio\|add>` (the result card's buttons), `close`. E.g. with `SHADETUBE_PLAY_FILES` and `open@3500` for ShadeTube's own playback |
 | `SHADETUBE_RECOGNIZE_LOOPBACK` | `endpoint`: *Bilgisayarın sesi* uses the default output's loopback (ShadeTube's own sound included) instead of the process loopback, as on a Windows without it |
 | `SHADETUBE_ACRYLIC` | `force`: the overlays' acrylic material also with transparency effects off or in high contrast; `off`: always the opaque surfaces (3.36) |
-| `SHADETUBE_LYRICS_EXPORT` | `<file>`: the synchronizer's "Dışa aktar…" writes there without the save dialog (3.57; tests in a sandbox) |
-| `SHADETUBE_LRCLIB_URL` | `http://127.0.0.1:<port>`: the synchronizer's "LRCLIB'e gönder" talks to this server instead of lrclib.net (a mock: the whole publish flow without publishing anything, 3.57) |
+| `SHADETUBE_LYRICS_EXPORT` | `<file>`: the synchronizer's "Dışa aktar…" writes there without the save dialog (3.58; tests in a sandbox) |
+| `SHADETUBE_LRCLIB_URL` | `http://127.0.0.1:<port>`: the synchronizer's "LRCLIB'e gönder" talks to this server instead of lrclib.net (a mock: the whole publish flow without publishing anything, 3.58) |
 | `SHADETUBE_LYRICS_SHARE` | `<from>-<to>[,gradient\|blur\|dark\|light][,square\|story\|wide][,center][,trdemo][,copy][,png=<file>]`: when the first track plays (e.g. `SHADETUBE_PLAY_FILES` with a sidecar `.lrc`), its lyrics are fetched and the "Sözleri paylaş" dialog opens with lines from..to (0-based) and those options; `trdemo` puts a stand-in translation under every line, `copy` runs "Görseli kopyala", `png=` also writes the export (3.37) |
 | `SHADETUBE_REVIEW` | `<year\|12m\|auto>[@<card>][,pause][,wait=<ms>][,png=<folder>]`: once the history is loaded (and an `SHADETUBE_IMPORT_HISTORY` import landed) opens the year-in-review story at that card (0-based), optionally paused; `png=` writes every card as `review-NN.png` there (after 4 s for the artwork lookups) |
 | `SHADETUBE_HEADER_SCROLL` | `<dips>`: pages with a collapsing header (album, playlist, Liked Songs, smart list, podcast show, artist; 3.38) open scrolled that far once their content is built, e.g. `150` (half collapsed) or `400` (docked) with `--route playlist:<id>` and `--screenshot` |
@@ -4222,15 +4210,15 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
 
 ## 7. Known limitations and open items
 
-- **Rule-based playlists** (3.57): a release year is known only for local files and saved albums' tracks (catalog
+- **Rule-based playlists** (3.64): a release year is known only for local files and saved albums' tracks (catalog
   tracks carry none), so "year" rules over Spotify / YouTube Music likes and playlists match nothing but "unknown".
   Spotify collections are read from the collection cache, fetched in the background while a list needs them: a new
   list shows its Spotify songs once their listing is done (minutes for a large library), and the cache follows Spotify
-  only as often as 3.57 says. The editor's playlist picker names the sidebar's playlists (signed in, Spotify's; local
+  only as often as 3.64 says. The editor's playlist picker names the sidebar's playlists (signed in, Spotify's; local
   ones are not offered then). Verified on a synthetic logged-out library only: no logged-in Spotify sandbox was
   available, so the Spotify collection fetching ran in no live session. A pool of ~1 KB per distinct song is held while
   any rule list exists (7 MB for 5 000 songs, 70 MB for 50 000).
-- **BPM** (3.58): like every tempo estimator it can return half or double the tempo musicians would name (strong
+- **BPM** (3.65): like every tempo estimator it can return half or double the tempo musicians would name (strong
   eighths, half-time grooves); free-tempo music, speech and ambient pieces get no tempo. Only audio already on this PC
   is analysed: a song streamed but not finished (not in the song cache) or never played has none. The analysis of a
   cached Opus stream is slow in Debug builds (seconds); Release was not measured.
@@ -4260,7 +4248,7 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
 - **Lyrics picker** (3.46): LRCLIB's free-text search returns at most 20 records; the Spotify choice needs a Spotify
   track and a session. A picked record is cached in `cache\lyrics` (pruned with the cache), so it is fetched again by
   id when the cache was cleared.
-- **Lyrics tools** (3.57): the synchronizer stamps line times only (no word timing / enhanced LRC). Its saved lyrics
+- **Lyrics tools** (3.58): the synchronizer stamps line times only (no word timing / enhanced LRC). Its saved lyrics
   are the song's "file" pick: choosing another pick in the picker later deletes that copy (a download's / local file's
   sidecar .lrc stays). Publishing to LRCLIB was developed against the documented API and LRCGET's solver, checked with
   a fake transport, a local mock server driven from the app and a real challenge solved live; the final
@@ -4268,11 +4256,11 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   Genius' undocumented site endpoint (no key): a change there or a bot check makes it fall back to YouTube Music's
   search (no matched line shown). On MusicBrainz only the first four hits are looked up in the catalog (its request
   rate), and MusicBrainz' recording search may stand a live or compilation recording in for a song.
-- **Lyrics romanization** (3.58): kanji readings come from Windows' Japanese language data; without it (as on the
+- **Lyrics romanization** (3.63): kanji readings come from Windows' Japanese language data; without it (as on the
   development PC) Japanese lines show the kana in romaji and the kanji as written, and the analyzer's real output was not
   observed (a fixture stands in). Korean skips the grammar-dependent rules (ㄴ insertion, nouns keeping ㅎ, the ㄼ
   exceptions); Chinese is not romanized. Not in the mini player or the lyrics share card.
-- **Lyrics rendering** (3.57): while a Now Playing line grows or shrinks, its two styles are seen together for ~60 ms;
+- **Lyrics rendering** (3.62): while a Now Playing line grows or shrinks, its two styles are seen together for ~60 ms;
   when the big style wraps a line into more rows than the small one, that moment shows both wraps. Lines with color emoji
   are drawn as text (16-level edges, no fill gradient per row beyond a clip). Geometry antialiasing has no gamma
   correction: light text on a dark ground carries ~3 % less ink than DirectWrite's bitmap glyphs (it matches
@@ -4307,7 +4295,7 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   aktar" makes a local copy). No search suggestions (the other catalogs have none either). A Search page answer costs
   five parallel requests (the palette's one); a page 1-2 requests of 0.3-1.5 s (answers are 0.2-1 MB of JSON; a mood
   category up to 3 MB) unless the disk cache has it.
-- **Song recognition** (3.57) depends on Shazam's private recognition endpoint: Apple's terms don't permit
+- **Song recognition** (3.59) depends on Shazam's private recognition endpoint: Apple's terms don't permit
   third-party clients, and the endpoint, its headers or the signature format may change or start refusing ShadeTube
   without notice (then every attempt ends as "Tanıma hizmeti yanıt vermedi"); there is no second backend. It
   rate-limits (429 for about a minute after 4 requests within ~1.5 s, and after a few dozen within half an hour; a
@@ -4317,14 +4305,14 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   excerpts, and with white noise mixed in at 5 dB (3 / 3) and 0 dB SNR (2 / 2); white noise, a hum and silence come
   back as no match. The service's answer is not deterministic: the same Levitating excerpt was named once as an
   unrelated re-upload of the song in Shazam's catalog (no album, no ISRC) and once correctly; 4 s of Billie Jean's
-  groove, captured from the loopback, once named another release (the confirmation rule of 3.57 now listens on in such
+  groove, captured from the loopback, once named another release (the confirmation rule of 3.59 now listens on in such
   cases). A live performance comes back as another recording of the same piece (with its tempo skew); remixes and
   covers may come back as the studio recording or not at all. The microphone was
   checked for opening and levels only (no song played into a real microphone in the room); device switching during a
   session was not exercised live (the code reopens on the new default). Process loopback needs Windows 10 2004+; older
   systems fall back to the output's loopback with ShadeTube's own sound in it (tested with
   `SHADETUBE_RECOGNIZE_LOOPBACK=endpoint`).
-- **Deezer / Apple Music / TIDAL imports** (3.57). Deezer's public API is documented and keyless (robust; 50 requests
+- **Deezer / Apple Music / TIDAL imports** (3.60). Deezer's public API is documented and keyless (robust; 50 requests
   per 5 s). Apple Music has no keyless API: the import borrows the web player's developer token from its JS bundle and
   calls the undocumented amp-api; a changed bundle layout or token check falls back to the page data, which holds at
   most 300 songs and no ISRCs (lists longer than that are then imported in part, and the preview says so). TIDAL's
@@ -4479,7 +4467,7 @@ differs from GitHub's asset digest or from the `sha256:` line in the notes.
   same before and after, ±0.3 MB, by the `ST_MEMPROFILE` tally); the listening history costs ~550 bytes a song (its
   index keys are wide strings) and the local library ~1.7 KB a file with long paths (each file keeps its folder's cover
   path); a minimized window keeps its swap chain until the idle release (the taskbar thumbnail).
-- **Visualizer** (3.57): the picture runs ahead of the sound by the device buffer (up to ~40 ms shared, about the same
+- **Visualizer** (3.61): the picture runs ahead of the sound by the device buffer (up to ~40 ms shared, about the same
   exclusive); the analysis window's own lag (a kick shows 33-60 ms after it enters) roughly cancels it, nothing
   compensates it exactly. The beat detector was tuned on synthetic music (`visualizer_test`) and adapts its threshold;
   songs without a kick or bass attacks (ballads, ambient, most classical) give few beats, steady noise an occasional

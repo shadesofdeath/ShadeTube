@@ -2,7 +2,7 @@
 
 All notable changes to ShadeTube, newest first.
 
-## 0.12.0 — unreleased
+## 0.12.0 — 2026-11-27
 
 - **Two editions: portable and setup**: every release now comes as the portable zip, as before, and as
   `ShadeTube-<version>-setup.exe`, a setup with its own window drawn in ShadeTube's style (dark or light like the app,

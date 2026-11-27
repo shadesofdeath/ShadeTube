@@ -108,8 +108,16 @@ starts instantly and stays light.
 - 🛟 **Backup audio source** — Piped / Invidious servers, then SoundCloud, when YouTube itself fails (off by default).
 - 🌍 **11 languages** — Türkçe, English, Deutsch, Español, Français, Português (BR), Русский, Українська,
   Bahasa Indonesia, 日本語, 한국어.
-- ⚡ **Light and self-updating** — a single ~15 MB exe that runs without installing; one click installs it for your
-  user (no admin), and new versions update in place.
+- 🎧 **Recognize a song** — ShadeTube listens for a few seconds to what plays on this PC (a video, a game) or in
+  the room and tells you the song; only a fingerprint leaves your computer.
+- ✍️ **Lyrics tools** — time plain lyrics yourself by tapping along (and send them to LRCLIB if you like), read
+  Japanese, Korean and Cyrillic lyrics in Latin letters, and find a song from a line you remember.
+- 🧩 **Rule-based playlists** — "liked, played fewer than 10 times, 150–175 BPM": lists that fill themselves from your
+  rules and stay up to date.
+- 🥁 **BPM** — the tempo of your songs as a column, for sorting and filtering; read from tags or measured on your PC.
+- 🌈 **Visualizer** — a full-screen view in the cover's colours: spectrum, ring, wave or aurora (press V).
+- ⚡ **Light and self-updating** — a ~15 MB exe; take the portable zip that runs without installing, or the setup
+  that installs it for your user (no admin). New versions update in place.
 - 🔒 **Private** — no telemetry, no accounts of ours. Your Spotify session is stored encrypted with Windows DPAPI.
 
 ## 📸 Screenshots
@@ -125,9 +133,10 @@ starts instantly and stays light.
 
 ## ⬇ Download
 
-1. Download **`ShadeTube-<version>-win64.zip`** from the [latest release](https://github.com/shadesofdeath/ShadeTube/releases/latest)
-   and unzip it anywhere.
-2. Run **`ShadeTube.exe`**. The exe is not code-signed yet, so Windows SmartScreen may warn about an unknown
+1. From the [latest release](https://github.com/shadesofdeath/ShadeTube/releases/latest) download either
+   **`ShadeTube-<version>-setup.exe`** (installs for your user: Start menu, optional desktop shortcut, shows up in
+   Windows' installed apps; no admin rights) or **`ShadeTube-<version>-win64.zip`** (portable: unzip it anywhere).
+2. Run the setup, or **`ShadeTube.exe`** from the zip. The exe is not code-signed yet, so Windows SmartScreen may warn about an unknown
    publisher: click **More info → Run anyway**.
 3. Click **Connect Spotify** and sign in with your account (email, Google or Apple), or choose
    **Explore without Spotify** to browse YouTube Music or the open MusicBrainz catalog.
@@ -140,13 +149,13 @@ scoop install shadetube/shadetube
 winget install shadesofdeath.ShadeTube   # once the package is accepted into winget
 ```
 
-Optional: **Settings → About → Install on this PC** adds ShadeTube to the Start menu and to Windows' installed
-apps (per user, no admin rights). Updates are checked once a day and installed with one click.
+Updates are checked once a day and installed with one click, for both editions. The setup also runs silently
+(`ShadeTube-<version>-setup.exe /S`).
 
 **Requirements:** Windows 10 (1809 or later) or Windows 11, 64-bit. Signing in to Spotify needs the Microsoft Edge
 WebView2 Runtime, which comes with Windows 11 ([download for Windows 10](https://developer.microsoft.com/microsoft-edge/webview2/)).
 
-To check a download: each release lists the `sha256:` of its zip; the in-app updater verifies it automatically.
+To check a download: each release lists the `sha256:` of its zip and its setup; the in-app updater verifies it automatically.
 
 ## ❓ FAQ
 
