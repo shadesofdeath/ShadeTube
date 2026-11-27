@@ -2,6 +2,18 @@
 
 All notable changes to ShadeTube, newest first.
 
+## 0.12.0 — unreleased
+
+- **Visualizer**: press V (or the new button in Now Playing and, on wide windows, in the player bar, or "Görselleştirici"
+  in the command palette) and whatever plays fills the window in the colours of its cover. Four looks: *Spectrum*
+  (thin bars with falling peaks), *Ring* (the round cover with the spectrum around it and a ring on every beat),
+  *Wave* (the sound's waveform as one flowing line) and *Aurora* (slow curtains of light that brighten with the bass,
+  the mids and the treble). Switch with the chips at the top or 1-4; the song, a thin progress line and the sung lyric
+  line stay in view, the controls and the pointer fade away when you leave the mouse alone, and F or a double click
+  makes it truly full screen. Works for songs, your files, radio stations and podcasts, in every theme; it rests calmly
+  when paused, uses no power while hidden, and follows "Reduce motion" with a slow, gentle version. Your mode is
+  remembered.
+
 ## 0.11.0 — 2026-11-27
 
 - **YouTube Music as a catalog**: without a Spotify account, pick "YouTube Music ile keşfet" on the start screen (or
