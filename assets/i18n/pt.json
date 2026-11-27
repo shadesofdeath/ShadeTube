@@ -2548,5 +2548,14 @@
   "Görselleştirici için önce bir şey çal": "Toque algo primeiro para abrir o visualizador",
   "Söz satırını göster": "Mostrar a linha da letra",
   "Söz satırını gizle": "Ocultar a linha da letra",
-  "Duraklatıldı": "Pausado"
+  "Duraklatıldı": "Pausado",
+  "Romanizasyon": "Romanização",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "Mostrar abaixo de cada linha a leitura em letras latinas",
+  "Romanizasyon hazırlanıyor…": "Preparando a romanização…",
+  "Romanizasyon yapılamadı": "Não foi possível romanizar",
+  "Japonca": "Japonês",
+  "Korece": "Coreano",
+  "Rusça": "Russo",
+  "Ukraynaca": "Ucraniano",
+  "Kanji okunuşu yok": "Sem leitura dos kanji"
 }

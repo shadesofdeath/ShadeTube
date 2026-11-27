@@ -17,6 +17,8 @@
 // once they are there instead of flashing a placeholder. Everything it holds goes when it closes (deactivate()).
 #include "app/Components.h"
 #include "app/CoverBackdrop.h"
+#include "app/LyricsRender.h"
+#include "app/LyricsRomanization.h"
 #include "app/LyricsService.h"
 #include "catalog/Credits.h"
 #include "lyrics/Lyrics.h"
@@ -80,8 +82,8 @@ private:
     enum class LyricsState { None, Loading, Synced, Plain, Instrumental, Missing };
     void fetchLyrics();
     void syncLyricsControls();           // toolbar buttons for the lyrics state + the track's offset
-    void rebuildTranslation();           // translated lines under the lyrics, for translation_'s state
-    float translationHeight(int i, float width);   // with its gap above; 0 = nothing under line i
+    void rebuildSubLines();              // romanized / translated lines under the lyrics, for their states
+    float subHeight(int i, float width); // both, with their gaps above; 0 = nothing under line i
     float lineHeight(int i, float width);
     int lineAt(gfx::Point p) const;
     void paintLyrics(Canvas& c, const Rect& r);
@@ -118,6 +120,7 @@ private:
     NowPlayingTabs* tabs_;
     QueuePanel* queue_;
     ui::Button *translate_, *earlier_, *offset_, *later_, *fullscreen_;
+    ui::Button* romanize_;               // "Romanizasyon" (app/LyricsRomanization)
     ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
     ui::Button* syncLyrics_ = nullptr;   // "Senkronla": time plain lyrics by hand (app/LyricsSync)
     // The toolbar on the right of the tab row, in this order (the first is leftmost). An entry belongs to one tab (or
@@ -176,13 +179,22 @@ private:
     bool hoverPicker_ = false;
     lyrics::Lyrics lyrics_;
     std::vector<gfx::Text> lines_;       // inactive style; a line keeps its layout only while it is on screen
+    std::vector<gfx::TextShape> shapes_; // ... and its shape (app/LyricsRender)
     std::vector<float> lineH_;           // measured heights (-1 = not yet) for width lineHW_
     float lineHW_ = -1;
     LyricsTranslation translation_;      // "Çeviri"
-    std::vector<gfx::Text> trans_;       // each line's translation while shown (empty text = none), like lines_
-    std::vector<float> transH_;
-    float transHW_ = -1;
-    gfx::Text activeText_;
+    LyricsRomanization romanization_;    // "Romanizasyon"
+    lyricsview::SubLines trans_, roman_; // each line's translation / romanization while shown
+    // The sung line in the bigger, bolder style, and the one easing out of it: each line cross-fades between its two
+    // styles while it grows or shrinks (lyricsview::LineMotion's emphasis).
+    struct Big {
+        int line = -1;
+        gfx::Text text;
+        gfx::TextShape shape;
+    };
+    std::vector<Big> big_;
+    Big* bigFor(int line);               // created on demand
+    lyricsview::LineMotion motion_;
     int active_ = -2;
     ui::SmoothScroll scroll_;            // follows the active line; the wheel takes over for 3 s (manualUntil_)
     double manualUntil_ = 0;

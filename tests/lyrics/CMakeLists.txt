@@ -12,3 +12,6 @@ target_link_libraries(translate_test PRIVATE st_lyrics st_core)
 add_executable(lyrictools_test lyrictools_test.cpp)
 target_link_libraries(lyrictools_test PRIVATE st_lyrics st_core)
 target_compile_definitions(lyrictools_test PRIVATE LYRICTOOLS_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+# The lyrics romanization (lyrics/Romanize): Korean / kana / Cyrillic rules, a fixture Japanese reader, the cache.
+add_executable(romanize_test romanize_test.cpp)
+target_link_libraries(romanize_test PRIVATE st_lyrics st_core)

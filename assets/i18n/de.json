@@ -2548,5 +2548,14 @@
   "Görselleştirici için önce bir şey çal": "Spiel zuerst etwas ab, um die Visualisierung zu öffnen",
   "Söz satırını göster": "Liedtextzeile anzeigen",
   "Söz satırını gizle": "Liedtextzeile ausblenden",
-  "Duraklatıldı": "Pausiert"
+  "Duraklatıldı": "Pausiert",
+  "Romanizasyon": "Umschrift",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "Unter jeder Zeile ihre Aussprache in lateinischer Schrift zeigen",
+  "Romanizasyon hazırlanıyor…": "Umschrift wird erstellt…",
+  "Romanizasyon yapılamadı": "Umschrift fehlgeschlagen",
+  "Japonca": "Japanisch",
+  "Korece": "Koreanisch",
+  "Rusça": "Russisch",
+  "Ukraynaca": "Ukrainisch",
+  "Kanji okunuşu yok": "Keine Kanji-Lesungen"
 }

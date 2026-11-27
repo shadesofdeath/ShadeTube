@@ -2321,5 +2321,14 @@
   "Görselleştirici için önce bir şey çal": "ビジュアライザーを開くには、まず何かを再生してください",
   "Söz satırını göster": "歌詞の行を表示",
   "Söz satırını gizle": "歌詞の行を非表示",
-  "Duraklatıldı": "一時停止中"
+  "Duraklatıldı": "一時停止中",
+  "Romanizasyon": "ローマ字",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "各行の下にローマ字の読みを表示",
+  "Romanizasyon hazırlanıyor…": "ローマ字を準備中…",
+  "Romanizasyon yapılamadı": "ローマ字に変換できませんでした",
+  "Japonca": "日本語",
+  "Korece": "韓国語",
+  "Rusça": "ロシア語",
+  "Ukraynaca": "ウクライナ語",
+  "Kanji okunuşu yok": "漢字の読みなし"
 }

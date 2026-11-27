@@ -1,13 +1,16 @@
 #pragma once
 // Full-screen karaoke lyrics (ctx().toggleLyricsFullscreen): a modal overlay over the whole main window on Now Playing's
 // drifting backdrop in the cover's colours, large centered lines, the active one filled with the accent as it is sung (per word when
-// the lyrics have word times, else across the line until the next one starts), a thin progress bar and the track.
-// The top controls (lyrics source, "Yanlış sözler mi?", translation, timing offset −/+, share, close) fade out while
-// the mouse rests. Esc / F
+// the lyrics have word times, else across the line until the next one starts) behind a soft leading edge, a thin
+// progress bar and the track. Lines are drawn as geometry and ease into and out of being sung (app/LyricsRender).
+// The top controls (lyrics source, "Yanlış sözler mi?", romanization, translation, timing offset −/+, share, close)
+// fade out while the mouse rests. Esc / F
 // close it, − / + shift the timing, a click on a line (or its translation) seeks there, the wheel scrolls for a
-// moment. Everything it holds (backdrop, lyrics, text layouts) goes with it when it closes.
+// moment. Everything it holds (backdrop, lyrics, text layouts, shapes) goes with it when it closes.
 #include "app/Components.h"
 #include "app/CoverBackdrop.h"
+#include "app/LyricsRender.h"
+#include "app/LyricsRomanization.h"
 #include "app/LyricsService.h"
 #include "lyrics/Lyrics.h"
 #include "ui/Anim.h"
@@ -45,15 +48,16 @@ private:
     enum class State { None, Loading, Synced, Plain, Instrumental, Missing, Live };
     void load();
     void syncControls();
-    void rebuildTranslation();           // translated lines under the lyrics, for translation_'s state
-    float translationHeight(int i, float width);   // with its gap above; 0 = nothing under line i
+    void rebuildSubLines();              // romanized / translated lines under the lyrics, for their states
+    float subHeight(int i, float width); // both, with their gaps above; 0 = nothing under line i
     void shiftOffset(int ms);
     void showControls();
     float lineHeight(int i, float width);
     int lineAt(gfx::Point p) const;
     double paintBackdrop(Canvas& c, const Rect& r);   // the delay until its next drift step (0 = still)
     void paintLyrics(Canvas& c, const Rect& area);
-    void paintSweep(Canvas& c, int i, const Rect& lr, int posMs);
+    // The karaoke fill of line i: how far each of its rows is sung at `posMs` (lyricsview::drawFill's `fill`).
+    void sweepRows(int i, float width, int posMs, std::vector<float>& fill);
     void paintFooter(Canvas& c, const Rect& r);
     void paintTop(Canvas& c, const Rect& r);
 
@@ -63,13 +67,15 @@ private:
     lyrics::Lyrics lyrics_;
     gfx::TextStyle style_{};
     std::vector<gfx::Text> lines_;       // a line keeps its layout only while it is on screen
+    std::vector<gfx::TextShape> shapes_; // ... and its shape (app/LyricsRender)
     std::vector<float> lineH_;           // measured heights (-1 = not yet) for width lineHW_
     float lineHW_ = -1;
+    lyricsview::LineMotion motion_;      // each line easing into / out of being sung
+    std::vector<float> fill_;            // sweepRows' scratch
     LyricsTranslation translation_;      // "Çeviri"
-    gfx::TextStyle transStyle_{};
-    std::vector<gfx::Text> trans_;       // each line's translation while shown (empty text = none), like lines_
-    std::vector<float> transH_;          // measured heights (-1 = not yet) for width transHW_
-    float transHW_ = -1;
+    LyricsRomanization romanization_;    // "Romanizasyon"
+    gfx::TextStyle subStyle_{};
+    lyricsview::SubLines trans_, roman_; // each line's translation / romanization while shown
     std::vector<Rect> lineRects_;        // last painted (hit testing), translation included
     int active_ = -1;
     int hoverLine_ = -1;
@@ -82,6 +88,7 @@ private:
 
     ui::Widget* drag_;                   // the top strip moves the window (the title bar is covered)
     ui::Button *translate_, *earlier_, *offset_, *later_, *close_;
+    ui::Button* romanize_;               // "Romanizasyon" (app/LyricsRomanization)
     ui::Button* share_;                  // "Sözleri paylaş" (app/LyricsShare)
     ui::Button* picker_;                 // "Yanlış sözler mi?" (app/LyricsPicker)
     lyrics::Choice pick_;                // the user's pick for this track

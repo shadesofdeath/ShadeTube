@@ -2548,5 +2548,14 @@
   "Görselleştirici için önce bir şey çal": "Play something first to open the visualizer",
   "Söz satırını göster": "Show the lyric line",
   "Söz satırını gizle": "Hide the lyric line",
-  "Duraklatıldı": "Paused"
+  "Duraklatıldı": "Paused",
+  "Romanizasyon": "Romanization",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "Show each line's reading in Latin letters under it",
+  "Romanizasyon hazırlanıyor…": "Preparing romanization…",
+  "Romanizasyon yapılamadı": "Romanization failed",
+  "Japonca": "Japanese",
+  "Korece": "Korean",
+  "Rusça": "Russian",
+  "Ukraynaca": "Ukrainian",
+  "Kanji okunuşu yok": "No kanji readings"
 }

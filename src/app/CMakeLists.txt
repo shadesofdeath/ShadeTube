@@ -85,6 +85,8 @@ add_executable(ShadeTube WIN32
     LoginWindow.cpp LoginWindow.h
     LyricsFullscreen.cpp LyricsFullscreen.h
     LyricsPicker.cpp LyricsPicker.h
+    LyricsRender.cpp LyricsRender.h
+    LyricsRomanization.cpp LyricsRomanization.h
     LyricsService.cpp LyricsService.h
     LyricsShare.cpp LyricsShare.h
     LyricsSync.cpp LyricsSync.h

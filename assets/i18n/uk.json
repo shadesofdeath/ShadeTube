@@ -2758,5 +2758,14 @@
   "Görselleştirici için önce bir şey çal": "Спершу увімкніть щось, щоб відкрити візуалізатор",
   "Söz satırını göster": "Показувати рядок тексту",
   "Söz satırını gizle": "Приховати рядок тексту",
-  "Duraklatıldı": "Пауза"
+  "Duraklatıldı": "Пауза",
+  "Romanizasyon": "Латиниця",
+  "Her satırın Latin harfleriyle okunuşunu altında göster": "Показувати під кожним рядком його читання латиницею",
+  "Romanizasyon hazırlanıyor…": "Готуємо латиницю…",
+  "Romanizasyon yapılamadı": "Не вдалося перевести в латиницю",
+  "Japonca": "Японська",
+  "Korece": "Корейська",
+  "Rusça": "Російська",
+  "Ukraynaca": "Українська",
+  "Kanji okunuşu yok": "Без читань кандзі"
 }
