@@ -134,6 +134,8 @@ class SectionHeader : public ui::Widget {
 public:
     SectionHeader(std::wstring title, std::wstring meta = {}, std::wstring link = {});
     std::function<void()> onLink;
+    // More links left of the main one ("Ülke değiştir" before "Tümünü gör"), in the order added (right to left).
+    ui::Button* addLink(std::wstring label, std::string icon, std::function<void()> onClick);
     float preferredHeight(float) override { return 48; }
     void layout() override;
     void paint(Canvas& c) override;
@@ -141,6 +143,10 @@ public:
 private:
     gfx::Text title_, meta_;
     ui::Button* link_ = nullptr;
+    std::vector<ui::Button*> extra_;
+    float linksW_ = 0;   // room the links take at the right (title and meta stay left of it)
+    float titleW_ = 0;   // the title's natural width
+    uint64_t titleGen_ = ~0ull;
 };
 
 // ---------------------------------------------------------------------------------------------------

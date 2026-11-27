@@ -1,6 +1,7 @@
 #include "app/PageWidgets.h"
 
 #include "app/CollapsingHeader.h"
+#include "app/Display.h"
 #include "app/Pages.h"
 #include "core/I18n.h"
 #include "gfx/Theme.h"
@@ -396,6 +397,229 @@ ui::Grid* addCardRow(ui::Column* col, float minCell, int maxRows) {
     return col->add<ui::Grid>(minCell, gfx::metrics::cardGap, [](float w) { return w + 10 + 18 + 4 + 16; }, maxRows);
 }
 
+float cardMinCell() { return display::compactLists() ? 140.f : 160.f; }
+
+ui::Grid* addCardGrid(ui::Column* col, int maxRows) { return addCardRow(col, cardMinCell(), maxRows); }
+
+// ---------------------------------------------------------------------------------------------------
+// PageTitle
+
+PageTitle::PageTitle(std::wstring title, std::wstring meta, std::wstring kicker)
+    : title_(std::move(title), type::displayM), meta_(std::move(meta), type::secondary), kicker_(std::move(kicker), type::monoLabel) {
+    hitTestVisible = false;
+    gfx::TextOptions wrap;
+    wrap.wrap = true;
+    wrap.maxLines = 2;
+    meta_.setOptions(wrap);
+}
+
+ui::Button* PageTitle::addAction(ui::ButtonKind kind, std::wstring label, std::string icon) {
+    auto* b = add<ui::Button>(kind, std::move(label), std::move(icon));
+    actions_.push_back(b);
+    requestLayout();
+    return b;
+}
+
+ui::TextBox* PageTitle::addSearch(std::wstring placeholder) {
+    search_ = add<ui::TextBox>(ui::TextBox::Look::Search, std::move(placeholder));
+    requestLayout();
+    return search_;
+}
+
+void PageTitle::setTitle(std::wstring title) {
+    title_.setText(std::move(title));
+    widths_.clear();
+    requestLayout();
+    invalidate();
+}
+
+void PageTitle::setMeta(std::wstring meta) {
+    if (meta == meta_.text()) return;
+    const bool had = !meta_.empty();
+    meta_.setText(std::move(meta));
+    if (had != !meta_.empty() && parent()) parent()->requestLayout();   // the block's height changes
+    requestLayout();
+    invalidate();
+}
+
+void PageTitle::setKicker(std::wstring kicker) {
+    if (kicker == kicker_.text()) return;
+    const bool had = !kicker_.empty();
+    kicker_.setText(std::move(kicker));
+    if (had != !kicker_.empty() && parent()) parent()->requestLayout();
+    requestLayout();
+    invalidate();
+}
+
+float PageTitle::searchWidth(float width) const { return std::clamp(width * 0.4f, 220.f, 380.f); }
+
+// The title's natural width at a display size, measured once per size and text (a gfx::Text keeps one layout per width:
+// measuring at another width than it is drawn at every frame would lay it out twice per frame).
+float PageTitle::titleWidth(float size) {
+    if (fontGen_ != gfx::Fonts::generation()) {   // the UI font changed (Ayarlar › Görünüm)
+        fontGen_ = gfx::Fonts::generation();
+        widths_.clear();
+    }
+    for (const auto& [s, w] : widths_)
+        if (s == size) return w;
+    gfx::Text probe(title_.text(), type::displayM.withSize(size));
+    const float w = std::ceil(probe.measure().w);
+    widths_.emplace_back(size, w);
+    return w;
+}
+
+float PageTitle::rightWidth() const {
+    float w = 0;
+    int n = 0;
+    for (auto* b : actions_)
+        if (b->visible()) {
+            w += b->naturalWidth() + (n++ ? kActionGap : 0.f);
+        }
+    return w;
+}
+
+PageTitle::Geometry PageTitle::geometry(float width) {
+    Geometry g;
+    g.size = width >= 900 ? 56.f : width >= 560 ? 44.f : 36.f;
+    g.kickerH = kicker_.empty() ? 0.f : 22.f;
+    const float actions = rightWidth();
+    const float search = search_ && search_->visible() ? searchWidth(width) : 0.f;
+    const float right = actions + (search > 0 ? search + (actions > 0 ? 12.f : 0.f) : 0.f);
+    float tw = titleWidth(g.size);
+    const bool inlineRow = right <= 0 || tw + 24 + right <= width;
+    const float room = inlineRow && right > 0 ? width - right - 24 : width;
+    // A long name: smaller steps (down to 36) before the ellipsis.
+    while (tw > room && g.size > 36.f) {
+        g.size = std::max(36.f, g.size - 8.f);
+        tw = titleWidth(g.size);
+    }
+    title_.setStyle(type::displayM.withSize(g.size));
+    g.titleH = std::ceil(g.size * 1.14f);
+    float y = g.kickerH + g.titleH;
+    if (!meta_.empty()) {
+        g.metaY = y + 4;
+        g.metaH = std::ceil(meta_.measure(width).h);
+        y = g.metaY + g.metaH;
+    }
+    if (!inlineRow) {
+        g.rowY = y + 16;
+        y = g.rowY + std::max(actions > 0 ? gfx::metrics::pillH : 0.f, search > 0 ? gfx::metrics::searchH : 0.f);
+    }
+    g.height = y;
+    return g;
+}
+
+float PageTitle::preferredHeight(float width) { return geometry(width).height; }
+
+void PageTitle::layout() {
+    const float w = rect().w;
+    const Geometry g = geometry(w);
+    const float search = search_ && search_->visible() ? searchWidth(w) : 0.f;
+    if (g.rowY < 0) {
+        // Beside the title, centered on its line, right-aligned: actions, then the search pill.
+        const float cy = g.kickerH + g.titleH * 0.5f;
+        float x = w;
+        if (search > 0) {
+            search_->setRect({x - search, std::round(cy - gfx::metrics::searchH * 0.5f), search, gfx::metrics::searchH});
+            x -= search + 12;
+        }
+        for (auto it = actions_.rbegin(); it != actions_.rend(); ++it) {
+            if (!(*it)->visible()) continue;
+            const float bw = (*it)->naturalWidth();
+            (*it)->setRect({x - bw, std::round(cy - gfx::metrics::pillH * 0.5f), bw, gfx::metrics::pillH});
+            x -= bw + kActionGap;
+        }
+    } else {
+        // Their own row under the title: the search pill first (it is what the page is for), then the actions.
+        float x = 0;
+        const float rowH = std::max(actions_.empty() ? 0.f : gfx::metrics::pillH, search > 0 ? gfx::metrics::searchH : 0.f);
+        if (search > 0) {
+            const float sw = std::min(w, 380.f);
+            search_->setRect({0, g.rowY + (rowH - gfx::metrics::searchH) * 0.5f, sw, gfx::metrics::searchH});
+            x = sw + 12;
+        }
+        for (auto* b : actions_) {
+            if (!b->visible()) continue;
+            const float bw = b->naturalWidth();
+            b->setRect({x, g.rowY + (rowH - gfx::metrics::pillH) * 0.5f, bw, gfx::metrics::pillH});
+            x += bw + kActionGap;
+        }
+    }
+}
+
+void PageTitle::paint(Canvas& c) {
+    const Rect r = rect();
+    const auto& col = colors();
+    const Geometry g = geometry(r.w);
+    if (!kicker_.empty()) c.text(kicker_, {r.x, r.y, r.w, 14}, col.fgTertiary, gfx::VAlign::Center);
+    float room = r.w;
+    if (g.rowY < 0) {
+        float right = rightWidth();
+        if (search_ && search_->visible()) right += searchWidth(r.w) + (right > 0 ? 12.f : 0.f);
+        if (right > 0) room = r.w - right - 24;
+    }
+    c.text(title_, {r.x - 2, r.y + g.kickerH, std::max(0.f, room + 2), g.titleH}, col.fgPrimary, gfx::VAlign::Top);
+    if (!meta_.empty()) c.text(meta_, {r.x, r.y + g.metaY, r.w, g.metaH}, col.fgTertiary);
+    paintChildren(c);
+}
+
+// ---------------------------------------------------------------------------------------------------
+// PageTabs
+
+PageTabs::PageTabs(std::vector<std::wstring> labels, int selected) {
+    hitTestVisible = false;
+    for (size_t i = 0; i < labels.size(); ++i) {
+        auto* b = add<ui::Button>(ui::ButtonKind::Tab, labels[i]);
+        b->onClick = [this, i] { select(static_cast<int>(i)); };
+        buttons_.push_back(b);
+    }
+    select(std::clamp(selected, 0, std::max(0, static_cast<int>(buttons_.size()) - 1)), false);
+}
+
+void PageTabs::select(int i, bool notify) {
+    if (i < 0 || i >= static_cast<int>(buttons_.size())) return;
+    selected_ = i;
+    for (size_t k = 0; k < buttons_.size(); ++k) {
+        buttons_[k]->setActive(static_cast<int>(k) == i);
+        buttons_[k]->focusable = static_cast<int>(k) == i;   // one Tab stop: the selected tab
+    }
+    if (notify && onSelect) {
+        const auto fn = onSelect;   // may rebuild the page (and this widget with it)
+        fn(i);
+    }
+}
+
+bool PageTabs::onKeyDown(const ui::KeyEvent& e) {
+    if (e.ctrl || e.alt || buttons_.empty()) return false;
+    const int n = static_cast<int>(buttons_.size());
+    int next = -1;
+    if (e.vk == VK_LEFT) next = std::max(0, selected_ - 1);
+    else if (e.vk == VK_RIGHT) next = std::min(n - 1, selected_ + 1);
+    else if (e.vk == VK_HOME) next = 0;
+    else if (e.vk == VK_END) next = n - 1;
+    else return false;
+    if (next != selected_) {
+        buttons_[next]->focusable = true;
+        buttons_[next]->focus();
+        select(next);
+    }
+    return true;
+}
+
+void PageTabs::layout() {
+    float x = 0;
+    for (auto* b : buttons_) {
+        const float w = b->naturalWidth();
+        b->setRect({x, 0, w, 36});
+        x += w + 24;
+    }
+}
+
+void PageTabs::paint(Canvas& c) {
+    c.hline(rect().x, rect().right(), rect().bottom() - 1, colors().hairDefault);
+    paintChildren(c);
+}
+
 // ---------------------------------------------------------------------------------------------------
 // ScrollPage
 
@@ -528,9 +752,9 @@ void ScrollPage::showLoading(Loading shape) {
     auto* c = resetContent();
     c->add<SkeletonTitle>();
     switch (shape) {
-    case Loading::Cards: c->add<SkeletonCards>(3, 170.f); break;
+    case Loading::Cards: c->add<SkeletonCards>(3, cardMinCell()); break;
     case Loading::Shelves:
-        for (int k = 0; k < 3; ++k) c->add<SkeletonShelf>(170.f, k == 1);
+        for (int k = 0; k < 3; ++k) c->add<SkeletonShelf>(cardMinCell(), k == 1);
         break;
     case Loading::Rows: c->add<SkeletonRows>(10, true, true); break;
     }

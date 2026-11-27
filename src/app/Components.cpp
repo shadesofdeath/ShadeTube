@@ -347,17 +347,42 @@ SectionHeader::SectionHeader(std::wstring title, std::wstring meta, std::wstring
     }
 }
 
+ui::Button* SectionHeader::addLink(std::wstring label, std::string icon, std::function<void()> onClick) {
+    auto* b = add<ui::Button>(ui::ButtonKind::Link, std::move(label), std::move(icon));
+    b->onClick = std::move(onClick);
+    extra_.push_back(b);
+    requestLayout();
+    return b;
+}
+
 void SectionHeader::layout() {
-    if (!link_) return;
-    const float w = link_->naturalWidth();
-    link_->setRect({rect().w - w, 0, w, 36});
+    // Right to left: the main link ("Tümünü gör"), then the extra ones, 24 DIP apart.
+    float x = rect().w;
+    auto place = [&x](ui::Button* b) {
+        if (!b->visible()) return;
+        const float w = b->naturalWidth();
+        b->setRect({x - w, 0, w, 36});
+        x -= w + 24;
+    };
+    if (link_) place(link_);
+    for (auto* b : extra_) place(b);
+    linksW_ = rect().w - x;
 }
 
 void SectionHeader::paint(Canvas& c) {
     const Rect r = rect();
-    const float tw = std::ceil(title_.measure().w);
+    // The title never runs under the links (an ellipsis on a narrow page); the meta only shows where it fits.
+    const float room = std::max(0.f, r.w - linksW_ - (linksW_ > 0 ? 8.f : 0.f));
+    // The natural width is measured once (per UI font) on a copy: measuring the drawn text at another width than it is
+    // drawn at would lay it out twice on every frame.
+    if (titleGen_ != gfx::Fonts::generation()) {
+        titleGen_ = gfx::Fonts::generation();
+        titleW_ = std::ceil(gfx::Text(title_.text(), title_.style()).measure().w);
+    }
+    const float tw = std::min(titleW_, room);
     c.text(title_, {r.x, r.y, tw + 1, 36}, colors().fgPrimary, gfx::VAlign::Center);
-    if (!meta_.empty()) c.text(meta_, {r.x + tw + 14, r.y + 4, 200, 36}, colors().fgTertiary, gfx::VAlign::Center);
+    if (!meta_.empty() && tw + 14 + 24 < room)
+        c.text(meta_, {r.x + tw + 14, r.y + 4, room - tw - 14, 36}, colors().fgTertiary, gfx::VAlign::Center);
     c.hline(r.x, r.right(), r.y + 44, colors().hairDefault);
     paintChildren(c);
 }
@@ -716,7 +741,8 @@ TrackTable::RowText& TrackTable::rowText(int di) {
         rt.added = gfx::Text(relativeTime(t.addedAt), type::caption);
         gfx::TextOptions right;
         right.align = gfx::TextAlign::Trailing;
-        rt.dur = gfx::Text(ui::formatDuration(t.durationMs), type::monoDuration, right);
+        // An unknown length (songs of an imported history) shows nothing rather than "00:00".
+        rt.dur = gfx::Text(t.durationMs > 0 ? ui::formatDuration(t.durationMs) : std::wstring(), type::monoDuration, right);
         rt.plays = gfx::Text(t.listenCount > 0 ? compactCount(t.listenCount) : std::wstring(), type::caption, right);
         wchar_t num[16];
         swprintf(num, 16, L"%02d", opts_.albumNumbering ? t.trackNumber : di + 1);

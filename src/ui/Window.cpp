@@ -1,6 +1,7 @@
 #include "ui/Window.h"
 
 #include "core/Log.h"
+#include "core/Utf.h"
 #include "gfx/Icons.h"
 #include "gfx/ImageCache.h"
 #include "gfx/Theme.h"
@@ -421,6 +422,17 @@ void Window::setFocus(Widget* w) {
     if (old) old->onFocusChanged(false);
     if (w) w->onFocusChanged(true);
     if (w && focusVisible_) restartRing();
+    // Dev (SHADETUBE_FOCUS_LOG=1): every focus change with the widget's class, its window rect and tooltip, to check a
+    // page's Tab order without a screen (e.g. SHADETUBE_OVERLAY_DEMO's key=Tab steps).
+    static const bool logFocus = [] {
+        wchar_t b[8]{};
+        return GetEnvironmentVariableW(L"SHADETUBE_FOCUS_LOG", b, 8) > 0 && b[0] == L'1';
+    }();
+    if (logFocus && w) {
+        const Rect r = w->toWindow(w->focusRect());
+        ST_LOG_INFO("focus", "{} at {:.0f},{:.0f} {:.0f}x{:.0f}{}", typeid(*w).name(), r.x, r.y, r.w, r.h,
+                    w->tooltip().empty() ? std::string() : " \"" + toUtf8(w->tooltip()) + "\"");
+    }
     invalidate();
 }
 
