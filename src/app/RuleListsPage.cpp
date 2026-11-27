@@ -1730,6 +1730,9 @@ public:
         tryLoad();
     }
     ~RuleEditorPage() override { endPreview(); }
+    void onShown() override {   // the name box takes the keyboard (Tab goes on to the rules)
+        if (name_) name_->focus();
+    }
 
 private:
     bool isNew() const { return id_.empty(); }
@@ -1936,7 +1939,7 @@ private:
         }
         scroll_->contentChanged();
         contentReady();
-        name_->focus();
+        if (window()) name_->focus();   // (a new page gets it in onShown)
     }
 
     // The rule rows / group boxes from def_; `focusGroup` / `focusRule`: the row whose value box takes the focus.
