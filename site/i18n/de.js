@@ -100,7 +100,7 @@ window.ST_I18N.de = {
  "ft.issues": "Problem melden",
  "ft.fine": "ShadeTube ist ein unabhängiges Projekt und steht in keiner Verbindung zu Spotify, YouTube oder Google. Inspiriert von Spotube.",
  "_title": "ShadeTube · nativer Musikplayer für Windows",
- "_desc": "ShadeTube ist ein kostenloser Open-Source-Musikplayer für Windows: deine Spotify-Bibliothek oder der YouTube-Music-Katalog, ohne Werbung, ohne Premium, mit synchronisierten Songtexten, Downloads und gemeinsamem Hören, in einer einzigen 15-MB-exe.",
+ "_desc": "ShadeTube ist ein kostenloser Open-Source-Musikplayer für Windows: deine Spotify-Bibliothek oder der YouTube-Music-Katalog, ohne Werbung, ohne Premium, mit synchronisierten Songtexten, Downloads und gemeinsamem Hören, in einer einzigen 17-MB-exe.",
  "i.copied": "Kopiert",
  "nav.gallery": "Galerie",
  "nav.faq": "FAQ",
