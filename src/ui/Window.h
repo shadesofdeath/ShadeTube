@@ -170,6 +170,10 @@ public:
 
     // Tooltip support (Window draws it in the overlay layer).
     void showTooltipFor(Widget* w);
+    // A tooltip text "Label\tHint" shows the hint after the label in the menus' shortcut style (mono 11, fg.tertiary).
+    // A hint "@<id>" is looked up when the tooltip shows through this resolver (the app maps a shortcut action id to its
+    // current key combo, so a rebound key is right at once); an empty answer shows the label alone.
+    static void setTooltipHintResolver(std::function<std::wstring(std::string_view id)> resolver);
     // Dev (SHADETUBE_HOVER_AT): hover state as if the pointer rested at `windowPos` (DIPs), kept until the real pointer
     // moves over the window (a pointer outside does not clear it). For screenshots of hover looks and tooltips.
     void simulateHover(Point windowPos);

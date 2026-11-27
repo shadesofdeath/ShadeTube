@@ -285,6 +285,8 @@ App::App(LaunchOptions options) : options_(std::move(options)) {
         return true;
     });
     commands::initGlobalHotkeys(window_->hwnd());
+    // Tooltips made with commands::keyTip name the action's current key (every window: the mini player's too).
+    ui::Window::setTooltipHintResolver([](std::string_view id) { return commands::shortcutHint(id); });
 
     window_->onKey = [this](const ui::KeyEvent& e) { return handleKey(e); };
     window_->onCtrlWheel = [](float delta) { return display::onCtrlWheel(delta); };   // zoom

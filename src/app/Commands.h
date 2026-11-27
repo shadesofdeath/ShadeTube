@@ -38,6 +38,14 @@ void shutdownGlobalHotkeys();
 
 // The in-app key combo bound to an action, as menus show it right-aligned ("Ctrl+L"); "" when unbound.
 std::wstring shortcutHint(std::string_view id);
+// A tooltip that names the action's key after its label, as menus do ("Sonraki   Ctrl+→"): the Window looks the key up
+// when the tooltip shows (ui::Window::setTooltipHintResolver, installed by App), so a rebound key shows at once and
+// an unbound action shows the label alone.
+inline std::wstring keyTip(std::wstring label, std::string_view id) {
+    label += L"\t@";
+    label.append(id.begin(), id.end());
+    return label;
+}
 
 // ---- System features --------------------------------------------------------------------------------------------------
 // App startup: drops invalid / duplicate bindings and keeps the Run value in line with Settings::startWithWindows.
