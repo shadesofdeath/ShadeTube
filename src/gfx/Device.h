@@ -109,8 +109,9 @@ public:
     // Returns nullptr when the window has no area (minimized). Must be paired with end(). Recreates the device
     // after an idle release.
     ID2D1DeviceContext5* begin();
-    // Presents (vsync). Returns false if the device was lost (caller should redraw next frame).
-    bool end();
+    // Presents (vsync; `syncInterval` > 1: the frame stays that many refreshes, ui::frame::requestNextEvery). Returns
+    // false if the device was lost (caller should redraw next frame).
+    bool end(UINT syncInterval = 1);
 
     // Blocks until the swap chain can accept a new frame (low-latency pacing). Handle for MsgWait.
     HANDLE frameLatencyWaitable() const { return waitable_; }

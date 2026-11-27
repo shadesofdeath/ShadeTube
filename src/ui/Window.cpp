@@ -400,6 +400,37 @@ bool Window::isMinimized() const { return IsIconic(hwnd_) != FALSE; }
 void Window::minimize() { ShowWindow(hwnd_, SW_MINIMIZE); }
 void Window::toggleMaximize() { ShowWindow(hwnd_, isMaximized() ? SW_RESTORE : SW_MAXIMIZE); }
 
+// As browsers do it: restore a maximized window first (its frame would stay pulled in), drop the caption and the
+// sizing frame, cover the monitor; leaving puts back the style, the rect and the maximized state.
+void Window::setFullscreen(bool on) {
+    if (on == fullscreen_ || !hwnd_) return;
+    if (on) {
+        savedMaximized_ = isMaximized();
+        if (savedMaximized_) SendMessageW(hwnd_, WM_SYSCOMMAND, SC_RESTORE, 0);
+        savedStyle_ = GetWindowLongW(hwnd_, GWL_STYLE);
+        GetWindowRect(hwnd_, &savedRect_);
+        MONITORINFO mi{sizeof mi};
+        GetMonitorInfoW(MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST), &mi);
+        fullscreen_ = true;
+        SetWindowLongW(hwnd_, GWL_STYLE, savedStyle_ & ~(WS_CAPTION | WS_THICKFRAME));
+        const DWORD square = 1;   // DWMWCP_DONOTROUND (Windows 11; ignored before)
+        DwmSetWindowAttribute(hwnd_, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &square, sizeof square);
+        const RECT& m = mi.rcMonitor;
+        SetWindowPos(hwnd_, nullptr, m.left, m.top, m.right - m.left, m.bottom - m.top,
+                     SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    } else {
+        fullscreen_ = false;
+        SetWindowLongW(hwnd_, GWL_STYLE, savedStyle_);
+        const DWORD standard = 0;   // DWMWCP_DEFAULT
+        DwmSetWindowAttribute(hwnd_, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &standard, sizeof standard);
+        SetWindowPos(hwnd_, nullptr, savedRect_.left, savedRect_.top, savedRect_.right - savedRect_.left,
+                     savedRect_.bottom - savedRect_.top, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        if (savedMaximized_) SendMessageW(hwnd_, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+    }
+    ST_LOG_INFO("ui", "window {} full screen", on ? "enters" : "leaves");
+    invalidate();
+}
+
 void Window::setFocus(Widget* w) {
     if (w == focus_) return;
     if (Widget* scope = focusScope(); w && scope != root_.get() && !inScope(w)) {
@@ -654,6 +685,7 @@ double Window::frameTime() {
     const double period = static_cast<double>(ti.qpcRefreshPeriod) / ticksPerMs;
     const double vblank = static_cast<double>(ti.qpcVBlank) / ticksPerMs;
     if (period < 2 || period > 60 || vblank > now + period || now - vblank > 1000) return lastFrameAt_ = now;
+    period_ = period;
     double t = vblank + std::ceil((now - vblank) / period) * period;   // the next vblank
     if (t < lastFrameAt_ + period * 0.5) t = std::min(lastFrameAt_ + period, t + period);
     return lastFrameAt_ = t;
@@ -689,10 +721,11 @@ void Window::render() {
         paintFocusRing(c);
         paintTooltip(c);
     }
+    const int interval = accentAnimating ? 1 : frame::presentInterval();
     const bool more = frame::consumeRequest() || accentAnimating;
     dirty_ = false;
     animating_ = more;
-    if (!target_->end()) dirty_ = true;   // device lost: redraw with recreated resources
+    if (!target_->end(static_cast<UINT>(interval))) dirty_ = true;   // device lost: redraw with recreated resources
     if (layoutDirty_) dirty_ = true;
     if (dwmOffPending_) {   // the opaque frame is up: Mica can go
         dwmOffPending_ = false;
@@ -703,8 +736,15 @@ void Window::render() {
 // The tree, the open overlays (each may first capture what is below it: prepareBackdrop) and, on top, the overlays
 // playing their close animation, so no capture ever contains one that is going away.
 void Window::paintLayers(Canvas& c) {
-    if (root_) root_->paint(c);
-    for (size_t i = 0; i < overlays_.size(); ++i) {
+    // An open overlay that covers the whole window (coversWindow) hides everything below it: start there.
+    size_t first = 0;
+    for (size_t i = overlays_.size(); i-- > 0;)
+        if (overlays_[i].layer && overlays_[i].layer->coversWindow()) {
+            first = i + 1;
+            break;
+        }
+    if (first == 0 && root_) root_->paint(c);
+    for (size_t i = first > 0 ? first - 1 : 0; i < overlays_.size(); ++i) {
         if (overlays_[i].layer) overlays_[i].layer->prepareBackdrop(c, *this);
         overlays_[i].widget->paint(c);
     }
@@ -1286,6 +1326,7 @@ void Window::endHold() {
 }
 
 LRESULT Window::hitTestNc(POINT screen) {
+    if (fullscreen_) return HTCLIENT;   // no resize borders, no caption drag, no snap layouts
     POINT pt = screen;
     ScreenToClient(hwnd_, &pt);
     RECT rc;

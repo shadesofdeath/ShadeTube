@@ -2,6 +2,7 @@
 
 #include "core/Log.h"
 
+#include <algorithm>
 #include <dxgi1_4.h>
 
 #include <stdexcept>
@@ -282,11 +283,11 @@ ID2D1DeviceContext5* WindowTarget::begin() {
     return dc_.Get();
 }
 
-bool WindowTarget::end() {
+bool WindowTarget::end(UINT syncInterval) {
     HRESULT hr = dc_->EndDraw();
     if (SUCCEEDED(hr)) {
         DXGI_PRESENT_PARAMETERS params{};
-        hr = swapChain_->Present1(1, 0, &params);
+        hr = swapChain_->Present1(std::clamp(syncInterval, 1u, 4u), 0, &params);
     }
     if (hr == D2DERR_RECREATE_TARGET || hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
         ST_LOG_WARN("gfx", "device lost (0x{:08X}), recreating", static_cast<unsigned>(hr));

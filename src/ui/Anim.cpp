@@ -10,6 +10,7 @@ namespace st::ui {
 namespace {
 double g_now = 0, g_begunAt = 0;
 bool g_request = false;
+int g_interval = 0;   // the smallest sync interval asked for this frame (0 = none)
 bool g_reduced = false;
 
 double qpcMs() {
@@ -59,10 +60,20 @@ void begin(double ms) {
     g_now = ms;
     g_begunAt = qpcMs();
 }
-void requestNext() { g_request = true; }
+void requestNext() {
+    g_request = true;
+    g_interval = 1;
+}
+void requestNextEvery(int vblanks) {
+    g_request = true;
+    const int v = std::clamp(vblanks, 1, 4);
+    g_interval = g_interval == 0 ? v : std::min(g_interval, v);
+}
+int presentInterval() { return g_interval > 0 ? g_interval : 1; }
 bool consumeRequest() {
     const bool r = g_request;
     g_request = false;
+    g_interval = 0;
     return r;
 }
 double realNow() { return qpcMs(); }

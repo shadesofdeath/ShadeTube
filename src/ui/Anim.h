@@ -14,7 +14,11 @@ double now();                 // ms timestamp of the current frame (stable durin
 void begin();                 // called by the window loop before painting
 void begin(double ms);        // ... with the time this frame will be shown at (Window: the next vblank)
 void requestNext();           // "keep rendering" (an animation is in flight)
-bool consumeRequest();        // loop: was another frame requested during this one?
+// "Keep rendering, but every `vblanks`-th display refresh is enough" (1..4: the visualizer on a fast display; the frame
+// is presented with that sync interval, so it stays on screen that long). A plain requestNext() in the same frame wins.
+void requestNextEvery(int vblanks);
+int presentInterval();        // the sync interval this frame asked for (1 unless only requestNextEvery asked)
+bool consumeRequest();        // loop: was another frame requested during this one? (resets the interval too)
 double realNow();             // current QPC time in ms (not frame-stable)
 double begunAt();             // realNow() when this frame began (profiling)
 } // namespace frame
