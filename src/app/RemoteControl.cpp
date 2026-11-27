@@ -1024,6 +1024,7 @@ void buildRemoteSection(ui::Column* c, const std::function<void()>& rebuild) {
                                            tr(L"Telefonun bağlanacağı adres. Otomatik seçim sanal bağdaştırıcılar yerine "
                                               L"Wi-Fi ya da Ethernet'i tercih eder."));
             auto* pick = row->control<ui::Button>(220.f, ui::ButtonKind::Secondary, current, "chevron-down");
+            pick->setDropdown(true);
             pick->onClick = [pick, rebuild] {
                 auto choose = [rebuild](std::string ip) {
                     return [rebuild, ip] {

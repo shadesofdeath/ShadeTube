@@ -371,7 +371,7 @@ void buildJamRows(ui::Column* c, const std::function<void()>&) {
         auto* row = c->add<SettingRow>(tr(L"Görünen ad"),
                                        i18n::format(tr(L"Birlikte dinlerken diğerlerinin gördüğü ad. Boş bırakırsan \"{}\" kullanılır."),
                                                     {toWide(together::defaultName())}));
-        auto* box = row->control<ui::TextBox>(220.f, ui::TextBox::Look::Field, toWide(together::defaultName()));
+        auto* box = row->control<ui::TextBox>(320.f, ui::TextBox::Look::Field, toWide(together::defaultName()));
         box->setText(toWide(s.jamName));
         box->onChange = [](const std::wstring& text) {
             std::wstring t = text;
@@ -386,7 +386,7 @@ void buildJamRows(ui::Column* c, const std::function<void()>&) {
             tr(L"İsteğe bağlı: wss:// ile başlayan bir MQTT WebSocket adresi. Oturum başlatırken önce bu denenir, sonra herkese "
                L"açık sunucular (broker.emqx.io, test.mosquitto.org, broker.hivemq.com). Sunucu davet bağlantısının "
                L"içindedir; oturumdaki herkes onu kullanır."));
-        auto* box = row->control<ui::TextBox>(260.f, ui::TextBox::Look::Field, L"wss://sunucu:8084/mqtt");
+        auto* box = row->control<ui::TextBox>(320.f, ui::TextBox::Look::Field, L"wss://sunucu:8084/mqtt");
         box->setText(toWide(s.jamBroker));
         box->setError(!s.jamBroker.empty() && !jam::mqtt::parseBrokerUrl(s.jamBroker));
         box->onChange = [box](const std::wstring& text) {
