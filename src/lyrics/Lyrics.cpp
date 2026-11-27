@@ -679,6 +679,8 @@ int64_t mediaTime(int64_t songMs, const Ranges& extra) {
     return t;
 }
 
+std::string userAgent() { return kUserAgent; }
+
 std::optional<Lyrics> fetch(const Query& q, const YoutubeExplode::CancellationToken& ct) {
     // The user's pick wins; one that can't be had right now leaves it to the chain below.
     switch (q.choice.kind) {
@@ -957,7 +959,12 @@ std::string Offsets::importFile(const std::string& trackId, const fs::path& sour
     if (trackId.empty() || !readLyricsFile(source)) return {};
     std::ifstream in(source, std::ios::binary);
     if (!in) return {};
-    const std::string text = decodeText(std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>()));
+    return storeText(trackId, decodeText(std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>())));
+}
+
+std::string Offsets::storeText(const std::string& trackId, const std::string& text) {
+    if (trackId.empty() || text.size() > (1u << 20)) return {};
+    if (const Lyrics l = parseLrc(text); l.lines.empty() || !plausible(l)) return {};
     std::string name;
     for (char c : trackId)
         name.push_back((isDigit(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '-' || c == '_') ? c : '_');

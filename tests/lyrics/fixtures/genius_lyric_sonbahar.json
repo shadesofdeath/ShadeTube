@@ -1,0 +1,725 @@
+{
+ "meta": {
+  "status": 200
+ },
+ "response": {
+  "sections": [
+   {
+    "type": "lyric",
+    "hits": [
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 67,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 99
+         },
+         {
+          "start": 100,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 109
+         },
+         {
+          "start": 110,
+          "end": 116
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1257324,
+       "title": "İstanbul’da Sonbahar",
+       "primary_artist_names": "Teoman",
+       "artist_names": "Teoman",
+       "song_art_image_thumbnail_url": "https://images.genius.com/016ee6aabe9a22fbc1b1b3b5fb7a0d58.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/016ee6aabe9a22fbc1b1b3b5fb7a0d58.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Teoman-istanbulda-sonbahar-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Teoman",
+        "id": 357383
+       },
+       "stats": {
+        "pageviews": 106068
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 67,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 99
+         },
+         {
+          "start": 100,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 109
+         },
+         {
+          "start": 110,
+          "end": 116
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 2231430,
+       "title": "İstanbul’da Sonbahar",
+       "primary_artist_names": "Nil Karaibrahimgil",
+       "artist_names": "Nil Karaibrahimgil",
+       "song_art_image_thumbnail_url": "https://images.genius.com/6d9683f7fea590efa6de45381b056669.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/6d9683f7fea590efa6de45381b056669.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Nil-karaibrahimgil-istanbulda-sonbahar-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Nil Karaibrahimgil",
+        "id": 343689
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 67,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 99
+         },
+         {
+          "start": 100,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 109
+         },
+         {
+          "start": 110,
+          "end": 116
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 9390335,
+       "title": "İstanbul’da Sonbahar (Live)",
+       "primary_artist_names": "Teoman",
+       "artist_names": "Teoman",
+       "song_art_image_thumbnail_url": "https://images.genius.com/61fd7e96b2f97a08cb867f67b1fd1264.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/61fd7e96b2f97a08cb867f67b1fd1264.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Teoman-istanbulda-sonbahar-live-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Teoman",
+        "id": 357383
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Üzgün ve yaşlanmış\nBiraz kilo almış\nAğlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 66,
+          "end": 72
+         },
+         {
+          "start": 73,
+          "end": 78
+         },
+         {
+          "start": 79,
+          "end": 87
+         },
+         {
+          "start": 88,
+          "end": 94
+         },
+         {
+          "start": 95,
+          "end": 98
+         },
+         {
+          "start": 99,
+          "end": 105
+         },
+         {
+          "start": 106,
+          "end": 108
+         },
+         {
+          "start": 109,
+          "end": 115
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 13215476,
+       "title": "İstanbul’da Sonbahar",
+       "primary_artist_names": "Cem Adrian & Teoman",
+       "artist_names": "Cem Adrian & Teoman",
+       "song_art_image_thumbnail_url": "https://images.genius.com/ff084fa5839f60e575d882d1a481309b.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/ff084fa5839f60e575d882d1a481309b.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Cem-adrian-and-teoman-istanbulda-sonbahar-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Cem Adrian",
+        "id": 348813
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine, rimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, burada",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 68,
+          "end": 74
+         },
+         {
+          "start": 75,
+          "end": 80
+         },
+         {
+          "start": 81,
+          "end": 89
+         },
+         {
+          "start": 90,
+          "end": 96
+         },
+         {
+          "start": 97,
+          "end": 100
+         },
+         {
+          "start": 101,
+          "end": 107
+         },
+         {
+          "start": 108,
+          "end": 110
+         },
+         {
+          "start": 111,
+          "end": 117
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 13599194,
+       "title": "istanbul’da sonbahar",
+       "primary_artist_names": "cephe",
+       "artist_names": "cephe",
+       "song_art_image_thumbnail_url": "https://images.genius.com/b78ed812ca201e298cc975c6b8ba86d9.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/b78ed812ca201e298cc975c6b8ba86d9.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Cephe-istanbulda-sonbahar-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "cephe",
+        "id": 4554880
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 67,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 99
+         },
+         {
+          "start": 100,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 109
+         },
+         {
+          "start": 110,
+          "end": 116
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 13398516,
+       "title": "İstanbul’da Sonbahar (Beterböcek Mix)",
+       "primary_artist_names": "Teoman",
+       "artist_names": "Teoman",
+       "song_art_image_thumbnail_url": "https://images.genius.com/c0976e7da287d3b28569139d76c639b8.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/c0976e7da287d3b28569139d76c639b8.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Teoman-istanbulda-sonbahar-beterbocek-mix-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Teoman",
+        "id": 357383
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 67,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 99
+         },
+         {
+          "start": 100,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 109
+         },
+         {
+          "start": 110,
+          "end": 116
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 13398515,
+       "title": "İstanbul’da Sonbahar (Mert T. Mix)",
+       "primary_artist_names": "Teoman",
+       "artist_names": "Teoman",
+       "song_art_image_thumbnail_url": "https://images.genius.com/c0976e7da287d3b28569139d76c639b8.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/c0976e7da287d3b28569139d76c639b8.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Teoman-istanbulda-sonbahar-mert-t-mix-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Teoman",
+        "id": 357383
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 67,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 99
+         },
+         {
+          "start": 100,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 109
+         },
+         {
+          "start": 110,
+          "end": 116
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 13398514,
+       "title": "İstanbul’da Sonbahar (Bumerang Mix)",
+       "primary_artist_names": "Teoman",
+       "artist_names": "Teoman",
+       "song_art_image_thumbnail_url": "https://images.genius.com/c0976e7da287d3b28569139d76c639b8.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/c0976e7da287d3b28569139d76c639b8.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Teoman-istanbulda-sonbahar-bumerang-mix-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Teoman",
+        "id": 357383
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 67,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 99
+         },
+         {
+          "start": 100,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 109
+         },
+         {
+          "start": 110,
+          "end": 116
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 13398507,
+       "title": "İstanbul’da Sonbahar (2002 Mix)",
+       "primary_artist_names": "Teoman",
+       "artist_names": "Teoman",
+       "song_art_image_thumbnail_url": "https://images.genius.com/c0976e7da287d3b28569139d76c639b8.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/c0976e7da287d3b28569139d76c639b8.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Teoman-istanbulda-sonbahar-2002-mix-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Teoman",
+        "id": 357383
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "üzgün ve yaşlanmış\nBiraz kilo almış, ağlamış yine\nRimelleri akıyor\nAkşama doğru azalırsa yağmur\nKız Kulesi ve Adalar\nAh, bur",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 67,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 79
+         },
+         {
+          "start": 80,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 99
+         },
+         {
+          "start": 100,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 109
+         },
+         {
+          "start": 110,
+          "end": 116
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 13418861,
+       "title": "İstanbul’da Sonbahar [Koyu Antoloji]",
+       "primary_artist_names": "Teoman",
+       "artist_names": "Teoman",
+       "song_art_image_thumbnail_url": "https://images.genius.com/b4d1965d1fb61e813997b552c601adb7.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/b4d1965d1fb61e813997b552c601adb7.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Teoman-istanbulda-sonbahar-koyu-antoloji-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Teoman",
+        "id": 357383
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "next_page": 2
+ }
+}

@@ -92,6 +92,9 @@ struct Query {
 // nullopt = not found (or network error; errors are not negatively cached), or the choice is Choice::Kind::None.
 std::optional<Lyrics> fetch(const Query& q, const YoutubeExplode::CancellationToken& ct = {});
 
+// The User-Agent the lyrics services are sent (LRCLIB asks clients to name themselves).
+std::string userAgent();
+
 // ---- "Yanlış sözler mi?": LRCLIB's search for the picker --------------------------------------------------------
 struct SearchHit {
     int64_t id = 0;
@@ -170,6 +173,10 @@ public:
     // Copies a user's .lrc / .txt for `trackId` into fileDir() (as UTF-8 with the original bytes' text). Returns the
     // stored name, "" when the file holds no usable lyrics (readLyricsFile) or can't be written.
     std::string importFile(const std::string& trackId, const std::filesystem::path& source);
+    // Stores lyrics text (LRC or plain, UTF-8) for `trackId` the way importFile() stores a picked file: the synchronizer
+    // saving its result. Returns the stored name for Choice::Kind::File, "" when it holds no usable lyrics or can't be
+    // written.
+    std::string storeText(const std::string& trackId, const std::string& text);
     static constexpr int kMaxMs = 30000;
     static constexpr size_t kMaxEntries = 5000;    // oldest changes dropped beyond this (per kind)
 

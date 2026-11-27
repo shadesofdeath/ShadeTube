@@ -1,0 +1,913 @@
+{
+ "meta": {
+  "status": 200
+ },
+ "response": {
+  "sections": [
+   {
+    "type": "lyric",
+    "hits": [
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "I was saving?\nAnd this guy was sitting there, and I said:\nHey, Pal! What's going on here?\nAnd",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 1
+         },
+         {
+          "start": 14,
+          "end": 17
+         },
+         {
+          "start": 46,
+          "end": 49
+         },
+         {
+          "start": 50,
+          "end": 51
+         },
+         {
+          "start": 52,
+          "end": 56
+         },
+         {
+          "start": 58,
+          "end": 61
+         },
+         {
+          "start": 68,
+          "end": 74
+         },
+         {
+          "start": 75,
+          "end": 80
+         },
+         {
+          "start": 81,
+          "end": 83
+         },
+         {
+          "start": 90,
+          "end": 93
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 814353,
+       "title": "Difficult Listening Hour",
+       "primary_artist_names": "Laurie Anderson",
+       "artist_names": "Laurie Anderson",
+       "song_art_image_thumbnail_url": "https://images.genius.com/e524a1ae5d249017e213711a2168db9d.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/e524a1ae5d249017e213711a2168db9d.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Laurie-anderson-difficult-listening-hour-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Laurie Anderson",
+        "id": 43761
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "What's going on?\"\nAnd I say, hey-ey-ey\nHey-ey-ey\nI said \"Hey, what's going on",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 7,
+          "end": 12
+         },
+         {
+          "start": 13,
+          "end": 15
+         },
+         {
+          "start": 18,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 23
+         },
+         {
+          "start": 29,
+          "end": 32
+         },
+         {
+          "start": 39,
+          "end": 42
+         },
+         {
+          "start": 49,
+          "end": 50
+         },
+         {
+          "start": 51,
+          "end": 55
+         },
+         {
+          "start": 57,
+          "end": 60
+         },
+         {
+          "start": 62,
+          "end": 68
+         },
+         {
+          "start": 69,
+          "end": 74
+         },
+         {
+          "start": 75,
+          "end": 77
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 245574,
+       "title": "What’s Up?",
+       "primary_artist_names": "4 Non Blondes",
+       "artist_names": "4 Non Blondes",
+       "song_art_image_thumbnail_url": "https://images.genius.com/5536343c3ed5d056b0ad847edb3429d2.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/5536343c3ed5d056b0ad847edb3429d2.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/4-non-blondes-whats-up-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "4 Non Blondes",
+        "id": 82084
+       },
+       "stats": {
+        "pageviews": 6994372
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "on\nAnd I say, hey\nHey\nI said \"hey, what's going on?\"\nAnd I say, hey\nHey\nI said",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 2
+         },
+         {
+          "start": 3,
+          "end": 6
+         },
+         {
+          "start": 7,
+          "end": 8
+         },
+         {
+          "start": 14,
+          "end": 17
+         },
+         {
+          "start": 18,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 23
+         },
+         {
+          "start": 24,
+          "end": 28
+         },
+         {
+          "start": 30,
+          "end": 33
+         },
+         {
+          "start": 35,
+          "end": 41
+         },
+         {
+          "start": 42,
+          "end": 47
+         },
+         {
+          "start": 48,
+          "end": 50
+         },
+         {
+          "start": 53,
+          "end": 56
+         },
+         {
+          "start": 57,
+          "end": 58
+         },
+         {
+          "start": 64,
+          "end": 67
+         },
+         {
+          "start": 68,
+          "end": 71
+         },
+         {
+          "start": 72,
+          "end": 73
+         },
+         {
+          "start": 74,
+          "end": 78
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 6369418,
+       "title": "ryuuseigun mashup",
+       "primary_artist_names": "jan Misali",
+       "artist_names": "jan Misali",
+       "song_art_image_thumbnail_url": "https://images.genius.com/96f6333eeb7d9bfa07760473aba56fea.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/96f6333eeb7d9bfa07760473aba56fea.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Jan-misali-ryuuseigun-mashup-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "jan Misali",
+        "id": 2019071
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "my lungs\nWhat's going on?\nAnd I say, hey hey hey hey\nI said hey, what's going on",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 9,
+          "end": 15
+         },
+         {
+          "start": 16,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 24
+         },
+         {
+          "start": 26,
+          "end": 29
+         },
+         {
+          "start": 30,
+          "end": 31
+         },
+         {
+          "start": 37,
+          "end": 40
+         },
+         {
+          "start": 41,
+          "end": 44
+         },
+         {
+          "start": 45,
+          "end": 48
+         },
+         {
+          "start": 49,
+          "end": 52
+         },
+         {
+          "start": 53,
+          "end": 54
+         },
+         {
+          "start": 55,
+          "end": 59
+         },
+         {
+          "start": 60,
+          "end": 63
+         },
+         {
+          "start": 65,
+          "end": 71
+         },
+         {
+          "start": 72,
+          "end": 77
+         },
+         {
+          "start": 78,
+          "end": 80
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1951189,
+       "title": "What’s Up (Live)",
+       "primary_artist_names": "Lady Gaga",
+       "artist_names": "Lady Gaga",
+       "song_art_image_thumbnail_url": "https://images.genius.com/3cabe9f21c01e9758d908e30fc1cd772.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/3cabe9f21c01e9758d908e30fc1cd772.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Lady-gaga-whats-up-live-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Lady Gaga",
+        "id": 447
+       },
+       "stats": {
+        "pageviews": 7850
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "going on?\"\nAnd I said\nHey-ey-ey-ey-ey\nHey-ey-ey\nI said hey\nWhat's going on",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 5
+         },
+         {
+          "start": 6,
+          "end": 8
+         },
+         {
+          "start": 11,
+          "end": 14
+         },
+         {
+          "start": 15,
+          "end": 16
+         },
+         {
+          "start": 17,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 25
+         },
+         {
+          "start": 38,
+          "end": 41
+         },
+         {
+          "start": 48,
+          "end": 49
+         },
+         {
+          "start": 50,
+          "end": 54
+         },
+         {
+          "start": 55,
+          "end": 58
+         },
+         {
+          "start": 59,
+          "end": 65
+         },
+         {
+          "start": 66,
+          "end": 71
+         },
+         {
+          "start": 72,
+          "end": 74
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 11436765,
+       "title": "What’s Up?",
+       "primary_artist_names": "People R Ugly",
+       "artist_names": "People R Ugly",
+       "song_art_image_thumbnail_url": "https://images.genius.com/96cf35d19eebf56636a221639aada695.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/96cf35d19eebf56636a221639aada695.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/People-r-ugly-whats-up-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "People R Ugly",
+        "id": 2914166
+       },
+       "stats": {
+        "pageviews": 9884
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "What's going on?\"\nAnd I say, hey-ey-ey\nHey-ey-ey\nI said \"Hey, what's going on",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 7,
+          "end": 12
+         },
+         {
+          "start": 13,
+          "end": 15
+         },
+         {
+          "start": 18,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 23
+         },
+         {
+          "start": 29,
+          "end": 32
+         },
+         {
+          "start": 39,
+          "end": 42
+         },
+         {
+          "start": 49,
+          "end": 50
+         },
+         {
+          "start": 51,
+          "end": 55
+         },
+         {
+          "start": 57,
+          "end": 60
+         },
+         {
+          "start": 62,
+          "end": 68
+         },
+         {
+          "start": 69,
+          "end": 74
+         },
+         {
+          "start": 75,
+          "end": 77
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1148125,
+       "title": "What’s Up",
+       "primary_artist_names": "DJ Miko",
+       "artist_names": "DJ Miko (Ft. Louise Gard)",
+       "song_art_image_thumbnail_url": "https://assets.genius.com/images/default_cover_image.png",
+       "header_image_thumbnail_url": "https://assets.genius.com/images/default_cover_image.png",
+       "instrumental": false,
+       "url": "https://genius.com/Dj-miko-whats-up-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "DJ Miko",
+        "id": 139405
+       },
+       "stats": {
+        "pageviews": 7580
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "What's going on ?\nAnd i say. hey hey hey hey\nI said hey. what's going on ?\nAnd i",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 7,
+          "end": 12
+         },
+         {
+          "start": 13,
+          "end": 15
+         },
+         {
+          "start": 18,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 23
+         },
+         {
+          "start": 29,
+          "end": 32
+         },
+         {
+          "start": 33,
+          "end": 36
+         },
+         {
+          "start": 37,
+          "end": 40
+         },
+         {
+          "start": 41,
+          "end": 44
+         },
+         {
+          "start": 45,
+          "end": 46
+         },
+         {
+          "start": 47,
+          "end": 51
+         },
+         {
+          "start": 52,
+          "end": 55
+         },
+         {
+          "start": 57,
+          "end": 63
+         },
+         {
+          "start": 64,
+          "end": 69
+         },
+         {
+          "start": 70,
+          "end": 72
+         },
+         {
+          "start": 75,
+          "end": 78
+         },
+         {
+          "start": 79,
+          "end": 80
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 1975501,
+       "title": "What’s Up?",
+       "primary_artist_names": "Al. Hy",
+       "artist_names": "Al. Hy",
+       "song_art_image_thumbnail_url": "https://images.genius.com/624d4ff84596e19add1548fe1ce0ed87.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/624d4ff84596e19add1548fe1ce0ed87.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Al-hy-whats-up-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Al. Hy",
+        "id": 453360
+       },
+       "stats": {
+        "pageviews": 5802
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "What's going on?”\nAnd I say, hey-ey-ey\nHey-ey-ey\nI said, \"Hey, what's going on",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 7,
+          "end": 12
+         },
+         {
+          "start": 13,
+          "end": 15
+         },
+         {
+          "start": 18,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 23
+         },
+         {
+          "start": 29,
+          "end": 32
+         },
+         {
+          "start": 39,
+          "end": 42
+         },
+         {
+          "start": 49,
+          "end": 50
+         },
+         {
+          "start": 51,
+          "end": 55
+         },
+         {
+          "start": 58,
+          "end": 61
+         },
+         {
+          "start": 63,
+          "end": 69
+         },
+         {
+          "start": 70,
+          "end": 75
+         },
+         {
+          "start": 76,
+          "end": 78
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 5000996,
+       "title": "What’s Up?",
+       "primary_artist_names": "Hannah Grace & Sonny Tennet",
+       "artist_names": "Hannah Grace & Sonny Tennet",
+       "song_art_image_thumbnail_url": "https://images.genius.com/4fb8e76c2193724ad2be1e05e5b6db8d.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/4fb8e76c2193724ad2be1e05e5b6db8d.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Hannah-grace-and-sonny-tennet-whats-up-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Hannah Grace",
+        "id": 1477571
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "What's going on?\"\nAnd I say, hey-ey-ey, hey-ey-ey\nI said, \"Hey, what's going on",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 7,
+          "end": 12
+         },
+         {
+          "start": 13,
+          "end": 15
+         },
+         {
+          "start": 18,
+          "end": 21
+         },
+         {
+          "start": 22,
+          "end": 23
+         },
+         {
+          "start": 29,
+          "end": 32
+         },
+         {
+          "start": 40,
+          "end": 43
+         },
+         {
+          "start": 50,
+          "end": 51
+         },
+         {
+          "start": 52,
+          "end": 56
+         },
+         {
+          "start": 59,
+          "end": 62
+         },
+         {
+          "start": 64,
+          "end": 70
+         },
+         {
+          "start": 71,
+          "end": 76
+         },
+         {
+          "start": 77,
+          "end": 79
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 8287633,
+       "title": "What’s Up (What’s Going On)",
+       "primary_artist_names": "Lainey Wilson",
+       "artist_names": "Lainey Wilson",
+       "song_art_image_thumbnail_url": "https://images.genius.com/464a5ee30bcdfc432f84352e9d40077f.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/464a5ee30bcdfc432f84352e9d40077f.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Lainey-wilson-whats-up-whats-going-on-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Lainey Wilson",
+        "id": 1149083
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "What's going on?\nAnd I say, hey yeah yeah, hey yeah yeah\nI said hey, what's going on",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 6
+         },
+         {
+          "start": 7,
+          "end": 12
+         },
+         {
+          "start": 13,
+          "end": 15
+         },
+         {
+          "start": 17,
+          "end": 20
+         },
+         {
+          "start": 21,
+          "end": 22
+         },
+         {
+          "start": 28,
+          "end": 31
+         },
+         {
+          "start": 43,
+          "end": 46
+         },
+         {
+          "start": 57,
+          "end": 58
+         },
+         {
+          "start": 59,
+          "end": 63
+         },
+         {
+          "start": 64,
+          "end": 67
+         },
+         {
+          "start": 69,
+          "end": 75
+         },
+         {
+          "start": 76,
+          "end": 81
+         },
+         {
+          "start": 82,
+          "end": 84
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 7,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 3881777,
+       "title": "What’s Up",
+       "primary_artist_names": "Aviators",
+       "artist_names": "Aviators (Ft. EnergyTone, Faux Synder, FritzyBeat, Jasper Synth, Luna Jax & SlyphStorm)",
+       "song_art_image_thumbnail_url": "https://images.genius.com/6e865ba8ab3877c9b5bd8739e31b2f7f.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/6e865ba8ab3877c9b5bd8739e31b2f7f.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Aviators-whats-up-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Aviators",
+        "id": 149803
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "next_page": 2
+ }
+}

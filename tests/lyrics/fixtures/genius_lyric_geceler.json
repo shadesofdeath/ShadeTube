@@ -1,0 +1,561 @@
+{
+ "meta": {
+  "status": 200
+ },
+ "response": {
+  "sections": [
+   {
+    "type": "lyric",
+    "hits": [
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "sarmış şehrini, bak\nKendine espri yap, fazla iç, geçmişi an\nElimde hiçbi' şey yok çünkü hiçbi' şey var\nKaranlıklardan doğar",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 60,
+          "end": 66
+         },
+         {
+          "start": 67,
+          "end": 72
+         },
+         {
+          "start": 74,
+          "end": 77
+         },
+         {
+          "start": 78,
+          "end": 81
+         },
+         {
+          "start": 82,
+          "end": 87
+         },
+         {
+          "start": 88,
+          "end": 93
+         },
+         {
+          "start": 95,
+          "end": 98
+         },
+         {
+          "start": 99,
+          "end": 102
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 8,
+      "nb_typos": 0,
+      "type": "song",
+      "result": {
+       "id": 3104934,
+       "title": "Geceler",
+       "primary_artist_names": "Ezhel",
+       "artist_names": "Ezhel",
+       "song_art_image_thumbnail_url": "https://images.genius.com/8930fe498dd18a296a4cc0cead0a4dba.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/8930fe498dd18a296a4cc0cead0a4dba.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Ezhel-geceler-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Ezhel",
+        "id": 195369
+       },
+       "stats": {
+        "pageviews": 1007954
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Bana kokuşmuş lanet bir ot verdin, evet\nBizim yolumuzdan gidiyorlar çünkü yapamayacağımız hiçbir şey yok, evet\nBüyük baguette çantalar, siparişleri",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 68,
+          "end": 73
+         },
+         {
+          "start": 90,
+          "end": 96
+         },
+         {
+          "start": 97,
+          "end": 100
+         },
+         {
+          "start": 101,
+          "end": 104
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 5,
+      "nb_typos": 2,
+      "type": "song",
+      "result": {
+       "id": 12539478,
+       "title": "Young Thug - Ninja (Türkçe Çeviri)",
+       "primary_artist_names": "Genius Türkçe Çeviriler",
+       "artist_names": "Genius Türkçe Çeviriler",
+       "song_art_image_thumbnail_url": "https://images.genius.com/2d675b319f44b086d8185dda9c83d2d9.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/2d675b319f44b086d8185dda9c83d2d9.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Genius-turkce-ceviriler-young-thug-ninja-turkce-ceviri-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Genius Türkçe Çeviriler",
+        "id": 569121
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "bakıyorum\nSanki başladığım yerdeyim, burada yazıyorum\nOlacakları düşünüp üzülürüm, gelmez çünkü hiçbir şey elimden (çünkü hiçbir şey elimden)\nTüm nefret",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 90,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 102
+         },
+         {
+          "start": 103,
+          "end": 106
+         },
+         {
+          "start": 107,
+          "end": 114
+         },
+         {
+          "start": 116,
+          "end": 121
+         },
+         {
+          "start": 122,
+          "end": 128
+         },
+         {
+          "start": 129,
+          "end": 132
+         },
+         {
+          "start": 133,
+          "end": 140
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 5,
+      "nb_typos": 2,
+      "type": "song",
+      "result": {
+       "id": 8925032,
+       "title": "Sırça Köşk",
+       "primary_artist_names": "Baran Çamsarı",
+       "artist_names": "Baran Çamsarı",
+       "song_art_image_thumbnail_url": "https://images.genius.com/bef9d8c32ab534ed2b584543246ee831.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/bef9d8c32ab534ed2b584543246ee831.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Baran-camsar-srca-kosk-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Baran Çamsarı",
+        "id": 2894668
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "dı artık\nYanlış yolumu buldum, mimiklerde bozuk usturup\nHer şeyim var, hiçbi' şey yok, hor görüldü mutluluk\nBu ara çok",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 66,
+          "end": 69
+         },
+         {
+          "start": 71,
+          "end": 76
+         },
+         {
+          "start": 78,
+          "end": 81
+         },
+         {
+          "start": 82,
+          "end": 85
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 6,
+      "nb_exact_words": 5,
+      "nb_typos": 1,
+      "type": "song",
+      "result": {
+       "id": 9266352,
+       "title": "Vedalaşmak",
+       "primary_artist_names": "Beta Berk Bayındır",
+       "artist_names": "Beta Berk Bayındır",
+       "song_art_image_thumbnail_url": "https://images.genius.com/b500f33db5408dc66f1f27dae590ca28.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/b500f33db5408dc66f1f27dae590ca28.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Beta-berk-bayndr-vedalasmak-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Beta Berk Bayındır",
+        "id": 195370
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Sokak sokak gezdim, kesme bana rol\nBu kez kozlar benim elimde\nKa-ka-kaybedecek hiçbir şeyim yok\nÇünkü her şey",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 55,
+          "end": 61
+         },
+         {
+          "start": 79,
+          "end": 85
+         },
+         {
+          "start": 92,
+          "end": 95
+         },
+         {
+          "start": 96,
+          "end": 101
+         },
+         {
+          "start": 106,
+          "end": 109
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 5,
+      "nb_typos": 1,
+      "type": "song",
+      "result": {
+       "id": 6730055,
+       "title": "Drill",
+       "primary_artist_names": "Murda (TUR)",
+       "artist_names": "Murda (TUR)",
+       "song_art_image_thumbnail_url": "https://images.genius.com/f6d0ecf9089b1ae9cffa86a7230c37fe.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/f6d0ecf9089b1ae9cffa86a7230c37fe.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Murda-tur-drill-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Murda (TUR)",
+        "id": 212114
+       },
+       "stats": {
+        "pageviews": 12781
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "müebbet verdi\nÇünkü biri güzel kolyemi çalabileceğini sandı\nDenemediğim hiçbir şey yok, uğruna öleceğim şeyler var\nAlmak istediğim bir şey",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 14,
+          "end": 19
+         },
+         {
+          "start": 72,
+          "end": 78
+         },
+         {
+          "start": 79,
+          "end": 82
+         },
+         {
+          "start": 83,
+          "end": 86
+         },
+         {
+          "start": 111,
+          "end": 114
+         },
+         {
+          "start": 135,
+          "end": 138
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 6,
+      "nb_typos": 1,
+      "type": "song",
+      "result": {
+       "id": 11512063,
+       "title": "Potter Payper & Fredo - Let It Go (Türkçe Çeviri)",
+       "primary_artist_names": "Genius Türkçe Çeviriler",
+       "artist_names": "Genius Türkçe Çeviriler",
+       "song_art_image_thumbnail_url": "https://images.genius.com/458ca1c06bd33d754b0aa1bf2773eccc.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/458ca1c06bd33d754b0aa1bf2773eccc.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Genius-turkce-ceviriler-potter-payper-and-fredo-let-it-go-turkce-ceviri-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Genius Türkçe Çeviriler",
+        "id": 569121
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Bunu yapmadan da ölürsem gözüm açık gidicek\nBenim söylediğim şeylerde hiçbi' sakınca yok çünkü bunlar dünyanın gerçekleri\nBen televizyondaki diğer",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 70,
+          "end": 75
+         },
+         {
+          "start": 85,
+          "end": 88
+         },
+         {
+          "start": 89,
+          "end": 94
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 7,
+      "nb_typos": 2,
+      "type": "song",
+      "result": {
+       "id": 4163936,
+       "title": "Orta Parmak",
+       "primary_artist_names": "Ceg",
+       "artist_names": "Ceg",
+       "song_art_image_thumbnail_url": "https://images.genius.com/07488654064f69ca613bf0b738369cc5.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/07488654064f69ca613bf0b738369cc5.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Ceg-orta-parmak-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Ceg",
+        "id": 1421000
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "şey de istemem varsa bi' yol gösteren\nKırıldı rayın biri çünkü yok bu fayın dili\nPara ve gösterişle gelen ünvan",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 0,
+          "end": 3
+         },
+         {
+          "start": 57,
+          "end": 62
+         },
+         {
+          "start": 63,
+          "end": 66
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 6,
+      "nb_typos": 2,
+      "type": "song",
+      "result": {
+       "id": 5035439,
+       "title": "Her Gün",
+       "primary_artist_names": "Farazi & Kodes Kahra",
+       "artist_names": "Farazi & Kodes Kahra",
+       "song_art_image_thumbnail_url": "https://images.genius.com/e0341517fb7bcb1fa3aff0f41e40a11e.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/e0341517fb7bcb1fa3aff0f41e40a11e.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Farazi-and-kodes-kahra-her-gun-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Farazi",
+        "id": 332685
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "Tanık koruma, 51-50\nAramayı yapmak için sabırsızlanıyordun\nBana sakinleştirici ver, suçlu hissetmeye gerek yok\nSorumlu olacağın hiçbir şey yok ",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 107,
+          "end": 110
+         },
+         {
+          "start": 128,
+          "end": 134
+         },
+         {
+          "start": 135,
+          "end": 138
+         },
+         {
+          "start": 139,
+          "end": 142
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 8,
+      "nb_exact_words": 5,
+      "nb_typos": 3,
+      "type": "song",
+      "result": {
+       "id": 11127344,
+       "title": "Flower Face - Eternal Sunshine (Türkçe Çeviri)",
+       "primary_artist_names": "Genius Türkçe Çeviriler",
+       "artist_names": "Genius Türkçe Çeviriler",
+       "song_art_image_thumbnail_url": "https://images.genius.com/49cac328e33fbb77f396fcd52b64795b.300x300x1.jpg",
+       "header_image_thumbnail_url": "https://images.genius.com/49cac328e33fbb77f396fcd52b64795b.300x300x1.jpg",
+       "instrumental": false,
+       "url": "https://genius.com/Genius-turkce-ceviriler-flower-face-eternal-sunshine-turkce-ceviri-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Genius Türkçe Çeviriler",
+        "id": 569121
+       },
+       "stats": {
+        "pageviews": 0
+       }
+      }
+     },
+     {
+      "highlights": [
+       {
+        "property": "lyrics",
+        "value": "için zaman yok\nBiz illegaliz çünkü gerçeğiz ve bizde yalan yok (Yalan)\nSizde şeref yerine fazlasıyla manita var\nVe bir",
+        "snippet": true,
+        "ranges": [
+         {
+          "start": 11,
+          "end": 14
+         },
+         {
+          "start": 29,
+          "end": 34
+         },
+         {
+          "start": 59,
+          "end": 62
+         },
+         {
+          "start": 108,
+          "end": 111
+         }
+        ]
+       }
+      ],
+      "index": "lyric",
+      "matched_words": 7,
+      "nb_exact_words": 6,
+      "nb_typos": 2,
+      "type": "song",
+      "result": {
+       "id": 2602085,
+       "title": "Neden Mi İllegal 3",
+       "primary_artist_names": "Hidra",
+       "artist_names": "Hidra",
+       "song_art_image_thumbnail_url": "https://images.genius.com/2c94ad0691a8f4c839084b9b6e36638f.300x300x1.png",
+       "header_image_thumbnail_url": "https://images.genius.com/2c94ad0691a8f4c839084b9b6e36638f.300x300x1.png",
+       "instrumental": false,
+       "url": "https://genius.com/Hidra-neden-mi-illegal-3-lyrics",
+       "lyrics_state": "complete",
+       "_type": "song",
+       "primary_artist": {
+        "name": "Hidra",
+        "id": 452981
+       },
+       "stats": {
+        "pageviews": 41665
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "next_page": 2
+ }
+}
