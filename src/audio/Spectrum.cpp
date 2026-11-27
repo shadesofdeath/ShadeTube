@@ -1,95 +1,74 @@
 #include "audio/Spectrum.h"
 
+#include "audio/Fft.h"
+
 #include <algorithm>
 #include <cmath>
-#include <numbers>
+#include <thread>
 
 namespace st::audio {
 
 namespace {
 
 constexpr size_t N = Spectrum::kSize;
-constexpr int kLog2N = 11;
-static_assert((size_t(1) << kLog2N) == N);
-
-struct FftTables {
-    std::array<float, N> window;
-    std::array<float, N / 2> cosT, sinT;
-    std::array<uint16_t, N> reverse;
-    FftTables() {
-        for (size_t i = 0; i < N; ++i) {
-            window[i] = 0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / (N - 1));
-            uint32_t r = 0;
-            for (int b = 0; b < kLog2N; ++b)
-                if (i & (size_t(1) << b)) r |= 1u << (kLog2N - 1 - b);
-            reverse[i] = static_cast<uint16_t>(r);
-        }
-        for (size_t k = 0; k < N / 2; ++k) {
-            const double a = 2.0 * std::numbers::pi * static_cast<double>(k) / N;
-            cosT[k] = static_cast<float>(std::cos(a));
-            sinT[k] = static_cast<float>(std::sin(a));
-        }
-    }
-};
-
-const FftTables& tables() {
-    static const FftTables t;  // thread-safe static init
-    return t;
-}
-
-// In-place iterative radix-2 decimation-in-time FFT.
-void fft(float* re, float* im) {
-    const auto& t = tables();
-    for (size_t i = 0; i < N; ++i) {
-        const size_t j = t.reverse[i];
-        if (i < j) {
-            std::swap(re[i], re[j]);
-            std::swap(im[i], im[j]);
-        }
-    }
-    for (size_t size = 2; size <= N; size <<= 1) {
-        const size_t half = size >> 1, step = N / size;
-        for (size_t i = 0; i < N; i += size) {
-            for (size_t j = 0; j < half; ++j) {
-                const float wr = t.cosT[j * step], wi = -t.sinT[j * step];
-                const size_t a = i + j, b = a + half;
-                const float tr = re[b] * wr - im[b] * wi;
-                const float ti = re[b] * wi + im[b] * wr;
-                re[b] = re[a] - tr;
-                im[b] = im[a] - ti;
-                re[a] += tr;
-                im[a] += ti;
-            }
-        }
-    }
-}
+static_assert(N == fft::kSize);
 
 } // namespace
 
+// Seqlock writer (the engine thread is the only one): odd sequence while the samples change.
 void Spectrum::push(const float* interleaved, size_t frames, uint32_t channels) {
-    if (channels == 0) return;
-    // Only the most recent kSize frames matter.
-    if (frames > kSize) {
-        interleaved += (frames - kSize) * channels;
-        frames = kSize;
+    if (channels == 0 || frames == 0) return;
+    const uint64_t total = frames;
+    // Only the most recent kHistory frames matter.
+    if (frames > kHistory) {
+        interleaved += (frames - kHistory) * channels;
+        frames = kHistory;
     }
     const float inv = 1.0f / static_cast<float>(channels);
-    std::lock_guard lock(historyMutex_);
+    const uint32_t s = seq_.load(std::memory_order_relaxed);
+    seq_.store(s + 1, std::memory_order_relaxed);
+    std::atomic_thread_fence(std::memory_order_release);
+    const uint64_t w = written_.load(std::memory_order_relaxed) + (total - frames);
     for (size_t f = 0; f < frames; ++f) {
         float sum = 0;
         for (uint32_t c = 0; c < channels; ++c) sum += interleaved[f * channels + c];
-        history_[write_] = sum * inv;
-        write_ = (write_ + 1) & (kSize - 1);
+        history_[(w + f) & (kHistory - 1)].store(sum * inv, std::memory_order_relaxed);
     }
+    written_.store(w + frames, std::memory_order_relaxed);
+    seq_.store(s + 2, std::memory_order_release);
 }
 
 void Spectrum::pushSilence(size_t frames) {
-    frames = std::min(frames, kSize);
-    std::lock_guard lock(historyMutex_);
-    for (size_t f = 0; f < frames; ++f) {
-        history_[write_] = 0.f;
-        write_ = (write_ + 1) & (kSize - 1);
+    if (frames == 0) return;
+    const uint64_t total = frames;
+    frames = std::min(frames, kHistory);
+    const uint32_t s = seq_.load(std::memory_order_relaxed);
+    seq_.store(s + 1, std::memory_order_relaxed);
+    std::atomic_thread_fence(std::memory_order_release);
+    const uint64_t w = written_.load(std::memory_order_relaxed) + (total - frames);
+    for (size_t f = 0; f < frames; ++f) history_[(w + f) & (kHistory - 1)].store(0.f, std::memory_order_relaxed);
+    written_.store(w + frames, std::memory_order_relaxed);
+    seq_.store(s + 2, std::memory_order_release);
+}
+
+// Seqlock reader: copy, then check that no push started or ended meanwhile. A push takes a few microseconds every
+// 10-20 ms, so a retry is rare; after a few the copy is used as it is (a torn window only costs a visualiser frame).
+uint64_t Spectrum::snapshot(float* out, size_t count) const {
+    count = std::min(count, kHistory);
+    uint64_t w = 0;
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        const uint32_t s0 = seq_.load(std::memory_order_acquire);
+        if (s0 & 1) {
+            std::this_thread::yield();
+            continue;
+        }
+        w = written_.load(std::memory_order_relaxed);
+        const uint64_t first = w - count;   // wraps like the ring: only the low bits are used
+        for (size_t i = 0; i < count; ++i) out[i] = history_[(first + i) & (kHistory - 1)].load(std::memory_order_relaxed);
+        std::atomic_thread_fence(std::memory_order_acquire);
+        if (seq_.load(std::memory_order_relaxed) == s0) break;
     }
+    return w;
 }
 
 void Spectrum::resetSmoothing() const {
@@ -100,13 +79,11 @@ void Spectrum::resetSmoothing() const {
 void Spectrum::compute(float* bands, int count) const {
     if (!bands || count <= 0) return;
     std::lock_guard lock(computeMutex_);
-    const auto& t = tables();
-    {
-        std::lock_guard h(historyMutex_);
-        for (size_t i = 0; i < N; ++i) re_[i] = history_[(write_ + i) & (N - 1)] * t.window[i];
-    }
+    snapshot(re_.data(), N);
+    const float* window = fft::hann();
+    for (size_t i = 0; i < N; ++i) re_[i] *= window[i];
     std::fill(im_.begin(), im_.end(), 0.f);
-    fft(re_.data(), im_.data());
+    fft::forward(re_.data(), im_.data());
 
     const float rate = static_cast<float>(rate_.load(std::memory_order_relaxed));
     const float binHz = rate / N;

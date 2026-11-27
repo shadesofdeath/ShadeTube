@@ -204,6 +204,15 @@ public:
     // 32 log-spaced magnitude bands (0..1) of the most recent output, for visualisers.
     // Returns false if not playing.
     bool spectrum(float* bands, int count) const;
+    // The waveform tap beside it (the full-screen visualizer, audio/VisualAnalysis): the latest `count` (<= 4096) samples
+    // of the same mono mix, oldest first, before the user volume; shared and exclusive output alike. Lock-free (the
+    // engine thread never waits for a reader). `info` gets their sample rate and how many samples were pushed in all up
+    // to the newest one (unchanged = no new audio since the last call). Returns false (zeros) when not playing.
+    struct WaveInfo {
+        uint32_t rate = 0;
+        uint64_t position = 0;
+    };
+    bool waveform(float* samples, int count, WaveInfo* info = nullptr) const;
 
     // Opus-in-WebM decodes on every machine (the built-in decoder), so this is true; kept for the stream choice.
     static bool supportsWebm();

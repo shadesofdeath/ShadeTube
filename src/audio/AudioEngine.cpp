@@ -1386,6 +1386,19 @@ bool AudioEngine::spectrum(float* bands, int count) const {
     return true;
 }
 
+bool AudioEngine::waveform(float* samples, int count, WaveInfo* info) const {
+    if (!samples || count <= 0) return false;
+    const size_t n = std::min<size_t>(static_cast<size_t>(count), Spectrum::kHistory);
+    const uint64_t pos = impl_->spectrum.snapshot(samples, n);
+    if (info) *info = {impl_->spectrum.sampleRate(), pos};
+    if (state() != State::Playing) {
+        std::fill(samples, samples + count, 0.f);
+        return false;
+    }
+    if (n < static_cast<size_t>(count)) std::fill(samples + n, samples + count, 0.f);
+    return true;
+}
+
 size_t AudioEngine::bufferedBytes() const { return static_cast<size_t>(std::max<int64_t>(0, impl_->memBytes.load())); }
 
 LiveInfo AudioEngine::liveInfo() const {
