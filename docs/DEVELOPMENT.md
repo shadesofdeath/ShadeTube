@@ -63,7 +63,7 @@ ShadeTube/
 │   remote/       the phone remote's web page (index.html, app.js, app.css; served by the app, see 3.23)
 │   icons/12|14|16|18|20|24 (the thin outline set, written by tools/icons.py, 3.43), logo/, placeholders/, animations/ (SVG frames),
 │   textures/, tokens/ (dark/light), themes/ (preset color themes, 3.35), app.ico
-├─ docs/                         DEVELOPMENT.md, screenshots/
+├─ docs/                         DEVELOPMENT.md
 ├─ packaging/winget/             winget-pkgs manifest of the current release (tools/update_manifests.py)
 ├─ bucket/shadetube.json         Scoop manifest: the repository doubles as a Scoop bucket
 ├─ external/YoutubeExplode/      C++ YoutubeExplode (dependency; change it upstream)
@@ -4074,7 +4074,7 @@ log) opens the page.
 | `--theme dark\|light\|system` | theme for this run only (not saved) |
 | `--theme-at <ms> <mode>` | live theme switch after `<ms>` |
 | `--toast-at <ms> <text>` | show a toast after `<ms>`; `!` prefix = error, `~` prefix = hide all windows first and send it 3× (tray routing) |
-| `--screenshot <ms> <file.png>` | render the window to PNG after `<ms>` and exit (used for `docs/screenshots/`) |
+| `--screenshot <ms> <file.png>` | render the window to PNG after `<ms>` and exit (used for the pictures in `site/img/`, which the READMEs show too) |
 | `--crash-test` | crash right after startup to check crash reports |
 | `--palette [query]` | open the command palette at startup, optionally with `query` typed in |
 

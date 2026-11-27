@@ -5,7 +5,7 @@
 # ShadeTube
 
 **Spotify kitaplığın, YouTube'dan çalan sesle — hızlı, yerel bir Windows uygulamasında.**<br/>
-Reklam yok. Premium yok. Electron yok. Sıfırdan C++ ile yazılmış, birkaç MB'lık tek bir exe.
+Reklam yok. Premium yok. Electron yok. Sıfırdan C++ ile yazılmış, yaklaşık 15 MB'lık tek bir exe.
 
 [![Sürüm](https://img.shields.io/github/v/release/shadesofdeath/ShadeTube?style=flat-square&color=DDFF47&labelColor=0F0D0B&label=s%C3%BCr%C3%BCm)](https://github.com/shadesofdeath/ShadeTube/releases/latest)
 [![İndirme](https://img.shields.io/github/downloads/shadesofdeath/ShadeTube/total?style=flat-square&color=DDFF47&labelColor=0F0D0B&label=indirme)](https://github.com/shadesofdeath/ShadeTube/releases)
@@ -20,7 +20,7 @@ Reklam yok. Premium yok. Electron yok. Sıfırdan C++ ile yazılmış, birkaç M
 [Kaynaktan derleme](docs/DEVELOPMENT.md) ·
 [English](README.md)
 
-<img src="docs/screenshots/home-dark.png" alt="ShadeTube ana sayfa" />
+<img src="site/img/artist.webp" alt="ShadeTube: sanatçı sayfası" />
 
 </div>
 
@@ -125,12 +125,18 @@ kalır.
 
 | | |
 |---|---|
-| ![Şimdi Çalıyor](docs/screenshots/now-playing.png) | ![Çalma listesi](docs/screenshots/playlist.png) |
-| **Şimdi Çalıyor** — senkron sözler ve sıra | **Çalma listeleri** — Spotify'daki Beğenilen Şarkılar |
-| ![İstatistikler](docs/screenshots/stats.png) | ![Açık tema](docs/screenshots/home-light.png) |
-| **İstatistikler** — en çok dinlenenler (örnek veri) | **Açık tema** |
-| ![İngilizce arayüz](docs/screenshots/home-english.png) | ![Mini oynatıcı](docs/screenshots/mini-player.png) |
-| **11 dil** — burada İngilizce | **Mini oynatıcı** — her zaman üstte |
+| ![Arama](site/img/search.webp) | ![Şimdi Çalıyor](site/img/lyrics.webp) |
+| **Arama** — şarkı, albüm, sanatçı, çalma listesi; yazarken | **Şimdi Çalıyor** — kapağın renklerinde senkron sözler |
+| ![Kitaplık](site/img/libgrid.webp) | ![İstatistikler](site/img/stats2.webp) |
+| **Kitaplık** — çalma listeleri, albümler, sanatçılar ve senin için listeler | **İstatistikler** — dinleme süren ve en çok dinlediklerin (örnek veri) |
+| ![Görselleştirici](site/img/visualizer.webp) | ![Kurallı liste](site/img/bpm.webp) |
+| **Görselleştirici** — spektrum, halka, dalga ya da aurora | **Kurallı listeler** — kendiliğinden dolan listeler |
+| ![Şarkıyı tanı](site/img/recognize.webp) | ![Söz senkronlayıcı](site/img/sync.webp) |
+| **Şarkıyı tanı** — bilgisayarda ya da odada çalan şarkı | **Söz senkronlayıcı** — sözleri şarkıya eşlik ederek zamanla |
+| ![Açık tema](site/img/light.webp) | ![Kurulum](site/img/setup.webp) |
+| **Açık tema** — altı hazır tema ya da kendi teman | **Kurulum** — uygulamanın kendi tasarımında |
+
+Daha fazlası, tam boyutta: [sitedeki galeri](https://shadesofdeath.github.io/ShadeTube/?lang=tr#gallery).
 
 ## ⬇ İndir
 

@@ -5,7 +5,7 @@
 # ShadeTube
 
 **Your Spotify library, played from YouTube — in a fast, native Windows app.**<br/>
-No ads. No Premium. No Electron. A few MB, written from scratch in C++.
+No ads. No Premium. No Electron. One ~15 MB exe, written from scratch in C++.
 
 [![Release](https://img.shields.io/github/v/release/shadesofdeath/ShadeTube?style=flat-square&color=DDFF47&labelColor=0F0D0B)](https://github.com/shadesofdeath/ShadeTube/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/shadesofdeath/ShadeTube/total?style=flat-square&color=DDFF47&labelColor=0F0D0B)](https://github.com/shadesofdeath/ShadeTube/releases)
@@ -21,7 +21,7 @@ No ads. No Premium. No Electron. A few MB, written from scratch in C++.
 [Build from source](docs/DEVELOPMENT.md) ·
 [Türkçe](README.tr.md)
 
-<img src="docs/screenshots/home-dark.png" alt="ShadeTube home" />
+<img src="site/img/artist.webp" alt="ShadeTube: an artist page" />
 
 </div>
 
@@ -124,12 +124,18 @@ starts instantly and stays light.
 
 | | |
 |---|---|
-| ![Now Playing with synced lyrics](docs/screenshots/now-playing.png) | ![Playlist](docs/screenshots/playlist.png) |
-| **Now Playing** — synced lyrics and the queue | **Playlists** — Liked Songs from Spotify |
-| ![Listening stats](docs/screenshots/stats.png) | ![Light theme](docs/screenshots/home-light.png) |
-| **Stats** — top songs and listening time (sample data) | **Light theme** |
-| ![English UI](docs/screenshots/home-english.png) | ![Mini player](docs/screenshots/mini-player.png) |
-| **11 languages** — here in English | **Mini player** — always on top |
+| ![Search](site/img/search.webp) | ![Now Playing with synced lyrics](site/img/lyrics.webp) |
+| **Search** — songs, albums, artists, playlists, as you type | **Now Playing** — synced lyrics on the cover's colours |
+| ![Library](site/img/libgrid.webp) | ![Listening stats](site/img/stats2.webp) |
+| **Library** — playlists, albums, artists and lists made for you | **Stats** — listening time and your top songs (sample data) |
+| ![Visualizer](site/img/visualizer.webp) | ![Rule-based playlist](site/img/bpm.webp) |
+| **Visualizer** — spectrum, ring, wave or aurora | **Rule-based playlists** — lists that fill themselves |
+| ![Recognize a song](site/img/recognize.webp) | ![Lyrics synchronizer](site/img/sync.webp) |
+| **Recognize a song** — what plays on this PC or in the room | **Lyrics synchronizer** — time lyrics by tapping along |
+| ![Light theme](site/img/light.webp) | ![Setup](site/img/setup.webp) |
+| **Light theme** — six built-in themes or your own | **Setup** — the installer, in the app's own design |
+
+More screens, at full size: the [gallery on the website](https://shadesofdeath.github.io/ShadeTube/#gallery).
 
 ## ⬇ Download
 
