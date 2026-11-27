@@ -728,7 +728,13 @@ void Toasts::paint(Canvas& c) {
         // 2 px progress line along the bottom edge.
         const double age = frame::now() - t.shownAt;
         const float prog = t.dismissed ? 0.f : 1 - static_cast<float>(std::clamp(age / kToastLife, 0.0, 1.0));
-        if (prog > 0) c.fillRect({r.x, r.bottom() - 2, r.w * prog, 2}, accent().base);
+        if (prog > 0) {
+            // Round corners (Ayarlar › Köşeler): the line follows the surface's curve instead of poking out of it.
+            const bool round = overlay::radius() > 2.5f;
+            if (round) c.pushRoundedClip(r, overlay::radius());
+            c.fillRect({r.x, r.bottom() - 2, r.w * prog, 2}, accent().base);
+            if (round) c.popLayer();
+        }
         c.popLayer();
     }
 }

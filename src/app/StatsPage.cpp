@@ -876,13 +876,13 @@ void openScrobbleDialog(scrobbles::Service service) {
     if (!d) return;
     // Two fields: each gets the dialogs' caption label above it (one field is named by the dialog's title).
     if (needKey) d->body()->add<ui::Label>(tr(L"Kullanıcı adı"), type::caption, ui::Tone::Secondary);
-    auto* name = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Kullanıcı adı"));
+    auto* name = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, needKey ? std::wstring() : std::wstring(tr(L"Kullanıcı adı")));
     name->setText(toWide(user));
     ui::TextBox* key = nullptr;
     if (needKey) {
         d->body()->add<Spacer>(4.f);
         d->body()->add<ui::Label>(tr(L"Last.fm API anahtarı"), type::caption, ui::Tone::Secondary);
-        key = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, tr(L"Last.fm API anahtarı"));
+        key = d->body()->add<ui::TextBox>(ui::TextBox::Look::Field, std::wstring());   // the label above names it
         if (sc && g_lastfmKeyRejected) {   // the stored one was refused: shown to be corrected
             key->setText(toWide(sc->lastfmApiKey()));
             key->setError(true);
