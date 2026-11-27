@@ -1563,7 +1563,7 @@ private:
         addHeader(c, anything);
         if (g_import.active) {
             banner_ = c->add<ImportBanner>();
-            c->setSpacingBefore(banner_, 20);
+            c->setSpacingBefore(banner_, 24);
         }
         if (!anything) {
             emptyState(c, "stats", tr(L"Henüz dinleme geçmişi yok"),
@@ -1597,48 +1597,32 @@ private:
     // --- Header: title, "İçe aktar" + "Geçmişi temizle", what counts.
     void addHeader(ui::Column* c, bool anything) {
         auto& s = store();
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(tr(L"İstatistikler"), type::displayM);
-        title->setVAlign(gfx::VAlign::Top);
-        Button* importBtn = nullptr;
-        if (!g_import.active && s.canImport()) {
-            importBtn = top->add<Button>(ButtonKind::Ghost, tr(L"İçe aktar"), "download");
-            importBtn->setTooltip(tr(L"Spotify, Last.fm veya ListenBrainz geçmişini içe aktar"));
-            importBtn->onClick = [importBtn] { importMenu(importBtn); };
-        }
-        Button* clearBtn = anything && !g_import.active ? top->add<Button>(ButtonKind::Ghost, tr(L"Geçmişi temizle"), "trash") : nullptr;
-        if (clearBtn) clearBtn->onClick = [clearBtn] { clearMenu(clearBtn); };
-        top->onPreferredHeight = [](float) { return 64.f; };
-        top->onLayout = [title, importBtn, clearBtn](ui::Box& b) {
-            const float w = b.rect().w;
-            float x = w;
-            for (Button* btn : {clearBtn, importBtn}) {
-                if (!btn) continue;
-                const float bw = btn->naturalWidth();
-                x -= bw;
-                btn->setRect({x, 12, bw, 40});
-                x -= 8;
-            }
-            title->setRect({0, 0, std::max(0.f, std::min(w * 0.6f, x - 16)), 64});
-        };
         const size_t imported = s.importedCount();
         const bool spotifyOnly = imported == s.importedCount(ImportSource::Spotify);
-        auto* note = c->add<ui::Label>(
+        auto* top = c->add<PageTitle>(
+            tr(L"İstatistikler"),
             imported == 0 ? std::wstring(tr(L"Bu bilgisayarda çaldıkların · 30 saniyeyi geçen her çalma bir dinleme sayılır"))
             : spotifyOnly ? i18n::plural(L"Bu bilgisayarda çaldıkların ve Spotify'dan içe aktarılan {} dinleme · 30 saniyeyi "
                                          L"geçen her çalma bir dinleme sayılır",
                                          static_cast<long long>(imported))
                           : i18n::plural(L"Bu bilgisayarda çaldıkların ve içe aktarılan {} dinleme · 30 saniyeyi geçen her "
                                          L"çalma bir dinleme sayılır",
-                                         static_cast<long long>(imported)),
-            type::secondary, ui::Tone::Tertiary);
-        c->setSpacingBefore(note, 4);
+                                         static_cast<long long>(imported)));
+        if (!g_import.active && s.canImport()) {
+            Button* importBtn = top->addAction(ButtonKind::Ghost, tr(L"İçe aktar"), "download");
+            importBtn->setTooltip(tr(L"Spotify, Last.fm veya ListenBrainz geçmişini içe aktar"));
+            importBtn->onClick = [importBtn] { importMenu(importBtn); };
+        }
+        if (anything && !g_import.active) {
+            Button* clearBtn = top->addAction(ButtonKind::Ghost, tr(L"Geçmişi temizle"), "trash");
+            clearBtn->onClick = [clearBtn] { clearMenu(clearBtn); };
+        }
     }
 
     // --- Period selector (+ the date range, or the year picker for Yıl özeti).
     void addBar(ui::Column* c, int64_t now, const std::vector<int>& years) {
         auto* bar = c->add<ui::Box>();
-        c->setSpacingBefore(bar, 20);
+        c->setSpacingBefore(bar, 24);   // the page's controls sit 24 under its title block
         std::vector<std::wstring> views{tr(L"Son 7 gün"), tr(L"Son 30 gün"), tr(L"Tüm zamanlar"), tr(L"Yıl özeti")};
         auto* seg = bar->add<Segmented>(std::move(views), static_cast<int>(g_view));
         seg->onChange = [this](int i) {
@@ -1805,7 +1789,7 @@ private:
     void addTopArtists(ui::Column* c, std::vector<StatsArtist>& tops, std::vector<ArtWant>& wants) {
         if (tops.empty()) return;
         c->add<SectionHeader>(tr(L"En çok dinlenen sanatçılar"), twoDigits(tops.size()));
-        auto* grid = addCardRow(c, 150, 0);   // wraps: every counted card is visible (and looked up)
+        auto* grid = addCardGrid(c);   // wraps: every counted card is visible (and looked up)
         c->setSpacingBefore(grid, 16);
         std::vector<std::string> lookup;
         for (auto& a : tops) {
@@ -1826,7 +1810,7 @@ private:
     void addTopAlbums(ui::Column* c, std::vector<StatsAlbum>& tops, std::vector<ArtWant>& wants) {
         if (tops.empty()) return;
         c->add<SectionHeader>(tr(L"En çok dinlenen albümler"), twoDigits(tops.size()));
-        auto* grid = addCardRow(c, 150, 0);
+        auto* grid = addCardGrid(c);
         c->setSpacingBefore(grid, 16);
         for (auto& a : tops) {
             enrich(a, wants);

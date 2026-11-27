@@ -1085,9 +1085,10 @@ std::wstring SyncButton::tooltip() const {
 
 // ---- Downloads page section -------------------------------------------------------------------------------------------
 
-void buildSyncSection(ui::Column* c) {
+void buildSyncSection(ui::Column* page) {
     auto& e = engine();
     if (e.state.rules.empty()) return;
+    auto* c = page->add<ui::Column>(16.f);   // one section of the page (its header and content 16 apart)
     c->add<SectionHeader>(tr(L"Senkronize edilenler"), std::to_wstring(e.state.rules.size()));
     // Actions: sync everything now, pause / resume.
     auto* bar = c->add<ui::Box>();
@@ -1107,11 +1108,12 @@ void buildSyncSection(ui::Column* c) {
     bar->onLayout = [now, pause, note](ui::Box& b) {
         const float nw = now->naturalWidth(), pw = pause->naturalWidth();
         now->setRect({0, 4, nw, 40});
-        pause->setRect({nw + 10, 4, pw, 40});
-        if (note) note->setRect({nw + pw + 28, 4, std::max(0.f, b.rect().w - nw - pw - 28), 40});
+        pause->setRect({nw + 8, 4, pw, 40});
+        if (note) note->setRect({nw + pw + 24, 4, std::max(0.f, b.rect().w - nw - pw - 24), 40});
     };
     const Snapshot snap = snapshot();
-    for (const auto& r : e.state.rules) c->add<RuleRow>(r, statusOf(r, snap));
+    auto* rows = c->add<ui::Column>(0.f);
+    for (const auto& r : e.state.rules) rows->add<RuleRow>(r, statusOf(r, snap));
 }
 
 } // namespace sync

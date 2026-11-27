@@ -2,6 +2,7 @@
 // (Spotify's "What's New" feed + the latest releases of the artists the user plays most, cached on disk, at most every
 // few hours, backing off on HTTP 429), the page, the Home shelf, the sidebar badge and the notifications.
 #include "app/Accounts.h"
+#include "app/BrowseWidgets.h"
 #include "app/NewReleases.h"
 #include "app/PageWidgets.h"
 #include "app/Pages.h"
@@ -310,9 +311,9 @@ private:
                 return;
             }
         }
+        body_ = nullptr;
         auto* c = resetContent(24.f);
         addHeader(c);
-        const int64_t today = releases::localToday();
         // What is unseen now keeps its "YENİ" pill while the page is up (it is marked seen below).
         for (const auto& i : s.store.items)
             if (!s.store.seen.count(i.album.id)) fresh_.insert(i.album.id);
@@ -322,18 +323,9 @@ private:
             contentReady();
             return;
         }
-        const auto groups = releases::group(s.store.items, filter_, today);
-        if (groups.empty())
-            noResultsState(c, tr(L"Bu filtrede yeni çıkan yok."));
-        for (const auto& g : groups) {
-            c->add<SectionHeader>(bucketTitle(g.bucket), std::to_wstring(g.items.size()));
-            auto* grid = addCardRow(c, 150, 0);
-            c->setSpacingBefore(grid, 16);
-            for (const auto* item : g.items) {
-                auto* card = addReleaseCard(grid, item->album);
-                if (fresh_.count(item->album.id)) card->setBadge(toUpperTr(tr(L"Yeni")));
-            }
-        }
+        body_ = c->add<ui::Column>(gfx::metrics::sectionGap);
+        c->setSpacingBefore(body_, gfx::metrics::sectionGap);
+        buildBody();
         contentReady();
         // Everything listed has now been seen: the sidebar badge clears.
         const bool unseen = std::any_of(s.store.items.begin(), s.store.items.end(),
@@ -347,56 +339,49 @@ private:
 
     void addHeader(ui::Column* c) {
         auto& s = svc();
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(tr(L"Yeni çıkanlar"), type::displayM);
-        title->setVAlign(gfx::VAlign::Top);
-        auto* again = top->add<Button>(ButtonKind::Ghost, s.inFlight ? tr(L"Yenileniyor…") : tr(L"Yenile"), "refresh");
-        again->setEnabled(!s.inFlight);
-        again->onClick = [] { refresh(true); };
-        top->onPreferredHeight = [](float) { return 64.f; };
-        top->onLayout = [title, again](ui::Box& b) {
-            const float w = b.rect().w;
-            title->setRect({0, 0, w * 0.6f, 64});
-            const float aw = again->naturalWidth();
-            again->setRect({w - aw, 12, aw, 40});
-        };
         std::wstring meta = tr(L"Takip ettiğin ve en çok dinlediğin sanatçılardan");
         if (s.store.fetchedAt > 0) meta += L" · " + i18n::format(tr(L"güncellendi: {}"), {relativeTime(s.store.fetchedAt)});
         if (!s.error.empty()) meta += L" · " + std::wstring(tr(L"son yenileme başarısız"));
-        c->add<ui::Label>(meta, type::secondary, ui::Tone::Tertiary);
+        auto* top = c->add<PageTitle>(tr(L"Yeni çıkanlar"), meta);
+        auto* again = top->addAction(ButtonKind::Ghost, s.inFlight ? tr(L"Yenileniyor…") : tr(L"Yenile"), "refresh");
+        again->setEnabled(!s.inFlight);
+        again->onClick = [] { refresh(true); };
 
-        // Filter chips: Tümü / Albümler / Tekliler ve EP'ler.
-        auto* chips = c->add<ui::Box>();
-        std::vector<Button*> buttons;
-        const std::pair<releases::Filter, const wchar_t*> options[] = {
-            {releases::Filter::All, tr(L"Tümü")},
-            {releases::Filter::Albums, tr(L"Albümler")},
-            {releases::Filter::SinglesAndEps, tr(L"Tekliler ve EP'ler")},
+        // Filter: Tümü / Albümler / Tekliler ve EP'ler, the filter chips of Search and the artist page (one Tab stop,
+        // Left / Right).
+        static constexpr releases::Filter kFilters[] = {releases::Filter::All, releases::Filter::Albums,
+                                                         releases::Filter::SinglesAndEps};
+        int selected = 0;
+        for (int i = 0; i < 3; ++i)
+            if (kFilters[i] == filter_) selected = i;
+        auto* chips = c->add<ChipTabs>(std::vector<std::wstring>{tr(L"Tümü"), tr(L"Albümler"), tr(L"Tekliler ve EP'ler")}, selected);
+        chips->onSelect = [this](int i) {
+            filter_ = kFilters[std::clamp(i, 0, 2)];
+            buildBody();   // only the sections: the chips keep their pill and the keyboard focus
+            scroll_->contentChanged();
         };
-        for (const auto& [f, label] : options) {
-            auto* b = chips->add<Button>(ButtonKind::Chip, label);
-            b->setActive(f == filter_);
-            b->onClick = [this, f = f] {
-                filter_ = f;
-                // Rebuilt after the click: the chip that asked is replaced.
-                Dispatcher::post([this, ref = life_.ref()] {
-                    if (!ref.expired()) rebuild();
-                });
-            };
-            buttons.push_back(b);
-        }
-        chips->onPreferredHeight = [](float) { return 32.f; };
-        chips->onLayout = [buttons](ui::Box&) {
-            float x = 0;
-            for (auto* b : buttons) {
-                const float w = b->naturalWidth();
-                b->setRect({x, 0, w, 32});
-                x += w + 8;
-            }
-        };
-        c->setSpacingBefore(chips, 16);
     }
 
+    // The sections of the releases that pass the filter (by when they came out).
+    void buildBody() {
+        if (!body_) return;
+        body_->clearChildren();
+        auto& s = svc();
+        const auto groups = releases::group(s.store.items, filter_, releases::localToday());
+        if (groups.empty()) noResultsState(body_, tr(L"Bu filtrede yeni çıkan yok."));
+        for (const auto& g : groups) {
+            auto* sec = body_->add<ui::Column>(16.f);
+            sec->add<SectionHeader>(bucketTitle(g.bucket), std::to_wstring(g.items.size()));
+            auto* grid = addCardGrid(sec);
+            for (const auto* item : g.items) {
+                auto* card = addReleaseCard(grid, item->album);
+                if (fresh_.count(item->album.id)) card->setBadge(toUpperTr(tr(L"Yeni")));
+            }
+        }
+        body_->requestLayout();
+    }
+
+    ui::Column* body_ = nullptr;
     releases::Filter filter_ = releases::Filter::All;
     std::unordered_set<std::string> fresh_;
 };
@@ -429,7 +414,7 @@ void addNewReleasesShelf(ui::Column* c, std::function<ui::Widget*(ui::Column*)> 
     if (makeRow) {
         grid = makeRow(c);
     } else {
-        grid = addCardRow(c, 150, 1);
+        grid = addCardGrid(c, 1);
         c->setSpacingBefore(grid, 16);
     }
     for (const auto* i : recent) {

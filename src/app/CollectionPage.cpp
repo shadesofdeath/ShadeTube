@@ -59,8 +59,9 @@ public:
         enhance_->setVisible(kind != Kind::Album);
         save_ = add<Button>(ButtonKind::IconOutline, L"", "heart");
         save_->setHeart("heart", "heart-filled");   // the like feedback when the album is saved / removed
-        add_ = add<Button>(ButtonKind::IconOutline, L"", "plus");
+        // Created in the row's visual order (layout()): the Tab order follows the tree.
         offline_ = add<sync::SyncButton>();   // "Çevrimdışı kullanılabilir" (download sync)
+        add_ = add<Button>(ButtonKind::IconOutline, L"", "plus");
         more_ = add<Button>(ButtonKind::IconOutline, L"", "more");
         sort_ = add<Button>(ButtonKind::Ghost, tr(L"Özel sıra"));
         filter_ = add<Button>(ButtonKind::Icon, L"", "search");
@@ -90,6 +91,14 @@ public:
         invalidate();
     }
     const Meta& meta() const { return meta_; }
+    // An empty list (its empty state shows): what needs songs is disabled (play, shuffle, Geliştir, keep offline, the
+    // sort and the search); adding, the menu and saving stay.
+    void setListEmpty(bool empty) {
+        for (ui::Widget* w : {static_cast<ui::Widget*>(play_), static_cast<ui::Widget*>(shuffle_), static_cast<ui::Widget*>(enhance_),
+                              static_cast<ui::Widget*>(offline_), static_cast<ui::Widget*>(sort_), static_cast<ui::Widget*>(filter_)})
+            w->setEnabled(!empty);
+        invalidate();
+    }
     void setTotalMs(int64_t ms) {
         totalMs_ = ms;
         invalidate();
@@ -174,28 +183,52 @@ protected:
         const Rect r = rect();
         const auto& col = colors();
         const float tx = r.x + kCoverSize + 32, tw = std::max(0.f, r.right() - tx);
-        c.text(meta_.label, type::monoLabel, {tx, r.y + labelY_, tw, 14}, col.fgSecondary);
+        // The texts are laid out once per change (texts()), not on every frame of a scroll: a DirectWrite layout per
+        // frame each was most of this header's paint.
+        Texts& t = texts();
+        c.text(t.label, {tx, r.y + labelY_, tw, 14}, col.fgSecondary);
         if (!desc_.empty()) c.text(desc_, {tx, r.y + descY_, descW_, descH_}, col.fgSecondary);
         const float y = r.y + ownerY_;
         float x = tx;
-        if (!meta_.owner.empty()) {
-            auto ow = gfx::makeLayout(meta_.owner, type::body, 420);
-            DWRITE_TEXT_METRICS m{};
-            ow->GetMetrics(&m);
-            ownerRect_ = {x, y, m.width, 22};
-            c.text(ow.Get(), x, y + 2, ownerHover_ ? accent().base : col.fgPrimary);
-            x += m.width + 6;
+        if (!t.owner.empty()) {
+            ownerRect_ = {x, y, t.ownerW, 22};
+            c.text(t.owner, {x, y + 2, 420, 20}, ownerHover_ ? accent().base : col.fgPrimary, gfx::VAlign::Top);
+            x += t.ownerW + 6;
         }
-        auto sl = gfx::makeLayout(L"· " + i18n::plural(L"{} şarkı", meta_.total), type::secondary, 300);
-        DWRITE_TEXT_METRICS sm{};
-        sl->GetMetrics(&sm);
-        c.text(sl.Get(), x, y + 3, col.fgSecondary);
-        x += sm.width + 8;
-        if (totalMs_ > 0) c.text(L"· " + totalDuration(totalMs_), type::monoMeta, {x, y + 4, 200, 16}, col.fgSecondary);
+        c.text(t.count, {x, y + 3, 300, 18}, col.fgSecondary, gfx::VAlign::Top);
+        x += t.countW + 8;
+        if (!t.dur.empty()) c.text(t.dur, {x, y + 4, 200, 16}, col.fgSecondary, gfx::VAlign::Top);
         if (!filterBox_->visible())
-            c.text(tr(L"SIRALA"), type::monoLabel, {r.x + sortLabelX_ - 160, r.y + 232 + 28, 160, 56}, col.fgTertiary,
-                   gfx::TextAlign::Trailing, gfx::VAlign::Center);
+            c.text(t.sort, {r.x + sortLabelX_ - t.sortW - 1, r.y + 232 + 28, t.sortW + 1, 56}, col.fgTertiary, gfx::VAlign::Center);
     }
+
+private:
+    struct Texts {
+        std::wstring key;   // what they were made from
+        gfx::Text label, owner, count, dur, sort;
+        float ownerW = 0, countW = 0, sortW = 0;
+        uint64_t fontGen = ~0ull;
+    } texts_;
+    Texts& texts() {
+        const std::wstring count = L"· " + i18n::plural(L"{} şarkı", meta_.total);
+        const std::wstring dur = totalMs_ > 0 ? L"· " + totalDuration(totalMs_) : std::wstring();
+        const std::wstring key = meta_.label + L"\x1f" + meta_.owner + L"\x1f" + count + L"\x1f" + dur;
+        if (key == texts_.key && texts_.fontGen == gfx::Fonts::generation()) return texts_;
+        texts_.key = key;
+        texts_.fontGen = gfx::Fonts::generation();
+        texts_.label = gfx::Text(meta_.label, type::monoLabel);
+        texts_.owner = gfx::Text(meta_.owner, type::body);
+        texts_.count = gfx::Text(count, type::secondary);
+        texts_.dur = gfx::Text(dur, type::monoMeta);
+        texts_.sort = gfx::Text(tr(L"SIRALA"), type::monoLabel);
+        // Natural widths on copies, so the drawn ones keep a single layout at their drawing width.
+        texts_.ownerW = meta_.owner.empty() ? 0.f : gfx::Text(meta_.owner, type::body).measure(420).w;
+        texts_.countW = gfx::Text(count, type::secondary).measure(300).w;
+        texts_.sortW = std::ceil(gfx::Text(tr(L"SIRALA"), type::monoLabel).measure().w);
+        return texts_;
+    }
+
+public:
 
 public:
     // The header's cover for the page transition: Liked Songs' tile is painted (the flight draws it at any size).
@@ -499,6 +532,7 @@ private:
                             liked ? tr(L"Şarkıların yanındaki kalbe dokun, burada toplansınlar.")
                                   : tr(L"Şarkılara sağ tıklayıp \"Çalma listesine ekle\" ile doldur."),
                             tr(L"Şarkı ara"), [] { ctx().router->navigate({RouteKind::Search}); }, "search");
+        if (header_) header_->setListEmpty(true);
     }
 
     void buildLocal() {
@@ -542,6 +576,7 @@ private:
         for (const auto& t : table_->tracks())
             if (!t.recommended) ms += t.durationMs;
         header_->setTotalMs(ms);
+        header_->setListEmpty(empty_ != nullptr);
         if (autoplay_) {
             autoplay_ = false;
             playFrom(-1, false);

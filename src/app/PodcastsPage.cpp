@@ -882,12 +882,33 @@ private:
         };
     }
 
+    // A toolbar of Ghost buttons under the title, 8 DIP apart, wrapping onto more rows on a narrow page. The first one
+    // starts 12 DIP left of the page's edge, so its glyph lines up with the title (the button's own padding).
+    static void layoutTools(ui::Box* row) {
+        row->hitTestVisible = false;
+        auto place = [](ui::Box& b, float width, bool apply) {
+            float x = -12, y = 0;
+            for (const auto& child : b.children()) {
+                if (!child->visible()) continue;
+                auto* btn = static_cast<Button*>(child.get());
+                const float w = btn->naturalWidth();
+                if (x > -12 && x + w > width + 12) {
+                    x = -12;
+                    y += gfx::metrics::pillH + 4;
+                }
+                if (apply) btn->setRect({x, y, w, gfx::metrics::pillH});
+                x += w + 8;
+            }
+            return y + gfx::metrics::pillH;
+        };
+        row->onPreferredHeight = [row, place](float w) { return place(*row, w, false); };
+        row->onLayout = [place](ui::Box& b) { place(b, b.rect().w, true); };
+    }
+
     void buildHome() {
-        auto* c = resetContent(24.f);
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(tr(L"Podcastler"), type::displayM);
-        title->setVAlign(gfx::VAlign::Center);
-        auto* box = top->add<ui::TextBox>(ui::TextBox::Look::Search, tr(L"Podcast ara"));
+        auto* c = resetContent(24.f);   // title block, toolbar, then the sections (32 apart)
+        auto* top = c->add<PageTitle>(tr(L"Podcastler"), std::wstring(), L"APPLE PODCASTS · RSS");
+        auto* box = top->addSearch(tr(L"Podcast ara"));
         box->setText(query_);
         box->onChange = [this](const std::wstring& s) { scheduleSearch(s); };
         box->onSubmit = [this](const std::wstring& s) {
@@ -895,30 +916,22 @@ private:
             startSearch(s);
         };
         box->onEscape = [box] { box->setText({}, true); };
-        top->onPreferredHeight = [](float) { return 64.f; };
-        top->onLayout = [title, box](ui::Box& b) {
-            const float w = b.rect().w, h = b.rect().h;
-            const float bw = std::clamp(w * 0.4f, 220.f, 380.f);
-            box->setRect({w - bw, h * 0.5f - gfx::metrics::searchH * 0.5f, bw, gfx::metrics::searchH});
-            title->setRect({0, 0, std::max(0.f, w - bw - 24), h});
-        };
-        auto* kicker = c->add<ui::Label>(toUpperTr(tr(L"Podcastler")) + L" · APPLE PODCASTS · RSS", type::monoLabel, ui::Tone::Tertiary);
-        c->setSpacingBefore(kicker, 2);
-        auto* chips = c->add<ui::Box>();
-        chips->hitTestVisible = false;
-        auto* add = chips->add<Button>(ButtonKind::Chip, tr(L"RSS adresiyle ekle"), "plus");
+        // The page's commands: Ghost buttons like the other pages' header actions (chips are for filters).
+        auto* tools = c->add<ui::Box>();
+        auto* add = tools->add<Button>(ButtonKind::Ghost, tr(L"RSS adresiyle ekle"), "plus");
         add->onClick = [] { promptAddFeed(); };
-        auto* refresh = chips->add<Button>(ButtonKind::Chip, tr(L"Abonelikleri yenile"), "refresh");
+        auto* refresh = tools->add<Button>(ButtonKind::Ghost, tr(L"Abonelikleri yenile"), "refresh");
         refresh->onClick = [] { refreshSubscriptions(true); };
-        auto* downloads = chips->add<Button>(ButtonKind::Chip, tr(L"İndirilen bölümler"), "download");
+        auto* downloads = tools->add<Button>(ButtonKind::Ghost, tr(L"İndirilen bölümler"), "download");
         downloads->onClick = [] { ctx().router->navigate({RouteKind::Podcasts, "downloads"}); };
         if (source::loggedIn()) {
-            auto* spotify = chips->add<Button>(ButtonKind::Chip, tr(L"Spotify podcastlerini içe aktar"), "spotify-link");
+            auto* spotify = tools->add<Button>(ButtonKind::Ghost, tr(L"Spotify podcastlerini içe aktar"), "spotify-link");
             spotify->onClick = [] { ctx().router->navigate({RouteKind::Podcasts, "spotify"}); };
         }
-        layoutChips(chips);
+        layoutTools(tools);
+        c->setSpacingBefore(tools, 16);
         body_ = c->add<ui::Column>(gfx::metrics::sectionGap);
-        c->setSpacingBefore(body_, 8);
+        c->setSpacingBefore(body_, gfx::metrics::sectionGap);
         searchSec_ = sectionColumn(body_);
         progressSec_ = sectionColumn(body_);
         newSec_ = sectionColumn(body_);
@@ -950,7 +963,7 @@ private:
                        {})
                 ->setCompact(true);
         } else {
-            auto* grid = addCardRow(subsSec_, 150, 0);
+            auto* grid = addCardGrid(subsSec_, 0);
             for (const auto& s : subs) {
                 std::vector<catalog::Image> images;
                 if (!s.image.empty()) images.push_back({s.image, 0, 0});
@@ -991,10 +1004,10 @@ private:
             return;
         }
         if (shows.empty()) {
-            spotifySec_->add<SkeletonCards>(1, 150.f);   // a row of cards while the list loads
+            spotifySec_->add<SkeletonCards>(1, cardMinCell());   // a row of cards while the list loads
             return;
         }
-        auto* grid = addCardRow(spotifySec_, 150, 1);
+        auto* grid = addCardGrid(spotifySec_, 1);
         for (const auto& s : shows) {
             auto* card = grid->add<MediaCard>(toWide(s.name), spotifyshows::cardSubtitle(s), s.images);
             card->onOpen = [id = s.id] { ctx().router->navigate({RouteKind::Podcasts, id}); };
@@ -1070,8 +1083,8 @@ private:
         chartsSec_->clearChildren();
         const std::string cc = homeCountry();
         chartsSec_->add<SectionHeader>(tr(L"Popüler podcastler"), toUpperTr(tr(L"Apple Podcasts listesi")));
-        auto* grid = addCardRow(chartsSec_, 150, 0);
-        auto* skeleton = chartsSec_->add<SkeletonCards>(1, 150.f);   // a row of cards while the chart loads
+        auto* grid = addCardGrid(chartsSec_, 0);
+        auto* skeleton = chartsSec_->add<SkeletonCards>(1, cardMinCell());   // a row of cards while the chart loads
         auto cts = cts_;
         async(
             Priority::Normal, life_.ref(), [cc, cts] { return podcast::Client::shared().topCharts(cc, 30, cts->token()); },
@@ -1123,8 +1136,8 @@ private:
         searchSec_->setVisible(true);
         searchSec_->clearChildren();
         searchSec_->add<SectionHeader>(i18n::format(tr(L"“{}” için sonuçlar"), {toWide(text)}), toUpperTr(tr(L"Apple Podcasts dizini")));
-        auto* grid = addCardRow(searchSec_, 150, 0);
-        auto* skeleton = searchSec_->add<SkeletonCards>(1, 150.f);
+        auto* grid = addCardGrid(searchSec_, 0);
+        auto* skeleton = searchSec_->add<SkeletonCards>(1, cardMinCell());
         scroll_->contentChanged();
         searchLife_.renew();
         const std::string cc = homeCountry();
@@ -1149,18 +1162,10 @@ private:
     void buildEpisodePage() {
         auto* c = resetContent(24.f);
         const bool downloads = view_ == View::Downloads;
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(downloads ? tr(L"İndirilen bölümler") : tr(L"Yeni bölümler"), type::displayS);
-        title->setVAlign(gfx::VAlign::Center);
-        auto* back = top->add<Button>(ButtonKind::Ghost, tr(L"Podcastler"), "arrow-back");
+        auto* top = c->add<PageTitle>(downloads ? tr(L"İndirilen bölümler") : tr(L"Yeni bölümler"), std::wstring(),
+                                      toUpperTr(downloads ? tr(L"Bu bilgisayarda") : tr(L"Aboneliklerinden")));
+        auto* back = top->addAction(ButtonKind::Ghost, tr(L"Podcastler"), "arrow-back");
         back->onClick = [] { ctx().router->navigate({RouteKind::Podcasts}); };
-        top->onPreferredHeight = [](float) { return 56.f; };
-        top->onLayout = [title, back](ui::Box& b) {
-            const float w = b.rect().w, h = b.rect().h, bw = back->naturalWidth();
-            back->setRect({w - bw, h * 0.5f - 18, bw, 36});
-            title->setRect({0, 0, std::max(0.f, w - bw - 24), h});
-        };
-        c->add<ui::Label>(toUpperTr(downloads ? tr(L"Bu bilgisayarda") : tr(L"Aboneliklerinden")), type::monoLabel, ui::Tone::Tertiary);
         if (downloads) {
             const auto list = podcast::store().downloaded();
             if (list.empty()) emptyState(c, "download", tr(L"İndirilen bölüm yok"), tr(L"Bir bölümün yanındaki ok ile çevrimdışı dinlemek için indir."));
@@ -1434,21 +1439,12 @@ private:
         spotifyshows::ensureFollowed();
         importState_ = spotifyshows::listState();
         const auto& shows = spotifyshows::followed();
-        auto* c = resetContent(20.f);
-        auto* top = c->add<ui::Box>();
-        auto* title = top->add<ui::Label>(tr(L"Spotify podcastlerin"), type::displayS);
-        title->setVAlign(gfx::VAlign::Center);
-        auto* back = top->add<Button>(ButtonKind::Ghost, tr(L"Podcastler"), "arrow-back");
-        back->onClick = [] { ctx().router->navigate({RouteKind::Podcasts}); };
-        top->onPreferredHeight = [](float) { return 56.f; };
-        top->onLayout = [title, back](ui::Box& b) {
-            const float w = b.rect().w, h = b.rect().h, bw = back->naturalWidth();
-            back->setRect({w - bw, h * 0.5f - 18, bw, 36});
-            title->setRect({0, 0, std::max(0.f, w - bw - 24), h});
-        };
+        auto* c = resetContent(24.f);
         std::wstring kicker = L"SPOTIFY";
         if (!shows.empty()) kicker += L" · " + toUpperTr(i18n::plural(L"{} podcast", static_cast<long long>(shows.size())));
-        c->add<ui::Label>(kicker, type::monoLabel, ui::Tone::Tertiary);
+        auto* top = c->add<PageTitle>(tr(L"Spotify podcastlerin"), std::wstring(), kicker);
+        auto* back = top->addAction(ButtonKind::Ghost, tr(L"Podcastler"), "arrow-back");
+        back->onClick = [] { ctx().router->navigate({RouteKind::Podcasts}); };
         auto* note = c->add<ui::Label>(tr(L"ShadeTube Spotify'ın sesini çalamaz: podcastler herkese açık RSS beslemelerinden çalar. Her podcast "
                                           L"Apple Podcasts dizininde adı ve yayıncısıyla aranır; eşleşenlerden seçtiklerine abone olursun."),
                                        type::secondary, ui::Tone::Secondary);

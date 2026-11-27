@@ -938,11 +938,17 @@ public:
         hitTestVisible = false;
         start_ = add<ui::Button>(ui::ButtonKind::Secondary, tr(L"Hikâyeyi başlat"), "play");
         start_->onClick = [year] { review::open(year); };
+        gfx::TextOptions two;   // a narrow page wraps the line instead of cutting it
+        two.wrap = true;
+        two.maxLines = 2;
+        body_.setOptions(two);
     }
-    float preferredHeight(float) override { return 92; }
+    float textW(float width) { return std::max(0.f, width - 64 - 24 - start_->naturalWidth() - 24); }
+    float bodyH(float width) { return std::max(18.f, std::ceil(body_.measure(textW(width)).h)); }
+    float preferredHeight(float width) override { return 74 + bodyH(width); }
     void layout() override {   // children in this widget's own space
         const float bw = start_->naturalWidth();
-        start_->setRect({rect().w - 24 - bw, (92 - 40) * 0.5f, bw, 40});
+        start_->setRect({rect().w - 24 - bw, std::round((rect().h - 40) * 0.5f), bw, 40});
     }
     void paint(Canvas& c) override {
         const Rect r = rect();
@@ -950,10 +956,10 @@ public:
         c.strokeRounded(r, gfx::metrics::radiusSurface, col.hairDefault);
         c.fillRect({r.x, r.y + 18, 2, r.h - 36}, accent().base);
         c.icon("sparkle", {r.x + 24, r.cy() - 11, 22, 22}, accent().base);
-        const float x = r.x + 64, w = std::max(0.f, r.w - 64 - 24 - start_->naturalWidth() - 24);
+        const float x = r.x + 64, w = textW(r.w);
         c.text(label_, {x, r.y + 18, w, 14}, accent().base, gfx::VAlign::Center);
         c.text(title_, {x, r.y + 34, w, 26}, col.fgPrimary, gfx::VAlign::Center);
-        c.text(body_, {x, r.y + 60, w, 18}, col.fgSecondary, gfx::VAlign::Center);
+        c.text(body_, {x, r.y + 61, w, bodyH(r.w)}, col.fgSecondary);
         paintChildren(c);
     }
 
